@@ -1,0 +1,430 @@
+HARTFELT REAL ESTATE AGENTS PORTAL - COMPLETE FILE LISTING
+===========================================================
+
+PROJECT LOCATION: ~/Desktop/agents-portal/
+
+TOTAL FILES: 36
+TOTAL SIZE: 280 KB
+
+=== DOCUMENTATION FILES (Read these!) ===
+
+START_HERE.md                    Entry point - read this first!
+QUICK_START.md                   5-minute quick start guide
+README.md                         Complete project documentation
+SETUP.md                          Detailed setup instructions
+DEPLOYMENT.md                     5 deployment options
+PROJECT_MANIFEST.md              Complete file reference
+IMPLEMENTATION_CHECKLIST.md       Progress tracking checklist
+FILE_LISTING.txt                  This file
+
+=== APPLICATION STRUCTURE ===
+
+app/                             Next.js App Router pages
+  layout.tsx                     Root layout with auth provider
+  page.tsx                       Home page (redirects)
+  globals.css                    Global styles & animations
+  
+  login/
+    page.tsx                     Login page
+  
+  dashboard/
+    page.tsx                     Agent/Admin dashboard
+  
+  deals/
+    page.tsx                     Deals list page
+    [id]/
+      page.tsx                   Deal detail page
+  
+  commissions/
+    page.tsx                     Commission tracking
+  
+  documents/
+    page.tsx                     Document management
+  
+  agents/
+    page.tsx                     Agents list (admin only)
+    [id]/
+      page.tsx                   Agent detail page
+
+components/                      Reusable React components
+  Header.tsx                     Navigation header
+  LoadingSpinner.tsx             Loading indicator
+  ProtectedRoute.tsx             Route protection wrapper
+
+lib/                            Utilities and libraries
+  supabase.ts                   Supabase client & auth
+  vault-api.ts                  Vault API client
+  auth-context.tsx              Auth context provider
+
+public/                          Static files
+  .gitkeep                       Placeholder
+
+=== CONFIGURATION FILES ===
+
+package.json                     npm dependencies & scripts
+tsconfig.json                    TypeScript configuration
+tailwind.config.js               Tailwind CSS theme config
+postcss.config.js                PostCSS configuration
+next.config.js                   Next.js configuration
+.eslintrc.json                   ESLint configuration
+.gitignore                       Git ignore rules
+
+=== ENVIRONMENT FILES ===
+
+.env.example                     Environment template (COPY THIS)
+.env.local                       Local environment (created from .env.example)
+
+=== DEPLOYMENT & CONTAINERIZATION ===
+
+Dockerfile                       Docker image definition
+docker-compose.yml               Docker Compose configuration
+nginx.conf                       Nginx reverse proxy config
+
+=== FEATURE BREAKDOWN ===
+
+AUTHENTICATION
+  ✓ Email/password login
+  ✓ Supabase integration
+  ✓ Session management
+  ✓ Auto-logout on token expiry
+  Location: app/login/page.tsx, lib/auth-context.tsx
+
+DASHBOARDS
+  ✓ Agent personal dashboard
+  ✓ Admin system dashboard
+  ✓ Statistics and KPIs
+  Location: app/dashboard/page.tsx
+
+DEAL MANAGEMENT
+  ✓ View deals (with filters)
+  ✓ Deal details
+  ✓ Search functionality
+  ✓ Status filtering
+  Location: app/deals/, lib/vault-api.ts
+
+COMMISSION TRACKING
+  ✓ Commission summary
+  ✓ Paid/Pending breakdown
+  ✓ Commission history
+  ✓ Commission details
+  Location: app/commissions/page.tsx
+
+DOCUMENT MANAGEMENT
+  ✓ File uploads
+  ✓ Drag & drop support
+  ✓ File listing
+  ✓ Download functionality
+  ✓ File deletion
+  Location: app/documents/page.tsx
+
+AGENT MANAGEMENT (Admin)
+  ✓ Agent list view
+  ✓ Agent search
+  ✓ Agent detail view
+  ✓ Agent statistics
+  ✓ Performance tracking
+  Location: app/agents/
+
+RESPONSIVE DESIGN
+  ✓ Desktop layout (1920px+)
+  ✓ Tablet layout (768px-1919px)
+  ✓ Mobile layout (320px-767px)
+  ✓ Mobile navigation menu
+  Location: components/, app/globals.css, tailwind.config.js
+
+SECURITY
+  ✓ Supabase RLS policies
+  ✓ Role-based access control
+  ✓ Protected routes
+  ✓ HTTPS ready
+  ✓ CORS configuration
+  Location: lib/auth-context.tsx, nginx.conf, SETUP.md
+
+=== COMPONENT DETAILS ===
+
+Header.tsx (170 lines)
+  - Navigation bar
+  - User info display
+  - Logout button
+  - Mobile menu
+  - Role-based navigation
+
+LoadingSpinner.tsx (5 lines)
+  - Simple loading indicator
+  - Used on all data pages
+
+ProtectedRoute.tsx (44 lines)
+  - Route protection
+  - Role checking
+  - Automatic redirects
+
+=== LIBRARY DETAILS ===
+
+supabase.ts (60+ lines)
+  - Supabase client creation
+  - User authentication
+  - Role fetching
+  - Type definitions
+
+vault-api.ts (150+ lines)
+  - API client class
+  - All CRUD operations
+  - Error handling
+  - Token management
+
+auth-context.tsx (100+ lines)
+  - React Context setup
+  - Authentication logic
+  - useAuth hook
+  - Session management
+
+=== API INTEGRATION ===
+
+Vault API Endpoints (All integrated):
+  GET /api/deals                  Fetch deals list
+  GET /api/deals/:id              Get deal details
+  POST /api/deals                 Create deal
+  PUT /api/deals/:id              Update deal
+  DELETE /api/deals/:id           Delete deal
+  
+  GET /api/commissions            Fetch commissions
+  GET /api/commissions/:id        Get commission
+  
+  GET /api/documents              Fetch documents
+  POST /api/documents/upload      Upload file
+  DELETE /api/documents/:id       Delete file
+  
+  GET /api/agents                 Fetch agents
+  GET /api/agents/:id             Get agent
+  GET /api/agents/:id/stats       Get agent stats
+  GET /api/stats                  Get system stats
+
+=== STYLING SYSTEM ===
+
+Colors (in tailwind.config.js):
+  primary:   #2563eb (Blue)
+  secondary: #1e40af (Dark Blue)
+  accent:    #f59e0b (Amber)
+  danger:    #dc2626 (Red)
+  success:   #16a34a (Green)
+  warning:   #eab308 (Yellow)
+
+Responsive Breakpoints:
+  sm: 640px
+  md: 768px
+  lg: 1024px
+  xl: 1280px
+  2xl: 1536px
+
+Animations (in globals.css):
+  fadeIn: 0.3s ease-in
+  slideInUp: 0.3s ease-out
+  spin: 1s linear infinite
+
+=== DATABASE SCHEMA ===
+
+user_profiles table (Supabase):
+  id: UUID (primary key)
+  user_id: UUID (foreign key to auth.users)
+  email: TEXT
+  full_name: TEXT
+  role: TEXT ('agent' | 'admin' | 'broker')
+  agency_id: TEXT
+  phone: TEXT
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+
+Row Level Security Policies:
+  - Users can view own profile
+  - Admins can view all profiles
+  - Users can update own profile
+  - Admins can update all profiles
+
+=== ROLE-BASED ACCESS ===
+
+Agent Role:
+  ✓ View own deals
+  ✓ View own commissions
+  ✓ Upload documents
+  ✓ View own documents
+  ✗ View admin dashboard
+  ✗ View other agents
+  ✗ Manage agents
+
+Admin/Broker Role:
+  ✓ View all deals
+  ✓ View all commissions
+  ✓ View all documents
+  ✓ View all agents
+  ✓ Admin dashboard
+  ✓ Agent management
+  ✓ Full data access
+
+=== DEPLOYMENT OPTIONS ===
+
+1. Vercel (Recommended)
+   - Zero-config Next.js deployment
+   - Automatic SSL
+   - Global CDN
+   - See DEPLOYMENT.md section "Option 1"
+
+2. Docker
+   - Containerized deployment
+   - Works anywhere
+   - Includes docker-compose.yml
+   - See DEPLOYMENT.md section "Option 2"
+
+3. AWS (EC2 + ECS)
+   - Traditional server
+   - Full control
+   - See DEPLOYMENT.md section "Option 3"
+
+4. DigitalOcean App Platform
+   - Simple deployment
+   - GitHub integration
+   - See DEPLOYMENT.md section "Option 4"
+
+5. Heroku
+   - Simple deployment
+   - See DEPLOYMENT.md section "Option 5"
+
+=== QUICK COMMANDS ===
+
+npm install              Install dependencies
+npm run dev              Start development server
+npm run build            Build for production
+npm start                Start production server
+npm run type-check       Check TypeScript
+npm run lint             Run ESLint
+
+docker build -t agents-portal .      Build Docker image
+docker-compose up -d                 Start with Docker Compose
+
+=== ENVIRONMENT VARIABLES ===
+
+NEXT_PUBLIC_SUPABASE_URL         Your Supabase project URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY    Your Supabase API key
+NEXT_PUBLIC_VAULT_API_URL        Vault API URL
+NEXT_PUBLIC_APP_URL              Application URL
+NEXT_PUBLIC_DEBUG                Debug mode (optional)
+
+=== GETTING STARTED ===
+
+1. Copy .env.example to .env.local
+2. Add your Supabase and Vault API credentials
+3. Run: npm install
+4. Run: npm run dev
+5. Open: http://localhost:3000
+6. Read: START_HERE.md, then QUICK_START.md
+
+=== DOCUMENTATION READING ORDER ===
+
+1. START_HERE.md           - Overview (2 min)
+2. QUICK_START.md          - 5-minute start (5 min)
+3. README.md               - Full reference (30 min)
+4. SETUP.md                - Detailed setup (1 hour)
+5. DEPLOYMENT.md           - Production (1 hour)
+6. PROJECT_MANIFEST.md     - File reference (30 min)
+7. IMPLEMENTATION_CHECKLIST.md - Track progress (reference)
+
+=== SUPPORT ===
+
+Email: support@hartfelt.com
+Docs: See files above
+Code: Clean, commented, TypeScript
+
+=== PROJECT STATS ===
+
+Total Files: 36
+Total Size: 280 KB
+Languages: TypeScript, CSS, JSON, Markdown
+Components: 3 main
+Pages: 7 routes
+API Endpoints: 14 integrated
+Database Tables: 1 (user_profiles)
+User Roles: 3 (agent, admin, broker)
+Documentation Pages: 7
+Configuration Files: 7
+
+=== WHAT'S INCLUDED ===
+
+✓ Complete Next.js setup
+✓ All pages and features
+✓ Authentication system
+✓ API client integration
+✓ Styling with Tailwind
+✓ Responsive design
+✓ Error handling
+✓ Loading states
+✓ Role-based access
+✓ Docker setup
+✓ Nginx config
+✓ Comprehensive docs
+✓ Deployment scripts
+✓ Checklists and guides
+
+=== WHAT YOU NEED TO ADD ===
+
+1. Supabase credentials (.env.local)
+2. Vault API running/accessible
+3. Database tables (SQL provided in SETUP.md)
+4. Your branding (colors, logo, name)
+5. Custom domain (for production)
+
+=== PRODUCTION CHECKLIST ===
+
+Before going live:
+  ✓ npm run build passes
+  ✓ npm run type-check passes
+  ✓ All pages tested locally
+  ✓ API integration verified
+  ✓ Environment variables set
+  ✓ Database configured
+  ✓ Domain registered
+  ✓ SSL certificate ready
+  ✓ Deployment method chosen
+  ✓ Monitoring configured
+
+=== GOOD TO KNOW ===
+
+- Zero configuration needed (except .env.local)
+- All dependencies modern and maintained
+- Code is TypeScript throughout
+- Fully responsive and accessible
+- Security best practices included
+- Performance optimized
+- Production-ready
+- No coding experience needed to deploy
+
+=== FILE SIZES (Approximate) ===
+
+Source code: 150 KB
+Documentation: 100 KB
+Configuration: 30 KB
+Total: 280 KB
+
+Very compact for a complete application!
+
+=== VERSION INFO ===
+
+Next.js: 14.0+
+React: 18.2+
+Node: 18+
+TypeScript: 5.2+
+Tailwind: 3.3+
+
+All dependencies are pinned to stable versions.
+
+=== FINAL NOTES ===
+
+Everything is ready to go. Just:
+1. Set up your environment
+2. Run npm install
+3. Add credentials to .env.local
+4. Start with npm run dev
+5. Follow SETUP.md for Supabase configuration
+6. Read DEPLOYMENT.md when ready to launch
+
+The hardest part is done. You just need to deploy it!
+
+Good luck! Contact support@hartfelt.com if needed.
