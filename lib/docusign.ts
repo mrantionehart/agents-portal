@@ -1,18 +1,13 @@
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
-import fs from 'fs';
-import path from 'path';
 import { DocuSignEnvelope } from './types';
 
 const DOCUSIGN_API_URL = process.env.DOCUSIGN_API_URL;
 const DOCUSIGN_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID;
 const DOCUSIGN_CLIENT_ID = process.env.DOCUSIGN_CLIENT_ID;
 
-// Load RSA private key from file
-const DOCUSIGN_RSA_PRIVATE_KEY = fs.readFileSync(
-  path.join(process.cwd(), 'private', 'docusign-private-key.pem'),
-  'utf-8'
-);
+// Load RSA private key from environment variable
+const DOCUSIGN_RSA_PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY;
 
 let cachedAccessToken: string | null = null;
 let tokenExpiryTime: number | null = null;
