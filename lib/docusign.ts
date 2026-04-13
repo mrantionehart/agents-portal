@@ -6,8 +6,8 @@ const DOCUSIGN_API_URL = process.env.DOCUSIGN_API_URL;
 const DOCUSIGN_ACCOUNT_ID = process.env.DOCUSIGN_ACCOUNT_ID;
 const DOCUSIGN_CLIENT_ID = process.env.DOCUSIGN_CLIENT_ID;
 
-// Load RSA private key from environment variable
-const DOCUSIGN_RSA_PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY;
+// Load RSA private key from environment variable (optional if DocuSign not configured)
+const DOCUSIGN_RSA_PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY || '';
 
 let cachedAccessToken: string | null = null;
 let tokenExpiryTime: number | null = null;
@@ -16,6 +16,11 @@ let tokenExpiryTime: number | null = null;
  * Get DocuSign access token using JWT flow
  */
 async function getAccessToken(): Promise<string> {
+  // Check if DocuSign is configured
+  if (!DOCUSIGN_API_URL || !DOCUSIGN_ACCOUNT_ID || !DOCUSIGN_CLIENT_ID || !DOCUSIGN_RSA_PRIVATE_KEY) {
+    throw new Error('DocuSign is not properly configured. Missing required environment variables.');
+  }
+
   // Return cached token if still valid (with 5-minute buffer)
   if (cachedAccessToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 300000) {
     return cachedAccessToken;
