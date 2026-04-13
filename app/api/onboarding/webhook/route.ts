@@ -145,7 +145,6 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
       data: {
         agentEmail,
         action: 'review_agent',
-        agentEmail: agentEmail,
       },
       read: false,
       created_at: new Date().toISOString(),
