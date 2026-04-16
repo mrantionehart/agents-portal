@@ -5,7 +5,6 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { Send, Trash2, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
-import { vaultAPI } from '@/lib/vault-client'
 import ComplianceNotifications from '../components/compliance-notifications'
 
 interface Message {
@@ -49,23 +48,32 @@ export default function AIChatPage() {
     setError(null)
 
     try {
-      const response = await vaultAPI.ai.chat(inputValue, user.id, role)
+      const resp = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: inputValue }),
+      })
+
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`)
+      }
+
+      const data = await resp.json()
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: response.message || response.response || 'Unable to process your request.',
+        content: data.message || data.response || 'Unable to process your request.',
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, aiMessage])
     } catch (err) {
       console.error('Chat error:', err)
-      // Show a helpful message instead of error
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: '🤖 AI Assistant is currently offline. The system needs the Vault API to be running. Please try again later.',
+        content: 'Something went wrong. Please try again in a moment.',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMessage])
