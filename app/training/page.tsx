@@ -72,18 +72,13 @@ export default function TrainingPage() {
     try {
       setDataLoading(true)
 
-      const [{ data: mods }, { data: vids }, { data: prog }] = await Promise.all([
-        supabase.from('training_modules').select('*').order('sort_order'),
-        supabase.from('training_videos').select('*').order('sort_order'),
-        supabase
-          .from('training_video_progress')
-          .select('video_id, watched_seconds, completed')
-          .eq('user_id', user?.id),
-      ])
+      const resp = await fetch('/api/training/catalog')
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const { modules: mods, videos: vids, progress: prog } = await resp.json()
 
       if (mods) setModules(mods as TrainingModule[])
       if (vids) {
-        setVideos(vids as TrainingVideo[])
+        setVideos(vids as TrainingModule[])
         // Auto-expand first module & select first playable video
         const firstMod = (mods || [])[0]
         if (firstMod) {
