@@ -3,9 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
+import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe, ClipboardCheck } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getQuizForModule } from '@/app/data/quizzes'
+import type { Quiz } from '@/app/data/quizzes'
+import QuizModal from '@/app/components/QuizModal'
 
 type Lang = 'en' | 'es'
 
@@ -41,6 +44,21 @@ interface VideoProgress {
   completed: boolean
 }
 
+interface TrainingProgress {
+  volume: string
+  completed_modules: number[] | null
+  test_scores: Record<string, number> | null
+  volume_completed: boolean
+}
+
+interface QuizResult {
+  volume: number
+  module_num: number
+  score: number
+  passed: boolean
+  attempt_num: number
+}
+
 function formatDuration(sec: number | null): string {
   if (!sec) return '—'
   const m = Math.floor(sec / 60)
@@ -62,9 +80,27 @@ export default function TrainingPage() {
   const [selectedVolume, setSelectedVolume] = useState<1 | 2 | 3>(1)
   const [r2SignedUrl, setR2SignedUrl] = useState<string | null>(null)
 
+  // Quiz & progression state
+  const [trainingProgress, setTrainingProgress] = useState<TrainingProgress[]>([])
+  const [quizResults, setQuizResults] = useState<QuizResult[]>([])
+  const [activeQuiz, setActiveQuiz] = useState<{ quiz: Quiz; volume: number; moduleNum: number } | null>(null)
+
+  const loadProgressData = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/training/progress')
+      if (!resp.ok) return
+      const data = await resp.json()
+      if (data.trainingProgress) setTrainingProgress(data.trainingProgress)
+      if (data.quizResults) setQuizResults(data.quizResults)
+    } catch (err) {
+      console.error('Failed to load progress:', err)
+    }
+  }, [])
+
   useEffect(() => {
     if (user) {
       loadTrainingData()
+      loadProgressData()
     }
   }, [user])
 
@@ -149,6 +185,55 @@ export default function TrainingPage() {
     router.push('/login')
   }
 
+  // ── Quiz & Progression helpers ──
+
+  // Get completed modules for a given volume number
+  const getCompletedModules = useCallback(
+    (vol: number): number[] => {
+      const volStr = `volume-${vol}`
+      const prog = trainingProgress.find(p => p.volume === volStr)
+      return prog?.completed_modules || []
+    },
+    [trainingProgress]
+  )
+
+  // Check if a module is unlocked. Module rule: first module of each volume
+  // is always unlocked; subsequent modules require the previous module's quiz
+  // to be passed (i.e. the previous module_num is in completed_modules).
+  const isModuleUnlocked = useCallback(
+    (vol: number, moduleNum: number, allModuleNums: number[]): boolean => {
+      const sorted = [...allModuleNums].sort((a, b) => a - b)
+      if (sorted.length === 0) return false
+      // First module is always unlocked
+      if (moduleNum === sorted[0]) return true
+      const idx = sorted.indexOf(moduleNum)
+      if (idx <= 0) return true
+      const prevModule = sorted[idx - 1]
+      return getCompletedModules(vol).includes(prevModule)
+    },
+    [getCompletedModules]
+  )
+
+  const isModuleCompleted = useCallback(
+    (vol: number, moduleNum: number): boolean => {
+      return getCompletedModules(vol).includes(moduleNum)
+    },
+    [getCompletedModules]
+  )
+
+  const openQuiz = (vol: number, moduleNum: number) => {
+    const quiz = getQuizForModule(vol, moduleNum)
+    if (quiz) {
+      setActiveQuiz({ quiz, volume: vol, moduleNum })
+    }
+  }
+
+  const handleQuizComplete = (result: { score: number; passed: boolean }) => {
+    setActiveQuiz(null)
+    // Refresh progress to pick up the new completed module
+    loadProgressData()
+  }
+
   // Filtered modules/videos by selected volume
   const volumeModules = useMemo(
     () => modules.filter(m => m.volume === selectedVolume),
@@ -162,6 +247,12 @@ export default function TrainingPage() {
     }
     return map
   }, [videos])
+
+  // All module numbers for the current volume (used for lock logic)
+  const volumeModuleNums = useMemo(
+    () => volumeModules.map(m => m.module_num).sort((a, b) => a - b),
+    [volumeModules]
+  )
 
   const selectedVideo = useMemo(
     () => videos.find(v => v.id === selectedVideoId) || null,
@@ -410,22 +501,40 @@ export default function TrainingPage() {
                     </div>
                   </div>
 
-                  {hasPlayableVideo && (
-                    <button
-                      onClick={() => markVideoCompleted(selectedVideo.id)}
-                      disabled={progress[selectedVideo.id]?.completed}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
-                        progress[selectedVideo.id]?.completed
-                          ? 'bg-green-100 text-green-700 cursor-default'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      {progress[selectedVideo.id]?.completed
-                        ? 'Completed'
-                        : 'Mark as complete'}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {hasPlayableVideo && (
+                      <button
+                        onClick={() => markVideoCompleted(selectedVideo.id)}
+                        disabled={progress[selectedVideo.id]?.completed}
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
+                          progress[selectedVideo.id]?.completed
+                            ? 'bg-green-100 text-green-700 cursor-default'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        {progress[selectedVideo.id]?.completed
+                          ? 'Completed'
+                          : 'Mark as complete'}
+                      </button>
+                    )}
+                    {/* Show Take Quiz button if a quiz exists for this module */}
+                    {getQuizForModule(selectedVolume, selectedVideo.module_num) && (
+                      <button
+                        onClick={() => openQuiz(selectedVolume, selectedVideo.module_num)}
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
+                          isModuleCompleted(selectedVolume, selectedVideo.module_num)
+                            ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        }`}
+                      >
+                        <ClipboardCheck className="w-4 h-4" />
+                        {isModuleCompleted(selectedVolume, selectedVideo.module_num)
+                          ? 'Quiz Passed — Retake'
+                          : 'Take Module Quiz'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -443,17 +552,29 @@ export default function TrainingPage() {
                   const modVideos = videosByModule[mod.id] || []
                   const expanded = expandedModules[mod.id]
                   const moduleTitle = lang === 'en' ? mod.title_en : mod.title_es
-                  const modCompleted = modVideos.filter(v => progress[v.id]?.completed).length
+                  const modVideosDone = modVideos.filter(v => progress[v.id]?.completed).length
+
+                  const unlocked = isModuleUnlocked(selectedVolume, mod.module_num, volumeModuleNums)
+                  const completed = isModuleCompleted(selectedVolume, mod.module_num)
+                  const hasQuiz = !!getQuizForModule(selectedVolume, mod.module_num)
+
                   return (
                     <div key={mod.id}>
                       <button
-                        onClick={() =>
+                        onClick={() => {
+                          if (!unlocked) return
                           setExpandedModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))
-                        }
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${
+                          unlocked ? 'hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'
+                        }`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {expanded ? (
+                          {!unlocked ? (
+                            <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          ) : completed ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          ) : expanded ? (
                             <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
                           ) : (
                             <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -461,66 +582,95 @@ export default function TrainingPage() {
                           <div className="min-w-0">
                             <div className="text-xs text-gray-500">
                               Module {mod.module_num}
+                              {completed && (
+                                <span className="ml-1.5 text-green-600 font-medium">Passed</span>
+                              )}
                             </div>
-                            <div className="font-semibold text-gray-900 text-sm truncate">
+                            <div className={`font-semibold text-sm truncate ${unlocked ? 'text-gray-900' : 'text-gray-400'}`}>
                               {moduleTitle}
                             </div>
+                            {!unlocked && (
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                Complete previous module quiz to unlock
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                          {modCompleted}/{modVideos.length}
+                          {modVideosDone}/{modVideos.length}
                         </div>
                       </button>
-                      {expanded && (
-                        <ul className="bg-gray-50/50 border-t">
-                          {modVideos.map(v => {
-                            const isSelected = v.id === selectedVideoId
-                            const isCompleted = progress[v.id]?.completed
-                            const hasVideo = !!(v.youtube_id_en || v.youtube_id_es || v.r2_key_en || v.r2_key_es)
-                            const videoTitle =
-                              (lang === 'en' ? v.title_en : v.title_es) ||
-                              v.title_en ||
-                              v.title_es ||
-                              `Video ${v.video_num}`
-                            return (
-                              <li key={v.id}>
-                                <button
-                                  onClick={() => setSelectedVideoId(v.id)}
-                                  className={`w-full flex items-center gap-3 px-6 py-2.5 text-left text-sm hover:bg-gray-100 transition ${
-                                    isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                                  }`}
-                                >
-                                  {isCompleted ? (
-                                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                  ) : hasVideo ? (
-                                    <Play className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                  ) : (
-                                    <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-gray-500">
-                                      {v.video_num}
-                                    </div>
-                                    <div
-                                      className={`truncate ${
-                                        isSelected
-                                          ? 'font-semibold text-gray-900'
-                                          : 'text-gray-700'
-                                      }`}
-                                    >
-                                      {videoTitle}
-                                    </div>
-                                  </div>
-                                  <span className="text-xs text-gray-500 whitespace-nowrap">
-                                    {formatDuration(
-                                      lang === 'en' ? v.duration_en_sec : v.duration_es_sec
+                      {expanded && unlocked && (
+                        <>
+                          <ul className="bg-gray-50/50 border-t">
+                            {modVideos.map(v => {
+                              const isSelected = v.id === selectedVideoId
+                              const isVidCompleted = progress[v.id]?.completed
+                              const hasVideo = !!(v.youtube_id_en || v.youtube_id_es || v.r2_key_en || v.r2_key_es)
+                              const videoTitle =
+                                (lang === 'en' ? v.title_en : v.title_es) ||
+                                v.title_en ||
+                                v.title_es ||
+                                `Video ${v.video_num}`
+                              return (
+                                <li key={v.id}>
+                                  <button
+                                    onClick={() => setSelectedVideoId(v.id)}
+                                    className={`w-full flex items-center gap-3 px-6 py-2.5 text-left text-sm hover:bg-gray-100 transition ${
+                                      isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                                    }`}
+                                  >
+                                    {isVidCompleted ? (
+                                      <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                    ) : hasVideo ? (
+                                      <Play className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                    ) : (
+                                      <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     )}
-                                  </span>
-                                </button>
-                              </li>
-                            )
-                          })}
-                        </ul>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs text-gray-500">
+                                        {v.video_num}
+                                      </div>
+                                      <div
+                                        className={`truncate ${
+                                          isSelected
+                                            ? 'font-semibold text-gray-900'
+                                            : 'text-gray-700'
+                                        }`}
+                                      >
+                                        {videoTitle}
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                                      {formatDuration(
+                                        lang === 'en' ? v.duration_en_sec : v.duration_es_sec
+                                      )}
+                                    </span>
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                          {/* Quiz button for this module */}
+                          {hasQuiz && (
+                            <div className="border-t bg-gray-50 px-4 py-2.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openQuiz(selectedVolume, mod.module_num)
+                                }}
+                                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                                  completed
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                <ClipboardCheck className="w-4 h-4" />
+                                {completed ? 'Retake Quiz' : 'Take Quiz'}
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )
@@ -530,6 +680,17 @@ export default function TrainingPage() {
           </div>
         )}
       </main>
+
+      {/* Quiz Modal */}
+      {activeQuiz && (
+        <QuizModal
+          quiz={activeQuiz.quiz}
+          volume={activeQuiz.volume}
+          moduleNum={activeQuiz.moduleNum}
+          onComplete={handleQuizComplete}
+          onClose={() => setActiveQuiz(null)}
+        />
+      )}
     </div>
   )
 }
