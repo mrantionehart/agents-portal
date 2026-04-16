@@ -5,7 +5,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 
 type Lang = 'en' | 'es'
 
@@ -68,21 +68,9 @@ export default function TrainingPage() {
     }
   }, [user])
 
-  const getSupabase = () => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!supabaseUrl || !supabaseKey) return null
-    return createClient(supabaseUrl, supabaseKey)
-  }
-
   const loadTrainingData = async () => {
     try {
       setDataLoading(true)
-      const supabase = getSupabase()
-      if (!supabase) {
-        setDataLoading(false)
-        return
-      }
 
       const [{ data: mods }, { data: vids }, { data: prog }] = await Promise.all([
         supabase.from('training_modules').select('*').order('sort_order'),
@@ -122,8 +110,7 @@ export default function TrainingPage() {
   }
 
   const markVideoStarted = async (videoId: string) => {
-    const supabase = getSupabase()
-    if (!supabase || !user) return
+    if (!user) return
     try {
       await supabase.from('training_video_progress').upsert(
         {
@@ -141,8 +128,7 @@ export default function TrainingPage() {
   }
 
   const markVideoCompleted = async (videoId: string) => {
-    const supabase = getSupabase()
-    if (!supabase || !user) return
+    if (!user) return
     try {
       await supabase.from('training_video_progress').upsert(
         {
