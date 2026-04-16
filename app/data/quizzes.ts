@@ -22,7 +22,11 @@ export interface Quiz {
 
 export const MODULE_QUIZZES: Record<string, Quiz> = {
   // ═══════════════════════════════════════════
-  // VOLUME 1 — Foundations (Modules 1-7)
+  // VOLUME 1 — Foundations (Modules 1-8)
+  // 1=Foundations, 2=Lead Mastery, 3=Listing Systems,
+  // 4=Buyer Experience, 5=Showing Playbook (NEW),
+  // 6=Transaction to Close, 7=Marketing & Branding,
+  // 8=Growth & Retention
   // ═══════════════════════════════════════════
 
   vol1_m1: {
@@ -205,12 +209,65 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
+  // NEW Module 5 — Showing Playbook (inserted after Buyer Experience)
   vol1_m5: {
-    title: 'Transaction Management Quiz',
+    title: 'HartFelt Showing Playbook Quiz',
     passingScore: 80,
     questions: [
       {
         id: 'v1m5q1',
+        question: 'What does HART stand for in the HART Method?',
+        options: [
+          { id: 'a', text: 'Help, Assist, Refer, Track' },
+          { id: 'b', text: 'Hear, Activate, Read & Respond, Transition' },
+          { id: 'c', text: 'Host, Arrange, Review, Transfer' },
+          { id: 'd', text: 'Handle, Approach, Redirect, Trust' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m5q2',
+        question: 'What is the first question you should ask when a client enters a property?',
+        options: [
+          { id: 'a', text: '"Do you like the kitchen?"' },
+          { id: 'b', text: '"Ready to make an offer?"' },
+          { id: 'c', text: '"What is your first impression?"' },
+          { id: 'd', text: '"How many bedrooms do you need?"' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m5q3',
+        question: 'What must you know after EVERY showing according to the Deal Control Rule?',
+        options: [
+          { id: 'a', text: 'The listing price, HOA fees, and square footage' },
+          { id: 'b', text: 'Their rating, their objection, and their next step' },
+          { id: 'c', text: 'Their credit score, timeline, and budget' },
+          { id: 'd', text: 'The seller motivation, listing history, and comps' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m5q4',
+        question: 'What is the HartFelt Safety Protocol rule if something feels off during a showing?',
+        options: [
+          { id: 'a', text: 'Stay and finish the showing professionally' },
+          { id: 'b', text: 'Call your broker immediately' },
+          { id: 'c', text: 'You leave — no hesitation' },
+          { id: 'd', text: 'Ask the client to leave first' },
+        ],
+        correct: 'c',
+      },
+    ],
+  },
+
+  // Module 6 — Transaction to Close (was Module 5)
+  vol1_m6: {
+    title: 'Transaction Management Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v1m6q1',
         question: 'When should contract dates be entered into the system?',
         options: [
           { id: 'a', text: 'After inspection' },
@@ -221,7 +278,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'c',
       },
       {
-        id: 'v1m5q2',
+        id: 'v1m6q2',
         question: 'What happens when one milestone slips?',
         options: [
           { id: 'a', text: 'Nothing' },
@@ -232,7 +289,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'b',
       },
       {
-        id: 'v1m5q3',
+        id: 'v1m6q3',
         question: 'Inspection focus should be on:',
         options: [
           { id: 'a', text: 'Cosmetic items' },
@@ -245,12 +302,13 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
-  vol1_m6: {
+  // Module 7 — Marketing & Branding (was Module 6)
+  vol1_m7: {
     title: 'Marketing & Branding Quiz',
     passingScore: 80,
     questions: [
       {
-        id: 'v1m6q1',
+        id: 'v1m7q1',
         question: 'What are the three pillars of HartFelt branding?',
         options: [
           { id: 'a', text: 'Leads, Listings, Luxury' },
@@ -261,7 +319,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'b',
       },
       {
-        id: 'v1m6q2',
+        id: 'v1m7q2',
         question: 'What is the HartFelt brand voice?',
         options: [
           { id: 'a', text: 'Casual and trendy' },
@@ -272,7 +330,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'c',
       },
       {
-        id: 'v1m6q3',
+        id: 'v1m7q3',
         question: 'What is the purpose of lifestyle content?',
         options: [
           { id: 'a', text: 'Show off' },
@@ -285,12 +343,13 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
-  vol1_m7: {
+  // Module 8 — Growth & Retention (was Module 7)
+  vol1_m8: {
     title: 'Growth & Retention Quiz',
     passingScore: 80,
     questions: [
       {
-        id: 'v1m7q1',
+        id: 'v1m8q1',
         question: "What is HartFelt's philosophy on growth?",
         options: [
           { id: 'a', text: 'Luck' },
@@ -301,7 +360,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'c',
       },
       {
-        id: 'v1m7q2',
+        id: 'v1m8q2',
         question: 'What should agents track weekly?',
         options: [
           { id: 'a', text: 'Social likes' },
@@ -312,7 +371,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
         correct: 'b',
       },
       {
-        id: 'v1m7q3',
+        id: 'v1m8q3',
         question: 'What is the HartFelt growth formula?',
         options: [
           { id: 'a', text: 'Leads -> Ads -> Closings' },
@@ -394,7 +453,11 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
   },
 
   // ═══════════════════════════════════════════
-  // VOLUME 2 — Elite (Modules 8-13)
+  // VOLUME 2 — Elite (Modules 8-14)
+  // 8=Investor Strategy, 9=Deal Structuring,
+  // 10=Development & Zoning, 11=Luxury Psychology,
+  // 12=Capital Conversations, 13=Risk & Reputation,
+  // 14=Client Acquisition (NEW)
   // ═══════════════════════════════════════════
 
   vol2_m8: {
@@ -691,11 +754,63 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
       },
     ],
   },
+
+  // Module 14 — Client Acquisition: Access Over Leads (NEW)
+  vol2_m14: {
+    title: 'Client Acquisition Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v2m14q1',
+        question: 'What is the HartFelt Law from the Client Acquisition module?',
+        options: [
+          { id: 'a', text: 'More leads equals more closings' },
+          { id: 'b', text: 'Proximity creates power, power creates opportunity, opportunity creates income' },
+          { id: 'c', text: 'Social media is the key to growth' },
+          { id: 'd', text: 'Cold calling builds the strongest pipeline' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v2m14q2',
+        question: 'Which is NOT one of the 5 Access Levers?',
+        options: [
+          { id: 'a', text: 'Inventory Access' },
+          { id: 'b', text: 'Proximity to Power' },
+          { id: 'c', text: 'Social Media Followers' },
+          { id: 'd', text: 'Consistency in the Room' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v2m14q3',
+        question: 'What does ACCESS stand for in the HartFelt system?',
+        options: [
+          { id: 'a', text: 'Attract, Close, Convert, Earn, Sell, Scale' },
+          { id: 'b', text: 'Attach, Contribute, Commit, Educate, Stay Visible, Scale' },
+          { id: 'c', text: 'Advertise, Call, Connect, Engage, Sell, Succeed' },
+          { id: 'd', text: 'Approach, Create, Communicate, Execute, Support, Sustain' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v2m14q4',
+        question: 'What is the goal for moving through Access Levels?',
+        options: [
+          { id: 'a', text: 'Jump to Authority in one week' },
+          { id: 'b', text: 'Move up one level every 30-60 days' },
+          { id: 'c', text: 'Stay at Observer until you close 10 deals' },
+          { id: 'd', text: 'Skip levels based on experience' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
 }
 
 /**
  * Look up a quiz by volume and module number.
- * Volume 1: modules 1-7, Volume 2: modules 8-13, Volume 3 (AI): modules 1-8
+ * Volume 1: modules 1-8, Volume 2: modules 8-14, Volume 3 (AI): modules 1-8
  */
 export function getQuizForModule(volume: number, moduleNum: number): Quiz | null {
   return MODULE_QUIZZES[`vol${volume}_m${moduleNum}`] || null

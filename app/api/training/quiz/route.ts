@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic'
 
 // Module counts per volume — used to detect volume completion
 const VOLUME_MODULE_COUNTS: Record<number, number[]> = {
-  1: [1, 2, 3, 4, 5, 6, 7],
-  2: [8, 9, 10, 11, 12, 13],
+  1: [1, 2, 3, 4, 5, 6, 7, 8],
+  2: [8, 9, 10, 11, 12, 13, 14],
   3: [1], // AI training — single module
 }
 
