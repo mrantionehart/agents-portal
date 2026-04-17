@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { Plus, Search, Trash2, Edit, Phone, Mail, AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, Phone, Mail, AlertCircle, CheckCircle, Clock, Briefcase } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { vaultAPI } from '@/lib/vault-client'
 import ComplianceNotifications from '../components/compliance-notifications'
@@ -34,6 +34,13 @@ export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showConvertModal, setShowConvertModal] = useState(false)
+  const [selectedLeadForConvert, setSelectedLeadForConvert] = useState<Lead | null>(null)
+  const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null)
+  const [dealData, setDealData] = useState({
+    contract_price: '',
+    notes: '',
+  })
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -135,6 +142,48 @@ export default function LeadsPage() {
     } catch (err) {
       setError(`Failed to delete lead: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
+  }
+
+  const handleConvertToDeal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !selectedLeadForConvert) return
+
+    try {
+      setConvertingLeadId(selectedLeadForConvert.id)
+      const newDeal = await vaultAPI.deals.create(
+        {
+          client_name: `${selectedLeadForConvert.first_name} ${selectedLeadForConvert.last_name}`,
+          property_address: selectedLeadForConvert.property_address,
+          contract_price: parseFloat(dealData.contract_price) || 0,
+          stage: 'new',
+          status: 'new',
+          notes: dealData.notes || selectedLeadForConvert.notes,
+          agent_id: user.id,
+          created_at: new Date().toISOString(),
+        },
+        user.id,
+        role
+      )
+
+      // Clear the form
+      setDealData({ contract_price: '', notes: '' })
+      setShowConvertModal(false)
+      setSelectedLeadForConvert(null)
+
+      // Refresh leads and optionally redirect to pipeline
+      await loadLeads()
+      alert(`✅ Lead converted to deal! Redirecting to pipeline...`)
+      router.push('/pipeline')
+    } catch (err) {
+      setError(`Failed to convert lead: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setConvertingLeadId(null)
+    }
+  }
+
+  const openConvertModal = (lead: Lead) => {
+    setSelectedLeadForConvert(lead)
+    setShowConvertModal(true)
   }
 
   const handleSignOut = async () => {
@@ -391,6 +440,68 @@ export default function LeadsPage() {
           </div>
         )}
 
+        {/* Convert to Deal Modal */}
+        {showConvertModal && selectedLeadForConvert && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Convert to Deal</h2>
+              <p className="text-gray-600 mb-6">
+                Converting <strong>{selectedLeadForConvert.first_name} {selectedLeadForConvert.last_name}</strong> to a deal
+              </p>
+
+              <form onSubmit={handleConvertToDeal} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contract Price *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      required
+                      placeholder="0.00"
+                      value={dealData.contract_price}
+                      onChange={(e) => setDealData({ ...dealData, contract_price: e.target.value })}
+                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                  <textarea
+                    value={dealData.notes}
+                    onChange={(e) => setDealData({ ...dealData, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Any notes for this deal..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConvertModal(false)
+                      setSelectedLeadForConvert(null)
+                      setDealData({ contract_price: '', notes: '' })
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={convertingLeadId === selectedLeadForConvert.id}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:bg-green-400"
+                  >
+                    {convertingLeadId === selectedLeadForConvert.id ? 'Converting...' : 'Convert to Deal'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Leads List */}
         {leadsLoading ? (
           <div className="text-center py-12 text-gray-600">Loading leads...</div>
@@ -455,6 +566,14 @@ export default function LeadsPage() {
                   </div>
 
                   <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => openConvertModal(lead)}
+                      className="px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition text-sm font-medium flex items-center gap-2"
+                      title="Convert to deal"
+                    >
+                      <Briefcase className="w-4 h-4" />
+                      Convert
+                    </button>
                     <button
                       onClick={() => router.push(`/leads/${lead.id}`)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"

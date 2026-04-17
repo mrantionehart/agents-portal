@@ -31,8 +31,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin/commissions" className="block px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition">
             Commission Approvals
           </Link>
+          <Link href="/admin/reports" className="block px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition">
+            Performance Reports
+          </Link>
           <Link href="/admin/compliance" className="block px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition">
-            Compliance Review
+            Compliance Management
           </Link>
           <Link href="/admin/settings" className="block px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition">
             Settings

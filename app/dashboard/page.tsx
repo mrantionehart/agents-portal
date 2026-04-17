@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList } from 'lucide-react'
+import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus } from 'lucide-react'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
 import PolicyAcceptanceModal from '../policy-acceptance/modal'
 import ComplianceNotifications from '../components/compliance-notifications'
 import SupportModal from '@/components/SupportModal'
+import SidebarNav from '../components/SidebarNav'
+import BrokerViewToggle from '../components/BrokerViewToggle'
+import NotificationsPanel from '../components/NotificationsPanel'
 
 export default function DashboardPage() {
   const { user, role, loading, signOut } = useAuth()
@@ -21,6 +24,7 @@ export default function DashboardPage() {
   const [policyAccepted, setPolicyAccepted] = useState(true)
   const [checkingPolicy, setCheckingPolicy] = useState(true)
   const [supportModalOpen, setSupportModalOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'agent' | 'broker'>('agent')
 
   // Auth check handled by middleware - remove to prevent flashing
   // useEffect(() => {
@@ -143,38 +147,144 @@ export default function DashboardPage() {
   const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">HartFelt Agents Portal</h1>
-            <p className="text-sm text-gray-600">Everything you need to grow your business</p>
-          </div>
-          <div className="flex items-center gap-6">
-            <ComplianceNotifications userId={user?.id} role={role} />
-            <div className="text-right">
-              <p className="font-medium text-gray-900">{user.email}</p>
-              <p className="text-sm text-gray-600 capitalize">{role}</p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar Navigation */}
+      <SidebarNav
+        onSignOut={handleSignOut}
+        userName={user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+        role={role}
+      />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <div className="flex-1 flex flex-col">
+        {/* Top Header */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="px-8 py-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-sm text-gray-600">Welcome back to your workspace</p>
+            </div>
+            <div className="flex items-center gap-6">
+              {(role === 'broker' || role === 'admin') && (
+                <BrokerViewToggle role={role} currentView={viewMode} onViewChange={setViewMode} />
+              )}
+              <NotificationsPanel userId={user?.id} role={role} />
+              <button
+                onClick={() => setSupportModalOpen(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                title="Help"
+              >
+                <HelpCircle className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto px-8 py-8">
         {/* Error Banner */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
+
+        {/* Production Section */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Production — This Month</h2>
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-amber-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Volume</p>
+              <p className="text-3xl font-bold text-amber-600">{totalDeals > 0 ? `$${(totalDeals * 500000 / 1000000).toFixed(1)}M` : '$0'}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-green-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Closings</p>
+              <p className="text-3xl font-bold text-green-600">{totalDeals}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-cyan-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Commission</p>
+              <p className="text-3xl font-bold text-cyan-600">${(totalGrossCommission / 1000).toFixed(0)}K</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-amber-600">
+              <p className="text-gray-600 text-sm font-medium mb-2">GCI</p>
+              <p className="text-3xl font-bold text-amber-700">${(totalGrossCommission / 1000).toFixed(0)}K</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions - Moved higher for faster access */}
+        <div className="mb-8 p-4 bg-white rounded-lg border border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
+          <div className="grid grid-cols-5 gap-3">
+            <Link href="/pipeline" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-50 transition text-sm text-gray-700 hover:text-amber-700">
+              <Plus className="w-4 h-4" />
+              New Deal
+            </Link>
+            <Link href="/leads" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-cyan-50 transition text-sm text-gray-700 hover:text-cyan-700">
+              <Users className="w-4 h-4" />
+              Add Lead
+            </Link>
+            <Link href="/documents" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-orange-50 transition text-sm text-gray-700 hover:text-orange-700">
+              <FileText className="w-4 h-4" />
+              Upload Doc
+            </Link>
+            <Link href="/transaction-coordinator" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-50 transition text-sm text-gray-700 hover:text-emerald-700">
+              <CheckSquare className="w-4 h-4" />
+              Request TC
+            </Link>
+            <Link href="/ai-chat" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 transition text-sm text-gray-700 hover:text-indigo-700">
+              <Sparkles className="w-4 h-4" />
+              Ask AI
+            </Link>
+          </div>
+        </div>
+
+        {/* My Deals Section */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">My Deals</h2>
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-cyan-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Active</p>
+              <p className="text-3xl font-bold text-cyan-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-amber-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Under Contract</p>
+              <p className="text-3xl font-bold text-amber-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-green-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Closing Soon</p>
+              <p className="text-3xl font-bold text-green-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-red-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Closing This Week</p>
+              <p className="text-3xl font-bold text-red-600">0</p>
+              <p className="text-xs text-gray-500 mt-2">Critical</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pipeline Snapshot */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Pipeline</h2>
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-blue-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Leads</p>
+              <p className="text-3xl font-bold text-blue-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-yellow-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Active</p>
+              <p className="text-3xl font-bold text-yellow-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-amber-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Under Contract</p>
+              <p className="text-3xl font-bold text-amber-600">0</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6 border-t-4 border-green-500">
+              <p className="text-gray-600 text-sm font-medium mb-2">Closed (MTD)</p>
+              <p className="text-3xl font-bold text-green-600">0</p>
+            </div>
+          </div>
+        </div>
 
         {/* Stats Section */}
         <div className="grid grid-cols-3 gap-6 mb-12">
@@ -192,108 +302,6 @@ export default function DashboardPage() {
             <p className="text-gray-600 text-sm font-medium mb-1">Net Earned</p>
             <p className="text-4xl font-bold text-gray-900">${(totalEarned / 1000).toFixed(1)}K</p>
             <p className="text-xs text-gray-500 mt-2">After splits & fees</p>
-          </div>
-        </div>
-
-        {/* Quick Access Section */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Access</h2>
-          <div className="grid grid-cols-6 gap-4">
-            <Link href="/leads" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-cyan-50">
-                <Users className="w-8 h-8 text-cyan-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">My Leads</h3>
-                <p className="text-sm text-gray-600">Lead management CRM</p>
-              </div>
-            </Link>
-
-            <Link href="/ai-chat" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-indigo-50">
-                <Sparkles className="w-8 h-8 text-indigo-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">AI Assistant</h3>
-                <p className="text-sm text-gray-600">Ask AI anything</p>
-              </div>
-            </Link>
-
-            <Link href="/pipeline" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-teal-50">
-                <TrendingUp className="w-8 h-8 text-teal-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Deal Pipeline</h3>
-                <p className="text-sm text-gray-600">Manage your deals</p>
-              </div>
-            </Link>
-
-            <Link href="/email-templates" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-rose-50">
-                <Mail className="w-8 h-8 text-rose-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Email Templates</h3>
-                <p className="text-sm text-gray-600">Professional emails</p>
-              </div>
-            </Link>
-
-            <Link href="/calendar" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-pink-50">
-                <CalendarIcon className="w-8 h-8 text-pink-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Calendar</h3>
-                <p className="text-sm text-gray-600">Schedule showings & events</p>
-              </div>
-            </Link>
-
-            <Link href="/wins" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-yellow-50">
-                <Trophy className="w-8 h-8 text-yellow-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Wins Tracker</h3>
-                <p className="text-sm text-gray-600">Celebrate your wins</p>
-              </div>
-            </Link>
-
-            <Link href="/lead-distribution" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-violet-50">
-                <Gift className="w-8 h-8 text-violet-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Lead Distribution</h3>
-                <p className="text-sm text-gray-600">Available leads to claim</p>
-              </div>
-            </Link>
-
-            <Link href="/training-interactive" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-blue-50">
-                <BookOpen className="w-8 h-8 text-blue-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Training</h3>
-                <p className="text-sm text-gray-600">Access training modules</p>
-              </div>
-            </Link>
-
-            <a href="https://miamirealtors.mysolidearth.com/authenticate" target="_blank" rel="noopener noreferrer" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-green-50">
-                <Briefcase className="w-8 h-8 text-green-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">MLS Login</h3>
-                <p className="text-sm text-gray-600">Access MLS system</p>
-              </div>
-            </a>
-
-            <Link href="/documents" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-orange-50">
-                <FileText className="w-8 h-8 text-orange-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Contracts & Forms</h3>
-                <p className="text-sm text-gray-600">All documents</p>
-              </div>
-            </Link>
-
-            <Link href="/marketing-resources" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-purple-50">
-                <BarChart3 className="w-8 h-8 text-purple-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Marketing Resources</h3>
-                <p className="text-sm text-gray-600">Marketing tools</p>
-              </div>
-            </Link>
-
-            <Link href="/opportunities" className="group">
-              <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group-hover:bg-red-50">
-                <Users className="w-8 h-8 text-red-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Private Opportunities</h3>
-                <p className="text-sm text-gray-600">Exclusive deals</p>
-              </div>
-            </Link>
           </div>
         </div>
 
@@ -431,14 +439,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
 
-      <SupportModal
-        isOpen={supportModalOpen}
-        onClose={() => setSupportModalOpen(false)}
-        userEmail={user?.email}
-        userName={user?.user_metadata?.name || user?.email?.split('@')[0]}
-      />
+        <SupportModal
+          isOpen={supportModalOpen}
+          onClose={() => setSupportModalOpen(false)}
+          userEmail={user?.email}
+          userName={user?.user_metadata?.name || user?.email?.split('@')[0]}
+        />
+      </div>
     </div>
   )
 }

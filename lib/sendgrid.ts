@@ -229,3 +229,111 @@ export async function sendRejectionEmail(
     throw new Error('Unable to send rejection email');
   }
 }
+
+/**
+ * Send TC creation request notification to admins
+ */
+export async function sendTCCreationRequestNotification(data: {
+  agentName: string;
+  agentEmail: string;
+  tcName: string;
+  tcEmail: string;
+  commissionSplit: number;
+  brokerName: string;
+  brokerEmail: string;
+  approvalUrl: string;
+  recipients: string[];
+}): Promise<void> {
+  try {
+    const {
+      agentName,
+      agentEmail,
+      tcName,
+      tcEmail,
+      commissionSplit,
+      brokerName,
+      brokerEmail,
+      approvalUrl,
+      recipients,
+    } = data;
+
+    const htmlContent = `
+<html>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #1F4E78; border-bottom: 3px solid #2E75B6; padding-bottom: 10px;">
+        New Transaction Coordinator Creation Request
+      </h1>
+
+      <p style="margin-top: 20px;">A new Transaction Coordinator creation request has been submitted and is pending your approval.</p>
+
+      <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2E75B6; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #2E75B6; margin-top: 0;">Request Details</h3>
+
+        <p style="margin: 10px 0;"><strong>Requesting Agent:</strong> ${agentName} (${agentEmail})</p>
+        <p style="margin: 10px 0;"><strong>Agent's Broker:</strong> ${brokerName} (${brokerEmail})</p>
+
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;">
+
+        <h3 style="color: #2E75B6; margin-top: 0;">Transaction Coordinator Details</h3>
+
+        <p style="margin: 10px 0;"><strong>TC Name:</strong> ${tcName}</p>
+        <p style="margin: 10px 0;"><strong>TC Email:</strong> ${tcEmail}</p>
+        <p style="margin: 10px 0;"><strong>Commission Split:</strong> ${commissionSplit}%</p>
+      </div>
+
+      <p style="margin-top: 20px; text-align: center;">
+        <a href="${approvalUrl}"
+           style="background-color: #2E75B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+          Review & Approve Request
+        </a>
+      </p>
+
+      <hr style="border: none; border-top: 1px solid #ccc; margin: 30px 0;">
+
+      <p style="color: #666; font-size: 14px;">
+        This email was sent to you because you are listed as an administrator for TC creation requests.
+      </p>
+
+      <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc; color: #999; font-size: 12px;">
+        From The Hart,<br>
+        <strong>HartFelt Real Estate</strong>
+      </p>
+    </div>
+  </body>
+</html>
+    `;
+
+    // Send to all recipients
+    for (const recipient of recipients) {
+      const msg = {
+        to: recipient,
+        from: FROM_EMAIL,
+        subject: `New TC Creation Request - Action Required: ${tcName}`,
+        html: htmlContent,
+        text: `
+New Transaction Coordinator Creation Request
+
+Requesting Agent: ${agentName} (${agentEmail})
+Agent's Broker: ${brokerName} (${brokerEmail})
+
+Transaction Coordinator Details:
+Name: ${tcName}
+Email: ${tcEmail}
+Commission Split: ${commissionSplit}%
+
+Review and approve this request at: ${approvalUrl}
+
+From The Hart,
+HartFelt Real Estate
+        `,
+      };
+
+      await sgMail.send(msg);
+      console.log(`TC creation request notification sent to ${recipient}`);
+    }
+  } catch (error) {
+    console.error('Failed to send TC creation request notification:', error);
+    throw new Error('Unable to send TC creation request notification');
+  }
+}

@@ -196,6 +196,267 @@ export const vaultAPI = {
         userId,
         userRole,
       }),
+
+    // Broker Review Workflow
+    submitForReview: (transactionId: string, brokerAssignedId: string, slaHours: number = 48, userId: string, userRole?: string | null) =>
+      vaultRequest(`/transactions/${transactionId}/submit-review`, {
+        method: 'POST',
+        body: { broker_assigned_id: brokerAssignedId, sla_hours: slaHours },
+        userId,
+        userRole,
+      }),
+
+    approveReview: (transactionId: string, approvalNotes?: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/transactions/${transactionId}/approve-review`, {
+        method: 'PUT',
+        body: { approval_notes: approvalNotes },
+        userId,
+        userRole,
+      }),
+
+    requestRevisions: (transactionId: string, revisionNotes: string, revisionDeadlineDays?: number, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/transactions/${transactionId}/request-revisions`, {
+        method: 'PUT',
+        body: { revision_notes: revisionNotes, revision_deadline_days: revisionDeadlineDays },
+        userId,
+        userRole,
+      }),
+  },
+
+  // ============ TASKS ============
+  tasks: {
+    list: (transactionId?: string, status?: string, priority?: string, userId?: string, userRole?: string | null) => {
+      let endpoint = '/tasks';
+      const params = new URLSearchParams();
+      if (transactionId) params.append('transactionId', transactionId);
+      if (status) params.append('status', status);
+      if (priority) params.append('priority', priority);
+      if (params.toString()) endpoint += `?${params.toString()}`;
+
+      return vaultRequest(endpoint, { userId, userRole });
+    },
+
+    get: (taskId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}`, { userId, userRole }),
+
+    create: (data: {
+      transaction_id: string;
+      task_template_id?: string;
+      title: string;
+      description?: string;
+      assigned_to_id: string;
+      priority?: 'low' | 'medium' | 'high' | 'critical';
+      due_date?: string;
+    }, userId?: string, userRole?: string | null) =>
+      vaultRequest('/tasks', {
+        method: 'POST',
+        body: data,
+        userId,
+        userRole,
+      }),
+
+    update: (taskId: string, updates: {
+      title?: string;
+      description?: string;
+      status?: 'pending' | 'in_progress' | 'completed' | 'blocked';
+      priority?: 'low' | 'medium' | 'high' | 'critical';
+      due_date?: string;
+      assigned_to_id?: string;
+      notes?: string;
+    }, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}`, {
+        method: 'PUT',
+        body: updates,
+        userId,
+        userRole,
+      }),
+
+    delete: (taskId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}`, {
+        method: 'DELETE',
+        userId,
+        userRole,
+      }),
+
+    // Checklist items
+    getChecklist: (taskId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}/checklist`, { userId, userRole }),
+
+    addChecklistItem: (taskId: string, title: string, order_index?: number, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}/checklist`, {
+        method: 'POST',
+        body: { title, order_index },
+        userId,
+        userRole,
+      }),
+
+    updateChecklistItem: (itemId: string, updates: {
+      is_completed?: boolean;
+      title?: string;
+    }, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/checklist-items/${itemId}`, {
+        method: 'PUT',
+        body: updates,
+        userId,
+        userRole,
+      }),
+
+    deleteChecklistItem: (itemId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/checklist-items/${itemId}`, {
+        method: 'DELETE',
+        userId,
+        userRole,
+      }),
+
+    // Comments
+    getComments: (taskId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}/comments`, { userId, userRole }),
+
+    addComment: (taskId: string, content: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}/comments`, {
+        method: 'POST',
+        body: { content },
+        userId,
+        userRole,
+      }),
+
+    // Activity log
+    getActivity: (taskId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/tasks/${taskId}/activity`, { userId, userRole }),
+  },
+
+  // ============ TASK TEMPLATES ============
+  taskTemplates: {
+    list: (dealType?: string, userId?: string, userRole?: string | null) => {
+      let endpoint = '/task-templates';
+      if (dealType) endpoint += `?dealType=${dealType}`;
+      return vaultRequest(endpoint, { userId, userRole });
+    },
+
+    get: (templateId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/task-templates/${templateId}`, { userId, userRole }),
+
+    create: (data: {
+      name: string;
+      description?: string;
+      deal_type: string;
+      template_items?: Array<{
+        title: string;
+        description?: string;
+        order_index?: number;
+        estimated_hours?: number;
+      }>;
+    }, userId?: string, userRole?: string | null) =>
+      vaultRequest('/task-templates', {
+        method: 'POST',
+        body: data,
+        userId,
+        userRole,
+      }),
+
+    update: (templateId: string, data: {
+      name?: string;
+      description?: string;
+      deal_type?: string;
+      template_items?: Array<{
+        title: string;
+        description?: string;
+        order_index?: number;
+        estimated_hours?: number;
+      }>;
+    }, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/task-templates/${templateId}`, {
+        method: 'PUT',
+        body: data,
+        userId,
+        userRole,
+      }),
+
+    delete: (templateId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/task-templates/${templateId}`, {
+        method: 'DELETE',
+        userId,
+        userRole,
+      }),
+  },
+
+  // ============ BROKER TASK DASHBOARD ============
+  brokerDashboard: {
+    getTaskMetrics: (userId?: string, userRole?: string | null) =>
+      vaultRequest('/broker/task-dashboard', { userId, userRole }),
+  },
+
+  // ============ SMART DEADLINES / TIMELINE ============
+  timeline: {
+    // Extract dates from contract document
+    extractDates: (transactionId: string, documentId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/transactions/${transactionId}/extract-dates`, {
+        method: 'POST',
+        body: { document_id: documentId },
+        userId,
+        userRole,
+      }),
+
+    // Get deal timeline with all dates and generated tasks
+    getTimeline: (transactionId: string, userId?: string, userRole?: string | null) =>
+      vaultRequest(`/transactions/${transactionId}/timeline`, { userId, userRole }),
+
+    // Generate intermediate deadlines from closing date
+    generateTimeline: (
+      transactionId: string,
+      closingDate: string,
+      dealType?: string,
+      customLeadTimes?: Record<string, number>,
+      userId?: string,
+      userRole?: string | null
+    ) =>
+      vaultRequest(`/transactions/${transactionId}/generate-timeline`, {
+        method: 'POST',
+        body: {
+          closing_date: closingDate,
+          deal_type: dealType,
+          custom_lead_times: customLeadTimes,
+        },
+        userId,
+        userRole,
+      }),
+
+    // Get all broker warnings
+    getWarnings: (resolved?: boolean, severity?: string, warningType?: string, userId?: string, userRole?: string | null) => {
+      let endpoint = '/broker/warnings';
+      const params = new URLSearchParams();
+      if (resolved !== undefined) params.append('resolved', resolved ? 'true' : 'false');
+      if (severity) params.append('severity', severity);
+      if (warningType) params.append('type', warningType);
+      if (params.toString()) endpoint += `?${params.toString()}`;
+
+      return vaultRequest(endpoint, { userId, userRole });
+    },
+
+    // Resolve warnings
+    resolveWarnings: (warningIds: string[], resolutionNotes?: string, userId?: string, userRole?: string | null) =>
+      vaultRequest('/broker/warnings', {
+        method: 'PUT',
+        body: {
+          warning_ids: warningIds,
+          action: 'resolve',
+          resolution_notes: resolutionNotes,
+        },
+        userId,
+        userRole,
+      }),
+
+    // Dismiss warnings
+    dismissWarnings: (warningIds: string[], userId?: string, userRole?: string | null) =>
+      vaultRequest('/broker/warnings', {
+        method: 'PUT',
+        body: {
+          warning_ids: warningIds,
+          action: 'dismiss',
+        },
+        userId,
+        userRole,
+      }),
   },
 
   // ============ LEADS ============

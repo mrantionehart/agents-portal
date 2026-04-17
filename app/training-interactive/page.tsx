@@ -5,7 +5,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { BookOpen, Play, Clock, CheckCircle, Lock, Unlock, Award, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase as sharedSupabase } from '../../lib/supabase'
 
 type Volume = 'volume-1' | 'volume-2' | 'volume-3'
 type Screen = 'volumes' | 'volume-select' | 'modules' | 'module-content' | 'module-test' | 'test-results' | 'final-exam' | 'final-results' | 'certificate'
@@ -65,6 +65,13 @@ export default function TrainingInteractivePage() {
   const [alertMessage, setAlertMessage] = useState('')
   const [certificateData, setCertificateData] = useState<{ name: string; score: number; date: string } | null>(null)
   const [supabase, setSupabase] = useState<any>(null)
+
+  // Video state for module content
+  const [moduleVideos, setModuleVideos] = useState<any[]>([])
+  const [currentVideoIdx, setCurrentVideoIdx] = useState(0)
+  const [signedVideoUrl, setSignedVideoUrl] = useState<string | null>(null)
+  const [videoLoading, setVideoLoading] = useState(false)
+  const [allVideosWatched, setAllVideosWatched] = useState(false)
 
   // Module content for Volume 1
   const volumeData: { [key in Volume]: VolumeData } = {
@@ -917,6 +924,138 @@ This isn't about memorization. This is about capability. Can you execute? That's
               correct_answer: 1
             }
           ]
+        },
+        {
+          id: 8,
+          title: 'Module 8: AI for Real Estate',
+          content: `AI FOR REAL ESTATE
+
+"Close Smarter. Move Faster. Scale Yourself."
+
+THE AI MINDSET
+Agents who learn how to use AI are going to dominate this industry. Not in five years. Right now.
+
+This isn't about replacing you. This is about multiplying you. Instead of doing everything yourself, you now have a system that can think with you, write with you, and help you move faster than everyone else.
+
+AI is not here to replace real estate agents. It's here to replace slow agents. The agents who win are the ones who respond faster, communicate better, and stay consistent. AI helps you do all three without burning out.
+
+CHATGPT VS CLAUDE
+You don't need 10 tools. You need to know how to use the right two.
+
+ChatGPT - Best for:
+• Fast responses and text messages
+• Scripts and listing descriptions
+• Roleplay practice
+
+Claude - Best for:
+• Long documents and reviewing contracts
+• Summarizing information
+• More natural writing tone
+
+The Rule: Use ChatGPT when you need speed. Use Claude when you need depth. Master both.
+
+PROMPTING LIKE A PRO
+This is the difference between agents who "try AI" and agents who actually use it. Every strong result comes from a strong prompt.
+
+The 4-Part Formula:
+1. Role - Tell AI who it is
+2. Task - Tell AI what to do
+3. Context - Give relevant details
+4. Tone - Set the voice and style
+
+Example: "You are a luxury real estate agent in Miami. Write a listing description for a waterfront home with private lake access. Make it confident, elegant, and high-end."
+
+If your result is weak, your prompt was weak.
+
+REAL ESTATE USE CASES
+
+Listing Side:
+• Write listing descriptions in seconds
+• Create open house scripts
+• Generate Instagram captions
+• Draft email blasts
+
+Buyer Side:
+• Recommend properties based on criteria
+• Write follow-up texts
+• Handle objections with AI coaching
+
+Lead Conversion:
+• Reactivate old leads
+• Send personalized cold outreach
+• Stay consistent with communication
+
+DAILY AI WORKFLOW
+
+Morning:
+• Generate follow-ups for leads
+• Plan your day with AI assistance
+
+Midday:
+• Create social content
+• Write listing materials
+
+Night:
+• Recap your day
+• Plan tomorrow's priorities
+
+Agents who win don't guess what to do next. They execute with clarity.
+
+AI ROLEPLAY
+You can practice real conversations using AI:
+• "Act like a seller who thinks the price is too low."
+• "Act like a buyer who is hesitant to move forward."
+• "Challenge me on my commission."
+
+This allows you to practice without pressure. By the time you're in a real conversation, you've already handled it before.
+
+WHAT NOT TO DO WITH AI
+• Copying and pasting without editing
+• Sounding robotic in client communications
+• Trusting AI without verifying facts
+• Using AI for legal advice
+
+AI should enhance your voice — not replace it.
+
+MAKING MONEY WITH AI
+AI helps you:
+• Respond faster → More conversions
+• Market better → More listings
+• Communicate clearly → Stronger relationships
+
+The agent who responds first usually wins. AI makes sure that's you.`,
+          questions: [
+            {
+              id: 'q8-1',
+              question: 'What is the primary purpose of AI for real estate agents?',
+              options: ['Replace agents entirely', 'Multiply your capabilities', 'Automate all communication', 'Generate leads only'],
+              correct_answer: 1
+            },
+            {
+              id: 'q8-2',
+              question: 'When should you use ChatGPT vs Claude?',
+              options: ['ChatGPT for everything', 'ChatGPT for speed, Claude for depth', 'Claude for everything', 'Neither — use Google'],
+              correct_answer: 1
+            },
+            {
+              id: 'q8-3',
+              question: 'What is the 4-part prompting formula?',
+              options: ['Who, What, When, Where', 'Role, Task, Context, Tone', 'Input, Process, Output, Review', 'Ask, Wait, Copy, Paste'],
+              correct_answer: 1
+            },
+            {
+              id: 'q8-4',
+              question: 'What should you AVOID doing with AI?',
+              options: ['Writing listing descriptions', 'Practicing objection handling', 'Copying and pasting without editing', 'Generating follow-up texts'],
+              correct_answer: 2
+            },
+            {
+              id: 'q8-5',
+              question: 'How does AI help agents make more money?',
+              options: ['By replacing client meetings', 'By responding faster, marketing better, and communicating clearly', 'By automating all negotiations', 'By generating fake reviews'],
+              correct_answer: 1
+            }
+          ]
         }
       ],
       finalExam: [
@@ -945,6 +1084,11 @@ This isn't about memorization. This is about capability. Can you execute? That's
         { id: 'final-23', question: 'Inspection reveals:', options: ['Cosmetics', 'Buyer taste', 'Safety, structure, systems', 'Design'], correct_answer: 2 },
         { id: 'final-24', question: 'Offer strategy discussion:', options: ['Just write it', 'Comps, strategy, escalation clauses', 'Let buyer decide', 'Follow market'], correct_answer: 1 },
         { id: 'final-25', question: 'Transaction control means:', options: ['React to issues', 'Anticipate and control', 'Delegate everything', 'Let lender decide'], correct_answer: 1 },
+        { id: 'final-26', question: 'AI purpose for agents:', options: ['Replace agents', 'Multiply capabilities', 'Automate everything', 'Generate leads only'], correct_answer: 1 },
+        { id: 'final-27', question: 'ChatGPT vs Claude rule:', options: ['ChatGPT only', 'ChatGPT for speed, Claude for depth', 'Claude only', 'Neither'], correct_answer: 1 },
+        { id: 'final-28', question: 'Prompting formula:', options: ['Who, What, When, Where', 'Role, Task, Context, Tone', 'Input, Output, Review', 'Ask, Copy, Paste'], correct_answer: 1 },
+        { id: 'final-29', question: 'AI mistake to avoid:', options: ['Writing descriptions', 'Roleplay practice', 'Copy-paste without editing', 'Generating follow-ups'], correct_answer: 2 },
+        { id: 'final-30', question: 'AI daily workflow includes:', options: ['Use once a month', 'Morning follow-ups, midday content, evening recap', 'Only for listings', 'Only when stuck'], correct_answer: 1 },
       ]
     },
     'volume-2': {
@@ -974,16 +1118,11 @@ This isn't about memorization. This is about capability. Can you execute? That's
   }, [user, loading, router])
 
   useEffect(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Use the shared Supabase client (has session persistence + auth)
+    setSupabase(sharedSupabase)
 
-    if (supabaseUrl && supabaseKey) {
-      const client = createClient(supabaseUrl, supabaseKey)
-      setSupabase(client)
-
-      if (user) {
-        loadProgress(client)
-      }
+    if (user) {
+      loadProgress(sharedSupabase)
     }
   }, [user])
 
@@ -1001,6 +1140,70 @@ This isn't about memorization. This is about capability. Can you execute? That's
       }
     } catch (err) {
       console.log('No progress found, starting fresh')
+    }
+  }
+
+  // Load videos for a module via server-side API (bypasses RLS)
+  const loadModuleVideos = async (moduleNum: number, volumeNum: number = 1) => {
+    try {
+      const moduleId = `m_v${volumeNum}_${String(moduleNum).padStart(2, '0')}`
+      const res = await fetch(`/api/training/module-videos?module_id=${encodeURIComponent(moduleId)}`)
+      const json = await res.json()
+
+      if (!res.ok || !json.videos) {
+        console.log('No videos found for module:', moduleId, json)
+        setModuleVideos([])
+        return
+      }
+
+      setModuleVideos(json.videos)
+      setCurrentVideoIdx(0)
+      setAllVideosWatched(false)
+      setSignedVideoUrl(null)
+
+      // Load the first video's signed URL
+      if (json.videos.length > 0) {
+        await loadSignedUrl(json.videos[0].r2_key_en || json.videos[0].r2_key_es)
+      }
+    } catch (err) {
+      console.log('Failed to load module videos:', err)
+      setModuleVideos([])
+    }
+  }
+
+  // Fetch a signed URL for R2 video playback
+  const loadSignedUrl = async (r2Key: string | null) => {
+    if (!r2Key) {
+      setSignedVideoUrl(null)
+      return
+    }
+    setVideoLoading(true)
+    try {
+      const res = await fetch(`/api/training/sign-video?key=${encodeURIComponent(r2Key)}`)
+      const json = await res.json()
+      setSignedVideoUrl(json.url || null)
+    } catch (err) {
+      console.log('Failed to get signed URL:', err)
+      setSignedVideoUrl(null)
+    } finally {
+      setVideoLoading(false)
+    }
+  }
+
+  // Handle advancing to the next video in the module
+  const handleNextVideo = async () => {
+    const nextIdx = currentVideoIdx + 1
+    if (nextIdx < moduleVideos.length) {
+      setCurrentVideoIdx(nextIdx)
+      const nextVid = moduleVideos[nextIdx]
+      await loadSignedUrl(nextVid.r2_key_en || nextVid.r2_key_es)
+      // Auto-unlock test button when reaching the last video
+      if (nextIdx === moduleVideos.length - 1) {
+        setAllVideosWatched(true)
+      }
+    } else {
+      // All videos watched (fallback for single-video modules)
+      setAllVideosWatched(true)
     }
   }
 
@@ -1045,6 +1248,10 @@ This isn't about memorization. This is about capability. Can you execute? That's
     setScreen('module-content')
     setTestAnswers({})
     setContentScrollPos(0)
+
+    // Load videos for this module from Supabase
+    const volumeNum = currentVolume === 'volume-1' ? 1 : currentVolume === 'volume-2' ? 2 : 3
+    loadModuleVideos(moduleId, volumeNum)
   }
 
   const handleContentComplete = () => {
@@ -1388,6 +1595,68 @@ This isn't about memorization. This is about capability. Can you execute? That's
                 {volumeData[currentVolume].modules[currentModule - 1]?.title}
               </h2>
 
+              {/* Video Player Section */}
+              {moduleVideos.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <Play className="w-5 h-5 text-blue-600" />
+                      Video {currentVideoIdx + 1} of {moduleVideos.length}
+                      {moduleVideos[currentVideoIdx]?.title_en && (
+                        <span className="text-gray-500 font-normal text-sm">
+                          — {moduleVideos[currentVideoIdx].title_en}
+                        </span>
+                      )}
+                    </h3>
+                    {allVideosWatched && (
+                      <span className="inline-flex items-center gap-1 text-green-600 text-sm font-medium">
+                        <CheckCircle className="w-4 h-4" /> All videos watched
+                      </span>
+                    )}
+                  </div>
+
+                  {videoLoading ? (
+                    <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
+                      <div className="text-white text-center">
+                        <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+                        <p>Loading video...</p>
+                      </div>
+                    </div>
+                  ) : signedVideoUrl ? (
+                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                      <video
+                        key={signedVideoUrl}
+                        src={signedVideoUrl}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="text-gray-500 text-center">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                        <p>Video not yet available</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Next Video button */}
+                  {!allVideosWatched && moduleVideos.length > 1 && (
+                    <button
+                      onClick={handleNextVideo}
+                      className="mt-3 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium text-sm"
+                    >
+                      {currentVideoIdx < moduleVideos.length - 1
+                        ? `Next Video (${currentVideoIdx + 2} of ${moduleVideos.length})`
+                        : 'Mark All Videos Watched'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Module Text Content */}
               <div className="prose prose-sm max-w-none mb-8 max-h-96 overflow-y-auto">
                 <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
                   {volumeData[currentVolume].modules[currentModule - 1]?.content}
@@ -1396,9 +1665,16 @@ This isn't about memorization. This is about capability. Can you execute? That's
 
               <button
                 onClick={handleContentComplete}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                disabled={moduleVideos.length > 0 && !allVideosWatched}
+                className={`w-full py-3 rounded-lg transition font-medium ${
+                  moduleVideos.length > 0 && !allVideosWatched
+                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                Complete & Take Module Test
+                {moduleVideos.length > 0 && !allVideosWatched
+                  ? 'Watch all videos to continue'
+                  : 'Complete & Take Module Test'}
               </button>
             </div>
           </div>

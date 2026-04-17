@@ -8,6 +8,7 @@ import { useAuth } from '@/app/providers'
 import { vaultAPI } from '@/lib/vault-api'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import ComplianceCheckCard from '@/components/ComplianceCheckCard'
 import { ArrowLeft, Edit2, Trash2 } from 'lucide-react'
 
 interface Deal {
@@ -151,6 +152,9 @@ export default function DealDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Compliance Check */}
+              <ComplianceCheckCard transactionId={dealId} dealAddress={deal.address} />
             </div>
 
             <div>

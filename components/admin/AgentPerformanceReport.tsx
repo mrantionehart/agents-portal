@@ -33,6 +33,7 @@ export function AgentPerformanceReport() {
 
   useEffect(() => {
     fetchReports()
+    subscribeToReports()
   }, [])
 
   const fetchReports = async () => {
@@ -57,6 +58,48 @@ export function AgentPerformanceReport() {
       setError('Failed to load reports')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const subscribeToReports = () => {
+    const subscription = supabase
+      .channel('reports-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_performance_reports',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // New report generated, add to list
+            const newReport = payload.new as ReportData
+            setReports(prev => [newReport, ...prev].slice(0, 10))
+            if (!selectedReport) {
+              setSelectedReport(newReport)
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            // Report updated, refresh the list
+            setReports(prev =>
+              prev.map(r => r.id === (payload.new as ReportData).id ? (payload.new as ReportData) : r)
+            )
+            if (selectedReport?.id === (payload.new as ReportData).id) {
+              setSelectedReport(payload.new as ReportData)
+            }
+          } else if (payload.eventType === 'DELETE') {
+            // Report deleted, remove from list
+            setReports(prev => prev.filter(r => r.id !== (payload.old as ReportData).id))
+            if (selectedReport?.id === (payload.old as ReportData).id) {
+              setSelectedReport(null)
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
     }
   }
 

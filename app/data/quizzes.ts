@@ -22,11 +22,11 @@ export interface Quiz {
 
 export const MODULE_QUIZZES: Record<string, Quiz> = {
   // ═══════════════════════════════════════════
-  // VOLUME 1 — Foundations (Modules 1-8)
+  // VOLUME 1 — Foundations (Modules 1-9)
   // 1=Foundations, 2=Lead Mastery, 3=Listing Systems,
   // 4=Buyer Experience, 5=Showing Playbook (NEW),
   // 6=Transaction to Close, 7=Marketing & Branding,
-  // 8=Growth & Retention
+  // 8=Growth & Retention, 9=AI for Real Estate
   // ═══════════════════════════════════════════
 
   vol1_m1: {
@@ -384,10 +384,49 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
+  // Module 9 — AI for Real Estate (was Module 8, shifted for Showing Playbook)
+  vol1_m9: {
+    title: 'AI for Real Estate Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v1m9q1',
+        question: 'What is the primary purpose of AI for real estate agents?',
+        options: [
+          { id: 'a', text: 'Replace agents entirely' },
+          { id: 'b', text: 'Multiply your capabilities' },
+          { id: 'c', text: 'Automate all communication' },
+          { id: 'd', text: 'Generate leads only' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m9q2',
+        question: 'What should you always do before sending AI-generated content to a client?',
+        options: [
+          { id: 'a', text: 'Add more adjectives' },
+          { id: 'b', text: 'Review and personalize it' },
+          { id: 'c', text: 'Send it immediately' },
+          { id: 'd', text: 'Forward it to your broker' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m9q3',
+        question: 'Which is a recommended use of AI in real estate?',
+        options: [
+          { id: 'a', text: 'Replacing client meetings' },
+          { id: 'b', text: 'Writing listing descriptions and market analyses' },
+          { id: 'c', text: 'Making pricing decisions without data' },
+          { id: 'd', text: 'Automating contract signatures' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
   // ═══════════════════════════════════════════
-  // VOLUME 3 / AI Training (Module 8 in EASE, mapped to vol3_m1..m8 here)
-  // The EASE app stores this as vol1_m8; for the portal we keep
-  // a vol3_m1 alias so volume 3 has at least one quiz.
+  // VOLUME 3 / AI Training (also mapped as vol3_m1 for legacy)
   // ═══════════════════════════════════════════
 
   vol3_m1: {

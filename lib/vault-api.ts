@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
+import { supabase } from './supabase'
 
 const vaultApiUrl = process.env.NEXT_PUBLIC_VAULT_API_URL || 'http://192.168.6.88:3000/api'
 
@@ -14,11 +15,15 @@ class VaultAPI {
       },
     })
 
-    // Add request interceptor for auth token
-    this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('vault_token')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+    // Add request interceptor for auth token from Supabase session
+    this.client.interceptors.request.use(async (config) => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          config.headers.Authorization = `Bearer ${session.access_token}`
+        }
+      } catch (error) {
+        console.error('Error getting auth token from Supabase:', error)
       }
       return config
     })
@@ -179,15 +184,56 @@ class VaultAPI {
     }
   }
 
-  // Helper method to set auth token
-  setAuthToken(token: string) {
-    localStorage.setItem('vault_token', token)
+  // Compliance endpoints
+  async runComplianceCheck(transactionId: string, triggerType: string = 'manual') {
+    try {
+      const { data } = await this.client.post('/transactions/compliance-check', {
+        transaction_id: transactionId,
+        trigger_type: triggerType,
+      })
+      return data
+    } catch (error) {
+      console.error('Error running compliance check:', error)
+      throw error
+    }
   }
 
-  // Helper method to clear auth token
-  clearAuthToken() {
-    localStorage.removeItem('vault_token')
+  async getComplianceStatus(transactionId: string) {
+    try {
+      const { data } = await this.client.get('/compliance/status', {
+        params: { transaction_id: transactionId },
+      })
+      return data
+    } catch (error) {
+      console.error('Error fetching compliance status:', error)
+      throw error
+    }
   }
+
+  async getComplianceAlerts(params?: Record<string, any>) {
+    try {
+      const { data } = await this.client.get('/compliance/alerts', { params })
+      return data
+    } catch (error) {
+      console.error('Error fetching compliance alerts:', error)
+      throw error
+    }
+  }
+
+  async overrideComplianceFlags(transactionId: string, flags: any[]) {
+    try {
+      const { data } = await this.client.post('/transactions/compliance-check', {
+        transaction_id: transactionId,
+        trigger_type: 'override',
+        override_flags: flags,
+      })
+      return data
+    } catch (error) {
+      console.error('Error overriding compliance flags:', error)
+      throw error
+    }
+  }
+
 }
 
 export const vaultAPI = new VaultAPI()

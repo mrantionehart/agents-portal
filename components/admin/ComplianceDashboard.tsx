@@ -51,6 +51,7 @@ export function ComplianceDashboard() {
 
   useEffect(() => {
     fetchComplianceData()
+    subscribeToCompliance()
   }, [])
 
   const fetchComplianceData = async () => {
@@ -83,6 +84,61 @@ export function ComplianceDashboard() {
       setError('Failed to load compliance data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const subscribeToCompliance = () => {
+    // Subscribe to compliance flags changes
+    const flagsSubscription = supabase
+      .channel('compliance-flags-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'compliance_flags',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setFlags(prev => [payload.new as ComplianceFlag, ...prev])
+          } else if (payload.eventType === 'UPDATE') {
+            setFlags(prev =>
+              prev.map(f => f.id === (payload.new as ComplianceFlag).id ? (payload.new as ComplianceFlag) : f)
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setFlags(prev => prev.filter(f => f.id !== (payload.old as ComplianceFlag).id))
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to compliance reviews changes
+    const reviewsSubscription = supabase
+      .channel('compliance-reviews-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_compliance_reviews',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setReviews(prev => [payload.new as ComplianceReview, ...prev].slice(0, 10))
+          } else if (payload.eventType === 'UPDATE') {
+            setReviews(prev =>
+              prev.map(r => r.id === (payload.new as ComplianceReview).id ? (payload.new as ComplianceReview) : r)
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setReviews(prev => prev.filter(r => r.id !== (payload.old as ComplianceReview).id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(flagsSubscription)
+      supabase.removeChannel(reviewsSubscription)
     }
   }
 
