@@ -425,6 +425,58 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
+  // Module 10 — New Agent Playbook
+  vol1_m10: {
+    title: 'New Agent Playbook Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v1m10q1',
+        question: 'What is the goal of your first 7 days at HartFelt?',
+        options: [
+          { id: 'a', text: 'Close your first deal' },
+          { id: 'b', text: 'Perfect your branding and logo' },
+          { id: 'c', text: 'Build momentum through conversations and habits' },
+          { id: 'd', text: 'Memorize every market statistic' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m10q2',
+        question: 'What are the 3 steps of the HartFelt Connection Rule?',
+        options: [
+          { id: 'a', text: 'Pitch, close, follow up' },
+          { id: 'b', text: 'Find common ground, give a real compliment, transition to business' },
+          { id: 'c', text: 'Introduce yourself, hand out cards, ask for referrals' },
+          { id: 'd', text: 'Cold call, email, text' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m10q3',
+        question: 'What is the most missed step after a showing?',
+        options: [
+          { id: 'a', text: 'Updating your CRM' },
+          { id: 'b', text: 'Posting on social media' },
+          { id: 'c', text: 'Following up within 2-4 hours' },
+          { id: 'd', text: 'Sending a thank-you card' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m10q4',
+        question: 'What is the daily KPI standard at HartFelt?',
+        options: [
+          { id: 'a', text: '1-2 conversations, 1 follow-up' },
+          { id: 'b', text: '10-20 conversations, 5-10 follow-ups, 1-2 appointments' },
+          { id: 'c', text: '50 cold calls per day' },
+          { id: 'd', text: '3 social media posts per day' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
   // ═══════════════════════════════════════════
   // VOLUME 3 / AI Training (also mapped as vol3_m1 for legacy)
   // ═══════════════════════════════════════════
