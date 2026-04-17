@@ -63,7 +63,7 @@ export default function TrainingInteractivePage() {
   const [testScore, setTestScore] = useState(0)
   const [showAlert, setShowAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
-  const [certificateData, setCertificateData] = useState<{ name: string; score: number; date: string } | null>(null)
+  const [certificateData, setCertificateData] = useState<{ name: string; score: number; date: string; volume: string } | null>(null)
   const [supabase, setSupabase] = useState<any>(null)
 
   // Video state for module content
@@ -1356,10 +1356,16 @@ The agent who responds first usually wins. AI makes sure that's you.`,
 
     if (score >= 85) {
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      const volumeLabels: Record<string, string> = {
+        'volume-1': 'Volume 1 — Foundations',
+        'volume-2': 'Volume 2 — Elite',
+        'volume-3': 'Volume 3 — AI Training',
+      }
       setCertificateData({
         name: user?.user_metadata?.name || user?.email || 'Agent',
         score,
-        date: today
+        date: today,
+        volume: volumeLabels[currentVolume || 'volume-1'] || 'Volume 1',
       })
 
       setAlertMessage(`🏆 CERTIFIED! Final Exam Score: ${score}%`)
@@ -1797,41 +1803,143 @@ The agent who responds first usually wins. AI makes sure that's you.`,
           </div>
         )}
 
-        {/* Certificate */}
+        {/* Certificate — Branded HartFelt Ready™ Design */}
         {screen === 'certificate' && certificateData && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg shadow p-12 text-center border-4 border-blue-600">
-              <img src="/logo.png" alt="HartFelt" className="w-20 h-20 mx-auto mb-6" />
-              <h1 className="text-3xl font-bold text-blue-600 mb-2">HartFelt Ready™</h1>
-              <p className="text-lg text-gray-600 mb-8">Certification of Completion</p>
+          <div className="max-w-3xl mx-auto">
+            {/* Print-optimized certificate */}
+            <div id="hartfelt-certificate" style={{
+              background: 'linear-gradient(135deg, #0a0a0e 0%, #141418 40%, #0e0e12 100%)',
+              borderRadius: '16px',
+              padding: '56px 48px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+            }}>
+              {/* Subtle texture overlay */}
+              <div style={{
+                position: 'absolute', inset: 0, opacity: 0.03,
+                backgroundImage: 'radial-gradient(circle at 25% 25%, white 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }} />
 
-              <div className="border-t border-b py-8 mb-8">
-                <p className="text-gray-600 mb-2">This certifies that</p>
-                <p className="text-2xl font-bold text-gray-900 mb-4">{certificateData.name}</p>
-                <p className="text-gray-600">Has successfully completed Volume 1 of the HartFelt Ready™ Training Program</p>
-                <p className="text-gray-600 mt-4">with a final exam score of <span className="font-bold">{certificateData.score}%</span></p>
+              {/* Hexagon watermark */}
+              <div style={{
+                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                width: '300px', height: '300px', opacity: 0.04,
+                background: 'linear-gradient(135deg, transparent 33%, rgba(255,255,255,0.1) 33%, rgba(255,255,255,0.1) 66%, transparent 66%)',
+                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+              }} />
+
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                {/* Logo + Brand */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '4px' }}>
+                    <span style={{ color: '#ffffff', fontSize: '32px', fontWeight: 800, letterSpacing: '6px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>HARTFELT</span>
+                    <img src="/logo.png" alt="" style={{ width: '36px', height: '36px', filter: 'brightness(2)' }} />
+                  </div>
+                  <div style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '42px', color: '#dc2626', fontStyle: 'italic', fontWeight: 400, marginTop: '-4px' }}>
+                    Ready<span style={{ fontSize: '16px', verticalAlign: 'super', color: '#dc2626' }}>™</span>
+                  </div>
+                </div>
+
+                {/* Silver bar — CERTIFICATION EARNED */}
+                <div style={{
+                  background: 'linear-gradient(to right, transparent, rgba(180,180,190,0.15), rgba(200,200,210,0.25), rgba(180,180,190,0.15), transparent)',
+                  padding: '14px 0', margin: '24px 0',
+                }}>
+                  <span style={{ color: '#c8c8d0', fontSize: '18px', fontWeight: 600, letterSpacing: '8px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                    CERTIFICATION EARNED
+                  </span>
+                </div>
+
+                {/* Agent name */}
+                <div style={{ margin: '28px 0 8px' }}>
+                  <p style={{ color: 'rgba(200,200,210,0.6)', fontSize: '13px', letterSpacing: '2px', marginBottom: '12px' }}>AWARDED TO</p>
+                  <p style={{ color: '#ffffff', fontSize: '32px', fontWeight: 700, fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                    {certificateData.name}
+                  </p>
+                </div>
+
+                {/* Body text */}
+                <div style={{ maxWidth: '500px', margin: '24px auto' }}>
+                  <p style={{ color: 'rgba(200,200,210,0.7)', fontSize: '15px', lineHeight: 1.7, fontStyle: 'italic', fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                    Awarded upon successful completion of the<br />
+                    HartFelt Ready™ {certificateData.volume} training program and final assessment.
+                  </p>
+                  <p style={{ color: 'rgba(200,200,210,0.7)', fontSize: '14px', fontStyle: 'italic', fontFamily: 'Georgia, "Times New Roman", serif', marginTop: '16px' }}>
+                    Because Choices Matter.
+                  </p>
+                </div>
+
+                {/* Score badge */}
+                <div style={{ margin: '24px 0' }}>
+                  <span style={{
+                    display: 'inline-block', background: 'linear-gradient(135deg, rgba(220,180,60,0.15), rgba(220,180,60,0.05))',
+                    border: '1px solid rgba(220,180,60,0.3)', borderRadius: '8px',
+                    padding: '8px 24px', color: '#d4af37', fontSize: '14px', fontWeight: 600,
+                  }}>
+                    Final Score: {certificateData.score}%
+                  </span>
+                </div>
+
+                {/* Signature + Seal row */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', margin: '32px 48px 0' }}>
+                  {/* Signature */}
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '28px', color: '#e0e0e5', fontStyle: 'italic', marginBottom: '4px' }}>
+                      Antione Hart
+                    </p>
+                    <p style={{ color: 'rgba(200,200,210,0.5)', fontSize: '11px', letterSpacing: '1px' }}>
+                      Broker | HartFelt Real Estate
+                    </p>
+                  </div>
+
+                  {/* Seal */}
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #3a3a42, #222228, #3a3a42)',
+                    border: '2px solid rgba(180,180,190,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  }}>
+                    <img src="/logo.png" alt="" style={{ width: '28px', height: '28px', opacity: 0.7 }} />
+                  </div>
+                </div>
+
+                {/* Date */}
+                <p style={{ color: 'rgba(200,200,210,0.4)', fontSize: '12px', marginTop: '24px' }}>
+                  {certificateData.date}
+                </p>
+
+                {/* Bottom divider line + tagline */}
+                <div style={{ marginTop: '28px', borderTop: '1px solid rgba(180,180,190,0.1)', paddingTop: '16px' }}>
+                  <p style={{ color: 'rgba(200,200,210,0.35)', fontSize: '11px', letterSpacing: '2px', fontStyle: 'italic' }}>
+                    Luxury Residential &nbsp;•&nbsp; Development &nbsp;•&nbsp; Capital Advisory
+                  </p>
+                </div>
               </div>
+            </div>
 
-              <p className="text-gray-600 text-sm mb-8">Awarded on {certificateData.date}</p>
-
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => window.print()}
-                  className="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  Print Certificate
-                </button>
-                <button
-                  onClick={() => {
-                    setScreen('volumes')
-                    setCurrentVolume(null)
-                    setCertificateData(null)
-                  }}
-                  className="bg-gray-200 text-gray-700 px-8 py-2 rounded-lg hover:bg-gray-300 transition font-medium"
-                >
-                  Back to Volumes
-                </button>
-              </div>
+            {/* Action buttons (outside print area) */}
+            <div className="flex gap-4 justify-center mt-8 no-print">
+              <button
+                onClick={() => window.print()}
+                className="bg-yellow-500 text-black px-8 py-3 rounded-lg hover:bg-yellow-400 transition font-bold text-sm"
+              >
+                Print / Save PDF
+              </button>
+              <button
+                onClick={() => {
+                  setScreen('volumes')
+                  setCurrentVolume(null)
+                  setCertificateData(null)
+                }}
+                className="bg-zinc-800 text-zinc-300 px-8 py-3 rounded-lg hover:bg-zinc-700 transition font-medium text-sm border border-zinc-700"
+              >
+                Back to Volumes
+              </button>
             </div>
           </div>
         )}

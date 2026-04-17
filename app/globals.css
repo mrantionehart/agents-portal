@@ -88,3 +88,22 @@ code {
 .font-body {
   font-family: var(--font-sans);
 }
+
+/* Certificate print styles */
+@media print {
+  body { background: white !important; }
+  .no-print { display: none !important; }
+  nav, header, aside, footer { display: none !important; }
+  #hartfelt-certificate {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+}
