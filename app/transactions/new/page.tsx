@@ -7,7 +7,7 @@ import {
   ArrowLeft, Home, Key, Building2, Share2, Layers, DollarSign,
   MapPin, User, Phone, Mail, Calendar, FileText, Save, AlertCircle
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 const TRANSACTION_TYPES = [
   { value: 'seller', label: 'Listing (Seller)', icon: Home, color: 'bg-teal-50 border-teal-300 text-teal-700', selectedColor: 'bg-teal-600 text-white border-teal-600' },
@@ -24,6 +24,7 @@ export default function NewTransactionPage() {
 
   const [form, setForm] = useState({
     type: '',
+    agent_id: '',
     property_address: '',
     city: '',
     state: '',
@@ -42,11 +43,27 @@ export default function NewTransactionPage() {
     assignment_fee: '',
     referral_fee_pct: '',
     referral_party: '',
+    commission_rate_pct: '',
+    agent_split_pct: '',
     notes: '',
   })
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [agents, setAgents] = useState<any[]>([])
+  const isBrokerAdmin = role === 'broker' || role === 'admin'
+
+  const loadAgents = useCallback(async () => {
+    if (!isBrokerAdmin) return
+    try {
+      const res = await fetch('/api/pipeline')
+      if (!res.ok) return
+      const data = await res.json()
+      setAgents(data.agents || [])
+    } catch {}
+  }, [isBrokerAdmin])
+
+  useEffect(() => { if (user) loadAgents() }, [user, loadAgents])
 
   const handleSignOut = async () => {
     await signOut()
@@ -149,6 +166,27 @@ export default function NewTransactionPage() {
             })}
           </div>
         </div>
+
+        {/* Assign to Agent (Broker/Admin only) */}
+        {isBrokerAdmin && agents.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              Assign to Agent
+            </h2>
+            <select
+              value={form.agent_id}
+              onChange={e => updateField('agent_id', e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Myself</option>
+              {agents.map((a: any) => (
+                <option key={a.id} value={a.id}>{a.full_name} ({a.email})</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-2">Leave as &quot;Myself&quot; to create under your own pipeline</p>
+          </div>
+        )}
 
         {/* Property Information */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
@@ -326,6 +364,61 @@ export default function NewTransactionPage() {
                 </div>
               )}
             </div>
+
+            {/* Commission Settings */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Commission Rate %</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={form.commission_rate_pct}
+                  onChange={e => updateField('commission_rate_pct', e.target.value)}
+                  placeholder="3.0"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">Defaults to 3% if left blank</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Agent Split %</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={form.agent_split_pct}
+                  onChange={e => updateField('agent_split_pct', e.target.value)}
+                  placeholder="70"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">Defaults to 70% if left blank</p>
+              </div>
+            </div>
+
+            {/* GCI Preview */}
+            {form.contract_price && (
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Estimated GCI</p>
+                <div className="flex items-center gap-6">
+                  <div>
+                    <p className="text-xs text-gray-500">Gross Commission</p>
+                    <p className="text-lg font-bold text-blue-600">
+                      ${((parseFloat(form.contract_price) || 0) * ((parseFloat(form.commission_rate_pct) || 3) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Agent Amount</p>
+                    <p className="text-lg font-bold text-green-600">
+                      ${((parseFloat(form.contract_price) || 0) * ((parseFloat(form.commission_rate_pct) || 3) / 100) * ((parseFloat(form.agent_split_pct) || 70) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Brokerage Amount</p>
+                    <p className="text-lg font-bold text-gray-600">
+                      ${((parseFloat(form.contract_price) || 0) * ((parseFloat(form.commission_rate_pct) || 3) / 100) * ((100 - (parseFloat(form.agent_split_pct) || 70)) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Referral-specific */}
             {showReferralFields && (

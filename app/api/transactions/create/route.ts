@@ -47,9 +47,19 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Get user role
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const userRole = profile?.role || 'agent'
+
     const body = await request.json()
     const {
       type,
+      agent_id: assignedAgentId,
       property_address,
       city,
       state,
@@ -68,6 +78,8 @@ export async function POST(request: NextRequest) {
       assignment_fee,
       referral_fee_pct,
       referral_party,
+      commission_rate_pct,
+      agent_split_pct,
       notes,
     } = body
 
@@ -80,11 +92,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 })
     }
 
+    // Determine agent_id: broker/admin can assign to any agent
+    let targetAgentId = user.id
+    if (['broker', 'admin'].includes(userRole) && assignedAgentId) {
+      // Verify the agent exists
+      const { data: agentProfile } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('id', assignedAgentId)
+        .eq('is_active', true)
+        .single()
+
+      if (agentProfile) {
+        targetAgentId = assignedAgentId
+      }
+    }
+
     // Insert transaction
     const { data: transaction, error } = await admin
       .from('transactions')
       .insert({
-        agent_id: user.id,
+        agent_id: targetAgentId,
         type,
         status: 'draft',
         property_address: property_address.trim(),
@@ -130,6 +158,30 @@ export async function POST(request: NextRequest) {
             sort_order: idx,
           }))
         )
+    }
+
+    // Auto-create commission record if contract price is provided
+    const price = contract_price ? parseFloat(contract_price) : 0
+    if (price > 0) {
+      const commRate = commission_rate_pct ? parseFloat(commission_rate_pct) : 3.0
+      const agentSplit = agent_split_pct ? parseFloat(agent_split_pct) : 70.0
+      const grossComm = price * (commRate / 100)
+      const agentAmt = grossComm * (agentSplit / 100)
+      const brokerageAmt = grossComm - agentAmt
+      const referralAmt = referral_fee_pct ? grossComm * (parseFloat(referral_fee_pct) / 100) : 0
+
+      await admin
+        .from('commissions')
+        .insert({
+          transaction_id: transaction.id,
+          agent_id: targetAgentId,
+          gross_commission: Math.round(grossComm * 100) / 100,
+          commission_rate_pct: commRate,
+          agent_split_pct: agentSplit,
+          agent_amount: Math.round(agentAmt * 100) / 100,
+          brokerage_amount: Math.round(brokerageAmt * 100) / 100,
+          referral_fee_amount: referralAmt > 0 ? Math.round(referralAmt * 100) / 100 : null,
+        })
     }
 
     return NextResponse.json({ transaction }, { status: 201 })
