@@ -2,379 +2,345 @@
 
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
-import Link from 'next/link'
-import { ArrowLeft, Plus, DollarSign, Calendar, AlertCircle, TrendingUp } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { vaultAPI } from '@/lib/vault-client'
-import ComplianceNotifications from '../components/compliance-notifications'
-import AddDealModal from '@/components/AddDealModal'
-import { createClient } from '@supabase/supabase-js'
+import SidebarNav from '../components/SidebarNav'
+import {
+  Briefcase, Home, Key, Building2, Share2, Layers,
+  DollarSign, TrendingUp, ArrowRight, Plus, AlertCircle
+} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 
-interface Deal {
+interface PipelineStage {
   id: string
-  property_address: string
-  client_name: string
-  contract_price: number
-  stage: string
-  status: string
-  created_at: string
-  closing_date?: string
-  agent_id: string
-  notes?: string
+  label: string
+  count: number
+  volume: number
+  avgDays: number
+  gci: number
+  probability: number
+  transactions: {
+    id: string
+    property_address: string
+    city: string
+    contract_price: number
+    closing_date: string
+    gci: number
+    agent_amount: number
+  }[]
 }
 
-const PIPELINE_STAGES = [
-  { id: 'new', label: 'New Lead', color: 'bg-blue-100', textColor: 'text-blue-900', borderColor: 'border-blue-300', icon: '⭐' },
-  { id: 'contacted', label: 'Contacted', color: 'bg-purple-100', textColor: 'text-purple-900', borderColor: 'border-purple-300', icon: '📞' },
-  { id: 'showing', label: 'Showing', color: 'bg-orange-100', textColor: 'text-orange-900', borderColor: 'border-orange-300', icon: '👁️' },
-  { id: 'offer', label: 'Offer Sent', color: 'bg-yellow-100', textColor: 'text-yellow-900', borderColor: 'border-yellow-300', icon: '📄' },
-  { id: 'contract', label: 'Under Contract', color: 'bg-green-100', textColor: 'text-green-900', borderColor: 'border-green-300', icon: '✅' },
-  { id: 'inspection', label: 'Inspection', color: 'bg-teal-100', textColor: 'text-teal-900', borderColor: 'border-teal-300', icon: '🔍' },
-  { id: 'clear', label: 'Clear to Close', color: 'bg-cyan-100', textColor: 'text-cyan-900', borderColor: 'border-cyan-300', icon: '🔓' },
-  { id: 'closed', label: 'Closed', color: 'bg-amber-100', textColor: 'text-amber-900', borderColor: 'border-amber-300', icon: '🏆' },
-]
+interface PipelineGroup {
+  id: string
+  label: string
+  icon: string
+  stages: PipelineStage[]
+  summary: {
+    totalDeals: number
+    totalVolume: number
+    potentialGCI: number
+    probableGCI: number
+  }
+}
+
+interface PipelineTotals {
+  totalDeals: number
+  totalVolume: number
+  potentialGCI: number
+  probableGCI: number
+  closedDeals: number
+  closedVolume: number
+}
+
+const iconMap: Record<string, any> = {
+  home: Home,
+  key: Key,
+  building: Building2,
+  share: Share2,
+  layers: Layers,
+}
+
+const stageLineColors: Record<string, string> = {
+  listings: 'bg-teal-400',
+  buyers: 'bg-red-400',
+  leases: 'bg-blue-400',
+  referrals: 'bg-amber-400',
+  other: 'bg-purple-400',
+}
+
+const stageBadgeColors: Record<string, string> = {
+  listings: 'bg-teal-500',
+  buyers: 'bg-red-500',
+  leases: 'bg-blue-500',
+  referrals: 'bg-amber-500',
+  other: 'bg-purple-500',
+}
 
 export default function PipelinePage() {
   const { user, role, loading, signOut } = useAuth()
   const router = useRouter()
-  const [deals, setDeals] = useState<Deal[]>([])
-  const [dealsLoading, setDealsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [pipelineData, setPipelineData] = useState<Record<string, Deal[]>>({})
-  const [totalValue, setTotalValue] = useState(0)
-  const [dealStats, setDealStats] = useState({ total: 0, inProgress: 0, closing: 0 })
-  const [showAddDealModal, setShowAddDealModal] = useState(false)
-  const [agents, setAgents] = useState<Array<{ id: string; email: string; name?: string }>>([])
-  const [addingDeal, setAddingDeal] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      loadDeals()
-    }
-  }, [user])
+  const [pipeline, setPipeline] = useState<PipelineGroup[]>([])
+  const [totals, setTotals] = useState<PipelineTotals | null>(null)
+  const [agents, setAgents] = useState<any[]>([])
+  const [userRole, setUserRole] = useState('agent')
+  const [selectedAgent, setSelectedAgent] = useState<string>('')
+  const [loadingData, setLoadingData] = useState(true)
 
-  useEffect(() => {
-    if (deals.length > 0) {
-      organizeDealsByStage()
-      calculateStats()
-    }
-  }, [deals])
-
-  const loadDeals = async () => {
-    if (!user) return
+  const loadPipeline = useCallback(async () => {
+    setLoadingData(true)
     try {
-      setDealsLoading(true)
-      setError(null)
-      const result = await vaultAPI.deals.list(user.id, role)
-      const dealsArray = Array.isArray(result) ? result : result.deals || []
-      setDeals(dealsArray)
+      const params = selectedAgent ? `?agent_id=${selectedAgent}` : ''
+      const res = await fetch(`/api/pipeline${params}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const data = await res.json()
+      setPipeline(data.pipeline || [])
+      setTotals(data.totals || null)
+      setAgents(data.agents || [])
+      setUserRole(data.role || 'agent')
     } catch (err) {
-      console.error('Error loading deals:', err)
-      setError(`Failed to load deals: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      console.error('Failed to load pipeline:', err)
     } finally {
-      setDealsLoading(false)
+      setLoadingData(false)
     }
-  }
+  }, [selectedAgent])
 
-  const organizeDealsByStage = () => {
-    const organized: Record<string, Deal[]> = {}
-    PIPELINE_STAGES.forEach((stage) => {
-      organized[stage.id] = deals.filter((deal) => deal.stage === stage.id || deal.status === stage.id)
-    })
-    setPipelineData(organized)
-
-    const total = deals.reduce((sum, deal) => sum + (deal.contract_price || 0), 0)
-    setTotalValue(total)
-  }
-
-  const calculateStats = () => {
-    const closedStages = ['closed']
-    const inProgressStages = ['contacted', 'showing', 'offer', 'contract', 'inspection', 'clear']
-
-    setDealStats({
-      total: deals.length,
-      inProgress: deals.filter((d) => inProgressStages.includes(d.stage || d.status)).length,
-      closing: deals.filter((d) => closedStages.includes(d.stage || d.status)).length,
-    })
-  }
-
-  const handleMoveDeal = async (dealId: string, newStage: string) => {
-    if (!user) return
-
-    try {
-      await vaultAPI.deals.updateStage(dealId, newStage, user.id, role)
-      setDeals((prevDeals) =>
-        prevDeals.map((deal) =>
-          deal.id === dealId ? { ...deal, stage: newStage, status: newStage } : deal
-        )
-      )
-    } catch (err) {
-      setError(`Failed to move deal: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    }
-  }
-
-  const loadAgents = async () => {
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
-        // Get all users with agent role
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, email, name')
-          .eq('role', 'agent')
-
-        if (data) {
-          setAgents(data)
-        }
-      }
-    } catch (err) {
-      console.error('Error loading agents:', err)
-    }
-  }
-
-  const handleAddDeal = async (dealData: any) => {
-    if (!user) return
-
-    setAddingDeal(true)
-    try {
-      const newDeal = await vaultAPI.deals.create(
-        {
-          ...dealData,
-          created_at: new Date().toISOString(),
-        },
-        user.id,
-        role
-      )
-
-      // Add to local state
-      setDeals(prevDeals => [...prevDeals, newDeal])
-      setShowAddDealModal(false)
-    } catch (err) {
-      console.error('Error adding deal:', err)
-      throw err
-    } finally {
-      setAddingDeal(false)
-    }
-  }
-
-  // Load agents when component mounts (for brokers/admins)
-  useEffect(() => {
-    if (role !== 'agent') {
-      loadAgents()
-    }
-  }, [role])
+  useEffect(() => { if (user) loadPipeline() }, [user, loadPipeline])
 
   const handleSignOut = async () => {
     await signOut()
     router.push('/login')
   }
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  const formatCurrency = (n: number) => {
+    if (n >= 1000000) return `$${(n / 1000000).toFixed(2)}M`
+    if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 2)}K`
+    return `$${n.toFixed(0)}`
   }
 
-  if (!user) {
-    return null
+  const formatVolume = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+    if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
+    return `${n}`
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    )
+  }
+
+  if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-full px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5" />
-              Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Deal Pipeline</h1>
+    <div className="min-h-screen bg-gray-50 flex">
+      <SidebarNav onSignOut={handleSignOut} userName={user?.user_metadata?.full_name} role={role} />
+
+      <div className="flex-1 p-6 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Briefcase className="w-6 h-6 text-blue-600" />
+              Deals Pipeline
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Track your opportunities from cultivation to close
+            </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Agent selector for broker/admin */}
+            {['broker', 'admin'].includes(userRole) && agents.length > 0 && (
+              <select
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Agents</option>
+                {agents.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.full_name}</option>
+                ))}
+              </select>
+            )}
             <button
-              onClick={() => setShowAddDealModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 font-medium"
+              onClick={() => router.push('/transactions/new')}
+              className="bg-teal-600 text-white px-4 py-2.5 rounded-lg hover:bg-teal-700 transition flex items-center gap-2 text-sm font-semibold"
             >
-              <Plus className="w-5 h-5" />
-              Add Deal
-            </button>
-            <ComplianceNotifications userId={user?.id} role={role} />
-            <button
-              onClick={handleSignOut}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-            >
-              Sign Out
+              <Plus className="w-4 h-4" />
+              Create Opportunity
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="px-6 py-8">
-        {/* Error Banner */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Stats Section */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Total Deals</p>
-            <p className="text-3xl font-bold text-gray-900">{dealStats.total}</p>
-            <p className="text-xs text-gray-500 mt-2">In your pipeline</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">In Progress</p>
-            <p className="text-3xl font-bold text-gray-900">{dealStats.inProgress}</p>
-            <p className="text-xs text-gray-500 mt-2">Active transactions</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-amber-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Closed</p>
-            <p className="text-3xl font-bold text-gray-900">{dealStats.closing}</p>
-            <p className="text-xs text-gray-500 mt-2">Completed deals</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Total Value</p>
-            <p className="text-3xl font-bold text-gray-900">${(totalValue / 1000000).toFixed(1)}M</p>
-            <p className="text-xs text-gray-500 mt-2">Pipeline value</p>
-          </div>
-        </div>
-
-        {/* Pipeline Kanban Board */}
-        {dealsLoading ? (
-          <div className="text-center py-12 text-gray-600">Loading pipeline...</div>
-        ) : (
-          <div className="grid grid-cols-8 gap-4 overflow-x-auto pb-8">
-            {PIPELINE_STAGES.map((stage) => (
-              <div key={stage.id} className="flex flex-col min-w-80">
-                {/* Stage Header */}
-                <div className={`${stage.color} rounded-t-lg p-4 border-b-2 ${stage.borderColor}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className={`font-bold ${stage.textColor} text-lg flex items-center gap-2`}>
-                        {stage.icon} {stage.label}
-                      </h3>
-                      <p className={`text-sm ${stage.textColor} opacity-75 mt-1`}>
-                        {pipelineData[stage.id]?.length || 0} deals
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Stage Value */}
-                  {pipelineData[stage.id] && pipelineData[stage.id].length > 0 && (
-                    <div className={`text-sm font-semibold ${stage.textColor} mt-2 flex items-center gap-1`}>
-                      <DollarSign className="w-4 h-4" />
-                      ${(
-                        pipelineData[stage.id].reduce((sum, deal) => sum + (deal.contract_price || 0), 0) /
-                        1000000
-                      ).toFixed(1)}M
-                    </div>
-                  )}
+        {/* Top Summary Cards */}
+        {totals && (
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Briefcase className="w-4 h-4 text-blue-600" />
                 </div>
-
-                {/* Deal Cards */}
-                <div className="flex-1 bg-gray-50 rounded-b-lg p-4 space-y-3 min-h-96">
-                  {pipelineData[stage.id] && pipelineData[stage.id].length > 0 ? (
-                    pipelineData[stage.id].map((deal) => (
-                      <div
-                        key={deal.id}
-                        onClick={() => router.push(`/deals/${deal.id}`)}
-                        className={`${stage.color} rounded-lg p-4 border-2 ${stage.borderColor} cursor-pointer hover:shadow-lg transition`}
-                      >
-                        {/* Client Name */}
-                        <p className={`font-bold ${stage.textColor} text-sm mb-1 truncate`}>
-                          {deal.client_name}
-                        </p>
-
-                        {/* Property Address */}
-                        <p className={`${stage.textColor} text-xs mb-3 opacity-75 truncate`}>
-                          {deal.property_address}
-                        </p>
-
-                        {/* Price */}
-                        <div className={`text-lg font-bold ${stage.textColor} mb-3`}>
-                          ${(deal.contract_price || 0).toLocaleString()}
-                        </div>
-
-                        {/* Move to Next Stage Button */}
-                        {stage.id !== 'closed' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const nextStageIndex = PIPELINE_STAGES.findIndex((s) => s.id === stage.id) + 1
-                              if (nextStageIndex < PIPELINE_STAGES.length) {
-                                handleMoveDeal(deal.id, PIPELINE_STAGES[nextStageIndex].id)
-                              }
-                            }}
-                            className={`w-full py-1 px-2 rounded text-xs font-medium transition ${
-                              stage.id === 'closed'
-                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                : `${stage.color} text-gray-700 hover:opacity-80`
-                            }`}
-                          >
-                            Move →
-                          </button>
-                        )}
-
-                        {stage.id === 'closed' && (
-                          <div className="text-center py-1 text-xs font-medium text-green-700">
-                            ✓ Closed
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm text-center">
-                      <p>No deals in {stage.label.toLowerCase()}</p>
-                    </div>
-                  )}
-                </div>
+                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Total Deals</span>
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!dealsLoading && deals.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium mb-4">No deals in your pipeline yet.</p>
-            <p className="text-gray-500 text-sm">Deals will appear here once they are created in your system.</p>
-          </div>
-        )}
-
-        {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
-          <div className="flex gap-3">
-            <TrendingUp className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-blue-900 mb-1">Pipeline Overview</p>
-              <p className="text-sm text-blue-800">
-                Your deal pipeline shows all transactions from initial contact through closing. Move deals between stages as they progress. The pipeline value shows the total contract value of all deals in each stage.
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{totals.totalDeals}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                </div>
+                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Volume</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(totals.totalVolume)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-amber-600" />
+                </div>
+                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Potential GCI</span>
+              </div>
+              <p className="text-3xl font-bold text-amber-600">{formatCurrency(totals.potentialGCI)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                </div>
+                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Probable Income</span>
+              </div>
+              <p className="text-3xl font-bold text-green-600">{formatCurrency(totals.probableGCI)}</p>
             </div>
           </div>
-        </div>
-      </main>
+        )}
 
-      {/* Add Deal Modal */}
-      <AddDealModal
-        isOpen={showAddDealModal}
-        onClose={() => setShowAddDealModal(false)}
-        onAdd={handleAddDeal}
-        userRole={role}
-        currentUserId={user?.id}
-        agents={agents}
-        loading={addingDeal}
-      />
+        {loadingData ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : pipeline.length === 0 || (totals && totals.totalDeals === 0) ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-lg font-medium text-gray-500 mb-2">No deals in your pipeline yet</p>
+            <p className="text-sm text-gray-400 mb-6">Create a transaction to start tracking your opportunities</p>
+            <button
+              onClick={() => router.push('/transactions/new')}
+              className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition inline-flex items-center gap-2 text-sm font-semibold"
+            >
+              <Plus className="w-4 h-4" />
+              Create Opportunity
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {pipeline.map(group => {
+              const Icon = iconMap[group.icon] || Briefcase
+              const lineColor = stageLineColors[group.id] || 'bg-gray-300'
+              const badgeColor = stageBadgeColors[group.id] || 'bg-gray-500'
+
+              return (
+                <div key={group.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="flex items-stretch">
+                    {/* Pipeline stages */}
+                    <div className="flex-1 p-6 pb-5">
+                      {/* Group title */}
+                      <div className="flex items-center gap-2.5 mb-5">
+                        <Icon className="w-5 h-5 text-gray-600" />
+                        <h2 className="text-base font-bold text-gray-900">{group.label}</h2>
+                      </div>
+
+                      {/* Stage labels */}
+                      <div className="flex items-center mb-3 px-4">
+                        {group.stages.map((stage, idx) => (
+                          <div key={stage.id} className="flex items-center flex-1">
+                            <span className="text-[11px] font-semibold text-gray-500 text-center w-full">
+                              {stage.label}
+                            </span>
+                            {idx < group.stages.length - 1 && (
+                              <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Stage circles with connecting line */}
+                      <div className="relative flex items-center mb-3 px-4">
+                        {/* Connecting line */}
+                        <div className={`absolute top-1/2 left-[12%] right-[12%] h-[3px] rounded-full ${lineColor}`}
+                          style={{ transform: 'translateY(-50%)' }} />
+
+                        {group.stages.map((stage) => (
+                          <div key={stage.id} className="flex-1 flex justify-center relative z-10">
+                            <div className="flex flex-col items-center">
+                              {/* Circle with icon */}
+                              <div className={`w-14 h-14 rounded-full flex items-center justify-center bg-white border-2 ${
+                                stage.count > 0 ? 'border-gray-300 shadow-sm' : 'border-gray-200'
+                              }`}>
+                                <Icon className="w-5 h-5 text-gray-500" />
+                              </div>
+                              {/* Count badge */}
+                              <div className={`-mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white ${
+                                stage.count > 0 ? badgeColor : 'bg-gray-400'
+                              }`}>
+                                {stage.count}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Volume + Avg Time */}
+                      <div className="flex items-center px-4 mt-1">
+                        {group.stages.map(stage => (
+                          <div key={stage.id} className="flex-1 text-center">
+                            <p className="text-xs text-gray-500">
+                              Volume: {stage.volume > 0 ? formatVolume(stage.volume) : '0'}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              Avg. Time: {stage.avgDays > 0 ? `${stage.avgDays} days` : '0.1 days'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* GCI Sidebar */}
+                    <div className="w-72 border-l border-gray-200 bg-gray-50 p-6 flex flex-col justify-center">
+                      <h3 className="text-base font-bold text-gray-900 mb-4">GCI</h3>
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Potential Income</span>
+                            <span className="text-lg font-bold text-blue-600">
+                              {formatCurrency(group.summary.potentialGCI)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            Total commission from all opportunities {group.label.toLowerCase()}
+                          </p>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Probable Income</span>
+                            <span className="text-lg font-bold text-green-600">
+                              {formatCurrency(group.summary.probableGCI)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            Adjusted commission based on each stage's probability to close
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
