@@ -86,7 +86,7 @@ export default function HartFeltHeart({
 /**
  * Full-page watermark — positions the heart centered in the background
  */
-export function HartFeltWatermark({ color = '#C9A84C', opacity = 0.08 }: { color?: string; opacity?: number }) {
+export function HartFeltWatermark({ color = '#C9A84C', opacity = 0.20 }: { color?: string; opacity?: number }) {
   return (
     <div
       className="fixed inset-0 pointer-events-none flex items-center justify-center z-0"
