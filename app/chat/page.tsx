@@ -37,20 +37,15 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // Load messages for current channel
+  // Load messages for current channel via API route
   const loadMessages = useCallback(async () => {
     if (!user) return
     setLoadingMessages(true)
     try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('channel', activeChannel)
-        .order('created_at', { ascending: true })
-        .limit(200)
-
-      if (error) throw error
-      setMessages(data || [])
+      const res = await fetch(`/api/chat?channel=${activeChannel}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const { messages: msgs } = await res.json()
+      setMessages(msgs || [])
     } catch (err) {
       console.error('Failed to load messages:', err)
       setMessages([])
@@ -113,17 +108,16 @@ export default function ChatPage() {
     setSending(true)
 
     try {
-      const senderName =
-        user.user_metadata?.full_name || user.email?.split('@')[0] || 'Agent'
-
-      const { error } = await supabase.from('chat_messages').insert({
-        channel: activeChannel,
-        sender_id: user.id,
-        sender_name: senderName,
-        message: messageText,
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: activeChannel,
+          message: messageText,
+        }),
       })
 
-      if (error) throw error
+      if (!res.ok) throw new Error('Failed to send')
     } catch (err) {
       console.error('Failed to send message:', err)
       setInputValue(messageText) // Restore on failure
