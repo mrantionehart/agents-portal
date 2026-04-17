@@ -4,6 +4,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Authenticate via cookie (portal) or Bearer token (mobile)
 async function getAuthedUser(request: NextRequest) {

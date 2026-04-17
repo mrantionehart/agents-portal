@@ -4,6 +4,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Shared auth helper — same pattern as /api/training/catalog/route.ts
 async function getAuthedUser(request: NextRequest) {

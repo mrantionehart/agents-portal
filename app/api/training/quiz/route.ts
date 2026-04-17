@@ -5,6 +5,7 @@ import { getQuizForModule, gradeQuiz } from '@/app/data/quizzes'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Module counts per volume — used to detect volume completion
 const VOLUME_MODULE_COUNTS: Record<number, number[]> = {
