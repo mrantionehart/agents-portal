@@ -16,7 +16,8 @@ import {
   Settings,
   ChevronDown,
   LogOut,
-  CheckSquare
+  CheckSquare,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -44,6 +45,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
 
   const operationsItems = [
     { label: 'Transaction Coordinator', href: '/transaction-coordinator', icon: CheckSquare },
+    { label: 'Compliance', href: '/compliance', icon: Shield },
     { label: 'Documents', href: '/documents', icon: FileText },
     { label: 'Commissions', href: '/commissions', icon: DollarSign },
   ]
