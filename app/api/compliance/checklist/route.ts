@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
         requirement_id: req.id,
         doc_label: req.doc_label,
         is_required: req.is_required,
+        signature_required: req.signature_required || false,
         folder: req.folder,
         sort_order: req.sort_order,
         // Document info (if uploaded)
@@ -149,6 +150,10 @@ export async function GET(request: NextRequest) {
           mime_type: matchedDoc.mime_type,
           upload_date: matchedDoc.upload_date || matchedDoc.created_at,
           verified_date: matchedDoc.verified_date,
+          signature_status: matchedDoc.signature_status || null,
+          signature_notes: matchedDoc.signature_notes || null,
+          reviewed_by: matchedDoc.reviewed_by || null,
+          reviewed_at: matchedDoc.reviewed_at || null,
         } : null,
         status: matchedDoc
           ? matchedDoc.status === 'verified' ? 'approved'
@@ -169,6 +174,7 @@ export async function GET(request: NextRequest) {
           requirement_id: null,
           doc_label: doc.name,
           is_required: false,
+          signature_required: false,
           folder: 'additional',
           sort_order: 99,
           document: {
@@ -180,6 +186,10 @@ export async function GET(request: NextRequest) {
             mime_type: doc.mime_type,
             upload_date: doc.upload_date || doc.created_at,
             verified_date: doc.verified_date,
+            signature_status: doc.signature_status || null,
+            signature_notes: doc.signature_notes || null,
+            reviewed_by: doc.reviewed_by || null,
+            reviewed_at: doc.reviewed_at || null,
           },
           status: doc.status === 'verified' ? 'approved'
             : doc.status === 'rejected' ? 'rejected'
@@ -244,6 +254,8 @@ export async function GET(request: NextRequest) {
         agent_id: transaction.agent_id,
         agent_name: agentProfile?.full_name || 'Unknown',
         agent_email: agentProfile?.email || '',
+        compliance_approved: transaction.compliance_approved || false,
+        compliance_approved_at: transaction.compliance_approved_at || null,
       },
       folders: orderedFolders,
       stats,

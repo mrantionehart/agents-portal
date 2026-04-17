@@ -187,6 +187,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create document record' }, { status: 500 })
     }
 
+    // ── Notify all brokers/admins that a doc was uploaded ─────
+    try {
+      const { data: brokers } = await admin
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('role', ['broker', 'admin'])
+
+      const { data: uploaderProfile } = await admin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      const uploaderName = uploaderProfile?.full_name || user.email?.split('@')[0] || 'An agent'
+
+      for (const broker of brokers || []) {
+        // In-app notification
+        await admin.from('compliance_notifications').insert({
+          recipient_id: broker.id,
+          transaction_id: transactionId,
+          notification_type: 'doc_uploaded',
+          title: `Document Uploaded: ${docLabel}`,
+          message: `${uploaderName} uploaded "${docLabel}" for ${transaction.property_address || 'a transaction'}. Review needed.`,
+          metadata: {
+            doc_label: docLabel,
+            folder,
+            property_address: transaction.property_address,
+            agent_name: uploaderName,
+          },
+        }).catch(() => {})
+
+        // Email notification
+        const sgApiKey = process.env.SENDGRID_API_KEY
+        if (sgApiKey && broker.email) {
+          const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agents.hartfeltrealestate.com'
+          fetch('https://api.sendgrid.com/v3/mail/send', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${sgApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              personalizations: [{ to: [{ email: broker.email }] }],
+              from: { email: process.env.SENDGRID_FROM_EMAIL || 'info@hartfeltrealestate.com', name: 'HartFelt Compliance' },
+              subject: `Document Uploaded: ${docLabel} — Review Needed`,
+              content: [{
+                type: 'text/html',
+                value: `
+<html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+  <h1 style="color:#1F4E78;border-bottom:3px solid #2E75B6;padding-bottom:10px;">Document Review Needed</h1>
+  <p><strong>${uploaderName}</strong> uploaded a document that needs your review.</p>
+  <div style="background:#f0f9ff;padding:15px;border-left:4px solid #2E75B6;margin:20px 0;border-radius:4px;">
+    <p style="margin:0;"><strong>Document:</strong> ${docLabel}</p>
+    <p style="margin:8px 0 0;"><strong>Property:</strong> ${transaction.property_address || 'N/A'}</p>
+    <p style="margin:8px 0 0;"><strong>Folder:</strong> ${folder || 'General'}</p>
+  </div>
+  <p><a href="${portalUrl}/compliance" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:4px;display:inline-block;">Review Document</a></p>
+  <p style="margin-top:30px;padding-top:20px;border-top:1px solid #ccc;color:#999;font-size:12px;">From The Hart,<br><strong>HartFelt Compliance</strong></p>
+</div></body></html>`,
+              }],
+            }),
+          }).catch(() => {})
+        }
+      }
+    } catch (notifErr) {
+      console.error('Notification error (non-critical):', notifErr)
+    }
+
     return NextResponse.json({
       document: newDoc,
       message: 'Document uploaded successfully',

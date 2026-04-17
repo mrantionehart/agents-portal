@@ -5,7 +5,8 @@ import { useAuth } from '../providers'
 import SidebarNav from '../components/SidebarNav'
 import {
   CheckCircle2, Upload, AlertCircle, XCircle, FileText, ChevronRight,
-  ChevronDown, FolderOpen, Shield, Clock, Search, Filter, ArrowLeft
+  ChevronDown, FolderOpen, Shield, Clock, Search, Filter, ArrowLeft,
+  PenLine, Bell, Lock, Unlock, AlertTriangle
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 
@@ -35,6 +36,7 @@ interface ChecklistItem {
   requirement_id: string | null
   doc_label: string
   is_required: boolean
+  signature_required: boolean
   folder: string
   sort_order: number
   document: {
@@ -46,6 +48,10 @@ interface ChecklistItem {
     mime_type: string
     upload_date: string
     verified_date: string | null
+    signature_status: string | null
+    signature_notes: string | null
+    reviewed_by: string | null
+    reviewed_at: string | null
   } | null
   status: 'approved' | 'uploaded' | 'rejected' | 'missing'
 }
@@ -70,6 +76,19 @@ interface TransactionDetail {
   contract_date: string
   agent_name: string
   agent_email: string
+  compliance_approved?: boolean
+  compliance_approved_at?: string
+}
+
+interface ComplianceNotification {
+  id: string
+  notification_type: string
+  title: string
+  message: string
+  read_at: string | null
+  created_at: string
+  transaction_id: string
+  metadata: Record<string, any>
 }
 
 export default function CompliancePage() {
@@ -90,6 +109,12 @@ export default function CompliancePage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingUpload, setPendingUpload] = useState<{ docLabel: string; folder: string } | null>(null)
+  const [notifications, setNotifications] = useState<ComplianceNotification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [rejectNotes, setRejectNotes] = useState<string>('')
+  const [rejectingDocId, setRejectingDocId] = useState<string | null>(null)
+  const [flaggingDocId, setFlaggingDocId] = useState<string | null>(null)
 
   // Load transactions
   const loadTransactions = useCallback(async () => {
@@ -129,6 +154,31 @@ export default function CompliancePage() {
       setLoadingChecklist(false)
     }
   }, [])
+
+  // Load notifications
+  const loadNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/compliance/notifications?limit=20')
+      if (!res.ok) return
+      const data = await res.json()
+      setNotifications(data.notifications || [])
+      setUnreadCount(data.unread_count || 0)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { if (user) loadNotifications() }, [user, loadNotifications])
+
+  // Mark notification(s) as read
+  const markNotificationsRead = async (notifId?: string) => {
+    try {
+      await fetch('/api/compliance/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifId ? { notification_id: notifId } : { mark_all: true }),
+      })
+      loadNotifications()
+    } catch { /* ignore */ }
+  }
 
   // Toggle folder
   const toggleFolder = (folderId: string) => {
@@ -177,16 +227,31 @@ export default function CompliancePage() {
   }
 
   // Broker review
-  const handleReview = async (documentId: string, action: 'approve' | 'reject') => {
+  const handleReview = async (documentId: string, action: 'approve' | 'reject' | 'flag_signature', notes?: string) => {
     if (!selectedTx) return
     try {
+      const body: any = { document_id: documentId, action }
+      if (action === 'reject' && notes) body.notes = notes
+      if (action === 'flag_signature') body.signature_status = 'missing'
+
       const res = await fetch('/api/compliance/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ document_id: documentId, action }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Review failed')
+      const result = await res.json()
+
+      // Show commission unlocked message if compliance is now complete
+      if (result.compliance?.complete) {
+        alert('All required documents are approved! Commission is now unlocked.')
+      }
+
       await loadChecklist(selectedTx.id)
+      loadNotifications()
+      setRejectingDocId(null)
+      setRejectNotes('')
+      setFlaggingDocId(null)
     } catch (err) {
       alert('Failed to review document')
     }
@@ -210,6 +275,27 @@ export default function CompliancePage() {
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${c.bg} ${c.text}`}>
         <Icon className="w-3.5 h-3.5" />
+        {c.label}
+      </span>
+    )
+  }
+
+  // Signature badge
+  const SignatureBadge = ({ item }: { item: ChecklistItem }) => {
+    if (!item.signature_required && !item.document?.signature_status) return null
+    const sigStatus = item.document?.signature_status || (item.signature_required ? 'required' : 'not_required')
+    if (sigStatus === 'not_required') return null
+
+    const config: Record<string, { bg: string; text: string; icon: any; label: string }> = {
+      present: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: PenLine, label: 'Signed' },
+      missing: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: AlertTriangle, label: 'Signature Missing' },
+      required: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: PenLine, label: 'Sig. Required' },
+    }
+    const c = config[sigStatus] || config.required
+    const Icon = c.icon
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${c.bg} ${c.text}`}>
+        <Icon className="w-3 h-3" />
         {c.label}
       </span>
     )
@@ -318,6 +404,52 @@ export default function CompliancePage() {
                     ? 'Track and upload required documents for your transactions'
                     : 'Review agent compliance documents across all transactions'}
               </p>
+            </div>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications && unreadCount > 0) markNotificationsRead() }}
+                className="relative p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-96 bg-white rounded-xl border border-gray-200 shadow-xl z-50 max-h-[28rem] overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-900">Compliance Alerts</h3>
+                    {notifications.length > 0 && (
+                      <button onClick={() => markNotificationsRead()} className="text-xs text-blue-600 hover:text-blue-700">
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto max-h-96">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-gray-400">No notifications yet</div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} className={`px-4 py-3 border-b border-gray-50 ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
+                          <div className="flex items-start gap-2">
+                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read_at ? 'bg-blue-500' : 'bg-transparent'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{n.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -475,6 +607,18 @@ export default function CompliancePage() {
                             <AlertCircle className="w-3.5 h-3.5 text-gray-400" /> {stats.missing} missing
                           </span>
                         </div>
+                        {/* Commission Gate Status */}
+                        <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                          selectedTx?.compliance_approved
+                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                          {selectedTx?.compliance_approved ? (
+                            <><Unlock className="w-3.5 h-3.5" /> Commission Unlocked</>
+                          ) : (
+                            <><Lock className="w-3.5 h-3.5" /> Commission Locked</>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -518,86 +662,140 @@ export default function CompliancePage() {
                         {isExpanded && (
                           <div className="border-t border-gray-100">
                             {/* Table Header */}
-                            <div className="grid grid-cols-12 gap-4 px-5 py-2.5 bg-gray-50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <div className="grid grid-cols-12 gap-3 px-5 py-2.5 bg-gray-50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                               <div className="col-span-1">Status</div>
-                              <div className="col-span-2">Requirement</div>
-                              <div className="col-span-4">Document</div>
+                              <div className="col-span-1">Type</div>
+                              <div className="col-span-3">Document</div>
+                              <div className="col-span-1">Signature</div>
                               <div className="col-span-2">Date</div>
-                              <div className="col-span-3 text-right">Actions</div>
+                              <div className="col-span-4 text-right">Actions</div>
                             </div>
 
                             {folder.items.map((item, idx) => (
-                              <div
-                                key={item.requirement_id || idx}
-                                className={`grid grid-cols-12 gap-4 px-5 py-3.5 items-center border-t border-gray-100 ${
-                                  item.status === 'missing' && item.is_required ? 'bg-red-50/30' : ''
-                                }`}
-                              >
-                                <div className="col-span-1">
-                                  <StatusBadge status={item.status} />
-                                </div>
-                                <div className="col-span-2">
-                                  <RequirementBadge required={item.is_required} />
-                                </div>
-                                <div className="col-span-4">
-                                  <div className="flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                      {item.doc_label}
-                                    </span>
+                              <div key={item.requirement_id || idx}>
+                                <div
+                                  className={`grid grid-cols-12 gap-3 px-5 py-3.5 items-center border-t border-gray-100 ${
+                                    item.status === 'missing' && item.is_required ? 'bg-red-50/30'
+                                    : item.document?.signature_status === 'missing' ? 'bg-amber-50/30'
+                                    : ''
+                                  }`}
+                                >
+                                  <div className="col-span-1">
+                                    <StatusBadge status={item.status} />
                                   </div>
-                                  {item.document && (
-                                    <p className="text-[11px] text-gray-400 mt-0.5 ml-6">
-                                      {(item.document.file_size / 1024).toFixed(0)} KB
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="col-span-2 text-xs text-gray-500">
-                                  {item.document?.upload_date
-                                    ? formatDate(item.document.upload_date)
-                                    : '--'}
-                                </div>
-                                <div className="col-span-3 flex items-center justify-end gap-2">
-                                  {/* Upload button */}
-                                  {(item.status === 'missing' || item.status === 'rejected') && (
-                                    <button
-                                      onClick={() => handleUploadClick(item.doc_label, item.folder)}
-                                      disabled={uploading === item.doc_label}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
-                                    >
-                                      <Upload className="w-3.5 h-3.5" />
-                                      {uploading === item.doc_label ? 'Uploading...' : 'Upload'}
-                                    </button>
-                                  )}
-                                  {/* Replace button for uploaded docs */}
-                                  {item.status === 'uploaded' && (
-                                    <button
-                                      onClick={() => handleUploadClick(item.doc_label, item.folder)}
-                                      disabled={uploading === item.doc_label}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition"
-                                    >
-                                      <Upload className="w-3.5 h-3.5" />
-                                      Replace
-                                    </button>
-                                  )}
-                                  {/* Broker approve/reject */}
-                                  {item.document && item.status === 'uploaded' && ['broker', 'admin'].includes(userRole) && (
-                                    <>
+                                  <div className="col-span-1">
+                                    <RequirementBadge required={item.is_required} />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                      <span className="text-sm font-medium text-gray-900 truncate">
+                                        {item.doc_label}
+                                      </span>
+                                    </div>
+                                    {item.document && (
+                                      <p className="text-[11px] text-gray-400 mt-0.5 ml-6">
+                                        {(item.document.file_size / 1024).toFixed(0)} KB
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="col-span-1">
+                                    <SignatureBadge item={item} />
+                                  </div>
+                                  <div className="col-span-2 text-xs text-gray-500">
+                                    {item.document?.upload_date
+                                      ? formatDate(item.document.upload_date)
+                                      : '--'}
+                                  </div>
+                                  <div className="col-span-4 flex items-center justify-end gap-2 flex-wrap">
+                                    {/* Upload button */}
+                                    {(item.status === 'missing' || item.status === 'rejected' || item.document?.signature_status === 'missing') && (
                                       <button
-                                        onClick={() => handleReview(item.document!.id, 'approve')}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition"
+                                        onClick={() => handleUploadClick(item.doc_label, item.folder)}
+                                        disabled={uploading === item.doc_label}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
                                       >
-                                        <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                                        <Upload className="w-3.5 h-3.5" />
+                                        {uploading === item.doc_label ? 'Uploading...' : item.document?.signature_status === 'missing' ? 'Re-upload Signed' : 'Upload'}
                                       </button>
+                                    )}
+                                    {/* Replace button for uploaded docs */}
+                                    {item.status === 'uploaded' && item.document?.signature_status !== 'missing' && (
                                       <button
-                                        onClick={() => handleReview(item.document!.id, 'reject')}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200 transition"
+                                        onClick={() => handleUploadClick(item.doc_label, item.folder)}
+                                        disabled={uploading === item.doc_label}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition"
                                       >
-                                        <XCircle className="w-3.5 h-3.5" /> Reject
+                                        <Upload className="w-3.5 h-3.5" />
+                                        Replace
                                       </button>
-                                    </>
-                                  )}
+                                    )}
+                                    {/* Broker controls */}
+                                    {item.document && ['broker', 'admin'].includes(userRole) && (
+                                      <>
+                                        {/* Approve (only for pending docs) */}
+                                        {item.status === 'uploaded' && (
+                                          <button
+                                            onClick={() => handleReview(item.document!.id, 'approve')}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition"
+                                          >
+                                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                                          </button>
+                                        )}
+                                        {/* Reject with notes */}
+                                        {item.status === 'uploaded' && (
+                                          <button
+                                            onClick={() => setRejectingDocId(rejectingDocId === item.document!.id ? null : item.document!.id)}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200 transition"
+                                          >
+                                            <XCircle className="w-3.5 h-3.5" /> Reject
+                                          </button>
+                                        )}
+                                        {/* Flag Missing Signature */}
+                                        {item.document && item.signature_required && item.document.signature_status !== 'present' && item.status !== 'rejected' && (
+                                          <button
+                                            onClick={() => handleReview(item.document!.id, 'flag_signature')}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-200 transition"
+                                          >
+                                            <PenLine className="w-3.5 h-3.5" /> Flag Signature
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
+                                {/* Reject notes input */}
+                                {rejectingDocId === item.document?.id && (
+                                  <div className="px-5 py-3 bg-red-50 border-t border-red-100 flex items-center gap-3">
+                                    <input
+                                      type="text"
+                                      placeholder="Reason for rejection (optional)..."
+                                      value={rejectNotes}
+                                      onChange={(e) => setRejectNotes(e.target.value)}
+                                      className="flex-1 px-3 py-2 text-sm border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 bg-white"
+                                      onKeyDown={(e) => { if (e.key === 'Enter') { handleReview(item.document!.id, 'reject', rejectNotes); } }}
+                                    />
+                                    <button
+                                      onClick={() => handleReview(item.document!.id, 'reject', rejectNotes)}
+                                      className="px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition"
+                                    >
+                                      Confirm Reject
+                                    </button>
+                                    <button
+                                      onClick={() => { setRejectingDocId(null); setRejectNotes('') }}
+                                      className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
+                                {/* Signature notes display */}
+                                {item.document?.signature_status === 'missing' && item.document?.signature_notes && (
+                                  <div className="px-5 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                                    <AlertTriangle className="w-3 h-3 inline mr-1" />
+                                    Signature note: {item.document.signature_notes}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
