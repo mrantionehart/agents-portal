@@ -200,8 +200,15 @@ export default function TrainingPage() {
   // Check if a module is unlocked. Module rule: first module of each volume
   // is always unlocked; subsequent modules require the previous module's quiz
   // to be passed (i.e. the previous module_num is in completed_modules).
+  // Modules that are always unlocked (accessible without progression)
+  const ALWAYS_UNLOCKED: Record<number, number[]> = {
+    1: [10], // Module 10 (New Agent Playbook) — always open
+  }
+
   const isModuleUnlocked = useCallback(
     (vol: number, moduleNum: number, allModuleNums: number[]): boolean => {
+      // Check if this module is always unlocked
+      if (ALWAYS_UNLOCKED[vol]?.includes(moduleNum)) return true
       const sorted = [...allModuleNums].sort((a, b) => a - b)
       if (sorted.length === 0) return false
       // First module is always unlocked
