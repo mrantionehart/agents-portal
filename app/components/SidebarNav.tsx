@@ -17,7 +17,9 @@ import {
   ChevronDown,
   LogOut,
   CheckSquare,
-  Shield
+  Shield,
+  Gift,
+  Megaphone
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -40,6 +42,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Transactions', href: '/transaction-coordinator', icon: CheckSquare },
     { label: 'Calendar', href: '/calendar', icon: Calendar },
     { label: 'Chat', href: '/chat', icon: MessageSquare },
+    { label: 'Available Leads', href: '/lead-distribution', icon: Gift },
     { label: 'Training', href: '/training', icon: BookOpen },
   ]
 
