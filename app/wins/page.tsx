@@ -3,34 +3,135 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Trophy, Star, TrendingUp, Award, Trash2, AlertCircle, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Trophy, Star, TrendingUp, Award } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { vaultAPI } from '@/lib/vault-client'
-import ComplianceNotifications from '../components/compliance-notifications'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+
+interface PipelineTransaction {
+  id: string
+  property_address: string
+  city: string
+  contract_price: number
+  closing_date: string | null
+  gci: number
+  agent_amount: number
+}
+
+interface PipelineStage {
+  id: string
+  label: string
+  count: number
+  volume: number
+  avgDays: number
+  gci: number
+  probability: number
+  transactions: PipelineTransaction[]
+}
+
+interface PipelineGroup {
+  id: string
+  label: string
+  icon: string
+  stages: PipelineStage[]
+  summary: {
+    totalDeals: number
+    totalVolume: number
+    potentialGCI: number
+    probableGCI: number
+  }
+}
+
+interface PipelineResponse {
+  pipeline: PipelineGroup[]
+  totals: {
+    totalDeals: number
+    totalVolume: number
+    potentialGCI: number
+    probableGCI: number
+    closedDeals: number
+    closedVolume: number
+  }
+  role: string
+  agents: { id: string; full_name: string; email: string }[]
+}
 
 interface Win {
   id: string
-  type: 'closed_deal' | 'milestone' | 'award' | 'personal'
+  type: 'closed_deal' | 'milestone'
   title: string
   description: string
-  agentId: string
-  agentEmail: string
   agentName: string
-  propertyAddress?: string
-  dealAmount?: number
-  imageUrl?: string
-  celebrationType: 'celebration' | 'milestone' | 'achievement'
+  agentEmail: string
+  propertyAddress: string
+  city: string
+  dealAmount: number
+  gci: number
+  agentAmount: number
+  closingDate: string | null
+  celebrationType: 'celebration' | 'milestone'
   likes: number
-  comments: string[]
   createdAt: string
+  stageId: string
+  stageLabel: string
+  groupLabel: string
 }
 
-const WIN_TYPES = [
-  { id: 'closed_deal', label: 'Closed Deal', icon: '🏠', color: 'text-green-600' },
-  { id: 'milestone', label: 'Milestone', icon: '🎯', color: 'text-blue-600' },
-  { id: 'award', label: 'Award', icon: '🏆', color: 'text-yellow-600' },
-  { id: 'personal', label: 'Personal Achievement', icon: '⭐', color: 'text-purple-600' },
+interface LeaderboardEntry {
+  agentName: string
+  agentEmail: string
+  closedDeals: number
+  closedVolume: number
+  totalWins: number
+}
+
+const FILTER_TABS = [
+  { id: 'all', label: 'All Wins' },
+  { id: 'closed_deal', label: 'Closed Deals' },
+  { id: 'milestone', label: 'Milestones' },
 ]
+
+function stageToWinType(stageId: string): 'closed_deal' | 'milestone' {
+  if (stageId === 'closed') return 'closed_deal'
+  return 'milestone'
+}
+
+function stageToTitle(stageId: string): string {
+  switch (stageId) {
+    case 'closed': return 'Deal Closed!'
+    case 'under_contract': return 'Under Contract!'
+    case 'active': return 'Active Listing'
+    case 'appointment': return 'Appointment Set'
+    case 'cultivate': return 'New Opportunity'
+    default: return 'Milestone'
+  }
+}
+
+function stageToCelebrationType(stageId: string): 'celebration' | 'milestone' {
+  if (stageId === 'closed') return 'celebration'
+  return 'milestone'
+}
+
+function stageToEmoji(stageId: string): string {
+  switch (stageId) {
+    case 'closed': return '🏠'
+    case 'under_contract': return '🎯'
+    case 'active': return '📋'
+    case 'appointment': return '📅'
+    case 'cultivate': return '🌱'
+    default: return '⭐'
+  }
+}
+
+function stageToColor(stageId: string): string {
+  switch (stageId) {
+    case 'closed': return 'text-green-600'
+    case 'under_contract': return 'text-blue-600'
+    case 'active': return 'text-yellow-600'
+    case 'appointment': return 'text-purple-600'
+    case 'cultivate': return 'text-gray-600'
+    default: return 'text-gray-600'
+  }
+}
 
 export default function WinsTrackerPage() {
   const { user, role, loading, signOut } = useAuth()
@@ -38,16 +139,9 @@ export default function WinsTrackerPage() {
   const [wins, setWins] = useState<Win[]>([])
   const [winsLoading, setWinsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
   const [likedWins, setLikedWins] = useState<Set<string>>(new Set())
-  const [newWin, setNewWin] = useState({
-    type: 'closed_deal' as const,
-    title: '',
-    description: '',
-    propertyAddress: '',
-    dealAmount: '',
-    celebrationType: 'celebration' as const,
-  })
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
 
   useEffect(() => {
     if (user) {
@@ -62,8 +156,120 @@ export default function WinsTrackerPage() {
       setWinsLoading(true)
       setError(null)
 
-      // Placeholder: In production, Vault API would have /api/wins endpoint
-      setWins([])
+      const supabase = createClientComponentClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      if (!token) {
+        setError('Not authenticated. Please sign in again.')
+        setWinsLoading(false)
+        return
+      }
+
+      // Fetch pipeline data (no agent_id filter so broker/admin sees all)
+      const res = await fetch('/api/pipeline', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!res.ok) {
+        throw new Error(`Pipeline API returned ${res.status}`)
+      }
+
+      const data: PipelineResponse = await res.json()
+      const agentName = user.user_metadata?.full_name || user.email || 'Agent'
+      const agentEmail = user.email || ''
+
+      // Convert pipeline transactions into wins
+      const allWins: Win[] = []
+
+      for (const group of data.pipeline) {
+        for (const stage of group.stages) {
+          // Only create wins for meaningful stages (skip cultivate for cleaner feed)
+          if (stage.id === 'cultivate') continue
+
+          for (const tx of stage.transactions) {
+            allWins.push({
+              id: tx.id,
+              type: stageToWinType(stage.id),
+              title: stageToTitle(stage.id),
+              description: buildDescription(stage.id, tx, group.label),
+              agentName,
+              agentEmail,
+              propertyAddress: tx.property_address,
+              city: tx.city,
+              dealAmount: tx.contract_price || 0,
+              gci: tx.gci || 0,
+              agentAmount: tx.agent_amount || 0,
+              closingDate: tx.closing_date,
+              celebrationType: stageToCelebrationType(stage.id),
+              likes: 0,
+              createdAt: tx.closing_date || '',
+              stageId: stage.id,
+              stageLabel: stage.label,
+              groupLabel: group.label,
+            })
+          }
+        }
+      }
+
+      // Sort: closed deals first, then by date descending
+      allWins.sort((a, b) => {
+        // Closed deals always on top
+        if (a.stageId === 'closed' && b.stageId !== 'closed') return -1
+        if (a.stageId !== 'closed' && b.stageId === 'closed') return 1
+        // Then under_contract
+        if (a.stageId === 'under_contract' && b.stageId !== 'under_contract') return -1
+        if (a.stageId !== 'under_contract' && b.stageId === 'under_contract') return 1
+        // Then by date
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return dateB - dateA
+      })
+
+      setWins(allWins)
+
+      // Build leaderboard from pipeline data
+      // For broker/admin, fetch per-agent data if agents are available
+      if (data.agents && data.agents.length > 0) {
+        const leaderboardEntries: LeaderboardEntry[] = []
+
+        for (const agent of data.agents) {
+          try {
+            const agentRes = await fetch(`/api/pipeline?agent_id=${agent.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            if (agentRes.ok) {
+              const agentData: PipelineResponse = await agentRes.json()
+              leaderboardEntries.push({
+                agentName: agent.full_name || agent.email,
+                agentEmail: agent.email,
+                closedDeals: agentData.totals.closedDeals,
+                closedVolume: agentData.totals.closedVolume,
+                totalWins: agentData.totals.totalDeals,
+              })
+            }
+          } catch {
+            // Skip agents that fail to load
+          }
+        }
+
+        leaderboardEntries.sort((a, b) => {
+          if (b.closedDeals !== a.closedDeals) return b.closedDeals - a.closedDeals
+          return b.closedVolume - a.closedVolume
+        })
+
+        // Only show agents with at least one deal
+        setLeaderboard(leaderboardEntries.filter(e => e.totalWins > 0))
+      } else {
+        // Agent view: just show own stats
+        setLeaderboard([{
+          agentName,
+          agentEmail,
+          closedDeals: data.totals.closedDeals,
+          closedVolume: data.totals.closedVolume,
+          totalWins: data.totals.totalDeals,
+        }])
+      }
     } catch (err) {
       console.error('Error loading wins:', err)
       setError(`Failed to load wins: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -72,34 +278,23 @@ export default function WinsTrackerPage() {
     }
   }
 
-  const handleAddWin = () => {
-    if (!newWin.title || !newWin.description) {
-      alert('Please fill in title and description')
-      return
-    }
+  function buildDescription(stageId: string, tx: PipelineTransaction, groupLabel: string): string {
+    const addr = tx.property_address || 'Property'
+    const city = tx.city ? `, ${tx.city}` : ''
+    const price = tx.contract_price ? ` - $${tx.contract_price.toLocaleString()}` : ''
 
-    const win: Win = {
-      id: `w${Date.now()}`,
-      ...newWin,
-      dealAmount: newWin.dealAmount ? parseInt(newWin.dealAmount) : undefined,
-      agentId: user!.id,
-      agentEmail: user!.email || '',
-      agentName: user!.user_metadata?.full_name || user!.email || 'Agent',
-      likes: 0,
-      comments: [],
-      createdAt: new Date().toISOString(),
+    switch (stageId) {
+      case 'closed':
+        return `Closed ${groupLabel.toLowerCase()} transaction at ${addr}${city}${price}. Congratulations!`
+      case 'under_contract':
+        return `${addr}${city} is now under contract${price}. Moving toward closing!`
+      case 'active':
+        return `${addr}${city} is actively being worked${price}.`
+      case 'appointment':
+        return `Appointment set for ${addr}${city}${price}.`
+      default:
+        return `${groupLabel} progress at ${addr}${city}${price}.`
     }
-
-    setWins([win, ...wins])
-    setNewWin({
-      type: 'closed_deal',
-      title: '',
-      description: '',
-      propertyAddress: '',
-      dealAmount: '',
-      celebrationType: 'celebration',
-    })
-    setShowAddForm(false)
   }
 
   const handleLikeWin = (winId: string) => {
@@ -112,24 +307,6 @@ export default function WinsTrackerPage() {
       }
       return newLiked
     })
-
-    setWins(
-      wins.map((w) => ({
-        ...w,
-        likes:
-          likedWins.has(w.id) && w.id === winId
-            ? w.likes - 1
-            : !likedWins.has(w.id) && w.id === winId
-            ? w.likes + 1
-            : w.likes,
-      }))
-    )
-  }
-
-  const handleDeleteWin = (winId: string) => {
-    if (confirm('Delete this win?')) {
-      setWins(wins.filter((w) => w.id !== winId))
-    }
   }
 
   const handleSignOut = async () => {
@@ -137,42 +314,15 @@ export default function WinsTrackerPage() {
     router.push('/login')
   }
 
-  // Calculate leaderboard
-  const leaderboard = Array.from(
-    wins.reduce(
-      (map, win) => {
-        const key = win.agentEmail
-        if (!map.has(key)) {
-          map.set(key, {
-            agentEmail: win.agentEmail,
-            agentName: win.agentName,
-            totalDeals: 0,
-            totalValue: 0,
-            winsCount: 0,
-          })
-        }
-        const entry = map.get(key)!
-        entry.winsCount += 1
-        if (win.type === 'closed_deal') {
-          entry.totalDeals += 1
-          if (win.dealAmount) entry.totalValue += win.dealAmount
-        }
-        return map
-      },
-      new Map<
-        string,
-        {
-          agentEmail: string
-          agentName: string
-          totalDeals: number
-          totalValue: number
-          winsCount: number
-        }
-      >()
-    )
-  )
-    .sort((a, b) => b[1].winsCount - a[1].winsCount)
-    .map(([_, value]) => value)
+  // Filter wins by active tab
+  const filteredWins = activeFilter === 'all'
+    ? wins
+    : wins.filter(w => w.type === activeFilter)
+
+  // Stats computed from wins
+  const totalClosedDeals = wins.filter(w => w.type === 'closed_deal').length
+  const totalClosedVolume = wins.filter(w => w.type === 'closed_deal').reduce((sum, w) => sum + w.dealAmount, 0)
+  const totalMilestones = wins.filter(w => w.type === 'milestone').length
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -195,7 +345,6 @@ export default function WinsTrackerPage() {
             <h1 className="text-2xl font-bold text-gray-900">Wins Tracker</h1>
           </div>
           <div className="flex items-center gap-4">
-            <ComplianceNotifications userId={user?.id} role={role} />
             <button
               onClick={handleSignOut}
               className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
@@ -215,107 +364,27 @@ export default function WinsTrackerPage() {
           </div>
         )}
 
-        {/* Add Win Button */}
-        <div className="mb-8">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            {showAddForm ? 'Cancel' : 'Share a Win'}
-          </button>
-        </div>
-
-        {/* Add Win Form */}
-        {showAddForm && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Share Your Win!</h2>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type of Win *</label>
-                <select
-                  value={newWin.type}
-                  onChange={(e) => setNewWin({ ...newWin, type: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {WIN_TYPES.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.icon} {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Celebration Type</label>
-                <select
-                  value={newWin.celebrationType}
-                  onChange={(e) => setNewWin({ ...newWin, celebrationType: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="celebration">Celebration</option>
-                  <option value="milestone">Milestone</option>
-                  <option value="achievement">Achievement</option>
-                </select>
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                <input
-                  type="text"
-                  value={newWin.title}
-                  onChange={(e) => setNewWin({ ...newWin, title: e.target.value })}
-                  placeholder="e.g., Closed $500K Deal in Miami Beach"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                <textarea
-                  value={newWin.description}
-                  onChange={(e) => setNewWin({ ...newWin, description: e.target.value })}
-                  placeholder="Tell us about this win! What made it special?"
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {newWin.type === 'closed_deal' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Property Address</label>
-                    <input
-                      type="text"
-                      value={newWin.propertyAddress}
-                      onChange={(e) => setNewWin({ ...newWin, propertyAddress: e.target.value })}
-                      placeholder="123 Main St, Miami, FL"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Deal Amount</label>
-                    <input
-                      type="number"
-                      value={newWin.dealAmount}
-                      onChange={(e) => setNewWin({ ...newWin, dealAmount: e.target.value })}
-                      placeholder="$500,000"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </>
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-8">
+          {FILTER_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id)}
+              className={`px-5 py-2.5 rounded-lg font-medium text-sm transition ${
+                activeFilter === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label}
+              {tab.id === 'all' && wins.length > 0 && (
+                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {wins.length}
+                </span>
               )}
-
-              <button
-                onClick={handleAddWin}
-                className="col-span-2 w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium"
-              >
-                Share Win
-              </button>
-            </div>
-          </div>
-        )}
+            </button>
+          ))}
+        </div>
 
         <div className="grid grid-cols-3 gap-6 mb-8">
           {/* Leaderboard */}
@@ -342,13 +411,20 @@ export default function WinsTrackerPage() {
                       </div>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span>{agent.winsCount} wins</span>
-                      {agent.totalDeals > 0 && <span>${(agent.totalValue / 1000000).toFixed(1)}M</span>}
+                      <span>{agent.closedDeals} closed</span>
+                      {agent.closedVolume > 0 && (
+                        <span>${agent.closedVolume >= 1000000
+                          ? `${(agent.closedVolume / 1000000).toFixed(1)}M`
+                          : `${(agent.closedVolume / 1000).toFixed(0)}K`
+                        }</span>
+                      )}
                     </div>
                   </div>
                 ))
+              ) : winsLoading ? (
+                <div className="p-4 text-gray-600 text-sm">Loading...</div>
               ) : (
-                <div className="p-4 text-gray-600 text-sm">No wins yet!</div>
+                <div className="p-4 text-gray-600 text-sm">No activity yet</div>
               )}
             </div>
           </div>
@@ -361,20 +437,27 @@ export default function WinsTrackerPage() {
             </h3>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Wins</p>
+                <p className="text-sm text-gray-600 mb-1">Closed Deals</p>
+                <p className="text-3xl font-bold text-gray-900">{totalClosedDeals}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Closed Volume</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {totalClosedVolume >= 1000000
+                    ? `$${(totalClosedVolume / 1000000).toFixed(1)}M`
+                    : totalClosedVolume > 0
+                    ? `$${(totalClosedVolume / 1000).toFixed(0)}K`
+                    : '$0'
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Active Milestones</p>
+                <p className="text-3xl font-bold text-gray-900">{totalMilestones}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Pipeline</p>
                 <p className="text-3xl font-bold text-gray-900">{wins.length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">My Wins</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {wins.filter((w) => w.agentEmail === user?.email).length}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Likes</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {wins.reduce((sum, w) => sum + w.likes, 0)}
-                </p>
               </div>
             </div>
           </div>
@@ -387,16 +470,16 @@ export default function WinsTrackerPage() {
             </h3>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="font-semibold text-gray-900">Share Wins</p>
-                <p className="text-gray-600">Post your deals, milestones, and achievements</p>
+                <p className="font-semibold text-gray-900">Auto-Generated Wins</p>
+                <p className="text-gray-600">Wins are created automatically from your pipeline activity</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Track Progress</p>
+                <p className="text-gray-600">See deals move from appointment to under contract to closed</p>
               </div>
               <div>
                 <p className="font-semibold text-gray-900">Celebrate Together</p>
-                <p className="text-gray-600">Like and comment on team wins</p>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Build Momentum</p>
-                <p className="text-gray-600">Track success and inspire your team</p>
+                <p className="text-gray-600">Like team wins and build momentum</p>
               </div>
             </div>
           </div>
@@ -406,10 +489,10 @@ export default function WinsTrackerPage() {
         <div className="space-y-6">
           {winsLoading ? (
             <div className="text-center py-12 text-gray-600">Loading wins...</div>
-          ) : wins.length > 0 ? (
-            wins.map((win) => {
-              const winType = WIN_TYPES.find((t) => t.id === win.type)
-              const isOwnWin = win.agentEmail === user?.email
+          ) : filteredWins.length > 0 ? (
+            filteredWins.map((win) => {
+              const isLiked = likedWins.has(win.id)
+              const likeCount = win.likes + (isLiked ? 1 : 0)
               return (
                 <div key={win.id} className="bg-white rounded-lg shadow hover:shadow-lg transition">
                   {/* Win Header */}
@@ -417,21 +500,19 @@ export default function WinsTrackerPage() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-2xl ${winType?.color}`}>{winType?.icon}</span>
+                          <span className={`text-2xl ${stageToColor(win.stageId)}`}>
+                            {stageToEmoji(win.stageId)}
+                          </span>
                           <h3 className="text-xl font-bold text-gray-900">{win.title}</h3>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {win.groupLabel}
+                          </span>
                         </div>
                         <p className="text-sm text-gray-600">
-                          by {win.agentName} {win.createdAt && `• ${new Date(win.createdAt).toLocaleDateString()}`}
+                          by {win.agentName}
+                          {win.closingDate && ` • ${new Date(win.closingDate).toLocaleDateString()}`}
                         </p>
                       </div>
-                      {isOwnWin && (
-                        <button
-                          onClick={() => handleDeleteWin(win.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -439,38 +520,56 @@ export default function WinsTrackerPage() {
                   <div className="p-6">
                     <p className="text-gray-700 mb-4">{win.description}</p>
 
-                    {win.type === 'closed_deal' && (
-                      <div className="bg-gray-50 p-4 rounded-lg mb-4 space-y-1">
+                    {/* Deal Details */}
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {win.propertyAddress && (
-                          <p className="text-sm text-gray-700">
-                            <span className="font-semibold">Property:</span> {win.propertyAddress}
-                          </p>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Property</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {win.propertyAddress}{win.city ? `, ${win.city}` : ''}
+                            </p>
+                          </div>
                         )}
-                        {win.dealAmount && (
-                          <p className="text-sm text-gray-700">
-                            <span className="font-semibold">Amount:</span> ${win.dealAmount.toLocaleString()}
-                          </p>
+                        {win.dealAmount > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Contract Price</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              ${win.dealAmount.toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        {win.gci > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">GCI</p>
+                            <p className="text-sm font-semibold text-green-700">
+                              ${win.gci.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </p>
+                          </div>
+                        )}
+                        {win.agentAmount > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase">Agent Amount</p>
+                            <p className="text-sm font-semibold text-green-700">
+                              ${win.agentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </p>
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Engagement */}
                     <div className="flex gap-6 pt-4 border-t">
                       <button
                         onClick={() => handleLikeWin(win.id)}
                         className={`flex items-center gap-2 transition ${
-                          likedWins.has(win.id)
+                          isLiked
                             ? 'text-red-600'
                             : 'text-gray-600 hover:text-red-600'
                         }`}
                       >
                         <Award className="w-4 h-4" />
-                        <span className="text-sm">{win.likes} Likes</span>
-                      </button>
-
-                      <button className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition">
-                        <MessageSquare className="w-4 h-4" />
-                        <span className="text-sm">{win.comments.length} Comments</span>
+                        <span className="text-sm">{likeCount} {likeCount === 1 ? 'Like' : 'Likes'}</span>
                       </button>
                     </div>
                   </div>
@@ -480,8 +579,15 @@ export default function WinsTrackerPage() {
           ) : (
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium mb-4">No wins shared yet!</p>
-              <p className="text-gray-500 text-sm">Share your first win to celebrate your success with the team.</p>
+              <p className="text-gray-600 font-medium mb-4">
+                {activeFilter === 'all'
+                  ? 'No pipeline activity yet!'
+                  : `No ${activeFilter === 'closed_deal' ? 'closed deals' : 'milestones'} yet!`
+                }
+              </p>
+              <p className="text-gray-500 text-sm">
+                Wins are automatically generated from your pipeline activity. Add transactions to see them here.
+              </p>
             </div>
           )}
         </div>
@@ -489,11 +595,11 @@ export default function WinsTrackerPage() {
         {/* Info Box */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Trophy className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-blue-900 mb-1">Celebrate Success</p>
+              <p className="font-semibold text-blue-900 mb-1">Pipeline-Powered Wins</p>
               <p className="text-sm text-blue-800">
-                Share your wins with the team! Post closed deals, milestones, and personal achievements. Like and comment on team wins to celebrate together and build momentum.
+                Wins are automatically generated from your pipeline activity. When a deal moves to under contract or closes, it appears here as a win. Keep your pipeline updated to track your progress!
               </p>
             </div>
           </div>
