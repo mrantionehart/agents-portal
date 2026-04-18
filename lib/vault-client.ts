@@ -3,7 +3,7 @@
  * Handles all communication between Agent Portal and Vault backend
  */
 
-const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'http://localhost:3000'
+const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
 
 interface VaultRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'

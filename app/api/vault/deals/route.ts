@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'http://192.168.6.88:3000'
+const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
 
 export async function GET(request: NextRequest) {
   try {
