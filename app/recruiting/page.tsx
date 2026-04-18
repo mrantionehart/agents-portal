@@ -5,6 +5,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Users, Mail, Phone, MapPin, TrendingUp, AlertCircle, Trash2, Edit, CheckCircle, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { vaultAPI } from '@/lib/vault-client'
 import ComplianceNotifications from '../components/compliance-notifications'
 
@@ -64,6 +65,8 @@ export default function RecruitingPage() {
     }
   }, [user])
 
+  const supabase = createClientComponentClient()
+
   const loadRecruits = async () => {
     if (!user) return
 
@@ -71,8 +74,71 @@ export default function RecruitingPage() {
       setRecruitsLoading(true)
       setError(null)
 
-      // Placeholder: In production, Vault API would have /api/recruits endpoint
-      setRecruits([])
+      const { data, error: fetchError } = await supabase
+        .from('recruiting_prospects')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      if (data && data.length > 0) {
+        const mapped: Recruit[] = data.map((row: any) => {
+          // Handle name: may be stored as full_name or first_name/last_name
+          let firstName = row.first_name || ''
+          let lastName = row.last_name || ''
+          if (!firstName && row.full_name) {
+            const parts = row.full_name.trim().split(/\s+/)
+            firstName = parts[0] || ''
+            lastName = parts.slice(1).join(' ') || ''
+          }
+          if (!firstName && row.name) {
+            const parts = row.name.trim().split(/\s+/)
+            firstName = parts[0] || ''
+            lastName = parts.slice(1).join(' ') || ''
+          }
+
+          // Map status — normalize to our status types
+          const statusMap: Record<string, Recruit['status']> = {
+            prospect: 'prospect',
+            interested: 'interested',
+            pipeline: 'pipeline',
+            in_pipeline: 'pipeline',
+            hired: 'hired',
+            declined: 'declined',
+            rejected: 'declined',
+          }
+          const status = statusMap[row.status?.toLowerCase()] || 'prospect'
+
+          // Map experience level
+          const expMap: Record<string, Recruit['experience']> = {
+            entry: 'entry',
+            junior: 'entry',
+            intermediate: 'intermediate',
+            mid: 'intermediate',
+            experienced: 'experienced',
+            senior: 'experienced',
+          }
+          const experience = expMap[row.experience?.toLowerCase()] || 'entry'
+
+          return {
+            id: row.id,
+            firstName,
+            lastName,
+            email: row.email || '',
+            phone: row.phone || '',
+            location: row.location || row.city || '',
+            experience,
+            status,
+            source: row.source || 'Unknown',
+            notes: row.notes || undefined,
+            createdAt: row.created_at,
+            recruiterEmail: row.recruiter_email || row.added_by || '',
+          }
+        })
+        setRecruits(mapped)
+      } else {
+        setRecruits([])
+      }
     } catch (err) {
       console.error('Error loading recruits:', err)
       setError(`Failed to load recruits: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -81,46 +147,87 @@ export default function RecruitingPage() {
     }
   }
 
-  const handleAddRecruit = () => {
+  const handleAddRecruit = async () => {
     if (!newRecruit.firstName || !newRecruit.lastName || !newRecruit.email) {
       alert('Please fill in required fields')
       return
     }
 
-    const recruit: Recruit = {
-      id: `r${Date.now()}`,
-      ...newRecruit,
-      recruiterEmail: user!.email || '',
-      createdAt: new Date().toISOString(),
-    }
+    try {
+      const { data, error: insertError } = await supabase
+        .from('recruiting_prospects')
+        .insert({
+          first_name: newRecruit.firstName,
+          last_name: newRecruit.lastName,
+          email: newRecruit.email,
+          phone: newRecruit.phone || null,
+          location: newRecruit.location || null,
+          experience: newRecruit.experience,
+          status: newRecruit.status,
+          source: newRecruit.source || 'Referral',
+          notes: newRecruit.notes || null,
+          recruiter_email: user!.email || '',
+        })
+        .select()
+        .single()
 
-    setRecruits([...recruits, recruit])
-    setNewRecruit({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      location: '',
-      experience: 'entry',
-      status: 'prospect',
-      source: 'Referral',
-      notes: '',
-    })
-    setShowAddForm(false)
+      if (insertError) throw insertError
+
+      // Re-load from database to stay in sync
+      await loadRecruits()
+
+      setNewRecruit({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        location: '',
+        experience: 'entry',
+        status: 'prospect',
+        source: 'Referral',
+        notes: '',
+      })
+      setShowAddForm(false)
+    } catch (err) {
+      console.error('Error adding recruit:', err)
+      alert(`Failed to add recruit: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
-  const handleDeleteRecruit = (recruitId: string) => {
-    if (confirm('Remove this recruit?')) {
-      setRecruits(recruits.filter((r) => r.id !== recruitId))
+  const handleDeleteRecruit = async (recruitId: string) => {
+    if (!confirm('Remove this recruit?')) return
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('recruiting_prospects')
+        .delete()
+        .eq('id', recruitId)
+
+      if (deleteError) throw deleteError
+    } catch (err) {
+      console.error('Error deleting recruit:', err)
     }
+    setRecruits(recruits.filter((r) => r.id !== recruitId))
   }
 
-  const handleStatusChange = (recruitId: string, newStatus: Recruit['status']) => {
+  const handleStatusChange = async (recruitId: string, newStatus: Recruit['status']) => {
+    // Optimistic update
     setRecruits(
       recruits.map((r) =>
         r.id === recruitId ? { ...r, status: newStatus } : r
       )
     )
+
+    try {
+      const { error: updateError } = await supabase
+        .from('recruiting_prospects')
+        .update({ status: newStatus })
+        .eq('id', recruitId)
+
+      if (updateError) throw updateError
+    } catch (err) {
+      console.error('Error updating recruit status:', err)
+    }
   }
 
   const handleSignOut = async () => {

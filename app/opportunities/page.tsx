@@ -3,28 +3,26 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { Users, MapPin, DollarSign, TrendingUp, Lock, Unlock } from 'lucide-react'
+import { Users, MapPin, DollarSign, TrendingUp, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
 
+interface Opportunity {
+  id: number
+  title: string
+  type: string
+  location: string
+  description: string
+  investmentRange: string
+  daysPosted: number
+  postedBy: string
+}
+
 export default function OpportunitiesPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, role, loading, signOut } = useAuth()
   const router = useRouter()
-  const [isUnlocked, setIsUnlocked] = useState(false)
-  const [passwordInput, setPasswordInput] = useState('')
-  const [showPasswordInput, setShowPasswordInput] = useState(false)
 
-  // Password for accessing private opportunities
-  const OPPORTUNITIES_PASSWORD = 'HartFelt2024' // ← CHANGE THIS TO YOUR PASSWORD
-
-  const handlePasswordSubmit = () => {
-    if (passwordInput === OPPORTUNITIES_PASSWORD) {
-      setIsUnlocked(true)
-      setPasswordInput('')
-      setShowPasswordInput(false)
-    } else {
-      alert('Incorrect password')
-    }
-  }
+  // Role-based access: broker and admin can view opportunities
+  const isUnlocked = role === 'broker' || role === 'admin'
 
   const handleSignOut = async () => {
     await signOut()
@@ -39,69 +37,8 @@ export default function OpportunitiesPage() {
     return null
   }
 
-  // Sample opportunities data - replace with Vault API call
-  const opportunities = [
-    {
-      id: 1,
-      title: 'Downtown Miami Mixed-Use Development',
-      type: 'Development Opportunity',
-      location: 'Downtown Miami, FL',
-      description: 'New mixed-use development project with residential and retail components. Estimated 250 units.',
-      investmentRange: '$5M - $10M',
-      daysPosted: 3,
-      postedBy: 'John Smith',
-    },
-    {
-      id: 2,
-      title: 'Wynwood Warehouse Conversion',
-      type: 'Development Opportunity',
-      location: 'Wynwood, Miami, FL',
-      description: 'Warehouse-to-loft conversion project in high-growth Wynwood district. Prime location for appreciation.',
-      investmentRange: '$2M - $4M',
-      daysPosted: 5,
-      postedBy: 'Sarah Johnson',
-    },
-    {
-      id: 3,
-      title: 'Brickell Office Building - Off-Market',
-      type: 'Exclusive Deal',
-      location: 'Brickell, Miami, FL',
-      description: 'Class A office building with long-term tenants. Strong NOI. Not listed on MLS.',
-      investmentRange: '$15M+',
-      daysPosted: 1,
-      postedBy: 'Michael Chen',
-    },
-    {
-      id: 4,
-      title: 'South Beach Boutique Hotel',
-      type: 'Investment Property',
-      location: 'South Beach, Miami, FL',
-      description: 'Established boutique hotel with proven operating history. Turn-key opportunity.',
-      investmentRange: '$8M - $12M',
-      daysPosted: 7,
-      postedBy: 'Elizabeth Rodriguez',
-    },
-    {
-      id: 5,
-      title: 'Coral Gables Land Assembly',
-      type: 'Partnership Opportunity',
-      location: 'Coral Gables, FL',
-      description: 'Strategic land assembly in prestigious Coral Gables. Perfect for luxury residential development.',
-      investmentRange: '$3M - $6M',
-      daysPosted: 2,
-      postedBy: 'David Martinez',
-    },
-    {
-      id: 6,
-      title: 'Coconut Grove Waterfront Development',
-      type: 'Development Opportunity',
-      location: 'Coconut Grove, FL',
-      description: 'Waterfront parcel with approved entitlements. Ready for development. Rare opportunity.',
-      investmentRange: '$7M - $15M',
-      daysPosted: 4,
-      postedBy: 'Jennifer Lee',
-    },
-  ]
+  // Opportunities loaded from API — empty until real data is connected
+  const opportunities: Opportunity[] = []
 
   const getOpportunityIcon = (type: string) => {
     switch (type) {
@@ -156,52 +93,20 @@ export default function OpportunitiesPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         {!isUnlocked ? (
-          // Locked State
+          // Locked State — agents without broker/admin role
           <div className="flex items-center justify-center py-24">
             <div className="bg-white rounded-lg shadow p-12 max-w-md w-full text-center">
-              <Lock className="w-16 h-16 text-red-600 mx-auto mb-4" />
+              <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-3">Private Opportunities</h2>
               <p className="text-gray-600 mb-8">
-                This section contains exclusive off-market deals and development opportunities within the HartFelt network. Enter the password to access.
+                This section contains exclusive off-market deals and development opportunities within the HartFelt network. Only brokers and admins can access this page.
               </p>
-              {showPasswordInput ? (
-                <div className="space-y-4">
-                  <input
-                    type="password"
-                    placeholder="Enter password"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    autoFocus
-                  />
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handlePasswordSubmit}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
-                    >
-                      Unlock
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowPasswordInput(false)
-                        setPasswordInput('')
-                      }}
-                      className="flex-1 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowPasswordInput(true)}
-                  className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
-                >
-                  <Unlock className="w-5 h-5" />
-                  Unlock Opportunities
-                </button>
-              )}
+              <Link
+                href="/dashboard"
+                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                Back to Dashboard
+              </Link>
             </div>
           </div>
         ) : (
@@ -214,51 +119,59 @@ export default function OpportunitiesPage() {
             </div>
 
             {/* Opportunities Grid */}
-            <div className="space-y-4">
-              {opportunities.map((opp) => (
-                <div
-                  key={opp.id}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden border-l-4 border-blue-500"
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-bold text-gray-900">{opp.title}</h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(opp.type)}`}>
-                            {opp.type}
-                          </span>
+            {opportunities.length > 0 ? (
+              <div className="space-y-4">
+                {opportunities.map((opp) => (
+                  <div
+                    key={opp.id}
+                    className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden border-l-4 border-blue-500"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-bold text-gray-900">{opp.title}</h3>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(opp.type)}`}>
+                              {opp.type}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 mb-3">{opp.description}</p>
                         </div>
-                        <p className="text-gray-600 mb-3">{opp.description}</p>
+                        <Users className={`w-10 h-10 flex-shrink-0 ${getOpportunityIcon(opp.type)}`} />
                       </div>
-                      <Users className={`w-10 h-10 flex-shrink-0 ${getOpportunityIcon(opp.type)}`} />
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">{opp.location}</span>
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">{opp.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900">{opp.investmentRange}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">{opp.daysPosted} days ago</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">{opp.investmentRange}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">{opp.daysPosted} days ago</span>
-                      </div>
-                    </div>
 
-                    <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Posted by {opp.postedBy}</span>
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
-                        View Details
-                      </button>
+                      <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Posted by {opp.postedBy}</span>
+                        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                          View Details
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium mb-2">No opportunities posted yet.</p>
+                <p className="text-gray-500 text-sm">Check back soon or contact your broker.</p>
+              </div>
+            )}
 
             {/* Submit Opportunity Button */}
             <div className="mt-12 text-center">

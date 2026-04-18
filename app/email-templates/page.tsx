@@ -101,7 +101,8 @@ Best regards,
 export default function EmailTemplatesPage() {
   const { user, role, loading, signOut } = useAuth()
   const router = useRouter()
-  const [templates, setTemplates] = useState<EmailTemplate[]>(DEFAULT_TEMPLATES)
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
   const [showComposer, setShowComposer] = useState(false)
@@ -115,6 +116,28 @@ export default function EmailTemplatesPage() {
     body: '',
   })
 
+  // Load templates from Vault API, fallback to defaults if empty
+  useEffect(() => {
+    const loadTemplates = async () => {
+      if (!user) return
+      try {
+        setTemplatesLoading(true)
+        const data = await vaultAPI.emailTemplates.list(user.id, role)
+        if (data && Array.isArray(data) && data.length > 0) {
+          setTemplates(data)
+        } else {
+          setTemplates(DEFAULT_TEMPLATES)
+        }
+      } catch (err) {
+        console.error('Failed to load templates from API, using defaults:', err)
+        setTemplates(DEFAULT_TEMPLATES)
+      } finally {
+        setTemplatesLoading(false)
+      }
+    }
+    loadTemplates()
+  }, [user, role])
+
   const filteredTemplates = selectedCategory
     ? templates.filter((t) => t.category === selectedCategory)
     : templates
@@ -125,22 +148,43 @@ export default function EmailTemplatesPage() {
     setComposerVariables({})
   }
 
-  const handleCreateTemplate = () => {
+  const handleCreateTemplate = async () => {
     if (!newTemplate.name || !newTemplate.subject || !newTemplate.body) {
       alert('Please fill in all fields')
       return
     }
 
-    const template: EmailTemplate = {
-      id: `c${Date.now()}`,
-      ...newTemplate,
-      isDefault: false,
-      createdAt: new Date().toISOString(),
-    }
+    if (!user) return
 
-    setTemplates([...templates, template])
-    setNewTemplate({ name: '', category: 'leads', subject: '', body: '' })
-    setShowCreateForm(false)
+    try {
+      const created = await vaultAPI.emailTemplates.create(newTemplate, user.id, role)
+      if (created && created.id) {
+        setTemplates([...templates, created])
+      } else {
+        // Fallback: add locally if API doesn't return the created template
+        const template: EmailTemplate = {
+          id: `c${Date.now()}`,
+          ...newTemplate,
+          isDefault: false,
+          createdAt: new Date().toISOString(),
+        }
+        setTemplates([...templates, template])
+      }
+      setNewTemplate({ name: '', category: 'leads', subject: '', body: '' })
+      setShowCreateForm(false)
+    } catch (err) {
+      console.error('Failed to create template via API:', err)
+      // Fallback: add locally
+      const template: EmailTemplate = {
+        id: `c${Date.now()}`,
+        ...newTemplate,
+        isDefault: false,
+        createdAt: new Date().toISOString(),
+      }
+      setTemplates([...templates, template])
+      setNewTemplate({ name: '', category: 'leads', subject: '', body: '' })
+      setShowCreateForm(false)
+    }
   }
 
   const handleSendEmail = async () => {
@@ -174,10 +218,16 @@ export default function EmailTemplatesPage() {
     }
   }
 
-  const handleDeleteTemplate = (templateId: string) => {
-    if (confirm('Are you sure you want to delete this template?')) {
-      setTemplates(templates.filter((t) => t.id !== templateId))
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) return
+    if (!user) return
+
+    try {
+      await vaultAPI.emailTemplates.delete(templateId, user.id, role)
+    } catch (err) {
+      console.error('Failed to delete template via API:', err)
     }
+    setTemplates(templates.filter((t) => t.id !== templateId))
   }
 
   const handleSignOut = async () => {
