@@ -543,6 +543,286 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
     ],
   },
 
+  vol3_m2: {
+    title: 'ChatGPT vs Claude Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m2q1',
+        question: 'When should you use ChatGPT vs Claude?',
+        options: [
+          { id: 'a', text: 'ChatGPT for everything' },
+          { id: 'b', text: 'ChatGPT for speed and creativity, Claude for depth and analysis' },
+          { id: 'c', text: 'Claude for everything' },
+          { id: 'd', text: 'Neither — use Google' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m2q2',
+        question: 'What is Claude best at compared to ChatGPT?',
+        options: [
+          { id: 'a', text: 'Image generation' },
+          { id: 'b', text: 'Long document analysis and nuanced reasoning' },
+          { id: 'c', text: 'Voice conversations' },
+          { id: 'd', text: 'Internet browsing' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m2q3',
+        question: 'Which is the best approach to using AI tools?',
+        options: [
+          { id: 'a', text: 'Pick one tool and never switch' },
+          { id: 'b', text: 'Use the right tool for the right task' },
+          { id: 'c', text: 'Wait for a single tool that does everything' },
+          { id: 'd', text: 'Only use free versions' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m3: {
+    title: 'Prompting Like a Pro Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m3q1',
+        question: 'What is the 4-part prompting formula?',
+        options: [
+          { id: 'a', text: 'Who, What, When, Where' },
+          { id: 'b', text: 'Role, Task, Context, Tone' },
+          { id: 'c', text: 'Input, Process, Output, Review' },
+          { id: 'd', text: 'Ask, Wait, Copy, Paste' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m3q2',
+        question: 'Why should you give AI a role in your prompt?',
+        options: [
+          { id: 'a', text: 'It is not necessary' },
+          { id: 'b', text: 'It focuses the response and improves quality' },
+          { id: 'c', text: 'It makes responses longer' },
+          { id: 'd', text: 'It saves tokens' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m3q3',
+        question: 'What makes a bad prompt?',
+        options: [
+          { id: 'a', text: 'Too much context' },
+          { id: 'b', text: 'Being vague with no role, context, or desired output' },
+          { id: 'c', text: 'Asking for a specific format' },
+          { id: 'd', text: 'Using multiple sentences' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m4: {
+    title: 'Real Estate Use Cases Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m4q1',
+        question: 'Which is a high-impact AI use case for real estate?',
+        options: [
+          { id: 'a', text: 'Replacing property inspections' },
+          { id: 'b', text: 'Writing listing descriptions, follow-up scripts, and market analyses' },
+          { id: 'c', text: 'Automating contract signing' },
+          { id: 'd', text: 'Setting property prices automatically' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m4q2',
+        question: 'How can AI improve your listing presentations?',
+        options: [
+          { id: 'a', text: 'By creating virtual tours from nothing' },
+          { id: 'b', text: 'By generating compelling copy, CMA talking points, and neighborhood insights' },
+          { id: 'c', text: 'By replacing the in-person meeting' },
+          { id: 'd', text: 'By auto-pricing the home' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m4q3',
+        question: 'What should you always do before sending AI-generated content to a client?',
+        options: [
+          { id: 'a', text: 'Nothing — send it as-is' },
+          { id: 'b', text: 'Review, edit, and personalize it' },
+          { id: 'c', text: 'Add a disclaimer that AI wrote it' },
+          { id: 'd', text: 'Run it through a second AI' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m5: {
+    title: 'Daily AI Workflow Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m5q1',
+        question: 'When should you use AI during your workday?',
+        options: [
+          { id: 'a', text: 'Only for marketing tasks' },
+          { id: 'b', text: 'As a daily thinking partner for planning, writing, and communication' },
+          { id: 'c', text: 'Only when you are stuck' },
+          { id: 'd', text: 'Only on weekends' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m5q2',
+        question: 'What is the best morning AI routine for agents?',
+        options: [
+          { id: 'a', text: 'Check social media trends' },
+          { id: 'b', text: 'Review pipeline, draft follow-ups, and plan the day with AI' },
+          { id: 'c', text: 'Generate random marketing ideas' },
+          { id: 'd', text: 'Let AI handle all emails automatically' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m5q3',
+        question: 'How much time can AI save per day for a disciplined agent?',
+        options: [
+          { id: 'a', text: '5 minutes' },
+          { id: 'b', text: '1-3 hours on repetitive writing and planning tasks' },
+          { id: 'c', text: '8 hours — AI does everything' },
+          { id: 'd', text: 'No time savings — it is just for fun' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m6: {
+    title: 'AI Roleplay Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m6q1',
+        question: 'What is AI roleplay used for in real estate training?',
+        options: [
+          { id: 'a', text: 'Entertainment' },
+          { id: 'b', text: 'Practicing objection handling, listing pitches, and buyer consultations' },
+          { id: 'c', text: 'Replacing in-person role play' },
+          { id: 'd', text: 'Testing AI capabilities' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m6q2',
+        question: 'How should you set up an AI roleplay session?',
+        options: [
+          { id: 'a', text: 'Just say "roleplay with me"' },
+          { id: 'b', text: 'Give the AI a character, scenario, difficulty level, and your goal' },
+          { id: 'c', text: 'Let the AI decide everything' },
+          { id: 'd', text: 'Only use pre-built scripts' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m6q3',
+        question: 'What is the benefit of practicing with AI vs. a human partner?',
+        options: [
+          { id: 'a', text: 'AI is always better than humans' },
+          { id: 'b', text: 'Unlimited reps, no scheduling, adjustable difficulty' },
+          { id: 'c', text: 'AI provides real emotions' },
+          { id: 'd', text: 'No benefit — humans are always better' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m7: {
+    title: 'What Not to Do with AI Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m7q1',
+        question: 'What should you AVOID doing with AI?',
+        options: [
+          { id: 'a', text: 'Writing listing descriptions' },
+          { id: 'b', text: 'Practicing objection handling' },
+          { id: 'c', text: 'Copying and pasting without editing' },
+          { id: 'd', text: 'Generating follow-up texts' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v3m7q2',
+        question: 'Why should you never rely on AI for legal or compliance advice?',
+        options: [
+          { id: 'a', text: 'AI is always wrong about legal matters' },
+          { id: 'b', text: 'AI can hallucinate facts and is not a licensed professional' },
+          { id: 'c', text: 'Legal questions are too simple for AI' },
+          { id: 'd', text: 'Brokers prefer you not use AI' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m7q3',
+        question: 'What is the biggest risk of over-relying on AI?',
+        options: [
+          { id: 'a', text: 'Spending too much money' },
+          { id: 'b', text: 'Losing your personal voice and client connection' },
+          { id: 'c', text: 'AI becoming sentient' },
+          { id: 'd', text: 'Other agents finding out' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  vol3_m8: {
+    title: 'Making Money with AI Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v3m8q1',
+        question: 'How does AI directly impact your income as an agent?',
+        options: [
+          { id: 'a', text: 'AI closes deals for you' },
+          { id: 'b', text: 'Faster response times, better marketing, and more efficient pipeline management' },
+          { id: 'c', text: 'AI replaces the need for a CRM' },
+          { id: 'd', text: 'AI generates leads automatically' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m8q2',
+        question: 'What is the ROI mindset for AI tools?',
+        options: [
+          { id: 'a', text: 'Free tools only' },
+          { id: 'b', text: 'Invest in tools that save time and multiply output' },
+          { id: 'c', text: 'Use every AI tool available' },
+          { id: 'd', text: 'AI has no ROI yet' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v3m8q3',
+        question: 'What separates agents who profit from AI from those who do not?',
+        options: [
+          { id: 'a', text: 'Technical skills' },
+          { id: 'b', text: 'Consistent daily usage and integration into existing workflows' },
+          { id: 'c', text: 'Having the newest hardware' },
+          { id: 'd', text: 'Posting about AI on social media' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
   // ═══════════════════════════════════════════
   // VOLUME 2 — Elite (Modules 8-14)
   // 8=Investor Strategy, 9=Deal Structuring,
@@ -901,7 +1181,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
 
 /**
  * Look up a quiz by volume and module number.
- * Volume 1: modules 1-8, Volume 2: modules 8-14, Volume 3 (AI): modules 1-8
+ * Volume 1: modules 1-10, Volume 2: modules 8-14, Volume 3 (AI): modules 1-8
  */
 export function getQuizForModule(volume: number, moduleNum: number): Quiz | null {
   return MODULE_QUIZZES[`vol${volume}_m${moduleNum}`] || null
