@@ -20,7 +20,9 @@ import {
   Shield,
   Gift,
   Megaphone,
-  FileBarChart
+  FileBarChart,
+  CreditCard,
+  ClipboardList
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -45,6 +47,8 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Chat', href: '/chat', icon: MessageSquare },
     { label: 'Available Leads', href: '/lead-distribution', icon: Gift },
     { label: 'Training', href: '/training', icon: BookOpen },
+    { label: 'My Card', href: '/business-card', icon: CreditCard },
+    { label: 'Client Intakes', href: '/intakes', icon: ClipboardList },
   ]
 
   const operationsItems = [
