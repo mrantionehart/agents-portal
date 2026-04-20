@@ -19,7 +19,8 @@ import {
   CheckSquare,
   Shield,
   Gift,
-  Megaphone
+  Megaphone,
+  FileBarChart
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -54,6 +55,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
   ]
 
   const toolsItems = [
+    { label: 'CMA Generator', href: '/cma', icon: FileBarChart },
     { label: 'AI Assistant', href: '/ai-chat', icon: Sparkles },
     { label: 'Email Templates', href: '/email-templates', icon: MessageSquare },
     { label: 'Commission Calc', href: '/commission-calculator', icon: DollarSign },
