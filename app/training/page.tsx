@@ -67,7 +67,7 @@ function formatDuration(sec: number | null): string {
 }
 
 export default function TrainingPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, trainingGate, role } = useAuth()
   const router = useRouter()
 
   const [lang, setLang] = useState<Lang>('en')
@@ -317,15 +317,45 @@ export default function TrainingPage() {
     return null
   }
 
+  const isGated = role === 'agent' && !trainingGate.gateOpen
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Training Gate Banner — shown when app is locked */}
+      {isGated && (
+        <div className="bg-amber-50 border-b-2 border-amber-400">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-start gap-3">
+              <Lock className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-amber-900">Complete Volume 1 Training to Unlock Your Portal</h3>
+                <p className="text-amber-800 text-sm mt-1">
+                  Finish all 9 modules below to unlock Deals, Leads, Chat, Calendar, and all other portal features.
+                  You have completed {trainingGate.vol1.completed.length} of {trainingGate.vol1.total} modules.
+                </p>
+                <div className="mt-3 w-full bg-amber-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                    style={{ width: `${trainingGate.vol1.total > 0 ? Math.round((trainingGate.vol1.completed.length / trainingGate.vol1.total) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
-              ← Dashboard
-            </Link>
+            {isGated ? (
+              <span className="text-gray-400 font-medium">Portal locked until training complete</span>
+            ) : (
+              <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+                ← Dashboard
+              </Link>
+            )}
             <h1 className="text-2xl font-bold text-gray-900">HartFelt Ready Training</h1>
           </div>
           <div className="flex items-center gap-3">

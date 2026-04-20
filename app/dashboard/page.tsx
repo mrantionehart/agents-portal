@@ -13,9 +13,10 @@ import SupportModal from '@/components/SupportModal'
 import SidebarNav from '../components/SidebarNav'
 import BrokerViewToggle from '../components/BrokerViewToggle'
 import NotificationsPanel from '../components/NotificationsPanel'
+import TrainingGate from '../components/TrainingGate'
 
 export default function DashboardPage() {
-  const { user, role, loading, signOut } = useAuth()
+  const { user, role, loading, signOut, trainingGate } = useAuth()
   const router = useRouter()
   const [deals, setDeals] = useState<any[]>([])
   const [commissions, setCommissions] = useState<any[]>([])
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [checkingPolicy, setCheckingPolicy] = useState(true)
   const [supportModalOpen, setSupportModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'agent' | 'broker'>('agent')
+  const [vol2BannerDismissed, setVol2BannerDismissed] = useState(false)
 
   // Auth check handled by middleware - remove to prevent flashing
   // useEffect(() => {
@@ -186,6 +188,36 @@ export default function DashboardPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Vol 2 Training Nudge — shown to agents who completed Vol 1 but not Vol 2 */}
+        {role === 'agent' && trainingGate.gateOpen && !trainingGate.vol2.done && !vol2BannerDismissed && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <BookOpen className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-blue-900 font-semibold text-sm">Level Up with Volume 2 Training</h4>
+              <p className="text-blue-800 text-xs mt-1">
+                You&apos;ve completed the foundations — now take your skills to the next level with advanced modules on
+                negotiation, scaling, and market mastery.
+                {trainingGate.vol2.completed.length > 0
+                  ? ` You're ${trainingGate.vol2.completed.length} of ${trainingGate.vol2.total} modules in.`
+                  : ` ${trainingGate.vol2.total} modules are ready for you.`}
+              </p>
+              <a
+                href="/training"
+                className="inline-block mt-2 text-xs font-semibold text-blue-700 hover:text-blue-900 underline"
+              >
+                Start Volume 2 →
+              </a>
+            </div>
+            <button
+              onClick={() => setVol2BannerDismissed(true)}
+              className="text-blue-400 hover:text-blue-600 text-lg leading-none"
+              title="Dismiss"
+            >
+              &times;
+            </button>
           </div>
         )}
 
