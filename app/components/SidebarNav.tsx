@@ -8,7 +8,7 @@ import {
   Users,
   DollarSign,
   FileText,
-  Calendar,
+  CalendarDays,
   MessageSquare,
   BookOpen,
   Sparkles,
@@ -22,7 +22,11 @@ import {
   Megaphone,
   FileBarChart,
   CreditCard,
-  ClipboardList
+  ClipboardList,
+  Bell,
+  Trophy,
+  UserPlus,
+  User
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -40,22 +44,23 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
 
   const mainNavItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'Deals', href: '/pipeline', icon: Briefcase },
-    { label: 'Leads', href: '/leads', icon: Users },
-    { label: 'Transactions', href: '/transaction-coordinator', icon: CheckSquare },
-    { label: 'Calendar', href: '/calendar', icon: Calendar },
-    { label: 'Chat', href: '/chat', icon: MessageSquare },
-    { label: 'Available Leads', href: '/lead-distribution', icon: Gift },
-    { label: 'Training', href: '/training', icon: BookOpen },
-    { label: 'My Card', href: '/business-card', icon: CreditCard },
+    { label: 'Deals / Pipeline', href: '/pipeline', icon: Briefcase },
+    { label: 'Commissions', href: '/commissions', icon: DollarSign },
+    { label: 'New Leads', href: '/new-leads', icon: UserPlus },
     { label: 'Client Intakes', href: '/intakes', icon: ClipboardList },
+    { label: 'My Card', href: '/business-card', icon: CreditCard },
+    { label: 'Training', href: '/training', icon: BookOpen },
+    { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+    { label: 'Calendar', href: '/calendar', icon: CalendarDays },
+    { label: 'Documents', href: '/documents', icon: FileText },
+    { label: 'Chat', href: '/chat', icon: MessageSquare },
+    { label: 'Compliance', href: '/compliance', icon: Shield },
+    { label: 'Notifications', href: '/notifications', icon: Bell },
+    { label: 'Recruiting', href: '/recruiting', icon: Users },
   ]
 
   const operationsItems = [
     { label: 'Transaction Coordinator', href: '/transaction-coordinator', icon: CheckSquare },
-    { label: 'Compliance', href: '/compliance', icon: Shield },
-    { label: 'Documents', href: '/documents', icon: FileText },
-    { label: 'Commissions', href: '/commissions', icon: DollarSign },
   ]
 
   const toolsItems = [
@@ -200,8 +205,19 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
         )}
       </nav>
 
-      {/* Sign Out */}
-      <div className="p-4 border-t border-gray-800">
+      {/* Profile + Sign Out */}
+      <div className="p-4 border-t border-gray-800 space-y-1">
+        <Link
+          href="/profile"
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition text-sm font-medium ${
+            isActive('/profile')
+              ? 'bg-amber-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+          }`}
+        >
+          <User className="w-5 h-5" />
+          Profile
+        </Link>
         <button
           onClick={onSignOut}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition text-sm font-medium"
