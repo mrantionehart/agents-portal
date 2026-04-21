@@ -4,9 +4,49 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+// ─── Inline UI primitives (no external deps) ──────────────────────────────────
+const Card = ({ children, className = '', ...props }: any) => (
+  <div className={`rounded-lg border border-gray-200 bg-white shadow-sm ${className}`} {...props}>{children}</div>
+)
+const CardHeader = ({ children, className = '', ...props }: any) => (
+  <div className={`p-6 pb-2 ${className}`} {...props}>{children}</div>
+)
+const CardTitle = ({ children, className = '', ...props }: any) => (
+  <h3 className={`text-lg font-semibold leading-none tracking-tight ${className}`} {...props}>{children}</h3>
+)
+const CardContent = ({ children, className = '', ...props }: any) => (
+  <div className={`p-6 pt-2 ${className}`} {...props}>{children}</div>
+)
+const CardDescription = ({ children, className = '', ...props }: any) => (
+  <p className={`text-sm text-gray-500 ${className}`} {...props}>{children}</p>
+)
+const Button = ({ children, className = '', variant = 'default', size = 'default', disabled, ...props }: any) => {
+  const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:pointer-events-none'
+  const variants: Record<string, string> = {
+    default: 'bg-amber-600 text-white hover:bg-amber-700',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
+    ghost: 'hover:bg-gray-100 text-gray-700',
+    destructive: 'bg-red-600 text-white hover:bg-red-700',
+  }
+  const sizes: Record<string, string> = {
+    default: 'h-10 px-4 py-2 text-sm',
+    sm: 'h-8 px-3 text-xs',
+    lg: 'h-12 px-6 text-base',
+    icon: 'h-10 w-10',
+  }
+  return <button className={`${base} ${variants[variant] || variants.default} ${sizes[size] || sizes.default} ${className}`} disabled={disabled} {...props}>{children}</button>
+}
+const Badge = ({ children, className = '', variant = 'default', ...props }: any) => {
+  const variants: Record<string, string> = {
+    default: 'bg-gray-100 text-gray-800',
+    green: 'bg-green-100 text-green-800',
+    yellow: 'bg-yellow-100 text-yellow-800',
+    blue: 'bg-blue-100 text-blue-800',
+    red: 'bg-red-100 text-red-800',
+    purple: 'bg-purple-100 text-purple-800',
+  }
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variants[variant] || variants.default} ${className}`} {...props}>{children}</span>
+}
 import {
   Loader2, LayoutDashboard, FilePlus, Users, FileText,
   AlertCircle, CheckCircle2, ChevronRight, ChevronLeft,
