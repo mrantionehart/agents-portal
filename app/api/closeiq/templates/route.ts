@@ -5,6 +5,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { inflate } from 'zlib'
+import { promisify } from 'util'
+
+const inflateAsync = promisify(inflate)
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -47,15 +51,130 @@ function adminClient() {
 }
 
 // ---------------------------------------------------------------------------
-// Extract form field names from a fillable PDF using pdf-lib
+// Detect if a PDF is XFA-based (Florida Realtors / Form Simplicity)
+// ---------------------------------------------------------------------------
+function isXfaPdf(pdfBytes: Buffer | Uint8Array): boolean {
+  const str = Buffer.from(pdfBytes).toString('latin1', 0, Math.min(pdfBytes.length, 50000))
+  return str.includes('/XFA') && str.includes('xfa-data')
+}
+
+// ---------------------------------------------------------------------------
+// Extract XFA form fields from the datasets XML inside an XFA PDF
+// ---------------------------------------------------------------------------
+async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
+  Array<{ name: string; type: string }>
+> {
+  const { PDFDocument, PDFName, PDFDict, PDFArray, PDFRawStream } = await import('pdf-lib')
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
+
+  const acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'), PDFDict)
+  if (!acroForm) return []
+
+  const xfaArray = acroForm.lookup(PDFName.of('XFA'), PDFArray)
+  if (!xfaArray) return []
+
+  // Find the datasets stream
+  let datasetsIndex = -1
+  for (let i = 0; i < xfaArray.size(); i += 2) {
+    const key = xfaArray.lookup(i)
+    if (key?.toString?.()?.includes('datasets')) {
+      datasetsIndex = i + 1
+      break
+    }
+  }
+  if (datasetsIndex === -1) return []
+
+  const datasetsRef = xfaArray.get(datasetsIndex)
+  const datasetsStream = pdfDoc.context.lookup(datasetsRef)
+  let xmlStr: string
+
+  if (datasetsStream instanceof PDFRawStream) {
+    const rawBytes = datasetsStream.contents
+    const filterDict = (datasetsStream as any).dict
+    const filter = filterDict?.get?.(PDFName.of('Filter'))
+    if (filter && filter.toString().includes('FlateDecode')) {
+      const inflated = await inflateAsync(Buffer.from(rawBytes))
+      xmlStr = inflated.toString('utf-8')
+    } else {
+      xmlStr = Buffer.from(rawBytes).toString('utf-8')
+    }
+  } else {
+    xmlStr = Buffer.from((datasetsStream as any).contents || []).toString('utf-8')
+  }
+
+  // Parse field names from XML elements
+  // Extract Global_Info fields (nested paths like Buyer/Entity/Name)
+  const fields: Array<{ name: string; type: string }> = []
+
+  // Global_Info section — extract nested paths
+  const globalMatch = xmlStr.match(/<Global_Info>([\s\S]*?)<\/Global_Info>/)
+  if (globalMatch) {
+    const globalXml = globalMatch[1]
+    // Find all leaf elements (self-closing or empty) which are fillable fields
+    const leafPattern = /<([A-Za-z_][A-Za-z0-9_]*)\s*\/>/g
+    const emptyPattern = /<([A-Za-z_][A-Za-z0-9_]*)[^>]*><\/\1>/g
+    const filledPattern = /<([A-Za-z_][A-Za-z0-9_]*)>([^<]+)<\/\1>/g
+
+    const seen = new Set<string>()
+    for (const pattern of [leafPattern, emptyPattern, filledPattern]) {
+      let m
+      while ((m = pattern.exec(globalXml)) !== null) {
+        const name = `Global_Info-${m[1]}`
+        if (!seen.has(name)) {
+          seen.add(name)
+          fields.push({ name, type: 'text' })
+        }
+      }
+    }
+  }
+
+  // Page-level fields (p01tf001, p01cb001, p01df001, etc.)
+  const pageFieldPattern = /<(p\d{2}(?:tf|cb|df|nf)\d{3})\s*\/>/g
+  const pageFieldFilled = /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*>([^<]*)<\/\1>/g
+  const pageFieldEmpty = /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*><\/\1>/g
+
+  const seen = new Set<string>()
+  for (const pattern of [pageFieldPattern, pageFieldFilled, pageFieldEmpty]) {
+    let m
+    while ((m = pattern.exec(xmlStr)) !== null) {
+      const name = m[1]
+      if (!seen.has(name)) {
+        seen.add(name)
+        // Determine type from field ID prefix: tf=text, cb=checkbox, df=date, nf=numeric
+        const prefix = name.match(/(tf|cb|df|nf)/)?.[1] || 'tf'
+        const type = prefix === 'cb' ? 'checkbox' : prefix === 'df' ? 'date' : prefix === 'nf' ? 'numeric' : 'text'
+        fields.push({ name, type })
+      }
+    }
+  }
+
+  return fields
+}
+
+// ---------------------------------------------------------------------------
+// Extract form field names from a fillable PDF — handles XFA + AcroForm
 // ---------------------------------------------------------------------------
 async function extractFormFields(pdfBytes: Buffer | Uint8Array): Promise<{
   fields: Array<{ name: string; type: string; options?: string[] }>
   total: number
+  form_type: 'xfa' | 'acroform' | 'none'
 }> {
-  const { PDFDocument } = await import('pdf-lib')
+  // Try XFA first (Florida Realtors forms)
+  if (isXfaPdf(pdfBytes)) {
+    try {
+      const xfaFields = await extractXfaFields(pdfBytes)
+      if (xfaFields.length > 0) {
+        console.log(`Extracted ${xfaFields.length} XFA fields`)
+        return { fields: xfaFields, total: xfaFields.length, form_type: 'xfa' }
+      }
+    } catch (e: any) {
+      console.warn('XFA extraction failed, falling back to AcroForm:', e.message)
+    }
+  }
 
-  const pdfDoc = await PDFDocument.load(pdfBytes)
+  // Fall back to AcroForm
+  const { PDFDocument } = await import('pdf-lib')
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
   const form = pdfDoc.getForm()
   const allFields = form.getFields()
 
@@ -64,11 +183,10 @@ async function extractFormFields(pdfBytes: Buffer | Uint8Array): Promise<{
     const type = field.constructor.name
       .replace('PDF', '')
       .replace('Field', '')
-      .toLowerCase() // e.g. "text", "checkbox", "dropdown", "radiogroup"
+      .toLowerCase()
 
     const result: { name: string; type: string; options?: string[] } = { name, type }
 
-    // For dropdowns, get the options
     if (type === 'dropdown') {
       try {
         result.options = (field as any).getOptions?.() || []
@@ -78,7 +196,11 @@ async function extractFormFields(pdfBytes: Buffer | Uint8Array): Promise<{
     return result
   })
 
-  return { fields, total: fields.length }
+  return {
+    fields,
+    total: fields.length,
+    form_type: fields.length > 0 ? 'acroform' : 'none',
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -199,14 +321,16 @@ export async function POST(request: NextRequest) {
     // Read file bytes
     const fileBytes = Buffer.from(await file.arrayBuffer())
 
-    // Extract form fields from the PDF
+    // Extract form fields from the PDF (XFA or AcroForm)
     let formFields: Array<{ name: string; type: string; options?: string[] }> = []
     let fieldCount = 0
+    let formType: 'xfa' | 'acroform' | 'none' = 'none'
     try {
       const extracted = await extractFormFields(fileBytes)
       formFields = extracted.fields
       fieldCount = extracted.total
-      console.log(`Extracted ${fieldCount} form fields from ${file.name}`)
+      formType = extracted.form_type
+      console.log(`Extracted ${fieldCount} ${formType} fields from ${file.name}`)
     } catch (e: any) {
       console.warn('Field extraction failed (may not be a fillable PDF):', e.message)
     }
@@ -253,6 +377,7 @@ export async function POST(request: NextRequest) {
       field_mapping: suggestedMapping,
       mapping_verified: false,
       form_version: formVersion || null,
+      form_type: formType,
       is_active: true,
     }).select().single()
 
@@ -265,9 +390,10 @@ export async function POST(request: NextRequest) {
       template,
       form_fields: formFields,
       field_count: fieldCount,
+      form_type: formType,
       suggested_mapping: suggestedMapping,
       message: fieldCount > 0
-        ? `Template uploaded with ${fieldCount} form fields detected. Review the suggested field mapping and verify.`
+        ? `Template uploaded with ${fieldCount} ${formType.toUpperCase()} form fields detected. Review the suggested field mapping and verify.`
         : 'Template uploaded but no fillable form fields were detected. This may not be a fillable PDF.',
     })
 
