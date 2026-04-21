@@ -457,8 +457,9 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
         offer_id: offerId,
       })
       onComplete()
-    } catch (e) {
+    } catch (e: any) {
       console.error('Submit failed:', e)
+      alert('Submit to broker failed: ' + (e?.message || 'Unknown error'))
     } finally { setSaving(false) }
   }
 

@@ -358,19 +358,29 @@ export async function POST(request: NextRequest) {
         const offerId = body.offer_id
         if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
+        console.log('submit_for_approval — offerId:', offerId, 'userId:', user.id)
+
         // Update offer status
-        await db.from('offers').update({ status: 'pending_approval' }).eq('id', offerId).eq('agent_id', user.id)
+        const { error: updateErr } = await db.from('offers').update({ status: 'pending_approval' }).eq('id', offerId).eq('agent_id', user.id)
+        if (updateErr) {
+          console.error('Offer status update error:', updateErr.message)
+          return NextResponse.json({ error: updateErr.message }, { status: 500 })
+        }
 
         // Find a broker to assign (first broker in profiles)
         const { data: brokers } = await db.from('profiles').select('id').in('role', ['broker', 'admin']).limit(1)
         const brokerId = brokers?.[0]?.id || user.id
+        console.log('Assigned broker:', brokerId)
 
         const { data: approval, error } = await db.from('offer_approvals').insert({
           offer_id: offerId,
           broker_id: brokerId,
           approval_status: 'pending',
         }).select().single()
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (error) {
+          console.error('Approval insert error:', error.message, error.details, error.hint)
+          return NextResponse.json({ error: error.message }, { status: 500 })
+        }
 
         return NextResponse.json({ approval, status: 'pending_approval' })
       }
