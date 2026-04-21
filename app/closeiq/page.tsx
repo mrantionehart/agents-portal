@@ -79,7 +79,7 @@ interface Offer {
   created_at: string; preset_name?: string
 }
 
-interface Preset { id: string; name: string; description: string; config: Record<string, any> }
+interface Preset { id: string; label: string; name?: string; description: string; defaults: Record<string, any>; config?: Record<string, any> }
 
 interface CommissionPreview { gross: number; brokerage_split: number; agent_net: number }
 
@@ -293,7 +293,7 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
   // Form state
   const [buyerId, setBuyerId] = useState('')
   const [newBuyer, setNewBuyer] = useState({ name: '', email: '', phone: '', preapproval_amount: '', financing_type: 'Conventional' })
-  const [property, setProperty] = useState({ address: '', city: '', state: '', zip: '', list_price: '', mls_id: '' })
+  const [property, setProperty] = useState({ address: '', unit: '', city: '', state: '', zip: '', list_price: '', mls_id: '' })
   const [selectedPreset, setSelectedPreset] = useState<string>('')
   const [terms, setTerms] = useState({
     offer_price: '', down_payment_pct: '20', earnest_money: '5000',
@@ -312,21 +312,22 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
     api('GET', '/api/closeiq?entity=buyers').then(d => setBuyers(d.buyers || d.data || [])).catch(() => {})
     api('GET', '/api/closeiq?entity=presets').then(d => setPresets(d.presets || d.data || [])).catch(() => {
       setPresets([
-        { id: 'strong', name: 'Strong', description: 'Above asking, minimal contingencies, fast close', config: { down_payment_pct: 25, inspection_days: 7, contingencies: ['inspection'] } },
-        { id: 'clean', name: 'Clean', description: 'At asking, standard terms, balanced risk', config: { down_payment_pct: 20, inspection_days: 10, contingencies: ['inspection', 'financing'] } },
-        { id: 'investor', name: 'Investor', description: 'Cash offer, no contingencies, quick close', config: { down_payment_pct: 100, inspection_days: 0, contingencies: [] } },
-        { id: 'fha', name: 'FHA/VA', description: 'Government-backed, standard contingencies', config: { down_payment_pct: 3.5, inspection_days: 14, contingencies: ['inspection', 'financing', 'appraisal'] } },
+        { id: 'strong', label: 'Strong', name: 'Strong', description: 'Above asking, minimal contingencies, fast close', defaults: { down_payment_pct: 25, inspection_days: 7, contingencies: ['inspection'] }, config: { down_payment_pct: 25, inspection_days: 7, contingencies: ['inspection'] } },
+        { id: 'clean', label: 'Clean', name: 'Clean', description: 'At asking, standard terms, balanced risk', defaults: { down_payment_pct: 20, inspection_days: 10, contingencies: ['inspection', 'financing'] }, config: { down_payment_pct: 20, inspection_days: 10, contingencies: ['inspection', 'financing'] } },
+        { id: 'investor', label: 'Investor', name: 'Investor', description: 'Cash offer, no contingencies, quick close', defaults: { down_payment_pct: 100, inspection_days: 0, contingencies: [] }, config: { down_payment_pct: 100, inspection_days: 0, contingencies: [] } },
+        { id: 'fha', label: 'FHA/VA', name: 'FHA/VA', description: 'Government-backed, standard contingencies', defaults: { down_payment_pct: 3.5, inspection_days: 14, contingencies: ['inspection', 'financing', 'appraisal'] }, config: { down_payment_pct: 3.5, inspection_days: 14, contingencies: ['inspection', 'financing', 'appraisal'] } },
       ])
     })
   }, [])
 
   const applyPreset = (preset: Preset) => {
     setSelectedPreset(preset.id)
+    const cfg = preset.defaults || preset.config || {}
     setTerms(prev => ({
       ...prev,
-      down_payment_pct: String(preset.config.down_payment_pct || prev.down_payment_pct),
-      inspection_days: String(preset.config.inspection_days ?? prev.inspection_days),
-      contingencies: preset.config.contingencies || prev.contingencies,
+      down_payment_pct: String(cfg.down_payment_pct || prev.down_payment_pct),
+      inspection_days: String(cfg.inspection_days ?? prev.inspection_days),
+      contingencies: cfg.contingencies || prev.contingencies,
     }))
   }
 
@@ -548,6 +549,7 @@ function PropertyStep({ property, setProperty }: { property: any; setProperty: (
         <div className="sm:col-span-2">
           <InputField icon={Home} label="Property Address" value={property.address} onChange={v => set('address', v)} required />
         </div>
+        <InputField icon={Hash} label="Unit / Apt #" value={property.unit} onChange={v => set('unit', v)} />
         <InputField icon={MapPin} label="City" value={property.city} onChange={v => set('city', v)} required />
         <div className="grid grid-cols-2 gap-4">
           <InputField label="State" value={property.state} onChange={v => set('state', v)} required />
@@ -561,7 +563,7 @@ function PropertyStep({ property, setProperty }: { property: any; setProperty: (
 }
 
 function ModeStep({ presets, selected, onSelect }: { presets: Preset[]; selected: string; onSelect: (p: Preset) => void }) {
-  const presetIcons: Record<string, string> = { strong: '💪', clean: '✨', investor: '🏦', fha: '🏛️' }
+  const presetIcons: Record<string, string> = { strong: '💪', clean: '✨', investor: '🏦', fha: '🏛️', first_time: '🏠', escalation: '📈', seller_time: '⏳', as_is: '🔧' }
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-[#1E2761]">Choose Offer Mode</h3>
@@ -578,7 +580,7 @@ function ModeStep({ presets, selected, onSelect }: { presets: Preset[]; selected
             <div className="flex items-start gap-3">
               <span className="text-2xl">{presetIcons[p.id] || '📋'}</span>
               <div>
-                <p className="font-semibold text-[#1E2761]">{p.name}</p>
+                <p className="font-semibold text-[#1E2761]">{p.label || p.name}</p>
                 <p className="text-xs text-gray-500 mt-1">{p.description}</p>
               </div>
             </div>
