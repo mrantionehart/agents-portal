@@ -22,7 +22,9 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 // Same module lists used by /api/training/quiz
-const VOL1_REQUIRED = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+// Vol 1 base modules (1-9) + role-specific EASE module (11=broker, 12=admin, 13=agent)
+const VOL1_BASE = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+const EASE_MODULE_FOR_ROLE: Record<string, number> = { broker: 11, admin: 12, agent: 13 }
 const VOL2_REQUIRED = [8, 9, 10, 11, 12, 13, 14]
 
 async function getAuthedUser(request: NextRequest) {
@@ -95,12 +97,16 @@ export async function GET(request: NextRequest) {
 
     const role = profile?.role || 'agent'
 
+    // Build role-specific Vol 1 required list (base 1-9 + EASE module for role)
+    const easeModule = EASE_MODULE_FOR_ROLE[role] || EASE_MODULE_FOR_ROLE.agent
+    const vol1Required = [...VOL1_BASE, easeModule]
+
     // Brokers & admins always pass the gate
     if (role === 'broker' || role === 'admin') {
       return NextResponse.json({
         gateOpen: true,
         role,
-        vol1: { completed: VOL1_REQUIRED, total: VOL1_REQUIRED.length, done: true },
+        vol1: { completed: vol1Required, total: vol1Required.length, done: true },
         vol2: { completed: [], total: VOL2_REQUIRED.length, done: false },
       })
     }
@@ -114,7 +120,8 @@ export async function GET(request: NextRequest) {
     )
 
     const vol1Completed: number[] = vol1Row?.completed_modules || []
-    const vol1Done = vol1Row?.volume_completed === true
+    // Gate opens when agent has completed all base modules AND their EASE module
+    const vol1Done = vol1Required.every(m => vol1Completed.includes(m))
     const vol2Completed: number[] = vol2Row?.completed_modules || []
     const vol2Done = vol2Row?.volume_completed === true
 
@@ -123,7 +130,7 @@ export async function GET(request: NextRequest) {
       role,
       vol1: {
         completed: vol1Completed,
-        total: VOL1_REQUIRED.length,
+        total: vol1Required.length,
         done: vol1Done,
       },
       vol2: {
