@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // CloseIQ Contract Generator — /api/closeiq/contract
-// Generates purchase agreement PDF from offer data using Claude + pdf-lib
+// Fills Florida Realtors / FAR-BAR fillable PDF forms with offer data
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 // ---------------------------------------------------------------------------
-// Auth helper (same as main route)
+// Auth helper
 // ---------------------------------------------------------------------------
 async function getAuthedUser(request: NextRequest) {
   const auth = request.headers.get('authorization') || ''
@@ -47,218 +47,172 @@ function adminClient() {
 }
 
 // ---------------------------------------------------------------------------
-// Claude API helper
+// Default field mapping: offer data keys → common FAR-BAR PDF field names
+// This serves as a fallback when a template has no custom mapping.
+// Actual field names will vary per form — broker verifies mappings on upload.
 // ---------------------------------------------------------------------------
-async function callClaude(systemPrompt: string, userPrompt: string, maxTokens = 4000): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured')
-
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  })
-
-  if (!resp.ok) {
-    const err = await resp.text()
-    throw new Error(`Claude API error: ${resp.status} ${err}`)
-  }
-
-  const data = await resp.json()
-  return data.content?.[0]?.text || ''
+const DEFAULT_FIELD_MAP: Record<string, string[]> = {
+  // Buyer info
+  buyer_name:         ['BuyerName', 'Buyer1Name', 'BUYER', 'Buyer Name', 'BuyerPrintedName'],
+  buyer_email:        ['BuyerEmail', 'Buyer Email', 'BuyerEmailAddress'],
+  buyer_phone:        ['BuyerPhone', 'Buyer Phone', 'BuyerPhoneNumber'],
+  // Property
+  property_address:   ['PropertyAddress', 'Property Address', 'PROPERTY_ADDRESS', 'StreetAddress', 'SubjectProperty'],
+  property_city:      ['City', 'PropertyCity', 'CITY'],
+  property_state:     ['State', 'PropertyState', 'STATE'],
+  property_zip:       ['Zip', 'ZipCode', 'PropertyZip', 'ZIP'],
+  property_mls_id:    ['MLSNumber', 'MLS', 'MLSNo', 'MLS#'],
+  // Offer terms
+  offer_price:        ['PurchasePrice', 'Purchase Price', 'PURCHASE_PRICE', 'OfferPrice', 'SalesPrice'],
+  earnest_money:      ['EarnestMoney', 'Earnest Money', 'EMD', 'Deposit', 'EarnestMoneyDeposit'],
+  financing_type:     ['FinancingType', 'Financing', 'LoanType', 'TypeOfFinancing'],
+  down_payment_pct:   ['DownPayment', 'DownPaymentPercent', 'Down Payment'],
+  close_date:         ['ClosingDate', 'Closing Date', 'CloseDate', 'CLOSING_DATE'],
+  inspection_days:    ['InspectionPeriod', 'InspectionDays', 'Inspection Period'],
+  concessions:        ['SellerConcessions', 'Concessions', 'SellerContributions'],
+  // Agent info
+  agent_name:         ['BuyerAgentName', 'BuyerAgent', 'Buyer Agent', 'ListingAgent'],
+  agent_email:        ['BuyerAgentEmail', 'AgentEmail'],
+  agent_phone:        ['BuyerAgentPhone', 'AgentPhone'],
+  brokerage:          ['BrokerageName', 'Brokerage', 'Firm', 'BuyerBrokerage'],
+  // Dates
+  offer_date:         ['Date', 'OfferDate', 'ContractDate', 'DateOfOffer'],
+  // Contingencies as text
+  appraisal_contingency: ['AppraisalContingency', 'Appraisal'],
+  financing_contingency: ['FinancingContingency', 'FinancingCont'],
 }
 
 // ---------------------------------------------------------------------------
-// PDF Generation using pdf-lib
+// Fill PDF form fields using pdf-lib
 // ---------------------------------------------------------------------------
-async function generateContractPDF(contractText: string, metadata: {
-  propertyAddress: string
-  buyerName: string
-  agentName: string
-  offerPrice: string
-  date: string
-}): Promise<Buffer> {
-  // Dynamic import pdf-lib
-  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib')
+async function fillPDFForm(
+  pdfBytes: Buffer | Uint8Array,
+  fieldValues: Record<string, string>,
+  fieldMapping: Record<string, string> | null
+): Promise<Buffer> {
+  const { PDFDocument } = await import('pdf-lib')
 
-  const doc = await PDFDocument.create()
-  const font = await doc.embedFont(StandardFonts.TimesRoman)
-  const fontBold = await doc.embedFont(StandardFonts.TimesRomanBold)
-  const fontSize = 10
-  const titleSize = 14
-  const headerSize = 11
-  const margin = 72 // 1 inch
-  const pageWidth = 612 // Letter
-  const pageHeight = 792
-  const contentWidth = pageWidth - margin * 2
-  const lineHeight = fontSize * 1.4
-  const headerLineHeight = headerSize * 1.5
+  const pdfDoc = await PDFDocument.load(pdfBytes)
+  const form = pdfDoc.getForm()
+  const allFields = form.getFields()
 
-  // Helper: wrap text to fit within content width
-  function wrapText(text: string, maxWidth: number, f: any, size: number): string[] {
-    const words = text.split(' ')
-    const lines: string[] = []
-    let currentLine = ''
+  console.log(`PDF has ${allFields.length} form fields`)
 
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word
-      const width = f.widthOfTextAtSize(testLine, size)
-      if (width > maxWidth && currentLine) {
-        lines.push(currentLine)
-        currentLine = word
-      } else {
-        currentLine = testLine
+  // Build a lookup: normalized field name → actual field object
+  const fieldLookup: Record<string, any> = {}
+  for (const field of allFields) {
+    const name = field.getName()
+    fieldLookup[name] = field
+    // Also store lowercase version for fuzzy matching
+    fieldLookup[name.toLowerCase()] = field
+  }
+
+  // For each piece of offer data, find the matching PDF field and fill it
+  for (const [dataKey, value] of Object.entries(fieldValues)) {
+    if (!value || value === 'null' || value === 'undefined') continue
+
+    // First try custom mapping from template
+    if (fieldMapping && fieldMapping[dataKey]) {
+      const pdfFieldName = fieldMapping[dataKey]
+      const field = fieldLookup[pdfFieldName] || fieldLookup[pdfFieldName.toLowerCase()]
+      if (field) {
+        try {
+          const fieldType = field.constructor.name
+          if (fieldType === 'PDFTextField') {
+            field.setText(value)
+          } else if (fieldType === 'PDFCheckBox') {
+            if (value === 'true' || value === 'Yes' || value === '1') field.check()
+            else field.uncheck()
+          } else if (fieldType === 'PDFDropdown') {
+            field.select(value)
+          } else if (fieldType === 'PDFRadioGroup') {
+            field.select(value)
+          }
+          console.log(`Filled ${pdfFieldName} = ${value.substring(0, 50)}`)
+          continue // mapped successfully
+        } catch (e: any) {
+          console.warn(`Failed to fill mapped field ${pdfFieldName}: ${e.message}`)
+        }
       }
     }
-    if (currentLine) lines.push(currentLine)
-    return lines
-  }
 
-  // Split contract into sections
-  const sections = contractText.split('\n')
-  let page = doc.addPage([pageWidth, pageHeight])
-  let y = pageHeight - margin
-
-  // Title
-  const title = 'RESIDENTIAL PURCHASE AGREEMENT'
-  const titleWidth = fontBold.widthOfTextAtSize(title, titleSize)
-  page.drawText(title, {
-    x: (pageWidth - titleWidth) / 2,
-    y,
-    size: titleSize,
-    font: fontBold,
-    color: rgb(0.12, 0.31, 0.47), // HartFelt blue
-  })
-  y -= titleSize * 2
-
-  // Property address subtitle
-  const subtitle = metadata.propertyAddress
-  const subtitleWidth = font.widthOfTextAtSize(subtitle, headerSize)
-  page.drawText(subtitle, {
-    x: (pageWidth - subtitleWidth) / 2,
-    y,
-    size: headerSize,
-    font,
-    color: rgb(0.3, 0.3, 0.3),
-  })
-  y -= headerSize * 2
-
-  // Separator line
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: pageWidth - margin, y },
-    thickness: 1,
-    color: rgb(0.83, 0.69, 0.22), // HartFelt gold
-  })
-  y -= 20
-
-  // Render contract body
-  for (const line of sections) {
-    const trimmed = line.trim()
-    if (!trimmed) {
-      y -= lineHeight * 0.5
-      continue
-    }
-
-    // Detect section headers (lines in ALL CAPS or starting with number + period)
-    const isHeader = /^[A-Z\d][A-Z\d\s.()—–-]{5,}$/.test(trimmed) || /^\d+\.\s+[A-Z]/.test(trimmed)
-    const currentFont = isHeader ? fontBold : font
-    const currentSize = isHeader ? headerSize : fontSize
-    const currentLineHeight = isHeader ? headerLineHeight : lineHeight
-
-    if (isHeader) y -= 6 // Extra spacing before headers
-
-    const wrapped = wrapText(trimmed, contentWidth, currentFont, currentSize)
-
-    for (const wLine of wrapped) {
-      if (y < margin + 40) {
-        // Footer on current page
-        page.drawText(`${metadata.agentName} | HartFelt Real Estate`, {
-          x: margin,
-          y: margin - 20,
-          size: 8,
-          font,
-          color: rgb(0.6, 0.6, 0.6),
-        })
-        const pageNum = `Page ${doc.getPageCount()}`
-        const pnWidth = font.widthOfTextAtSize(pageNum, 8)
-        page.drawText(pageNum, {
-          x: pageWidth - margin - pnWidth,
-          y: margin - 20,
-          size: 8,
-          font,
-          color: rgb(0.6, 0.6, 0.6),
-        })
-
-        page = doc.addPage([pageWidth, pageHeight])
-        y = pageHeight - margin
+    // Fall back to default field map — try each candidate name
+    const candidates = DEFAULT_FIELD_MAP[dataKey] || []
+    let filled = false
+    for (const candidate of candidates) {
+      const field = fieldLookup[candidate] || fieldLookup[candidate.toLowerCase()]
+      if (field) {
+        try {
+          const fieldType = field.constructor.name
+          if (fieldType === 'PDFTextField') {
+            field.setText(value)
+          } else if (fieldType === 'PDFCheckBox') {
+            if (value === 'true' || value === 'Yes' || value === '1') field.check()
+            else field.uncheck()
+          } else if (fieldType === 'PDFDropdown') {
+            field.select(value)
+          }
+          console.log(`Filled ${candidate} (default map) = ${value.substring(0, 50)}`)
+          filled = true
+          break
+        } catch (e: any) {
+          console.warn(`Failed to fill ${candidate}: ${e.message}`)
+        }
       }
+    }
 
-      page.drawText(wLine, {
-        x: margin,
-        y,
-        size: currentSize,
-        font: currentFont,
-        color: rgb(0.1, 0.1, 0.1),
-      })
-      y -= currentLineHeight
+    if (!filled) {
+      console.log(`No PDF field found for: ${dataKey}`)
     }
   }
 
-  // Final page footer
-  page.drawText(`${metadata.agentName} | HartFelt Real Estate`, {
-    x: margin,
-    y: margin - 20,
-    size: 8,
-    font,
-    color: rgb(0.6, 0.6, 0.6),
-  })
+  // Flatten the form so fields are rendered as static content (non-editable)
+  // Comment this out if you want the output to remain fillable
+  // form.flatten()
 
-  // Signature block
-  y -= 30
-  if (y < margin + 120) {
-    page = doc.addPage([pageWidth, pageHeight])
-    y = pageHeight - margin
+  const filledPdf = await pdfDoc.save()
+  return Buffer.from(filledPdf)
+}
+
+// ---------------------------------------------------------------------------
+// Build field values from offer + agent data
+// ---------------------------------------------------------------------------
+function buildFieldValues(offer: any, buyer: any, agentProfile: any): Record<string, string> {
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  const buyerName = `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || 'TBD'
+
+  return {
+    buyer_name:         buyerName,
+    buyer_email:        buyer.email || '',
+    buyer_phone:        buyer.phone || '',
+    property_address:   offer.property_address || '',
+    property_city:      offer.property_city || '',
+    property_state:     offer.property_state || 'FL',
+    property_zip:       offer.property_zip || '',
+    property_mls_id:    offer.property_mls_id || '',
+    offer_price:        offer.offer_price ? Number(offer.offer_price).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    earnest_money:      offer.earnest_money_amount ? Number(offer.earnest_money_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    financing_type:     (offer.financing_type || 'conventional').toUpperCase(),
+    down_payment_pct:   offer.down_payment_pct ? `${offer.down_payment_pct}%` : '',
+    close_date:         offer.close_date || '',
+    inspection_days:    offer.inspection_days?.toString() || '10',
+    concessions:        offer.concessions_requested ? Number(offer.concessions_requested).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00',
+    agent_name:         agentProfile?.full_name || agentProfile?.email || 'Agent',
+    agent_email:        agentProfile?.email || '',
+    agent_phone:        agentProfile?.phone || '',
+    brokerage:          'HartFelt Real Estate',
+    offer_date:         today,
+    appraisal_contingency: offer.appraisal_contingency ? 'Yes' : 'Waived',
+    financing_contingency: offer.financing_contingency ? 'Yes' : 'Waived',
   }
-
-  // Signature lines
-  const sigY = y - 20
-  page.drawLine({ start: { x: margin, y: sigY }, end: { x: margin + 200, y: sigY }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) })
-  page.drawText('Buyer Signature / Date', { x: margin, y: sigY - 12, size: 8, font, color: rgb(0.5, 0.5, 0.5) })
-
-  page.drawLine({ start: { x: pageWidth / 2 + 20, y: sigY }, end: { x: pageWidth / 2 + 220, y: sigY }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) })
-  page.drawText('Seller Signature / Date', { x: pageWidth / 2 + 20, y: sigY - 12, size: 8, font, color: rgb(0.5, 0.5, 0.5) })
-
-  const sigY2 = sigY - 50
-  page.drawLine({ start: { x: margin, y: sigY2 }, end: { x: margin + 200, y: sigY2 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) })
-  page.drawText('Buyer Agent / Date', { x: margin, y: sigY2 - 12, size: 8, font, color: rgb(0.5, 0.5, 0.5) })
-
-  page.drawLine({ start: { x: pageWidth / 2 + 20, y: sigY2 }, end: { x: pageWidth / 2 + 220, y: sigY2 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) })
-  page.drawText('Listing Agent / Date', { x: pageWidth / 2 + 20, y: sigY2 - 12, size: 8, font, color: rgb(0.5, 0.5, 0.5) })
-
-  // Set PDF metadata
-  doc.setTitle(`Purchase Agreement — ${metadata.propertyAddress}`)
-  doc.setAuthor('HartFelt Real Estate — CloseIQ')
-  doc.setCreator('HartFelt CloseIQ')
-  doc.setProducer('pdf-lib')
-
-  const pdfBytes = await doc.save()
-  return Buffer.from(pdfBytes)
 }
 
 // ---------------------------------------------------------------------------
 // POST /api/closeiq/contract
-// body: { offer_id: string }
-// Returns: { contract_url, doc_id }
+// body: { offer_id, template_id? }
+// If template_id given → fill that specific template
+// If omitted → use default active contract template
+// Returns: { contract_url, doc_id, file_name, fields_filled, fields_total }
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
@@ -268,13 +222,14 @@ export async function POST(request: NextRequest) {
     const db = adminClient()
     const body = await request.json()
     const offerId = body.offer_id
+    const templateId = body.template_id // optional — picks default if omitted
 
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
-    // Fetch offer with buyer data
+    // ── Fetch offer with buyer ──────────────────────────────────────────
     const { data: offer, error: offerErr } = await db
       .from('offers')
-      .select('*, buyers(first_name, last_name, email, phone, financing_type, preapproval_amount, preapproval_status)')
+      .select('*, buyers(first_name, last_name, email, phone, financing_type, preapproval_amount)')
       .eq('id', offerId)
       .single()
 
@@ -282,119 +237,89 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404 })
     }
 
-    // Verify the agent owns this offer
     if (offer.agent_id !== user.id) {
       return NextResponse.json({ error: 'Not authorized for this offer' }, { status: 403 })
     }
 
-    // Get agent profile
-    const { data: agentProfile } = await db.from('profiles').select('full_name, email, phone').eq('id', user.id).single()
-    const agentName = agentProfile?.full_name || agentProfile?.email || 'Agent'
-    const agentEmail = agentProfile?.email || ''
-    const agentPhone = agentProfile?.phone || ''
+    // ── Get agent profile ───────────────────────────────────────────────
+    const { data: agentProfile } = await db
+      .from('profiles')
+      .select('full_name, email, phone')
+      .eq('id', user.id)
+      .single()
 
+    // ── Load template ───────────────────────────────────────────────────
+    let templateQuery = db.from('contract_templates').select('*').eq('is_active', true)
+    if (templateId) {
+      templateQuery = templateQuery.eq('id', templateId)
+    } else {
+      // Default: first active contract template
+      templateQuery = templateQuery.eq('category', 'contract').order('created_at', { ascending: true }).limit(1)
+    }
+
+    const { data: templates, error: tplErr } = await templateQuery
+
+    if (tplErr || !templates || templates.length === 0) {
+      return NextResponse.json({
+        error: 'No contract template found. The broker needs to upload Florida Realtors form PDFs first.',
+        code: 'NO_TEMPLATE',
+      }, { status: 404 })
+    }
+
+    const template = templates[0]
+    console.log(`Using template: ${template.name} (${template.slug})`)
+
+    // ── Download blank PDF from storage ─────────────────────────────────
+    const { data: pdfData, error: dlErr } = await db.storage
+      .from('documents')
+      .download(template.storage_path)
+
+    if (dlErr || !pdfData) {
+      console.error('Template download error:', dlErr?.message)
+      return NextResponse.json({
+        error: `Failed to load template PDF: ${dlErr?.message || 'not found'}`,
+      }, { status: 500 })
+    }
+
+    const pdfBytes = Buffer.from(await pdfData.arrayBuffer())
+
+    // ── Build field values from offer data ──────────────────────────────
     const buyer = offer.buyers || {}
-    const buyerName = `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || 'TBD'
-    const buyerEmail = buyer.email || ''
-    const buyerPhone = buyer.phone || ''
+    const fieldValues = buildFieldValues(offer, buyer, agentProfile)
 
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    // ── Fill the PDF form ───────────────────────────────────────────────
+    const fieldMapping = (template.field_mapping && typeof template.field_mapping === 'object')
+      ? template.field_mapping as Record<string, string>
+      : null
 
-    // Generate contract text via Claude
-    const systemPrompt = `You are a real estate contract attorney assistant. Generate a complete, professional Residential Purchase Agreement based on the provided offer details.
+    const filledPdf = await fillPDFForm(pdfBytes, fieldValues, fieldMapping)
 
-The contract should include all standard sections:
-1. PARTIES (buyer and seller info)
-2. PROPERTY DESCRIPTION (address, legal description placeholder)
-3. PURCHASE PRICE AND FINANCING (price, financing type, down payment, earnest money)
-4. EARNEST MONEY DEPOSIT (amount, holder, timeline)
-5. CLOSING DATE AND POSSESSION
-6. CONTINGENCIES (inspection, appraisal, financing — based on offer terms)
-7. INSPECTION PERIOD (days, scope, remedies)
-8. APPRAISAL CONTINGENCY (if applicable)
-9. FINANCING CONTINGENCY (if applicable)
-10. TITLE AND SURVEY
-11. SELLER DISCLOSURES
-12. CLOSING COSTS AND CONCESSIONS
-13. DEFAULT AND REMEDIES
-14. ADDITIONAL TERMS
-15. SIGNATURES (placeholder lines)
-
-Use professional legal language but keep it readable. Fill in all provided values. Use "TBD" or "[TO BE DETERMINED]" for unknown values. Include standard protective clauses for both parties.
-
-Output ONLY the contract text — no JSON wrapper, no markdown formatting. Use plain text with section headers in ALL CAPS.`
-
-    const userPrompt = `Generate a Residential Purchase Agreement with these details:
-
-PARTIES:
-- Buyer: ${buyerName}
-- Buyer Email: ${buyerEmail}
-- Buyer Phone: ${buyerPhone}
-- Buyer Agent: ${agentName}, HartFelt Real Estate
-- Agent Email: ${agentEmail}
-- Agent Phone: ${agentPhone}
-- Seller: [TO BE DETERMINED — Listing Agent to provide]
-
-PROPERTY:
-- Address: ${offer.property_address}
-- City: ${offer.property_city || '[City]'}, ${offer.property_state || '[State]'} ${offer.property_zip || '[ZIP]'}
-- MLS #: ${offer.property_mls_id || 'N/A'}
-- List Price: $${Number(offer.property_list_price || 0).toLocaleString()}
-
-OFFER TERMS:
-- Purchase Price: $${Number(offer.offer_price).toLocaleString()}
-- Financing Type: ${offer.financing_type || 'conventional'}
-- Down Payment: ${offer.down_payment_pct || 20}%
-- Earnest Money: $${Number(offer.earnest_money_amount || 0).toLocaleString()}
-- Inspection Period: ${offer.inspection_days || 10} days
-- Appraisal Contingency: ${offer.appraisal_contingency ? 'Yes' : 'Waived'}
-- Financing Contingency: ${offer.financing_contingency ? 'Yes' : 'Waived'}
-- Closing Date: ${offer.close_date || '30 days from acceptance'}
-- Seller Concessions Requested: $${Number(offer.concessions_requested || 0).toLocaleString()}
-- Escalation Clause: ${offer.escalation_flag ? `Yes, up to $${Number(offer.escalation_max || 0).toLocaleString()}` : 'None'}
-
-${offer.cover_letter_text ? `BUYER NOTES: ${offer.cover_letter_text.substring(0, 200)}` : ''}
-
-Date: ${today}`
-
-    console.log('Generating contract for offer:', offerId)
-    const contractText = await callClaude(systemPrompt, userPrompt, 4000)
-
-    // Generate PDF
-    const pdfBuffer = await generateContractPDF(contractText, {
-      propertyAddress: offer.property_address,
-      buyerName,
-      agentName,
-      offerPrice: `$${Number(offer.offer_price).toLocaleString()}`,
-      date: today,
-    })
-
-    // Upload to Supabase storage
-    const fileName = `purchase_agreement_${offerId.substring(0, 8)}_${Date.now()}.pdf`
+    // ── Upload filled PDF to storage ────────────────────────────────────
+    const buyerName = `${buyer.first_name || 'buyer'}_${buyer.last_name || ''}`.trim().replace(/\s+/g, '_')
+    const fileName = `${template.slug}_${buyerName}_${offerId.substring(0, 8)}_${Date.now()}.pdf`
     const storagePath = `contracts/${user.id}/${fileName}`
 
     const { error: uploadErr } = await db.storage
       .from('documents')
-      .upload(storagePath, pdfBuffer, {
+      .upload(storagePath, filledPdf, {
         contentType: 'application/pdf',
         upsert: true,
       })
 
     if (uploadErr) {
       console.error('Storage upload error:', uploadErr.message)
-      // If storage bucket doesn't exist, return the PDF directly
+      // Fallback: return PDF inline as base64
       if (uploadErr.message.includes('not found') || uploadErr.message.includes('Bucket')) {
-        // Create a data URL as fallback
-        const base64 = pdfBuffer.toString('base64')
+        const base64 = filledPdf.toString('base64')
         const dataUrl = `data:application/pdf;base64,${base64}`
 
-        // Still create the offer_documents record with inline data marker
         const { data: doc } = await db.from('offer_documents').insert({
           offer_id: offerId,
           doc_type: 'purchase_agreement',
           file_url: 'pending_storage',
           file_name: fileName,
           uploaded_by: user.id,
+          template_id: template.id,
           status: 'uploaded',
         }).select().single()
 
@@ -402,24 +327,26 @@ Date: ${today}`
           contract_url: dataUrl,
           doc_id: doc?.id,
           file_name: fileName,
+          template_name: template.name,
           fallback: true,
-          message: 'Contract generated. Storage bucket may need to be created — PDF returned inline.',
+          message: 'Contract filled. Storage bucket may need to be created — PDF returned inline.',
         })
       }
       return NextResponse.json({ error: `Upload failed: ${uploadErr.message}` }, { status: 500 })
     }
 
-    // Get public URL
+    // ── Get public URL ──────────────────────────────────────────────────
     const { data: urlData } = db.storage.from('documents').getPublicUrl(storagePath)
     const contractUrl = urlData?.publicUrl || ''
 
-    // Create offer_documents record
+    // ── Create offer_documents record ───────────────────────────────────
     const { data: docRecord, error: docErr } = await db.from('offer_documents').insert({
       offer_id: offerId,
       doc_type: 'purchase_agreement',
       file_url: contractUrl,
       file_name: fileName,
       uploaded_by: user.id,
+      template_id: template.id,
       status: 'uploaded',
     }).select().single()
 
@@ -427,16 +354,49 @@ Date: ${today}`
       console.error('offer_documents insert error:', docErr.message)
     }
 
-    console.log('Contract generated successfully:', fileName)
+    console.log(`Contract filled successfully: ${fileName} using template ${template.slug}`)
 
     return NextResponse.json({
       contract_url: contractUrl,
       doc_id: docRecord?.id,
       file_name: fileName,
+      template_name: template.name,
+      template_id: template.id,
     })
 
   } catch (err: any) {
     console.error('Contract generation error:', err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/closeiq/contract?offer_id=...
+// Lists all generated contracts for an offer
+// ---------------------------------------------------------------------------
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getAuthedUser(request)
+    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+    const db = adminClient()
+    const offerId = request.nextUrl.searchParams.get('offer_id')
+
+    if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
+
+    const { data: docs, error } = await db
+      .from('offer_documents')
+      .select('*, contract_templates(name, slug, category)')
+      .eq('offer_id', offerId)
+      .eq('doc_type', 'purchase_agreement')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ documents: docs || [] })
+  } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
