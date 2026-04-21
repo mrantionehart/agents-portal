@@ -390,6 +390,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const offerId = body.offer_id
     const templateId = body.template_id // optional — picks default if omitted
+    const templateSlug = body.template_slug // optional — alternative to template_id
 
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
@@ -419,6 +420,8 @@ export async function POST(request: NextRequest) {
     let templateQuery = db.from('contract_templates').select('*').eq('is_active', true)
     if (templateId) {
       templateQuery = templateQuery.eq('id', templateId)
+    } else if (templateSlug) {
+      templateQuery = templateQuery.eq('slug', templateSlug)
     } else {
       // Default: first active contract template
       templateQuery = templateQuery.eq('category', 'contract').order('created_at', { ascending: true }).limit(1)
@@ -434,7 +437,12 @@ export async function POST(request: NextRequest) {
     }
 
     const template = templates[0]
-    console.log(`Using template: ${template.name} (${template.slug})`)
+    console.log(`Using template: ${template.name} (${template.slug}) [form_type=${template.form_type || 'auto-detect'}]`)
+
+    // Warn (but don't block) if mapping hasn't been broker-verified
+    const mappingWarning = !template.mapping_verified
+      ? 'Field mapping has not been verified by the broker — some fields may be incorrect.'
+      : null
 
     // ── Download blank PDF from storage ─────────────────────────────────
     const { data: pdfData, error: dlErr } = await db.storage
@@ -459,7 +467,18 @@ export async function POST(request: NextRequest) {
       ? template.field_mapping as Record<string, string>
       : null
 
-    const filledPdf = await fillPDFForm(pdfBytes, fieldValues, fieldMapping)
+    // Use stored form_type if available, otherwise auto-detect
+    let filledPdf: Buffer
+    if (template.form_type === 'xfa') {
+      console.log('Using stored form_type: XFA')
+      filledPdf = await fillXfaPdf(pdfBytes, fieldValues, fieldMapping)
+    } else if (template.form_type === 'acroform') {
+      console.log('Using stored form_type: AcroForm')
+      filledPdf = await fillAcroFormPdf(pdfBytes, fieldValues, fieldMapping)
+    } else {
+      // Auto-detect fallback
+      filledPdf = await fillPDFForm(pdfBytes, fieldValues, fieldMapping)
+    }
 
     // ── Upload filled PDF to storage ────────────────────────────────────
     const buyerName = `${buyer.first_name || 'buyer'}_${buyer.last_name || ''}`.trim().replace(/\s+/g, '_')
@@ -497,6 +516,7 @@ export async function POST(request: NextRequest) {
           template_name: template.name,
           fallback: true,
           message: 'Contract filled. Storage bucket may need to be created — PDF returned inline.',
+          ...(mappingWarning && { warning: mappingWarning }),
         })
       }
       return NextResponse.json({ error: `Upload failed: ${uploadErr.message}` }, { status: 500 })
@@ -529,6 +549,7 @@ export async function POST(request: NextRequest) {
       file_name: fileName,
       template_name: template.name,
       template_id: template.id,
+      ...(mappingWarning && { warning: mappingWarning }),
     })
 
   } catch (err: any) {

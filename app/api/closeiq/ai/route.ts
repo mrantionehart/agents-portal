@@ -176,6 +176,8 @@ Output valid JSON with these fields:
   "property_city": "string or null",
   "property_state": "string or null (2-letter code)",
   "property_zip": "string or null",
+  "property_county": "string or null (e.g. Miami-Dade, Broward, Palm Beach)",
+  "legal_description": "string or null (lot, block, subdivision if mentioned)",
   "list_price": "number or null",
   "offer_price": "number or null",
   "financing_type": "conventional|fha|va|cash|usda|other or null",

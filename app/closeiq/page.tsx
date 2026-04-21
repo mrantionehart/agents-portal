@@ -77,6 +77,7 @@ function buyerDisplayName(b?: Buyer | null): string {
 interface Offer {
   id: string; buyer_id: string; buyer_name?: string
   property_address: string; city: string; state: string; zip: string
+  property_city?: string; property_state?: string
   list_price: number; mls_id: string; offer_price: number
   down_payment_pct: number; earnest_money: number
   inspection_days: number; contingencies: string[]
@@ -84,6 +85,7 @@ interface Offer {
   status: OfferStatus; readiness_score: number
   risk_flags: { label: string; severity: 'high' | 'moderate' | 'low' }[]
   created_at: string; preset_name?: string
+  buyers?: { first_name?: string; last_name?: string; email?: string; phone?: string }
 }
 
 interface Preset { id: string; label: string; name?: string; description: string; defaults: Record<string, any>; config?: Record<string, any> }
@@ -308,6 +310,11 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
     close_date: '', concessions: '0', escalation_cap: '0',
   })
 
+  // Voice input state
+  const [voiceMode, setVoiceMode] = useState(false)
+  const [voiceText, setVoiceText] = useState('')
+  const [voiceParsing, setVoiceParsing] = useState(false)
+
   // Review data
   const [riskFlags, setRiskFlags] = useState<Offer['risk_flags']>([])
   const [readinessScore, setReadinessScore] = useState(0)
@@ -326,6 +333,51 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
       ])
     })
   }, [])
+
+  const parseVoiceOffer = async () => {
+    if (!voiceText.trim()) return
+    setVoiceParsing(true)
+    try {
+      const result = await api('POST', '/api/closeiq/ai', { action: 'parse_voice', transcript: voiceText })
+
+      // Fill buyer
+      if (result.buyer_name) setNewBuyer((prev: any) => ({ ...prev, name: result.buyer_name }))
+      if (result.buyer_email) setNewBuyer((prev: any) => ({ ...prev, email: result.buyer_email }))
+      if (result.buyer_phone) setNewBuyer((prev: any) => ({ ...prev, phone: result.buyer_phone }))
+      if (result.financing_type) {
+        const ft = result.financing_type.toLowerCase()
+        const match = ['Conventional', 'FHA', 'VA', 'USDA', 'Cash', 'Hard Money', 'Other'].find(f => f.toLowerCase() === ft)
+        if (match) setNewBuyer((prev: any) => ({ ...prev, financing_type: match }))
+      }
+
+      // Fill property
+      if (result.property_address) setProperty(prev => ({ ...prev, address: result.property_address }))
+      if (result.property_city) setProperty(prev => ({ ...prev, city: result.property_city }))
+      if (result.property_state) setProperty(prev => ({ ...prev, state: result.property_state }))
+      if (result.property_zip) setProperty(prev => ({ ...prev, zip: result.property_zip }))
+      if (result.list_price) setProperty(prev => ({ ...prev, list_price: String(result.list_price) }))
+
+      // Fill terms
+      if (result.offer_price) setTerms(prev => ({ ...prev, offer_price: String(result.offer_price) }))
+      if (result.earnest_money) setTerms(prev => ({ ...prev, earnest_money: String(result.earnest_money) }))
+      if (result.inspection_days != null) setTerms(prev => ({ ...prev, inspection_days: String(result.inspection_days) }))
+      if (result.close_date) setTerms(prev => ({ ...prev, close_date: result.close_date }))
+      if (result.down_payment_pct) setTerms(prev => ({ ...prev, down_payment_pct: String(result.down_payment_pct) }))
+      if (result.concessions) setTerms(prev => ({ ...prev, concessions: String(result.concessions) }))
+      if (result.escalation_cap) setTerms(prev => ({ ...prev, escalation_cap: String(result.escalation_cap) }))
+
+      // Auto-select preset
+      if (result.waive_inspection && result.waive_appraisal) setSelectedPreset('clean')
+      else if (result.financing_type === 'cash') setSelectedPreset('investor')
+      else if (result.financing_type === 'fha' || result.financing_type === 'va') setSelectedPreset('fha')
+
+      setVoiceMode(false)
+      setVoiceText('')
+      alert(`Offer parsed (confidence: ${result.confidence || 'medium'}). Review each step and adjust as needed.${result.notes ? '\n\nNotes: ' + result.notes : ''}`)
+    } catch (e: any) {
+      alert('Parse failed: ' + (e?.message || 'Unknown error'))
+    } finally { setVoiceParsing(false) }
+  }
 
   const applyPreset = (preset: Preset) => {
     setSelectedPreset(preset.id)
@@ -466,6 +518,43 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Voice Input Toggle */}
+      {!voiceMode ? (
+        <button onClick={() => setVoiceMode(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[#D4AF37]/30 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 transition text-left"
+        >
+          <Mic className="w-5 h-5 text-[#D4AF37]" />
+          <span className="text-sm font-medium text-[#D4AF37]">Speak or type your offer — AI fills in all fields</span>
+          <ChevronRight className="w-4 h-4 text-gray-400 ml-auto" />
+        </button>
+      ) : (
+        <Card className="border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/5 to-transparent">
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mic className="w-5 h-5 text-[#D4AF37]" />
+                <span className="font-semibold text-[#1E2761]">Voice / Text Offer Input</span>
+              </div>
+              <button onClick={() => setVoiceMode(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Example: &quot;325 thousand on 742 Oak Street, Miami FL for James Wilson, conventional financing, 30-day close, 5000 earnest money, 10-day inspection&quot;
+            </p>
+            <textarea value={voiceText} onChange={e => setVoiceText(e.target.value)} rows={3}
+              placeholder="Type or paste what the agent said about the offer..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
+            />
+            <div className="flex gap-2">
+              <Button onClick={parseVoiceOffer} disabled={voiceParsing || !voiceText.trim()}>
+                {voiceParsing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Parse with AI
+              </Button>
+              <Button variant="outline" onClick={() => { setVoiceMode(false); setVoiceText('') }}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stepper */}
       <div className="flex items-center justify-between">
         {WIZARD_STEPS.map((s, i) => (
