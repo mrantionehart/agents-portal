@@ -157,8 +157,66 @@ Provide practical analysis. Be direct.`
         return NextResponse.json(result)
       }
 
+      // -----------------------------------------------------------------------
+      // Voice-to-Offer Parser — takes spoken/typed text, returns structured offer
+      // -----------------------------------------------------------------------
+      case 'parse_voice': {
+        const { transcript } = body
+
+        if (!transcript) return NextResponse.json({ error: 'transcript is required' }, { status: 400 })
+
+        const systemPrompt = `You are a real estate offer assistant. Parse the agent's spoken or typed description of an offer into structured data. Extract every detail you can find. For fields not mentioned, use null.
+
+Output valid JSON with these fields:
+{
+  "buyer_name": "string or null",
+  "buyer_phone": "string or null",
+  "buyer_email": "string or null",
+  "property_address": "string or null",
+  "property_city": "string or null",
+  "property_state": "string or null (2-letter code)",
+  "property_zip": "string or null",
+  "list_price": "number or null",
+  "offer_price": "number or null",
+  "financing_type": "conventional|fha|va|cash|usda|other or null",
+  "down_payment_pct": "number or null",
+  "earnest_money": "number or null",
+  "inspection_days": "number or null",
+  "appraisal_contingency": "boolean or null",
+  "financing_contingency": "boolean or null",
+  "close_date": "YYYY-MM-DD string or null",
+  "close_days": "number or null (days from now if specific date not given)",
+  "concessions": "number or null",
+  "escalation_cap": "number or null",
+  "waive_inspection": "boolean (default false)",
+  "waive_appraisal": "boolean (default false)",
+  "notes": "string — any additional info mentioned that doesn't fit above fields",
+  "confidence": "high|medium|low — how confident you are in the parsing"
+}
+
+Parse price mentions like "325 thousand" → 325000, "1.2 million" → 1200000.
+Parse dates like "30 day close" → close_days: 30, "June 15th" → close_date: "2026-06-15".
+Parse financing mentions: "cash offer" → "cash", "FHA loan" → "fha", "VA" → "va".
+If they say "waive inspection" set waive_inspection to true and inspection_days to 0.
+Do not include markdown — just the raw JSON object.`
+
+        const userPrompt = `Parse this into a structured offer:\n\n"${transcript}"`
+
+        const raw = await callClaude(systemPrompt, userPrompt)
+
+        let result
+        try {
+          const jsonMatch = raw.match(/\{[\s\S]*\}/)
+          result = jsonMatch ? JSON.parse(jsonMatch[0]) : { error: 'Could not parse offer details', raw }
+        } catch {
+          result = { error: 'Failed to parse AI response', raw }
+        }
+
+        return NextResponse.json(result)
+      }
+
       default:
-        return NextResponse.json({ error: 'invalid action — use cover_letter or risk_analysis' }, { status: 400 })
+        return NextResponse.json({ error: 'invalid action — use cover_letter, risk_analysis, or parse_voice' }, { status: 400 })
     }
   } catch (err: any) {
     console.error('CloseIQ AI error:', err)

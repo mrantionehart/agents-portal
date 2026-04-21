@@ -53,6 +53,7 @@ import {
   DollarSign, TrendingUp, Clock, Copy, Check, Sparkles,
   Shield, Percent, Calendar, Home, Phone, Mail, CreditCard,
   MapPin, Hash, ArrowUpRight, X, Edit3, ChevronDown, ChevronUp,
+  Mic, MicOff, FileDown,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
