@@ -298,7 +298,7 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
 
   // Form state
   const [buyerId, setBuyerId] = useState('')
-  const [newBuyer, setNewBuyer] = useState({ name: '', email: '', phone: '', preapproval_amount: '', financing_type: 'Conventional' })
+  const [newBuyer, setNewBuyer] = useState({ name: '', email: '', phone: '', preapproval_amount: '', financing_type: 'conventional' })
   const [property, setProperty] = useState({ address: '', unit: '', city: '', state: '', zip: '', list_price: '', mls_id: '' })
   const [selectedPreset, setSelectedPreset] = useState<string>('')
   const [terms, setTerms] = useState({
@@ -353,7 +353,7 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
         const nameParts = newBuyer.name.trim().split(/\s+/)
         const firstName = nameParts[0] || ''
         const lastName = nameParts.slice(1).join(' ') || ''
-        const res = await api('POST', '/api/closeiq', { entity: 'buyer', data: { first_name: firstName, last_name: lastName, email: newBuyer.email, phone: newBuyer.phone, financing_type: newBuyer.financing_type, preapproval_amount: Number(newBuyer.preapproval_amount) || 0 } })
+        const res = await api('POST', '/api/closeiq', { entity: 'buyer', data: { first_name: firstName, last_name: lastName, email: newBuyer.email, phone: newBuyer.phone, financing_type: (newBuyer.financing_type || 'conventional').toLowerCase(), preapproval_amount: Number(newBuyer.preapproval_amount) || 0 } })
         setBuyerId(res.buyer?.id || res.data?.id || '')
         setBuyers(prev => [...prev, res.buyer || res.data])
       } catch { /* continue with empty buyerId */ }
@@ -430,7 +430,7 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
           property_mls_id: property.mls_id || null,
           offer_mode: selectedPreset || 'standard',
           offer_price: Number(terms.offer_price),
-          financing_type: buyers.find(b => b.id === buyerId)?.financing_type || 'conventional',
+          financing_type: (buyers.find(b => b.id === buyerId)?.financing_type || 'conventional').toLowerCase(),
           down_payment_pct: Number(terms.down_payment_pct) || null,
           earnest_money_amount: Number(terms.earnest_money) || null,
           inspection_days: Number(terms.inspection_days) || 10,
@@ -910,7 +910,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
   const [selectedOffer, setSelectedOffer] = useState('')
   const [tone, setTone] = useState('professional')
   const [buyerStory, setBuyerStory] = useState('')
-  const [manualDetails, setManualDetails] = useState({ buyer_name: '', property_address: '', offer_price: '', financing_type: 'Conventional' })
+  const [manualDetails, setManualDetails] = useState({ buyer_name: '', property_address: '', offer_price: '', financing_type: 'conventional' })
   const [result, setResult] = useState('')
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -990,7 +990,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
                 <select value={manualDetails.financing_type} onChange={e => setManualDetails({ ...manualDetails, financing_type: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
                 >
-                  {['Conventional', 'FHA', 'VA', 'Cash', 'Other'].map(t => <option key={t}>{t}</option>)}
+                  {[{v:'conventional',l:'Conventional'},{v:'fha',l:'FHA'},{v:'va',l:'VA'},{v:'cash',l:'Cash'},{v:'other',l:'Other'}].map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
                 </select>
               </div>
             </div>
