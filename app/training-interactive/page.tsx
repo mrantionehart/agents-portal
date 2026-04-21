@@ -1360,6 +1360,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
         'volume-1': 'Volume 1 — Foundations',
         'volume-2': 'Volume 2 — Elite',
         'volume-3': 'Volume 3 — AI Training',
+        'volume-4': 'Volume 4 — EASE Training',
       }
       setCertificateData({
         name: user?.user_metadata?.name || user?.email || 'Agent',

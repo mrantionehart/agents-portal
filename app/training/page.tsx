@@ -450,6 +450,16 @@ export default function TrainingPage() {
               >
                 AI Training
               </button>
+              <button
+                onClick={() => setSelectedVolume(4)}
+                className={`px-5 py-2 font-medium ${
+                  selectedVolume === 4
+                    ? 'bg-amber-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                EASE Training
+              </button>
             </div>
             <div className="text-sm text-gray-600">
               <span className="font-semibold text-gray-900">{completedCount}</span>
@@ -581,7 +591,7 @@ export default function TrainingPage() {
               <div className="px-4 py-3 border-b bg-gray-50">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
-                  {selectedVolume === 3 ? 'AI Training' : `Volume ${selectedVolume}`} modules
+                  {selectedVolume === 3 ? 'AI Training' : selectedVolume === 4 ? 'EASE Training' : `Volume ${selectedVolume}`} modules
                 </h3>
               </div>
               <div className="divide-y max-h-[70vh] overflow-y-auto">
