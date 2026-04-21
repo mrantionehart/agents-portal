@@ -360,6 +360,9 @@ export async function POST(request: NextRequest) {
 
         console.log('submit_for_approval — offerId:', offerId, 'userId:', user.id)
 
+        // Fetch the offer details for notification content
+        const { data: offerData } = await db.from('offers').select('*, buyers(first_name, last_name)').eq('id', offerId).single()
+
         // Update offer status
         const { error: updateErr } = await db.from('offers').update({ status: 'pending_approval' }).eq('id', offerId).eq('agent_id', user.id)
         if (updateErr) {
@@ -367,9 +370,10 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: updateErr.message }, { status: 500 })
         }
 
-        // Find a broker to assign (first broker in profiles)
-        const { data: brokers } = await db.from('profiles').select('id').in('role', ['broker', 'admin']).limit(1)
-        const brokerId = brokers?.[0]?.id || user.id
+        // Find a broker to assign (first broker/admin in profiles)
+        const { data: brokers } = await db.from('profiles').select('id, email, full_name').in('role', ['broker', 'admin']).limit(1)
+        const broker = brokers?.[0]
+        const brokerId = broker?.id || user.id
         console.log('Assigned broker:', brokerId)
 
         const { data: approval, error } = await db.from('offer_approvals').insert({
@@ -380,6 +384,89 @@ export async function POST(request: NextRequest) {
         if (error) {
           console.error('Approval insert error:', error.message, error.details, error.hint)
           return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        // Get agent name for notifications
+        const { data: agentProfile } = await db.from('profiles').select('full_name, email').eq('id', user.id).single()
+        const agentName = agentProfile?.full_name || agentProfile?.email || 'An agent'
+        const buyerName = offerData?.buyers
+          ? `${offerData.buyers.first_name || ''} ${offerData.buyers.last_name || ''}`.trim()
+          : 'Unknown buyer'
+        const propertyAddr = offerData?.property_address || 'Unknown property'
+        const offerPrice = offerData?.offer_price
+          ? `$${Number(offerData.offer_price).toLocaleString()}`
+          : 'N/A'
+
+        // ── In-app notification (compliance_notifications table) ──
+        try {
+          await db.from('compliance_notifications').insert({
+            recipient_id: brokerId,
+            notification_type: 'offer_submitted',
+            title: `New Offer Pending Approval`,
+            message: `${agentName} submitted an offer for ${propertyAddr} — ${offerPrice} for buyer ${buyerName}. Review needed.`,
+            metadata: {
+              offer_id: offerId,
+              property_address: propertyAddr,
+              offer_price: offerData?.offer_price,
+              buyer_name: buyerName,
+              agent_name: agentName,
+            },
+          })
+        } catch (notifErr) {
+          console.error('Notification insert failed (non-blocking):', notifErr)
+        }
+
+        // ── Email notification to broker via SendGrid ──
+        const brokerEmail = broker?.email
+        const sgApiKey = process.env.SENDGRID_API_KEY
+        if (brokerEmail && sgApiKey) {
+          try {
+            const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agents.hartfeltrealestate.com'
+            const vaultUrl = 'https://hartfelt-vault.vercel.app'
+            await fetch('https://api.sendgrid.com/v3/mail/send', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${sgApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                personalizations: [{ to: [{ email: brokerEmail }] }],
+                from: { email: process.env.SENDGRID_FROM_EMAIL || 'info@hartfeltrealestate.com', name: 'HartFelt CloseIQ' },
+                subject: `Offer Pending Approval: ${propertyAddr}`,
+                content: [{ type: 'text/html', value: `
+<html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+  <h1 style="color:#1F4E78;border-bottom:3px solid #D4AF37;padding-bottom:10px;">
+    New Offer Awaiting Your Approval
+  </h1>
+  <p style="font-size:16px;margin-top:20px;">
+    <strong>${agentName}</strong> has submitted an offer that needs your review.
+  </p>
+  <div style="background:#f0f9ff;padding:15px;border-left:4px solid #D4AF37;margin:20px 0;border-radius:4px;">
+    <p style="margin:0;"><strong>Property:</strong> ${propertyAddr}</p>
+    <p style="margin:8px 0 0;"><strong>Buyer:</strong> ${buyerName}</p>
+    <p style="margin:8px 0 0;"><strong>Offer Price:</strong> ${offerPrice}</p>
+    <p style="margin:8px 0 0;"><strong>Financing:</strong> ${offerData?.financing_type || 'N/A'}</p>
+  </div>
+  <p>
+    <a href="${vaultUrl}/closeiq"
+       style="background:#D4AF37;color:#1F4E78;padding:12px 30px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:bold;">
+      Review in Vault
+    </a>
+  </p>
+  <p style="margin-top:30px;padding-top:20px;border-top:1px solid #ccc;color:#999;font-size:12px;">
+    From The Hart,<br><strong>HartFelt Real Estate — CloseIQ</strong>
+  </p>
+</div>
+</body></html>` }],
+              }),
+            })
+            console.log('Broker email sent to:', brokerEmail)
+          } catch (emailErr) {
+            console.error('SendGrid email failed (non-blocking):', emailErr)
+          }
+        } else {
+          console.log('Skipping email — no broker email or SendGrid key')
         }
 
         return NextResponse.json({ approval, status: 'pending_approval' })
@@ -405,6 +492,78 @@ export async function POST(request: NextRequest) {
         if (appr) {
           const offerStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'draft'
           await db.from('offers').update({ status: offerStatus }).eq('id', appr.offer_id)
+
+          // Notify the agent about the broker decision
+          const { data: offerDetail } = await db.from('offers').select('agent_id, property_address, offer_price').eq('id', appr.offer_id).single()
+          if (offerDetail) {
+            const notifTypeMap: Record<string, string> = {
+              approve: 'offer_approved', reject: 'offer_rejected',
+              revise: 'offer_revision_requested', escalate: 'offer_escalated',
+            }
+            const titleMap: Record<string, string> = {
+              approve: 'Offer Approved', reject: 'Offer Rejected',
+              revise: 'Revision Requested', escalate: 'Offer Escalated',
+            }
+            try {
+              await db.from('compliance_notifications').insert({
+                recipient_id: offerDetail.agent_id,
+                notification_type: notifTypeMap[action] || 'offer_submitted',
+                title: titleMap[action] || 'Offer Update',
+                message: `Your offer for ${offerDetail.property_address || 'a property'} ($${Number(offerDetail.offer_price || 0).toLocaleString()}) has been ${newStatus.replace('_', ' ')}.${notes ? ` Broker notes: ${notes}` : ''}`,
+                metadata: {
+                  offer_id: appr.offer_id,
+                  property_address: offerDetail.property_address,
+                  broker_action: action,
+                  notes: notes || null,
+                },
+              })
+            } catch (notifErr) {
+              console.error('Agent notification failed (non-blocking):', notifErr)
+            }
+
+            // Email the agent
+            const { data: agentP } = await db.from('profiles').select('email, full_name').eq('id', offerDetail.agent_id).single()
+            const sgKey = process.env.SENDGRID_API_KEY
+            if (agentP?.email && sgKey) {
+              try {
+                await fetch('https://api.sendgrid.com/v3/mail/send', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${sgKey}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    personalizations: [{ to: [{ email: agentP.email }] }],
+                    from: { email: process.env.SENDGRID_FROM_EMAIL || 'info@hartfeltrealestate.com', name: 'HartFelt CloseIQ' },
+                    subject: `Offer ${titleMap[action]}: ${offerDetail.property_address || 'Property'}`,
+                    content: [{ type: 'text/html', value: `
+<html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+  <h1 style="color:#1F4E78;border-bottom:3px solid #D4AF37;padding-bottom:10px;">
+    ${titleMap[action]}
+  </h1>
+  <p style="font-size:16px;margin-top:20px;">
+    Your offer for <strong>${offerDetail.property_address || 'a property'}</strong>
+    ($${Number(offerDetail.offer_price || 0).toLocaleString()}) has been <strong>${newStatus.replace('_', ' ')}</strong>.
+  </p>
+  ${notes ? `<div style="background:#fffbeb;padding:15px;border-left:4px solid #D4AF37;margin:20px 0;border-radius:4px;">
+    <p style="margin:0;"><strong>Broker Notes:</strong> ${notes}</p>
+  </div>` : ''}
+  <p>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://agents.hartfeltrealestate.com'}/closeiq"
+       style="background:#D4AF37;color:#1F4E78;padding:12px 30px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:bold;">
+      View in CloseIQ
+    </a>
+  </p>
+  <p style="margin-top:30px;padding-top:20px;border-top:1px solid #ccc;color:#999;font-size:12px;">
+    From The Hart,<br><strong>HartFelt Real Estate — CloseIQ</strong>
+  </p>
+</div>
+</body></html>` }],
+                  }),
+                })
+              } catch (emailErr) {
+                console.error('Agent email failed (non-blocking):', emailErr)
+              }
+            }
+          }
         }
 
         return NextResponse.json({ success: true, approval_status: newStatus })
