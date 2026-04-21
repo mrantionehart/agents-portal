@@ -5,7 +5,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Users, Mail, Phone, MapPin, TrendingUp, AlertCircle, Trash2, Edit, CheckCircle, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import { vaultAPI } from '@/lib/vault-client'
 import ComplianceNotifications from '../components/compliance-notifications'
 
@@ -65,7 +65,7 @@ export default function RecruitingPage() {
     }
   }, [user])
 
-  const supabase = createClientComponentClient()
+  // supabase imported from @/lib/supabase
 
   const loadRecruits = async () => {
     if (!user) return

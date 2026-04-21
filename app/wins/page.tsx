@@ -5,7 +5,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { ArrowLeft, Trophy, Star, TrendingUp, Award } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 
 interface PipelineTransaction {
   id: string
@@ -156,7 +156,7 @@ export default function WinsTrackerPage() {
       setWinsLoading(true)
       setError(null)
 
-      const supabase = createClientComponentClient()
+      // supabase imported from @/lib/supabase
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
