@@ -414,15 +414,26 @@ export default function TrainingPage() {
                 <p className="text-gray-600 mb-4">
                   Essential reference guide with HartFelt policies, procedures, commission structures, and compliance requirements.
                 </p>
-                <a
-                  href="/training/brokerage-policy-manual.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  <FileText className="w-5 h-5" />
-                  Download Manual (PDF)
-                </a>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <a
+                    href="/training/brokerage-policy-manual.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium"
+                  >
+                    <FileText className="w-5 h-5" />
+                    Policy Manual (PDF)
+                  </a>
+                  <a
+                    href="/training/HartFelt_Agent_Training_Manual.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-amber-600 text-white px-5 py-2.5 rounded-lg hover:bg-amber-700 transition font-medium"
+                  >
+                    <FileText className="w-5 h-5" />
+                    EASE & Portal Manual (PDF)
+                  </a>
+                </div>
               </div>
             </div>
           </div>

@@ -95,6 +95,18 @@ export default function ResourcesPage() {
                 Download PDF
               </a>
             </div>
+            <div className="bg-white rounded-lg shadow p-6 border-2 border-amber-200">
+              <h3 className="font-bold text-gray-900 mb-2">EASE & Portal Manual</h3>
+              <p className="text-gray-600 text-sm mb-4">Step-by-step guide to your apps — leads, deals, CMA, training & more</p>
+              <a
+                href="/training/HartFelt_Agent_Training_Manual.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700 transition font-medium text-sm inline-block text-center"
+              >
+                Download PDF
+              </a>
+            </div>
           </div>
         </section>
 
