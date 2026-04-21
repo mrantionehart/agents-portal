@@ -356,7 +356,11 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
         const res = await api('POST', '/api/closeiq', { entity: 'buyer', data: { first_name: firstName, last_name: lastName, email: newBuyer.email, phone: newBuyer.phone, financing_type: (newBuyer.financing_type || 'conventional').toLowerCase(), preapproval_amount: Number(newBuyer.preapproval_amount) || 0 } })
         setBuyerId(res.buyer?.id || res.data?.id || '')
         setBuyers(prev => [...prev, res.buyer || res.data])
-      } catch { /* continue with empty buyerId */ }
+      } catch (e: any) {
+        console.error('Buyer creation failed:', e)
+        alert('Failed to create buyer: ' + (e?.message || 'Unknown error'))
+        return // don't advance step if buyer creation failed
+      }
     }
     if (step === 3) {
       // Load review data

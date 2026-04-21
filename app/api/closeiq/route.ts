@@ -267,10 +267,24 @@ export async function POST(request: NextRequest) {
 
     switch (entity) {
       case 'buyer': {
-        const buyer = { ...body.data, agent_id: user.id }
+        const d = body.data || {}
+        // Only pass known columns to avoid Supabase rejecting unknown fields
+        const buyer: Record<string, any> = {
+          agent_id: user.id,
+          first_name: d.first_name || '',
+          last_name: d.last_name || '',
+          email: d.email || null,
+          phone: d.phone || null,
+          financing_type: (d.financing_type || 'conventional').toLowerCase(),
+          preapproval_amount: d.preapproval_amount ? Number(d.preapproval_amount) : null,
+        }
         buyer.readiness_score = calcReadinessScore(buyer)
+        console.log('Buyer insert payload:', JSON.stringify(buyer))
         const { data, error } = await db.from('buyers').insert(buyer).select().single()
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (error) {
+          console.error('Buyer insert error:', error.message, error.details, error.hint, error.code)
+          return NextResponse.json({ error: error.message }, { status: 500 })
+        }
         return NextResponse.json({ buyer: data, readiness: { score: data.readiness_score, label: readinessLabel(data.readiness_score) } })
       }
 
