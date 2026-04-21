@@ -61,10 +61,16 @@ type Tab = 'dashboard' | 'new-offer' | 'buyers' | 'cover-letters'
 type OfferStatus = 'draft' | 'pending_approval' | 'approved' | 'submitted' | 'countered' | 'accepted' | 'rejected'
 
 interface Buyer {
-  id: string; name: string; email: string; phone: string
+  id: string; name?: string; first_name?: string; last_name?: string; email: string; phone: string
   preapproval_amount: number; financing_type: string
   readiness_score: number; checklist: Record<string, boolean>
   created_at: string
+}
+
+function buyerDisplayName(b?: Buyer | null): string {
+  if (!b) return ''
+  if (b.first_name || b.last_name) return `${b.first_name || ''} ${b.last_name || ''}`.trim()
+  return b.name || ''
 }
 
 interface Offer {
@@ -261,7 +267,7 @@ function DashboardTab({ userId }: { userId: string }) {
                   <div key={o.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{o.property_address}</p>
-                      <p className="text-xs text-gray-500">{o.buyer_name || 'Unknown Buyer'} &middot; {o.city}, {o.state}</p>
+                      <p className="text-xs text-gray-500">{o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim() : 'Unknown Buyer'} &middot; {o.property_city || o.city}, {o.property_state || o.state}</p>
                     </div>
                     <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                       <ReadinessBadge score={o.readiness_score} />
@@ -344,7 +350,10 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
   const goNext = async () => {
     if (step === 0 && !buyerId && newBuyer.name) {
       try {
-        const res = await api('POST', '/api/closeiq', { entity: 'buyer', data: { ...newBuyer, preapproval_amount: Number(newBuyer.preapproval_amount) || 0 } })
+        const nameParts = newBuyer.name.trim().split(/\s+/)
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        const res = await api('POST', '/api/closeiq', { entity: 'buyer', data: { first_name: firstName, last_name: lastName, email: newBuyer.email, phone: newBuyer.phone, financing_type: newBuyer.financing_type, preapproval_amount: Number(newBuyer.preapproval_amount) || 0 } })
         setBuyerId(res.buyer?.id || res.data?.id || '')
         setBuyers(prev => [...prev, res.buyer || res.data])
       } catch { /* continue with empty buyerId */ }
@@ -386,12 +395,16 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
       const buyer = buyers.find(b => b.id === buyerId)
       const res = await api('POST', '/api/closeiq/ai', {
         action: 'cover_letter',
-        buyer_name: buyer?.name || newBuyer.name,
+        buyer_name: buyerDisplayName(buyer) || newBuyer.name,
         property_address: property.address,
         offer_price: Number(terms.offer_price),
         financing_type: buyer?.financing_type || newBuyer.financing_type,
+        close_date: terms.close_date,
+        earnest_money: Number(terms.earnest_money),
+        inspection_days: Number(terms.inspection_days),
+        concessions: Number(terms.concessions),
       })
-      setCoverLetter(res.letter || res.data || '')
+      setCoverLetter(res.email_body || res.letter || res.data || '')
     } catch {
       setCoverLetter('Unable to generate cover letter. Please try again or write manually.')
     } finally { setLetterLoading(false) }
@@ -400,18 +413,40 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
   const submitOffer = async () => {
     setSaving(true)
     try {
-      await api('POST', '/api/closeiq', {
-        entity: 'submit_for_approval',
+      // Step 1: Create the offer
+      const offerRes = await api('POST', '/api/closeiq', {
+        entity: 'offer',
         data: {
           buyer_id: buyerId,
-          property_address: property.address, city: property.city, state: property.state, zip: property.zip,
-          list_price: Number(property.list_price), mls_id: property.mls_id,
-          offer_price: Number(terms.offer_price), down_payment_pct: Number(terms.down_payment_pct),
-          earnest_money: Number(terms.earnest_money), inspection_days: Number(terms.inspection_days),
-          contingencies: terms.contingencies, close_date: terms.close_date,
-          concessions: Number(terms.concessions), escalation_cap: Number(terms.escalation_cap),
-          preset_name: selectedPreset, cover_letter: coverLetter,
+          property_address: property.address,
+          property_city: property.city,
+          property_state: property.state,
+          property_zip: property.zip,
+          property_list_price: Number(property.list_price) || null,
+          property_mls_id: property.mls_id || null,
+          offer_mode: selectedPreset || 'standard',
+          offer_price: Number(terms.offer_price),
+          financing_type: buyers.find(b => b.id === buyerId)?.financing_type || 'conventional',
+          down_payment_pct: Number(terms.down_payment_pct) || null,
+          earnest_money_amount: Number(terms.earnest_money) || null,
+          inspection_days: Number(terms.inspection_days) || 10,
+          appraisal_contingency: terms.contingencies.includes('appraisal'),
+          financing_contingency: terms.contingencies.includes('financing'),
+          close_date: terms.close_date || null,
+          concessions_requested: Number(terms.concessions) || 0,
+          escalation_flag: Number(terms.escalation_cap) > 0,
+          escalation_max: Number(terms.escalation_cap) || null,
+          cover_letter_text: coverLetter || null,
+          status: 'draft',
         },
+      })
+      const offerId = offerRes.offer?.id
+      if (!offerId) throw new Error('Failed to create offer')
+
+      // Step 2: Submit for broker approval
+      await api('POST', '/api/closeiq', {
+        entity: 'submit_for_approval',
+        offer_id: offerId,
       })
       onComplete()
     } catch (e) {
@@ -512,7 +547,7 @@ function BuyerStep({ buyers, buyerId, setBuyerId, newBuyer, setNewBuyer }: {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-sm">{b.name}</p>
+                  <p className="font-medium text-sm">{buyerDisplayName(b)}</p>
                   <p className="text-xs text-gray-500">{b.email} &middot; {b.financing_type}</p>
                 </div>
                 <ReadinessBadge score={b.readiness_score} />
@@ -655,7 +690,7 @@ function ReviewStep({ riskFlags, readinessScore, commission, coverLetter, onGene
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-gray-500 text-xs">Buyer</p>
-          <p className="font-medium">{buyer?.name || newBuyerName}</p>
+          <p className="font-medium">{buyerDisplayName(buyer) || newBuyerName}</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-gray-500 text-xs">Offer Price</p>
@@ -788,7 +823,7 @@ function BuyersTab({ userId }: { userId: string }) {
                         {b.readiness_score}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{b.name}</p>
+                        <p className="font-medium text-sm truncate">{buyerDisplayName(b)}</p>
                         <p className="text-xs text-gray-500">{b.financing_type} &middot; {b.email || 'No email'}</p>
                       </div>
                     </div>
@@ -812,7 +847,8 @@ function BuyersTab({ userId }: { userId: string }) {
                   <div className="border-t border-gray-100 px-4 py-4 bg-gray-50/50 space-y-4">
                     {isEditing ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <InputField label="Name" value={editData.name ?? b.name} onChange={v => setEditData({ ...editData, name: v })} />
+                        <InputField label="First Name" value={editData.first_name ?? b.first_name ?? ''} onChange={v => setEditData({ ...editData, first_name: v })} />
+                        <InputField label="Last Name" value={editData.last_name ?? b.last_name ?? ''} onChange={v => setEditData({ ...editData, last_name: v })} />
                         <InputField label="Email" value={editData.email ?? b.email} onChange={v => setEditData({ ...editData, email: v })} />
                         <InputField label="Phone" value={editData.phone ?? b.phone} onChange={v => setEditData({ ...editData, phone: v })} />
                         <InputField label="Pre-Approval" value={String(editData.preapproval_amount ?? b.preapproval_amount)} onChange={v => setEditData({ ...editData, preapproval_amount: Number(v) })} type="number" />
@@ -890,7 +926,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
       if (mode === 'offer' && selectedOffer) {
         const offer = offers.find(o => o.id === selectedOffer)
         if (offer) {
-          params.buyer_name = offer.buyer_name
+          params.buyer_name = (offer as any).buyers ? `${(offer as any).buyers.first_name || ''} ${(offer as any).buyers.last_name || ''}`.trim() : 'Buyer'
           params.property_address = offer.property_address
           params.offer_price = offer.offer_price
         }
@@ -898,7 +934,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
         params = { ...params, ...manualDetails, offer_price: Number(manualDetails.offer_price) }
       }
       const res = await api('POST', '/api/closeiq/ai', params)
-      setResult(res.letter || res.data || '')
+      setResult(res.email_body || res.letter || res.data || '')
     } catch {
       setResult('Failed to generate. Please try again.')
     } finally { setGenerating(false) }
@@ -937,7 +973,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
               >
                 <option value="">Choose an offer...</option>
-                {offers.map(o => <option key={o.id} value={o.id}>{o.property_address} - {o.buyer_name || 'Unknown'}</option>)}
+                {offers.map(o => <option key={o.id} value={o.id}>{o.property_address} - {(o as any).buyers ? `${(o as any).buyers.first_name || ''} ${(o as any).buyers.last_name || ''}`.trim() : 'Unknown'}</option>)}
               </select>
             </div>
           ) : (
