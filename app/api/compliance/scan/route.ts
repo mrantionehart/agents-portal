@@ -218,7 +218,53 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3c. Missing required documents (basic threshold: fewer than 3)
+    // 3c. License expiration check
+    const { data: agentProfile } = await admin
+      .from('profiles')
+      .select('license_expiration_date, license_state, ce_hours_required, ce_hours_completed, ce_renewal_date')
+      .eq('id', agent_id)
+      .single();
+
+    if (agentProfile) {
+      if (agentProfile.license_expiration_date) {
+        const expDate = new Date(agentProfile.license_expiration_date);
+        const daysUntil = Math.ceil((expDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysUntil < 0) {
+          issues.push({
+            severity: 'critical',
+            category: 'license_expired',
+            title: 'Real estate license expired',
+            description: `Agent's ${agentProfile.license_state || 'FL'} license expired on ${expDate.toLocaleDateString()}. Agent cannot practice until renewed.`,
+          });
+        } else if (daysUntil <= 30) {
+          issues.push({
+            severity: 'warning',
+            category: 'license_expiring',
+            title: `License expires in ${daysUntil} days`,
+            description: `Agent's ${agentProfile.license_state || 'FL'} license expires on ${expDate.toLocaleDateString()}. Renewal action needed.`,
+          });
+        }
+      }
+
+      // CE hours check
+      if (agentProfile.ce_renewal_date && agentProfile.ce_hours_required > 0) {
+        const ceRemaining = (agentProfile.ce_hours_required || 14) - (agentProfile.ce_hours_completed || 0);
+        const ceDate = new Date(agentProfile.ce_renewal_date);
+        const ceDaysLeft = Math.ceil((ceDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+        if (ceRemaining > 0 && ceDaysLeft <= 30 && ceDaysLeft > 0) {
+          issues.push({
+            severity: 'warning',
+            category: 'ce_incomplete',
+            title: `CE hours incomplete — ${ceDaysLeft} days left`,
+            description: `Agent has completed ${agentProfile.ce_hours_completed || 0}/${agentProfile.ce_hours_required} CE hours. ${ceRemaining.toFixed(1)} hours still needed before ${ceDate.toLocaleDateString()}.`,
+          });
+        }
+      }
+    }
+
+    // 3d. Missing required documents (basic threshold: fewer than 3)
     const REQUIRED_DOC_THRESHOLD = 3;
     if (docs.length < REQUIRED_DOC_THRESHOLD) {
       const missing = REQUIRED_DOC_THRESHOLD - docs.length;
@@ -238,6 +284,9 @@ export async function POST(request: NextRequest) {
       if (issue.category === 'missing_signature') score -= 20;
       else if (issue.category === 'expired_document') score -= 15;
       else if (issue.category === 'missing_required_document') score -= 10;
+      else if (issue.category === 'license_expired') score -= 30;
+      else if (issue.category === 'license_expiring') score -= 10;
+      else if (issue.category === 'ce_incomplete') score -= 10;
     }
     score = Math.max(0, score);
 
