@@ -54,8 +54,10 @@ function adminClient() {
 // Detect if a PDF is XFA-based (Florida Realtors / Form Simplicity)
 // ---------------------------------------------------------------------------
 function isXfaPdf(pdfBytes: Buffer | Uint8Array): boolean {
+  // Check for /XFA key in the AcroForm dictionary — datasets stream is usually compressed
+  // so we can't rely on finding 'xfa-data' as a plain string
   const str = Buffer.from(pdfBytes).toString('latin1', 0, Math.min(pdfBytes.length, 50000))
-  return str.includes('/XFA') && str.includes('xfa-data')
+  return str.includes('/XFA')
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +104,10 @@ async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
     xmlStr = Buffer.from((datasetsStream as any).contents || []).toString('utf-8')
   }
 
+  // Normalize XFA XML: Form Simplicity outputs newlines before > and />
+  // e.g. "<Name\n/>" or "<tbd7\n>value</tbd7\n>" — collapse these
+  xmlStr = xmlStr.replace(/\n\s*>/g, '>').replace(/\n\s*\/>/g, '/>')
+
   // Parse field names from XML elements
   // Extract Global_Info fields (nested paths like Buyer/Entity/Name)
   const fields: Array<{ name: string; type: string }> = []
@@ -128,22 +134,36 @@ async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
     }
   }
 
-  // Page-level fields (p01tf001, p01cb001, p01df001, etc.)
-  const pageFieldPattern = /<(p\d{2}(?:tf|cb|df|nf)\d{3})\s*\/>/g
-  const pageFieldFilled = /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*>([^<]*)<\/\1>/g
-  const pageFieldEmpty = /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*><\/\1>/g
-
+  // Page-level fields — extract ALL leaf elements from each <Page#> section
+  // These include p01tf001, tbd7, Buyer1_Initials, prepared_by, etc.
+  const pagePattern = /<(Page\d+)>([\s\S]*?)<\/\1>/g
   const seen = new Set<string>()
-  for (const pattern of [pageFieldPattern, pageFieldFilled, pageFieldEmpty]) {
-    let m
-    while ((m = pattern.exec(xmlStr)) !== null) {
-      const name = m[1]
-      if (!seen.has(name)) {
-        seen.add(name)
-        // Determine type from field ID prefix: tf=text, cb=checkbox, df=date, nf=numeric
-        const prefix = name.match(/(tf|cb|df|nf)/)?.[1] || 'tf'
-        const type = prefix === 'cb' ? 'checkbox' : prefix === 'df' ? 'date' : prefix === 'nf' ? 'numeric' : 'text'
-        fields.push({ name, type })
+  let pageMatch
+  while ((pageMatch = pagePattern.exec(xmlStr)) !== null) {
+    const pageName = pageMatch[1]
+    const pageXml = pageMatch[2]
+
+    // Find all leaf elements (self-closing, empty, or with text value)
+    const leafSelf = /<([A-Za-z_][A-Za-z0-9_]*)\/>/g
+    const leafEmpty = /<([A-Za-z_][A-Za-z0-9_]*)><\/\1>/g
+    const leafFilled = /<([A-Za-z_][A-Za-z0-9_]*)>([^<]+)<\/\1>/g
+
+    for (const pattern of [leafSelf, leafEmpty, leafFilled]) {
+      let m
+      while ((m = pattern.exec(pageXml)) !== null) {
+        const fieldName = m[1]
+        const fullName = `${pageName}-${fieldName}`
+        if (!seen.has(fullName)) {
+          seen.add(fullName)
+          // Determine type from field ID
+          const prefix = fieldName.match(/^p\d{2}(tf|cb|df|nf)/)?.[1]
+          const type = prefix === 'cb' ? 'checkbox'
+            : prefix === 'df' ? 'date'
+            : prefix === 'nf' ? 'numeric'
+            : fieldName.includes('Initials') ? 'text'
+            : 'text'
+          fields.push({ name: fullName, type })
+        }
       }
     }
   }

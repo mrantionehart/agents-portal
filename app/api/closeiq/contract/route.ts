@@ -104,7 +104,7 @@ const DEFAULT_FIELD_MAP: Record<string, string[]> = {
 // ---------------------------------------------------------------------------
 function isXfaPdf(pdfBytes: Buffer | Uint8Array): boolean {
   const str = Buffer.from(pdfBytes).toString('latin1', 0, Math.min(pdfBytes.length, 50000))
-  return str.includes('/XFA') && str.includes('xfa-data')
+  return str.includes('/XFA')
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +157,9 @@ async function fillXfaPdf(
     // Fallback: try direct access
     xmlStr = Buffer.from((datasetsStream as any).contents || []).toString('utf-8')
   }
+
+  // Normalize XFA XML: Form Simplicity outputs newlines before > and />
+  xmlStr = xmlStr.replace(/\n\s*>/g, '>').replace(/\n\s*\/>/g, '/>')
 
   console.log(`XFA datasets XML: ${xmlStr.length} bytes`)
 

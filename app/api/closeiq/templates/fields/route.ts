@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 function isXfaPdf(pdfBytes: Buffer | Uint8Array): boolean {
   const str = Buffer.from(pdfBytes).toString('latin1', 0, Math.min(pdfBytes.length, 50000))
-  return str.includes('/XFA') && str.includes('xfa-data')
+  return str.includes('/XFA')
 }
 
 async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
@@ -161,6 +161,9 @@ async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
     xmlStr = Buffer.from((datasetsStream as any).contents || []).toString('utf-8')
   }
 
+  // Normalize XFA XML: Form Simplicity outputs newlines before > and />
+  xmlStr = xmlStr.replace(/\n\s*>/g, '>').replace(/\n\s*\/>/g, '/>')
+
   const fields: Array<{ name: string; type: string }> = []
 
   // Global_Info fields
@@ -180,21 +183,32 @@ async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
     }
   }
 
-  // Page-level fields
+  // Page-level fields — extract ALL leaf elements from each <Page#> section
+  const pagePattern = /<(Page\d+)>([\s\S]*?)<\/\1>/g
   const seen = new Set<string>()
-  for (const pattern of [
-    /<(p\d{2}(?:tf|cb|df|nf)\d{3})\s*\/>/g,
-    /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*>([^<]*)<\/\1>/g,
-    /<(p\d{2}(?:tf|cb|df|nf)\d{3})[^>]*><\/\1>/g,
-  ]) {
-    let m
-    while ((m = pattern.exec(xmlStr)) !== null) {
-      const name = m[1]
-      if (!seen.has(name)) {
-        seen.add(name)
-        const prefix = name.match(/(tf|cb|df|nf)/)?.[1] || 'tf'
-        const type = prefix === 'cb' ? 'checkbox' : prefix === 'df' ? 'date' : prefix === 'nf' ? 'numeric' : 'text'
-        fields.push({ name, type })
+  let pageMatch
+  while ((pageMatch = pagePattern.exec(xmlStr)) !== null) {
+    const pageName = pageMatch[1]
+    const pageXml = pageMatch[2]
+
+    const leafSelf = /<([A-Za-z_][A-Za-z0-9_]*)\/>/g
+    const leafEmpty = /<([A-Za-z_][A-Za-z0-9_]*)><\/\1>/g
+    const leafFilled = /<([A-Za-z_][A-Za-z0-9_]*)>([^<]+)<\/\1>/g
+
+    for (const pattern of [leafSelf, leafEmpty, leafFilled]) {
+      let m
+      while ((m = pattern.exec(pageXml)) !== null) {
+        const fieldName = m[1]
+        const fullName = `${pageName}-${fieldName}`
+        if (!seen.has(fullName)) {
+          seen.add(fullName)
+          const prefix = fieldName.match(/^p\d{2}(tf|cb|df|nf)/)?.[1]
+          const type = prefix === 'cb' ? 'checkbox'
+            : prefix === 'df' ? 'date'
+            : prefix === 'nf' ? 'numeric'
+            : 'text'
+          fields.push({ name: fullName, type })
+        }
       }
     }
   }
