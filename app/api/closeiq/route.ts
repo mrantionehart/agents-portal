@@ -275,11 +275,43 @@ export async function POST(request: NextRequest) {
       }
 
       case 'offer': {
-        const offer = { ...body.data, agent_id: user.id }
+        const d = body.data || {}
+        // Validate required fields
+        if (!d.buyer_id) return NextResponse.json({ error: 'buyer_id is required' }, { status: 400 })
+        if (!d.offer_price) return NextResponse.json({ error: 'offer_price is required' }, { status: 400 })
+        if (!d.property_address) return NextResponse.json({ error: 'property_address is required' }, { status: 400 })
+
+        const offer: Record<string, any> = {
+          buyer_id: d.buyer_id,
+          agent_id: user.id,
+          property_address: d.property_address,
+          property_city: d.property_city || null,
+          property_state: d.property_state || null,
+          property_zip: d.property_zip || null,
+          property_list_price: d.property_list_price || null,
+          property_mls_id: d.property_mls_id || null,
+          offer_mode: d.offer_mode || 'standard',
+          offer_price: Number(d.offer_price),
+          financing_type: d.financing_type || 'conventional',
+          down_payment_pct: d.down_payment_pct != null ? Number(d.down_payment_pct) : null,
+          earnest_money_amount: d.earnest_money_amount != null ? Number(d.earnest_money_amount) : null,
+          inspection_days: d.inspection_days != null ? Number(d.inspection_days) : 10,
+          appraisal_contingency: d.appraisal_contingency ?? true,
+          financing_contingency: d.financing_contingency ?? true,
+          close_date: d.close_date || null,
+          concessions_requested: d.concessions_requested != null ? Number(d.concessions_requested) : 0,
+          escalation_flag: d.escalation_flag || false,
+          escalation_max: d.escalation_max ? Number(d.escalation_max) : null,
+          cover_letter_text: d.cover_letter_text || null,
+          status: 'draft',
+        }
 
         // Insert the offer
         const { data: newOffer, error } = await db.from('offers').insert(offer).select().single()
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (error) {
+          console.error('Offer insert error:', error.message, error.details, error.hint)
+          return NextResponse.json({ error: error.message }, { status: 500 })
+        }
 
         // Run risk scan
         let buyer = null

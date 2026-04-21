@@ -411,6 +411,10 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
   }
 
   const submitOffer = async () => {
+    if (!buyerId) {
+      alert('Please select or create a buyer first.')
+      return
+    }
     setSaving(true)
     try {
       // Step 1: Create the offer
