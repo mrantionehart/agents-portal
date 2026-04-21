@@ -26,7 +26,8 @@ import {
   Bell,
   Trophy,
   UserPlus,
-  User
+  User,
+  Target,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -45,6 +46,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
   const mainNavItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Deals / Pipeline', href: '/pipeline', icon: Briefcase },
+    { label: 'CloseIQ', href: '/closeiq', icon: Target },
     { label: 'Commissions', href: '/commissions', icon: DollarSign },
     { label: 'New Leads', href: '/new-leads', icon: UserPlus },
     { label: 'Client Intakes', href: '/intakes', icon: ClipboardList },
