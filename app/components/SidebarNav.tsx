@@ -52,7 +52,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Client Intakes', href: '/intakes', icon: ClipboardList },
     { label: 'My Card', href: '/business-card', icon: CreditCard },
     { label: 'Training', href: '/training', icon: BookOpen },
-    { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+    { label: 'Leaderboard & Wins', href: '/leaderboard', icon: Trophy },
     { label: 'Calendar', href: '/calendar', icon: CalendarDays },
     { label: 'Documents', href: '/documents', icon: FileText },
     { label: 'Chat', href: '/chat', icon: MessageSquare },
