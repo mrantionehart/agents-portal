@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 // ============================================================================
-// CMA Generator — Agents Portal (manual entry)
+// CMA Generator — Agents Portal (with address autocomplete)
 // ============================================================================
 
 interface Comp {
@@ -33,12 +34,147 @@ interface Adjustment {
 const emptyComp: Comp = { address: '', soldDate: '', salePrice: 0, beds: '', baths: '', sqft: 0, pricePerSqft: 0, notes: '' }
 const emptyStep: PricingStep = { step: '', price: 0, strategy: '', indicator: '' }
 
+const VAULT_URL = process.env.NEXT_PUBLIC_VAULT_URL || process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app'
+
+interface LeadAddress {
+  id: string
+  name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+}
+
+interface AddressSuggestion {
+  address: string
+  beds: number
+  baths: number
+  sqft: number
+  yearBuilt: number
+  propertyType: string
+}
+
 export default function CMAPage() {
   const [subject, setSubject] = useState({
     address: '', city: '', state: 'FL', zip: '',
     currentList: 0, dom: 0, beds: 0, baths: 0, sqft: 0,
     lotSize: '', yearBuilt: 0, features: '', mlsNumber: '',
   })
+
+  // Address autocomplete state
+  const [leadAddresses, setLeadAddresses] = useState<LeadAddress[]>([])
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch lead addresses on mount
+  useEffect(() => {
+    async function fetchLeads() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: leads } = await supabase
+          .from('leads')
+          .select('id, first_name, last_name, name, property_address, city, state, zip')
+          .eq('claimed_by', user.id)
+          .not('property_address', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(20)
+        if (leads) {
+          setLeadAddresses(leads.map((l: any) => ({
+            id: l.id,
+            name: [l.first_name, l.last_name].filter(Boolean).join(' ') || l.name || '',
+            address: l.property_address,
+            city: l.city || '',
+            state: l.state || 'FL',
+            zip: l.zip || '',
+          })))
+        }
+      } catch { /* silent */ }
+    }
+    fetchLeads()
+  }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Filtered leads based on search
+  const filteredLeads = subject.address.length >= 2
+    ? leadAddresses.filter(l =>
+        l.address.toLowerCase().includes(subject.address.toLowerCase()) ||
+        l.name.toLowerCase().includes(subject.address.toLowerCase())
+      ).slice(0, 5)
+    : leadAddresses.slice(0, 5)
+
+  // Debounced Rentcast search via Vault
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.length < 6) {
+      setSuggestions([])
+      if (query.length >= 1 && leadAddresses.length > 0) setShowDropdown(true)
+      return
+    }
+    setLoadingSuggestions(true)
+    try {
+      const res = await fetch(`${VAULT_URL}/api/cma/autocomplete?q=${encodeURIComponent(query)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSuggestions(data)
+        setShowDropdown(data.length > 0 || filteredLeads.length > 0)
+      }
+    } catch { /* silent */ }
+    setLoadingSuggestions(false)
+  }, [leadAddresses, filteredLeads.length])
+
+  const handleAddressInput = (value: string) => {
+    setSubject({ ...subject, address: value })
+    if (value.length >= 1 && leadAddresses.length > 0) setShowDropdown(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchSuggestions(value), 400)
+  }
+
+  const selectLeadAddress = (lead: LeadAddress) => {
+    setSubject({
+      ...subject,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state || 'FL',
+      zip: lead.zip,
+    })
+    setShowDropdown(false)
+    setSuggestions([])
+  }
+
+  const selectSuggestion = (s: AddressSuggestion) => {
+    // Parse address into parts
+    const parts = s.address.split(',').map(p => p.trim())
+    const street = parts[0] || s.address
+    const city = parts[1] || ''
+    const stateZip = parts[2] || ''
+    const [st, zp] = stateZip.split(' ').filter(Boolean)
+    setSubject({
+      ...subject,
+      address: street,
+      city: city,
+      state: st || 'FL',
+      zip: zp || '',
+      beds: s.beds || subject.beds,
+      baths: s.baths || subject.baths,
+      sqft: s.sqft || subject.sqft,
+      yearBuilt: s.yearBuilt || subject.yearBuilt,
+    })
+    setShowDropdown(false)
+    setSuggestions([])
+  }
   const [narrative, setNarrative] = useState('')
   const [comps, setComps] = useState<Comp[]>([{ ...emptyComp }])
   const [pricing, setPricing] = useState({
@@ -128,9 +264,72 @@ export default function CMAPage() {
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Subject Property</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 relative" ref={dropdownRef}>
                 <label className={labelCls}>Property Address *</label>
-                <input className={inputCls} placeholder="13724 SW 92nd Ct, Miami, FL 33176" value={subject.address} onChange={(e) => setSubject({ ...subject, address: e.target.value })} />
+                <input
+                  className={inputCls}
+                  placeholder="Start typing or select from your leads..."
+                  value={subject.address}
+                  onChange={(e) => handleAddressInput(e.target.value)}
+                  onFocus={() => (suggestions.length > 0 || leadAddresses.length > 0) && setShowDropdown(true)}
+                />
+
+                {/* Address Autocomplete Dropdown */}
+                {showDropdown && (filteredLeads.length > 0 || suggestions.length > 0) && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden max-h-[350px] overflow-y-auto">
+                    {/* Lead Addresses */}
+                    {filteredLeads.length > 0 && (
+                      <>
+                        <div className="px-3 py-1.5 bg-amber-50 border-b border-gray-100">
+                          <span className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Your Leads</span>
+                        </div>
+                        {filteredLeads.map((lead) => (
+                          <button
+                            key={lead.id}
+                            onClick={() => selectLeadAddress(lead)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                          >
+                            <div className="text-sm text-gray-900 font-medium">{lead.address}</div>
+                            <div className="text-xs text-gray-500">
+                              {[lead.city, lead.state, lead.zip].filter(Boolean).join(', ')}
+                              {lead.name && <span className="ml-1 text-gray-400">({lead.name})</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
+
+                    {/* IDX / Rentcast Results */}
+                    {suggestions.length > 0 && (
+                      <>
+                        <div className="px-3 py-1.5 bg-blue-50 border-b border-gray-100">
+                          <span className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">Property Search</span>
+                        </div>
+                        {suggestions.map((s, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => selectSuggestion(s)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                          >
+                            <div className="text-sm text-gray-900 font-medium">{s.address}</div>
+                            <div className="text-xs text-gray-500">
+                              {s.beds > 0 && `${s.beds}bd/${s.baths}ba`}
+                              {s.sqft > 0 && ` · ${s.sqft.toLocaleString()}sf`}
+                              {s.propertyType && ` · ${s.propertyType}`}
+                              {s.yearBuilt > 0 && ` · Built ${s.yearBuilt}`}
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {loadingSuggestions && subject.address.length >= 6 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg p-2 z-50">
+                    <span className="text-xs text-gray-400">Searching addresses...</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelCls}>City</label>

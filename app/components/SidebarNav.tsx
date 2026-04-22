@@ -58,7 +58,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Chat', href: '/chat', icon: MessageSquare },
     { label: 'Compliance', href: '/compliance', icon: Shield },
     { label: 'Notifications', href: '/notifications', icon: Bell },
-    { label: 'Recruiting', href: '/recruiting', icon: Users },
+    { label: 'Referrals', href: '/recruiting', icon: Users },
   ]
 
   const operationsItems = [
