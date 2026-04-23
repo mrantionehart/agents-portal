@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const response = NextResponse.json({})
+    const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = []
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
             return request.cookies.get(name)?.value
           },
           set(name: string, value: string, options: CookieOptions) {
-            response.cookies.set({ name, value, ...options })
+            cookiesToSet.push({ name, value, options })
           },
           remove(name: string, options: CookieOptions) {
-            response.cookies.delete(name)
+            cookiesToSet.push({ name, value: '', options: { ...options, maxAge: 0 } })
           },
         },
       }
@@ -35,13 +35,20 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
       },
       role: profile?.role || 'agent',
     })
+
+    // Apply any refreshed cookies
+    for (const { name, value, options } of cookiesToSet) {
+      response.cookies.set({ name, value, ...options })
+    }
+
+    return response
   } catch (error) {
     console.error('Error getting current user:', error)
     return NextResponse.json({ user: null, role: null }, { status: 401 })

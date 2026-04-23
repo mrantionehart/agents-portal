@@ -5,11 +5,8 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
-    let response = NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    })
+    // Collect cookies that Supabase wants to set during auth
+    const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = []
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,10 +17,10 @@ export async function POST(request: NextRequest) {
             return request.cookies.get(name)?.value
           },
           set(name: string, value: string, options: CookieOptions) {
-            response.cookies.set({ name, value, ...options })
+            cookiesToSet.push({ name, value, options })
           },
           remove(name: string, options: CookieOptions) {
-            response.cookies.delete(name)
+            cookiesToSet.push({ name, value: '', options: { ...options, maxAge: 0 } })
           },
         },
       }
@@ -54,17 +51,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`✓ Login: ${email} (${role}) → ${dashboardPath}`)
 
-    const jsonResponse = NextResponse.json(
+    // Build the JSON response and apply all collected cookies
+    const response = NextResponse.json(
       { success: true, redirectPath: dashboardPath },
       { status: 200 }
     )
 
-    // Copy cookies from the response (which has auth cookies set by Supabase)
-    response.headers.getSetCookie().forEach((cookie) => {
-      jsonResponse.headers.append('Set-Cookie', cookie)
-    })
+    // Set each cookie on the actual response
+    for (const { name, value, options } of cookiesToSet) {
+      response.cookies.set({ name, value, ...options })
+    }
 
-    return jsonResponse
+    return response
   } catch (error: any) {
     console.error('Error:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
