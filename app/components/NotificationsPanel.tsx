@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bell, X, AlertCircle, CheckCircle, FileText, Users, TrendingUp, Clock } from 'lucide-react'
+import { Bell, X, AlertCircle, CheckCircle, FileText, Users, TrendingUp, Clock, CalendarDays } from 'lucide-react'
 
 interface Notification {
   id: string
-  type: 'lead_assigned' | 'deal_updated' | 'document_requested' | 'tc_assigned' | 'approval_needed' | 'milestone_due' | 'info'
+  type: 'lead_assigned' | 'deal_updated' | 'document_requested' | 'tc_assigned' | 'approval_needed' | 'milestone_due' | 'event' | 'info'
   title: string
   description: string
   timestamp: Date
@@ -148,6 +148,8 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
         return <AlertCircle className="w-5 h-5 text-red-600" />
       case 'milestone_due':
         return <Clock className="w-5 h-5 text-orange-600" />
+      case 'event':
+        return <CalendarDays className="w-5 h-5 text-amber-500" />
       default:
         return <Bell className="w-5 h-5 text-gray-600" />
     }
@@ -167,6 +169,8 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
         return 'bg-red-50'
       case 'milestone_due':
         return 'bg-orange-50'
+      case 'event':
+        return 'bg-amber-50'
       default:
         return 'bg-gray-50'
     }

@@ -145,6 +145,92 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    // ── Notify all agents (in-app + email) when broker/admin/office_manager creates an event ──
+    if (['broker', 'admin', 'office_manager'].includes(role)) {
+      try {
+        // Get all active agent profiles for notifications
+        const { data: agents } = await admin
+          .from('profiles')
+          .select('id, email, full_name')
+
+        if (agents && agents.length > 0) {
+          const eventDateFormatted = new Date(event_date + 'T12:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+          })
+
+          // Get creator name
+          const { data: creatorProfile } = await admin
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+          const creatorName = creatorProfile?.full_name || 'Management'
+
+          // Insert in-app notifications for all users (except creator)
+          const notifications = agents
+            .filter((a: any) => a.id !== user.id)
+            .map((a: any) => ({
+              user_id: a.id,
+              type: 'event',
+              title: `New Event: ${title}`,
+              message: `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`,
+              data: { event_id: event.id, event_date, event_time, location, type: type },
+            }))
+
+          if (notifications.length > 0) {
+            await admin.from('notifications').insert(notifications)
+          }
+
+          // Send email notifications via SendGrid
+          const sgKey = process.env.SENDGRID_API_KEY
+          if (sgKey) {
+            const sgMail = (await import('@sendgrid/mail')).default
+            sgMail.setApiKey(sgKey)
+
+            const recipientEmails = agents
+              .filter((a: any) => a.id !== user.id && a.email)
+              .map((a: any) => a.email)
+
+            if (recipientEmails.length > 0) {
+              const emailHtml = `
+<html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+  <div style="background:#0A0A0B;padding:24px;border-radius:12px;text-align:center;">
+    <h1 style="color:#B89B5E;font-size:20px;margin:0 0 4px;">HartFelt Real Estate</h1>
+    <p style="color:#8D8D94;font-size:12px;margin:0;letter-spacing:2px;">NEW EVENT</p>
+  </div>
+  <div style="padding:24px 0;">
+    <h2 style="color:#1F4E78;margin:0 0 16px;">${title}</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr><td style="padding:8px 0;color:#666;width:100px;">Date</td><td style="padding:8px 0;font-weight:600;">${eventDateFormatted}</td></tr>
+      ${event_time ? `<tr><td style="padding:8px 0;color:#666;">Time</td><td style="padding:8px 0;font-weight:600;">${event_time}</td></tr>` : ''}
+      ${location ? `<tr><td style="padding:8px 0;color:#666;">Location</td><td style="padding:8px 0;font-weight:600;">${location}</td></tr>` : ''}
+      ${notes ? `<tr><td style="padding:8px 0;color:#666;">Details</td><td style="padding:8px 0;">${notes}</td></tr>` : ''}
+    </table>
+    <p style="color:#666;margin-top:16px;font-size:13px;">Created by ${creatorName}</p>
+  </div>
+  <div style="border-top:1px solid #eee;padding-top:16px;text-align:center;">
+    <a href="https://hartfelt-vault.vercel.app/calendar" style="background:#B89B5E;color:#0A0A0B;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">View Calendar</a>
+  </div>
+  <p style="color:#999;font-size:11px;text-align:center;margin-top:24px;">HartFelt Real Estate — Because Choices Matter.</p>
+</div>
+</body></html>`
+
+              await sgMail.sendMultiple({
+                to: recipientEmails,
+                from: { email: 'info@hartfeltrealestate.com', name: 'HartFelt Real Estate' },
+                subject: `New Event: ${title} — ${eventDateFormatted}`,
+                html: emailHtml,
+              }).catch((emailErr: any) => console.error('Event email error:', emailErr))
+            }
+          }
+        }
+      } catch (notifErr) {
+        // Don't fail the event creation if notifications fail
+        console.error('Event notification error:', notifErr)
+      }
+    }
+
     return NextResponse.json({ event }, { status: 201 })
   } catch (err) {
     console.error('Calendar events POST error:', err)

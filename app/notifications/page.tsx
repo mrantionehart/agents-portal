@@ -95,6 +95,7 @@ export default function NotificationsPage() {
       case 'compliance': return '📋'
       case 'training': return '📚'
       case 'chat': return '💬'
+      case 'event': return '📅'
       default: return '🔔'
     }
   }
