@@ -89,6 +89,36 @@ code {
   font-family: var(--font-sans);
 }
 
+/* HartFelt Vault Theme */
+.vault-theme {
+  --hf-bg: #0A0A0B;
+  --hf-surface-1: #121214;
+  --hf-surface-2: #17171A;
+  --hf-surface-3: #1D1D21;
+  --hf-border: rgba(255,255,255,0.08);
+  --hf-border-strong: rgba(255,255,255,0.14);
+  --hf-text: #F8F8F6;
+  --hf-text-secondary: #B7B7BD;
+  --hf-text-muted: #8D8D94;
+  --hf-accent: #B89B5E;
+  --hf-accent-hover: #C9AE74;
+  --hf-accent-soft: #D8C49A;
+  --hf-navy: #162033;
+  --hf-navy-soft: #22314D;
+  --hf-success-text: #A7F3D0;
+  --hf-success-bg: rgba(16,185,129,0.12);
+  --hf-success-border: rgba(16,185,129,0.28);
+  --hf-warning-text: #F6D28A;
+  --hf-warning-bg: rgba(245,158,11,0.12);
+  --hf-warning-border: rgba(245,158,11,0.28);
+  --hf-danger-text: #F4B4B4;
+  --hf-danger-bg: rgba(239,68,68,0.12);
+  --hf-danger-border: rgba(239,68,68,0.28);
+  --hf-info-text: #BFDBFE;
+  --hf-info-bg: rgba(59,130,246,0.12);
+  --hf-info-border: rgba(59,130,246,0.28);
+}
+
 /* Certificate print styles */
 @media print {
   body { background: white !important; }

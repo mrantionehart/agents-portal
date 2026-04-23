@@ -144,6 +144,7 @@ export default function ProfilePage() {
                   placeholder="City, State"
                 />
               </div>
+              {profile?.role !== 'office_manager' && (
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">License Number</label>
                 <input
@@ -154,6 +155,7 @@ export default function ProfilePage() {
                   placeholder="RE license #"
                 />
               </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Bio</label>
                 <textarea

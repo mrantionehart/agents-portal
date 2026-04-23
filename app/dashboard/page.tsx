@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
 import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus } from 'lucide-react'
+import VaultDashboard from './vault-dashboard'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
 import PolicyAcceptanceModal from '../policy-acceptance/modal'
@@ -34,6 +35,12 @@ export default function DashboardPage() {
   //     router.push('/login')
   //   }
   // }, [user, loading, router])
+
+  useEffect(() => {
+    if (role === 'broker' || role === 'admin') {
+      setViewMode('broker')
+    }
+  }, [role])
 
   useEffect(() => {
     if (user && role) {
@@ -147,6 +154,16 @@ export default function DashboardPage() {
   const totalDeals = deals.length
   const totalGrossCommission = commissions.reduce((sum, c) => sum + (c.gross_commission || 0), 0)
   const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
+
+  // Vault dashboard for broker/admin view
+  if ((role === 'broker' || role === 'admin') && viewMode === 'broker') {
+    return (
+      <div className="min-h-screen flex vault-theme">
+        <SidebarNav onSignOut={handleSignOut} userName={user?.user_metadata?.full_name || user?.email?.split('@')[0]} role={role} />
+        <VaultDashboard user={user} role={role} viewMode={viewMode} />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
