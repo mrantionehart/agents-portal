@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { supabase, authFetch } from '@/lib/supabase'
 
 type TrainingGateInfo = {
   gateOpen: boolean
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchTrainingGate = async () => {
     try {
-      const resp = await fetch('/api/training/gate')
+      const resp = await authFetch('/api/training/gate')
       if (resp.ok) {
         const data = await resp.json()
         setTrainingGate({
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         // Get user from server-side session (reads from cookies)
-        const response = await fetch('/api/auth/me')
+        const response = await authFetch('/api/auth/me')
         const { user: userData, role: userRole } = await response.json()
 
         if (userData) {

@@ -62,3 +62,16 @@ export async function signUp(email: string, password: string, fullName: string) 
 export async function signOut() {
   return await supabase.auth.signOut()
 }
+
+/**
+ * Authenticated fetch — automatically includes Bearer token from Supabase session.
+ * Use this instead of raw fetch() for all API routes that need auth.
+ */
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers = new Headers(options.headers || {})
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`)
+  }
+  return fetch(url, { ...options, headers })
+}

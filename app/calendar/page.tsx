@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, AlertCircle, Trash2, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import ComplianceNotifications from '../components/compliance-notifications'
+import { authFetch } from '@/lib/supabase'
 
 interface CalendarEvent {
   id: string
@@ -60,7 +61,7 @@ export default function CalendarPage() {
     try {
       setEventsLoading(true)
       setError(null)
-      const res = await fetch(`/api/calendar/events?month=${currentMonth}`)
+      const res = await authFetch(`/api/calendar/events?month=${currentMonth}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load events')
       setEvents(data.events || [])
@@ -84,7 +85,7 @@ export default function CalendarPage() {
 
     try {
       setSaving(true)
-      const res = await fetch('/api/calendar/events', {
+      const res = await authFetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEvent),
@@ -118,7 +119,7 @@ export default function CalendarPage() {
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm('Delete this event?')) return
     try {
-      const res = await fetch(`/api/calendar/events?id=${eventId}`, { method: 'DELETE' })
+      const res = await authFetch(`/api/calendar/events?id=${eventId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to delete')
