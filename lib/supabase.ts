@@ -68,10 +68,18 @@ export async function signOut() {
  * Use this instead of raw fetch() for all API routes that need auth.
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const { data: { session } } = await supabase.auth.getSession()
-  const headers = new Headers(options.headers || {})
-  if (session?.access_token) {
-    headers.set('Authorization', `Bearer ${session.access_token}`)
+  // Timeout after 8 seconds to prevent infinite hang
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const headers = new Headers(options.headers || {})
+    if (session?.access_token) {
+      headers.set('Authorization', `Bearer ${session.access_token}`)
+    }
+    return await fetch(url, { ...options, headers, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
   }
-  return fetch(url, { ...options, headers })
 }

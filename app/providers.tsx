@@ -63,6 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Get user from server-side session (reads from cookies)
         const response = await authFetch('/api/auth/me')
+        if (!response.ok) {
+          setUser(null)
+          setRole(null)
+          return
+        }
         const { user: userData, role: userRole } = await response.json()
 
         if (userData) {

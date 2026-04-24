@@ -9,17 +9,19 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Only redirect if auth is fully loaded and we have a user
-    if (!loading && user) {
+    if (loading) return
+
+    if (user) {
       // Route based on user role
       if (role === 'admin' || role === 'broker') {
         router.push('/admin/dashboard')
       } else {
         router.push('/dashboard')
       }
+    } else {
+      // No user — send to login
+      router.push('/login')
     }
-    // If not loading and NO user, middleware will handle redirect to /login
-    // Do NOT redirect here to avoid loops
   }, [user, role, loading, router])
 
   return (
