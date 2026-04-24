@@ -189,15 +189,15 @@ export default function BrokerReviewDashboard({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Broker Reviews</h2>
-          <p className="text-gray-600 mt-1">Manage incoming review requests for deal progression</p>
+          <h2 className="text-2xl font-bold text-white">Broker Reviews</h2>
+          <p className="text-gray-400 mt-1">Manage incoming review requests for deal progression</p>
         </div>
         <button
           onClick={() => {
             fetchReviews()
             fetchStats()
           }}
-          className="p-2 hover:bg-gray-100 rounded-lg transition"
+          className="p-2 hover:bg-[#111] rounded-lg transition"
           disabled={loading}
         >
           <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
@@ -207,23 +207,23 @@ export default function BrokerReviewDashboard({
       {/* Stats Grid */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-            <p className="text-sm text-gray-600">Total Reviews</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-blue-500">
+            <p className="text-sm text-gray-400">Total Reviews</p>
+            <p className="text-3xl font-bold text-white mt-2">{stats.total}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-            <p className="text-sm text-gray-600">Pending</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-yellow-500">
+            <p className="text-sm text-gray-400">Pending</p>
             <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
             {stats.overdue_count > 0 && (
               <p className="text-xs text-red-600 mt-1">{stats.overdue_count} overdue (24h+)</p>
             )}
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-            <p className="text-sm text-gray-600">Approved</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-green-500">
+            <p className="text-sm text-gray-400">Approved</p>
             <p className="text-3xl font-bold text-green-600 mt-2">{stats.approved}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-            <p className="text-sm text-gray-600">Rejected</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-red-500">
+            <p className="text-sm text-gray-400">Rejected</p>
             <p className="text-3xl font-bold text-red-600 mt-2">{stats.rejected}</p>
           </div>
         </div>
@@ -238,7 +238,7 @@ export default function BrokerReviewDashboard({
             className={`px-4 py-2 rounded-lg transition ${
               selectedStage === stage
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-[#0a0a0f] text-gray-200 hover:bg-[#1a1a2e]'
             }`}
           >
             {stage === 'all' ? 'All Stages' : getStageLabel(stage)}
@@ -247,12 +247,12 @@ export default function BrokerReviewDashboard({
       </div>
 
       {/* Reviews List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-[#0a0a0f] rounded-lg shadow overflow-hidden">
         {reviews.length === 0 ? (
           <div className="p-8 text-center">
-            <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-600">No pending reviews</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
+            <p className="text-gray-400">No pending reviews</p>
+            <p className="text-sm text-gray-400 mt-1">
               {selectedStage === 'all'
                 ? 'All review requests have been processed'
                 : `No reviews for ${getStageLabel(selectedStage)}`}
@@ -267,14 +267,14 @@ export default function BrokerReviewDashboard({
                   setSelectedReview(review)
                   setShowDetailModal(true)
                 }}
-                className="p-4 hover:bg-gray-50 cursor-pointer transition border-l-4 border-yellow-400"
+                className="p-4 hover:bg-[#0a0a0f] cursor-pointer transition border-l-4 border-yellow-400"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-white">
                       {review.tc_transactions?.title || 'Untitled Deal'}
                     </h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
                       <span className="inline-flex items-center gap-1">
                         <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
                         {getStageLabel(review.stage)}
@@ -286,7 +286,7 @@ export default function BrokerReviewDashboard({
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                    <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/15 text-yellow-400">
                       Pending
                     </span>
                   </div>

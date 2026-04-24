@@ -145,14 +145,14 @@ export default function LeadDistributionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Lead Distribution</h1>
+            <h1 className="text-2xl font-bold text-white">Lead Distribution</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -170,36 +170,36 @@ export default function LeadDistributionPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
 
         {/* Agent info banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-blue-800 text-sm font-medium">Browse leads posted by your broker. Claim a lead to start working it — contact info is revealed after claiming.</p>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+          <p className="text-blue-400 text-sm font-medium">Browse leads posted by your broker. Claim a lead to start working it — contact info is revealed after claiming.</p>
         </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Available</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.available}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Available</p>
+            <p className="text-3xl font-bold text-white">{stats.available}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Claimed</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.claimed}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-yellow-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Claimed</p>
+            <p className="text-3xl font-bold text-white">{stats.claimed}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Total</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Total</p>
+            <p className="text-3xl font-bold text-white">{stats.total}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">My Claimed</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.myClaimed}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-purple-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">My Claimed</p>
+            <p className="text-3xl font-bold text-white">{stats.myClaimed}</p>
           </div>
         </div>
 
@@ -211,14 +211,14 @@ export default function LeadDistributionPage() {
               placeholder="Search by name, email, or property..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
             />
           </div>
 
           <select
             value={statusFilter || ''}
             onChange={(e) => setStatusFilter((e.target.value as any) || null)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
           >
             <option value="">All Status</option>
             <option value="available">Available</option>
@@ -230,7 +230,7 @@ export default function LeadDistributionPage() {
             className={`px-4 py-2 rounded-lg transition ${
               myClaimedLeads
                 ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
             }`}
           >
             My Claimed
@@ -239,44 +239,44 @@ export default function LeadDistributionPage() {
 
         {/* Leads Grid */}
         {leadsLoading ? (
-          <div className="text-center py-12 text-gray-600">Loading leads...</div>
+          <div className="text-center py-12 text-gray-400">Loading leads...</div>
         ) : filteredLeads.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredLeads.map((lead) => (
-              <div key={lead.id} className="bg-white rounded-lg shadow hover:shadow-lg transition">
-                <div className="p-4 border-b border-gray-200 flex justify-between items-start">
+              <div key={lead.id} className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition">
+                <div className="p-4 border-b border-[#1a1a2e] flex justify-between items-start">
                   <div>
-                    <h3 className="font-bold text-gray-900">{lead.name}</h3>
-                    <p className="text-xs text-gray-600">{lead.property_address || 'No address'}</p>
+                    <h3 className="font-bold text-white">{lead.name}</h3>
+                    <p className="text-xs text-gray-400">{lead.property_address || 'No address'}</p>
                   </div>
                   <div className="flex gap-2">
                     <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                      lead.urgency === 'hot' ? 'bg-red-100 text-red-800' :
-                      lead.urgency === 'warm' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
+                      lead.urgency === 'hot' ? 'bg-red-500/15 text-red-800' :
+                      lead.urgency === 'warm' ? 'bg-yellow-500/15 text-yellow-400' :
+                      'bg-blue-500/15 text-blue-400'
                     }`}>{lead.urgency}</span>
                     <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                      lead.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      lead.status === 'available' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'
                     }`}>{lead.status}</span>
                   </div>
                 </div>
 
                 <div className="p-4 space-y-2 text-sm">
                   <div>
-                    <p className="text-gray-600">Type: {lead.lead_type}</p>
-                    {lead.email && <p className="text-gray-600">Email: {lead.email}</p>}
-                    {lead.phone && <p className="text-gray-600">Phone: {lead.phone}</p>}
+                    <p className="text-gray-400">Type: {lead.lead_type}</p>
+                    {lead.email && <p className="text-gray-400">Email: {lead.email}</p>}
+                    {lead.phone && <p className="text-gray-400">Phone: {lead.phone}</p>}
                   </div>
 
                   {lead.budget && (
-                    <p className="text-gray-700 font-medium">Budget: {lead.budget}</p>
+                    <p className="text-gray-200 font-medium">Budget: {lead.budget}</p>
                   )}
                   {lead.notes && (
-                    <p className="text-gray-500 text-xs italic">{lead.notes}</p>
+                    <p className="text-gray-400 text-xs italic">{lead.notes}</p>
                   )}
 
                   {lead.claimed_by_name && (
-                    <p className="text-xs text-gray-600">Claimed by: {lead.claimed_by_name}</p>
+                    <p className="text-xs text-gray-400">Claimed by: {lead.claimed_by_name}</p>
                   )}
 
                   <div className="flex gap-2 pt-3 border-t">
@@ -286,7 +286,7 @@ export default function LeadDistributionPage() {
                       </button>
                     )}
                     {lead.claimed_by === user?.id && (
-                      <button onClick={() => handleUnclaimLead(lead.id)} className="flex-1 bg-yellow-100 text-yellow-800 py-2 rounded text-xs font-medium hover:bg-yellow-200 transition">
+                      <button onClick={() => handleUnclaimLead(lead.id)} className="flex-1 bg-yellow-500/15 text-yellow-400 py-2 rounded text-xs font-medium hover:bg-yellow-200 transition">
                         Unclaim
                       </button>
                     )}
@@ -296,12 +296,12 @@ export default function LeadDistributionPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium mb-4">
+            <p className="text-gray-400 font-medium mb-4">
               {searchTerm || statusFilter ? 'No leads matching filters' : 'No leads available'}
             </p>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-400 text-sm">
               {role === 'broker' || role === 'admin'
                 ? 'Add leads to the distribution pool for agents to claim.'
                 : 'Check back soon for available leads from your broker.'}
@@ -310,12 +310,12 @@ export default function LeadDistributionPage() {
         )}
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 mb-1">How It Works</p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-400">
                 Your broker posts leads here for the team. Browse available leads and claim one to start working it. First come, first served — once claimed, it&apos;s yours.
               </p>
             </div>

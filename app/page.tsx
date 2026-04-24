@@ -25,10 +25,10 @@ export default function HomePage() {
   }, [user, role, loading, router])
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-[#050507]">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">HartFelt Agents Portal</h1>
-        <p className="text-gray-600">Loading...</p>
+        <h1 className="text-2xl font-bold text-white mb-2">HartFelt Agents Portal</h1>
+        <p className="text-gray-400">Loading...</p>
       </div>
     </div>
   )

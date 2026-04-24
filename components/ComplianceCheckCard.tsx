@@ -56,9 +56,9 @@ export default function ComplianceCheckCard({
   }
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 80) return 'bg-green-100'
-    if (score >= 60) return 'bg-yellow-100'
-    return 'bg-red-100'
+    if (score >= 80) return 'bg-green-500/15'
+    if (score >= 60) return 'bg-yellow-500/15'
+    return 'bg-red-500/15'
   }
 
   const getProgressBarColor = (score: number) => {
@@ -68,14 +68,14 @@ export default function ComplianceCheckCard({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <div className="bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg overflow-hidden shadow-sm shadow-black/10">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-[#1a1a2e] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-teal-600" />
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Compliance Check</h3>
-            <p className="text-xs text-gray-600">AI-powered transaction review</p>
+            <h3 className="text-base font-semibold text-white">Compliance Check</h3>
+            <p className="text-xs text-gray-400">AI-powered transaction review</p>
           </div>
         </div>
 
@@ -90,9 +90,9 @@ export default function ComplianceCheckCard({
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-3 flex items-start gap-2">
+        <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-3 flex items-start gap-2">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -101,7 +101,7 @@ export default function ComplianceCheckCard({
         <div className="p-6 space-y-6">
           {/* Score */}
           <div>
-            <p className="text-xs font-semibold text-gray-600 uppercase mb-3">Compliance Score</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Compliance Score</p>
             <div className="flex items-center gap-4">
               <div
                 className={`w-24 h-24 rounded-full flex items-center justify-center ${getScoreBgColor(result.score)}`}
@@ -111,7 +111,7 @@ export default function ComplianceCheckCard({
                 </span>
               </div>
               <div className="flex-1">
-                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[#1a1a2e] rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full transition-all ${getProgressBarColor(result.score)}`}
                     style={{ width: `${result.score}%` }}
@@ -122,7 +122,7 @@ export default function ComplianceCheckCard({
           </div>
 
           {/* Status */}
-          <div className="border-b border-gray-200 pb-4">
+          <div className="border-b border-[#1a1a2e] pb-4">
             <div className="flex items-start gap-3">
               {result.overall_status === 'passed' ? (
                 <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
@@ -132,14 +132,14 @@ export default function ComplianceCheckCard({
                 <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
               )}
               <div className="flex-1">
-                <h4 className="font-semibold text-gray-900">
+                <h4 className="font-semibold text-white">
                   {result.overall_status === 'passed'
                     ? 'Passed'
                     : result.overall_status === 'issues_found'
                     ? 'Issues Found'
                     : 'Failed'}
                 </h4>
-                <p className="text-sm text-gray-600 mt-1">{result.summary}</p>
+                <p className="text-sm text-gray-400 mt-1">{result.summary}</p>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function ComplianceCheckCard({
           {/* Issues List */}
           {result.issues && result.issues.length > 0 && (
             <div>
-              <h4 className="font-semibold text-gray-900 mb-3">
+              <h4 className="font-semibold text-white mb-3">
                 Issues ({result.issues.length})
               </h4>
               <div className="space-y-2">
@@ -156,23 +156,23 @@ export default function ComplianceCheckCard({
                     key={idx}
                     className={`border-l-4 p-3 rounded ${
                       issue.severity === 'error'
-                        ? 'border-red-500 bg-red-50'
+                        ? 'border-red-500 bg-red-500/10'
                         : issue.severity === 'warning'
-                        ? 'border-yellow-500 bg-yellow-50'
-                        : 'border-blue-500 bg-blue-50'
+                        ? 'border-yellow-500 bg-yellow-500/10'
+                        : 'border-blue-500 bg-blue-500/10'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-900 text-sm">{issue.title}</p>
-                        <p className="text-gray-700 text-sm mt-1">{issue.description}</p>
+                        <p className="font-semibold text-white text-sm">{issue.title}</p>
+                        <p className="text-gray-200 text-sm mt-1">{issue.description}</p>
                         <span
                           className={`inline-block mt-2 text-xs px-2 py-1 rounded ${
                             issue.severity === 'error'
-                              ? 'bg-red-100 text-red-700'
+                              ? 'bg-red-500/15 text-red-400'
                               : issue.severity === 'warning'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-blue-100 text-blue-700'
+                              ? 'bg-yellow-500/15 text-yellow-400'
+                              : 'bg-blue-500/15 text-blue-400'
                           }`}
                         >
                           {issue.category}
@@ -181,10 +181,10 @@ export default function ComplianceCheckCard({
                       <span
                         className={`text-xs font-semibold uppercase flex-shrink-0 ${
                           issue.severity === 'error'
-                            ? 'text-red-700'
+                            ? 'text-red-400'
                             : issue.severity === 'warning'
-                            ? 'text-yellow-700'
-                            : 'text-blue-700'
+                            ? 'text-yellow-400'
+                            : 'text-blue-400'
                         }`}
                       >
                         {issue.severity}
@@ -214,8 +214,8 @@ export default function ComplianceCheckCard({
       {!result && !error && (
         <div className="p-12 text-center">
           <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">Run a compliance check to see what's needed</p>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-400 font-medium">Run a compliance check to see what's needed</p>
+          <p className="text-gray-400 text-sm mt-1">
             This will analyze your deal for issues affecting commission
           </p>
         </div>

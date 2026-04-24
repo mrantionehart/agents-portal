@@ -30,14 +30,14 @@ interface TaskListProps {
 }
 
 const statusColors = {
-  pending: 'bg-gray-100 text-gray-800',
-  in_progress: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  blocked: 'bg-red-100 text-red-800',
+  pending: 'bg-[#0a0a0f] text-white',
+  in_progress: 'bg-blue-500/15 text-blue-400',
+  completed: 'bg-green-500/15 text-green-400',
+  blocked: 'bg-red-500/15 text-red-800',
 };
 
 const priorityColors = {
-  low: 'text-gray-500',
+  low: 'text-gray-400',
   medium: 'text-yellow-500',
   high: 'text-orange-500',
   critical: 'text-red-500',
@@ -131,17 +131,17 @@ export default function TaskList({
     <div className="space-y-6">
       {/* Filters */}
       {showFilters && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
@@ -153,13 +153,13 @@ export default function TaskList({
 
             {/* Priority Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Priority
               </label>
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">All Priorities</option>
                 <option value="low">Low</option>
@@ -171,13 +171,13 @@ export default function TaskList({
 
             {/* Sort By */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Sort By
               </label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="due_date">Due Date</option>
                 <option value="priority">Priority</option>
@@ -187,7 +187,7 @@ export default function TaskList({
 
             {/* Task Count */}
             <div className="flex items-end">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-400">
                 {sortedTasks.length} task{sortedTasks.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -197,9 +197,9 @@ export default function TaskList({
 
       {/* Tasks List */}
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Loading tasks...</div>
+        <div className="text-center py-8 text-gray-400">Loading tasks...</div>
       ) : sortedTasks.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No tasks found</div>
+        <div className="text-center py-8 text-gray-400">No tasks found</div>
       ) : (
         <div className="space-y-3">
           {sortedTasks.map((task) => {
@@ -210,13 +210,13 @@ export default function TaskList({
               <div
                 key={task.id}
                 onClick={() => setSelectedTask(task.id)}
-                className="bg-white rounded-lg border border-gray-200 hover:border-blue-400 p-4 cursor-pointer transition-colors"
+                className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] hover:border-blue-400 p-4 cursor-pointer transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   {/* Task Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-medium text-gray-900 truncate">
+                      <h3 className="font-medium text-white truncate">
                         {task.title}
                       </h3>
                       <span
@@ -235,14 +235,14 @@ export default function TaskList({
                     {progress && (
                       <div className="mb-3">
                         <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-gray-600">
+                          <span className="text-gray-400">
                             Checklist: {progress.completed}/{progress.total}
                           </span>
-                          <span className="text-gray-500">{progress.percentage}%</span>
+                          <span className="text-gray-400">{progress.percentage}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-[#1a1a2e] rounded-full h-2">
                           <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
+                            className="bg-green-500/100 h-2 rounded-full transition-all"
                             style={{ width: `${progress.percentage}%` }}
                           />
                         </div>
@@ -250,7 +250,7 @@ export default function TaskList({
                     )}
 
                     {/* Meta Info */}
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
                       <span className={overdue ? 'text-red-600 font-medium' : ''}>
                         Due: {formatDate(task.due_date)}
                         {overdue && ' ⚠️ OVERDUE'}

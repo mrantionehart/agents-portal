@@ -32,12 +32,12 @@ interface OnboardingInvite {
 }
 
 const STATUS_CONFIG = {
-  pending_invite: { label: 'Pending Invite', color: 'bg-gray-100', textColor: 'text-gray-800', icon: '📧' },
-  signing: { label: 'Signing', color: 'bg-blue-100', textColor: 'text-blue-800', icon: '✍️' },
-  signed: { label: 'Signed', color: 'bg-yellow-100', textColor: 'text-yellow-800', icon: '📝' },
-  awaiting_approval: { label: 'Awaiting Approval', color: 'bg-orange-100', textColor: 'text-orange-800', icon: '⏳' },
-  approved: { label: 'Approved', color: 'bg-purple-100', textColor: 'text-purple-800', icon: '✅' },
-  provisioned: { label: 'Provisioned', color: 'bg-green-100', textColor: 'text-green-800', icon: '🎉' },
+  pending_invite: { label: 'Pending Invite', color: 'bg-[#0a0a0f]', textColor: 'text-white', icon: '📧' },
+  signing: { label: 'Signing', color: 'bg-blue-500/15', textColor: 'text-blue-400', icon: '✍️' },
+  signed: { label: 'Signed', color: 'bg-yellow-500/15', textColor: 'text-yellow-400', icon: '📝' },
+  awaiting_approval: { label: 'Awaiting Approval', color: 'bg-orange-500/15', textColor: 'text-orange-800', icon: '⏳' },
+  approved: { label: 'Approved', color: 'bg-purple-500/15', textColor: 'text-purple-800', icon: '✅' },
+  provisioned: { label: 'Provisioned', color: 'bg-green-500/15', textColor: 'text-green-400', icon: '🎉' },
 }
 
 export default function OnboardingPage() {
@@ -194,11 +194,11 @@ export default function OnboardingPage() {
   if (!user || (role !== 'broker' && role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+        <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">Only brokers and admins can access this page.</p>
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
+          <p className="text-gray-400 mb-6">Only brokers and admins can access this page.</p>
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
             Return to Dashboard
           </Link>
         </div>
@@ -212,14 +212,14 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Agent Onboarding</h1>
+            <h1 className="text-2xl font-bold text-white">Agent Onboarding</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -237,19 +237,19 @@ export default function OnboardingPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-gray-200">
+        <div className="flex gap-2 mb-8 border-b border-[#1a1a2e]">
           <button
             onClick={() => setActiveTab('documents')}
             className={`px-4 py-3 font-medium border-b-2 transition ${
               activeTab === 'documents'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Documents
@@ -259,7 +259,7 @@ export default function OnboardingPage() {
             className={`px-4 py-3 font-medium border-b-2 transition ${
               activeTab === 'invites'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Invites ({invites.length})
@@ -269,7 +269,7 @@ export default function OnboardingPage() {
             className={`px-4 py-3 font-medium border-b-2 transition ${
               activeTab === 'approval'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Approvals <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full ml-2">{pendingApproval.length}</span>
@@ -290,26 +290,26 @@ export default function OnboardingPage() {
             </div>
 
             {showDocUpload && (
-              <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Onboarding Document</h2>
+              <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-white mb-6">Upload Onboarding Document</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Document Name *</label>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">Document Name *</label>
                     <input
                       type="text"
                       value={newDocName}
                       onChange={(e) => setNewDocName(e.target.value)}
                       placeholder="e.g., HartFelt Agent Agreement"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">PDF File</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition cursor-pointer">
+                    <label className="block text-sm font-medium text-gray-200 mb-2">PDF File</label>
+                    <div className="border-2 border-dashed border-[#1a1a2e] rounded-lg p-8 text-center hover:border-blue-500 transition cursor-pointer">
                       <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Click to upload PDF</p>
-                      <p className="text-xs text-gray-500 mt-1">Max 10MB</p>
+                      <p className="text-gray-400">Click to upload PDF</p>
+                      <p className="text-xs text-gray-400 mt-1">Max 10MB</p>
                     </div>
                   </div>
 
@@ -327,21 +327,21 @@ export default function OnboardingPage() {
             {documents.length > 0 ? (
               <div className="space-y-4">
                 {documents.map((doc) => (
-                  <div key={doc.id} className="bg-white rounded-lg shadow p-6 flex justify-between items-center">
+                  <div key={doc.id} className="bg-[#0a0a0f] rounded-lg shadow p-6 flex justify-between items-center">
                     <div>
-                      <h3 className="font-bold text-gray-900">{doc.name}</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-bold text-white">{doc.name}</h3>
+                      <p className="text-sm text-gray-400">
                         Uploaded by {doc.uploadedBy} on {new Date(doc.uploadedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition flex items-center gap-2">
+                      <button className="px-4 py-2 bg-blue-500/10 text-blue-600 rounded-lg hover:bg-blue-500/15 transition flex items-center gap-2">
                         <Eye className="w-4 h-4" />
                         Preview
                       </button>
                       <button
                         onClick={() => handleDeleteDocument(doc.id)}
-                        className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+                        className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/15 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -350,10 +350,10 @@ export default function OnboardingPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
                 <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">No documents yet</p>
-                <p className="text-gray-500 text-sm">Upload onboarding documents that agents will sign</p>
+                <p className="text-gray-400 font-medium">No documents yet</p>
+                <p className="text-gray-400 text-sm">Upload onboarding documents that agents will sign</p>
               </div>
             )}
           </>
@@ -373,39 +373,39 @@ export default function OnboardingPage() {
             </div>
 
             {showNewInvite && (
-              <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Signing Invite</h2>
+              <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-white mb-6">Send Signing Invite</h2>
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">First Name *</label>
                     <input
                       type="text"
                       value={newInvite.firstName}
                       onChange={(e) => setNewInvite({ ...newInvite, firstName: e.target.value })}
                       placeholder="John"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">Last Name *</label>
                     <input
                       type="text"
                       value={newInvite.lastName}
                       onChange={(e) => setNewInvite({ ...newInvite, lastName: e.target.value })}
                       placeholder="Smith"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">Email *</label>
                     <input
                       type="email"
                       value={newInvite.email}
                       onChange={(e) => setNewInvite({ ...newInvite, email: e.target.value })}
                       placeholder="john@example.com"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
                 </div>
@@ -434,7 +434,7 @@ export default function OnboardingPage() {
                               {invite.firstName} {invite.lastName}
                             </h3>
                           </div>
-                          <p className="text-sm text-gray-600">{invite.email}</p>
+                          <p className="text-sm text-gray-400">{invite.email}</p>
                         </div>
                         <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusConfig.color} ${statusConfig.textColor} border`}>
                           {statusConfig.label}
@@ -445,7 +445,7 @@ export default function OnboardingPage() {
                         {invite.signingLink && invite.status === 'pending_invite' && (
                           <a
                             href={invite.signingLink}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-blue-600 hover:text-blue-400 font-medium"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -453,7 +453,7 @@ export default function OnboardingPage() {
                           </a>
                         )}
                         {invite.signedAt && (
-                          <span className="text-gray-700">
+                          <span className="text-gray-200">
                             Signed: {new Date(invite.signedAt).toLocaleDateString()}
                           </span>
                         )}
@@ -482,7 +482,7 @@ export default function OnboardingPage() {
 
                         <button
                           onClick={() => handleDeleteInvite(invite.id)}
-                          className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+                          className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/15 transition"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -492,10 +492,10 @@ export default function OnboardingPage() {
                 })}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
                 <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">No invites sent yet</p>
-                <p className="text-gray-500 text-sm">Send signing invites to new agents</p>
+                <p className="text-gray-400 font-medium">No invites sent yet</p>
+                <p className="text-gray-400 text-sm">Send signing invites to new agents</p>
               </div>
             )}
           </>
@@ -509,13 +509,13 @@ export default function OnboardingPage() {
                 {pendingApproval.map((invite) => {
                   const statusConfig = STATUS_CONFIG[invite.status]
                   return (
-                    <div key={invite.id} className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
+                    <div key={invite.id} className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-orange-500">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-900">
+                          <h3 className="text-xl font-bold text-white">
                             {invite.firstName} {invite.lastName}
                           </h3>
-                          <p className="text-sm text-gray-600">{invite.email}</p>
+                          <p className="text-sm text-gray-400">{invite.email}</p>
                           {invite.signedAt && (
                             <p className="text-sm text-green-600 mt-1">
                               ✓ Signed on {new Date(invite.signedAt).toLocaleDateString()}
@@ -524,9 +524,9 @@ export default function OnboardingPage() {
                         </div>
                       </div>
 
-                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                        <p className="text-sm font-medium text-gray-900 mb-2">Next Steps:</p>
-                        <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+                      <div className="bg-blue-500/10 p-4 rounded-lg mb-4">
+                        <p className="text-sm font-medium text-white mb-2">Next Steps:</p>
+                        <ol className="text-sm text-gray-200 space-y-1 list-decimal list-inside">
                           <li>Review signed onboarding documents</li>
                           <li>Click "Approve" to create email account</li>
                           <li>Click "Send Credentials" to notify agent</li>
@@ -560,10 +560,10 @@ export default function OnboardingPage() {
                 })}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">All caught up!</p>
-                <p className="text-gray-500 text-sm">No agents awaiting approval right now</p>
+                <p className="text-gray-400 font-medium">All caught up!</p>
+                <p className="text-gray-400 text-sm">No agents awaiting approval right now</p>
               </div>
             )}
           </>
@@ -571,14 +571,14 @@ export default function OnboardingPage() {
 
         {/* Provisioned Agents */}
         {provisioned.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">✅ Recently Provisioned</h2>
+          <div className="mt-12 pt-8 border-t border-[#1a1a2e]">
+            <h2 className="text-2xl font-bold text-white mb-6">✅ Recently Provisioned</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {provisioned.slice(0, 4).map((invite) => (
-                <div key={invite.id} className="bg-green-50 rounded-lg shadow p-6 border-l-4 border-green-500">
-                  <h3 className="font-bold text-gray-900">{invite.firstName} {invite.lastName}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{invite.provisionedEmail}</p>
-                  <p className="text-xs text-gray-500">
+                <div key={invite.id} className="bg-green-500/10 rounded-lg shadow p-6 border-l-4 border-green-500">
+                  <h3 className="font-bold text-white">{invite.firstName} {invite.lastName}</h3>
+                  <p className="text-sm text-gray-400 mb-2">{invite.provisionedEmail}</p>
+                  <p className="text-xs text-gray-400">
                     Provisioned: {invite.provisionedAt && new Date(invite.provisionedAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -588,12 +588,12 @@ export default function OnboardingPage() {
         )}
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 mb-1">Onboarding Workflow</p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-400">
                 1) Upload templates → 2) Send invite → 3) Agent signs → 4) You approve → 5) Email created → 6) Credentials sent. Agent can then login to Portal and EASE app.
               </p>
             </div>

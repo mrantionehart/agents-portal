@@ -54,21 +54,21 @@ export default function ActionModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">{content.title}</h3>
-          <p className="text-gray-600 mb-6">{content.message}</p>
+          <h3 className="text-xl font-bold text-white mb-4">{content.title}</h3>
+          <p className="text-gray-400 mb-6">{content.message}</p>
 
           {content.showReason && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Rejection Reason *
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => onReasonChange(e.target.value)}
                 placeholder="Explain why this agent is being rejected..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 rows={4}
                 required
               />
@@ -79,7 +79,7 @@ export default function ActionModal({
             <button
               onClick={onCancel}
               disabled={isProcessing}
-              className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              className="px-6 py-2 border border-[#1a1a2e] text-gray-200 font-semibold rounded-lg hover:bg-[#0a0a0f] transition disabled:opacity-50"
             >
               Cancel
             </button>

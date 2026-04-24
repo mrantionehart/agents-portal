@@ -335,19 +335,19 @@ export default function TrainingPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Training Gate Banner — shown when app is locked */}
       {isGated && (
-        <div className="bg-amber-50 border-b-2 border-amber-400">
+        <div className="bg-amber-500/10 border-b-2 border-amber-400">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-start gap-3">
               <Lock className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-amber-900">Complete Volume 1 Training to Unlock Your Portal</h3>
-                <p className="text-amber-800 text-sm mt-1">
+                <p className="text-amber-400 text-sm mt-1">
                   Finish all 9 modules below to unlock Deals, Leads, Chat, Calendar, and all other portal features.
                   You have completed {trainingGate.vol1.completed.length} of {trainingGate.vol1.total} modules.
                 </p>
                 <div className="mt-3 w-full bg-amber-200 rounded-full h-3 overflow-hidden">
                   <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                    className="h-full bg-amber-500/100 rounded-full transition-all duration-500"
                     style={{ width: `${trainingGate.vol1.total > 0 ? Math.round((trainingGate.vol1.completed.length / trainingGate.vol1.total) * 100) : 0}%` }}
                   />
                 </div>
@@ -358,25 +358,25 @@ export default function TrainingPage() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             {isGated ? (
               <span className="text-gray-400 font-medium">Portal locked until training complete</span>
             ) : (
-              <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
                 ← Dashboard
               </Link>
             )}
-            <h1 className="text-2xl font-bold text-gray-900">HartFelt Ready Training</h1>
+            <h1 className="text-2xl font-bold text-white">HartFelt Ready Training</h1>
           </div>
           <div className="flex items-center gap-3">
             {/* Language toggle */}
-            <div className="inline-flex rounded-lg border border-gray-300 bg-white overflow-hidden">
+            <div className="inline-flex rounded-lg border border-[#1a1a2e] bg-[#0a0a0f] overflow-hidden">
               <button
                 onClick={() => setLang('en')}
                 className={`px-3 py-1.5 text-sm font-medium flex items-center gap-1 ${
-                  lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-200 hover:bg-[#0a0a0f]'
                 }`}
               >
                 <Globe className="w-4 h-4" /> EN
@@ -384,7 +384,7 @@ export default function TrainingPage() {
               <button
                 onClick={() => setLang('es')}
                 className={`px-3 py-1.5 text-sm font-medium ${
-                  lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-200 hover:bg-[#0a0a0f]'
                 }`}
               >
                 ES
@@ -404,14 +404,14 @@ export default function TrainingPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Brokerage Policy Manual */}
         <section className="mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-6 h-6 text-blue-600" />
-                  <h3 className="text-xl font-bold text-gray-900">Brokerage Policy Manual</h3>
+                  <h3 className="text-xl font-bold text-white">Brokerage Policy Manual</h3>
                 </div>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-400 mb-4">
                   Essential reference guide with HartFelt policies, procedures, commission structures, and compliance requirements.
                 </p>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -442,13 +442,13 @@ export default function TrainingPage() {
         {/* Volume tabs + progress summary */}
         <section className="mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="inline-flex rounded-lg border border-gray-300 bg-white overflow-hidden">
+            <div className="inline-flex rounded-lg border border-[#1a1a2e] bg-[#0a0a0f] overflow-hidden">
               <button
                 onClick={() => setSelectedVolume(1)}
                 className={`px-5 py-2 font-medium ${
                   selectedVolume === 1
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-200 hover:bg-[#0a0a0f]'
                 }`}
               >
                 Vol 1 — Foundations
@@ -458,7 +458,7 @@ export default function TrainingPage() {
                 className={`px-5 py-2 font-medium ${
                   selectedVolume === 2
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-200 hover:bg-[#0a0a0f]'
                 }`}
               >
                 Vol 2 — Elite
@@ -468,14 +468,14 @@ export default function TrainingPage() {
                 className={`px-5 py-2 font-medium ${
                   selectedVolume === 3
                     ? 'bg-purple-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-200 hover:bg-[#0a0a0f]'
                 }`}
               >
                 AI Training
               </button>
             </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-900">{completedCount}</span>
+            <div className="text-sm text-gray-400">
+              <span className="font-semibold text-white">{completedCount}</span>
               {' '}of {totalVideos} videos completed
             </div>
           </div>
@@ -483,13 +483,13 @@ export default function TrainingPage() {
 
         {dataLoading ? (
           <div className="flex items-center justify-center py-16">
-            <p className="text-gray-600">Loading training library...</p>
+            <p className="text-gray-400">Loading training library...</p>
           </div>
         ) : modules.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6">
             <p className="text-yellow-900 font-medium mb-1">Training library not yet seeded.</p>
-            <p className="text-yellow-800 text-sm">
-              Run the <code className="bg-yellow-100 px-1 rounded">018_training_videos.sql</code>{' '}
+            <p className="text-yellow-400 text-sm">
+              Run the <code className="bg-yellow-500/15 px-1 rounded">018_training_videos.sql</code>{' '}
               migration in Supabase, then refresh this page.
             </p>
           </div>
@@ -497,7 +497,7 @@ export default function TrainingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Player column */}
             <div className="lg:col-span-2">
-              <div className="bg-black rounded-lg overflow-hidden shadow-lg aspect-video">
+              <div className="bg-black rounded-lg overflow-hidden shadow-lg shadow-black/20 aspect-video">
                 {currentYouTubeId ? (
                   <iframe
                     key={currentYouTubeId}
@@ -539,19 +539,19 @@ export default function TrainingPage() {
 
               {/* Selected video details */}
               {selectedVideo && (
-                <div className="bg-white rounded-lg shadow mt-4 p-6">
+                <div className="bg-[#0a0a0f] rounded-lg shadow mt-4 p-6">
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div className="flex-1">
                       <div className="text-xs font-semibold text-blue-600 mb-1">
                         Video {selectedVideo.video_num}
                       </div>
-                      <h2 className="text-xl font-bold text-gray-900">
+                      <h2 className="text-xl font-bold text-white">
                         {lang === 'en'
                           ? selectedVideo.title_en || selectedVideo.title_es
                           : selectedVideo.title_es || selectedVideo.title_en}
                       </h2>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-sm text-gray-400 whitespace-nowrap">
                       <Clock className="w-4 h-4" />
                       {formatDuration(
                         lang === 'en'
@@ -568,7 +568,7 @@ export default function TrainingPage() {
                         disabled={progress[selectedVideo.id]?.completed}
                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
                           progress[selectedVideo.id]?.completed
-                            ? 'bg-green-100 text-green-700 cursor-default'
+                            ? 'bg-green-500/15 text-green-400 cursor-default'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                       >
@@ -584,7 +584,7 @@ export default function TrainingPage() {
                         onClick={() => openQuiz(selectedVolume, selectedVideo.module_num)}
                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
                           isModuleCompleted(selectedVolume, selectedVideo.module_num)
-                            ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                            ? 'bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/15'
                             : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }`}
                       >
@@ -600,9 +600,9 @@ export default function TrainingPage() {
             </div>
 
             {/* Module tree column */}
-            <aside className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <aside className="bg-[#0a0a0f] rounded-lg shadow overflow-hidden">
+              <div className="px-4 py-3 border-b bg-[#050507]">
+                <h3 className="font-semibold text-white flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   {selectedVolume === 3 ? 'AI Training' : `Volume ${selectedVolume}`} modules
                 </h3>
@@ -626,7 +626,7 @@ export default function TrainingPage() {
                           setExpandedModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))
                         }}
                         className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${
-                          unlocked ? 'hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'
+                          unlocked ? 'hover:bg-[#0a0a0f]' : 'opacity-60 cursor-not-allowed'
                         }`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -635,18 +635,18 @@ export default function TrainingPage() {
                           ) : completed ? (
                             <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                           ) : expanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           )}
                           <div className="min-w-0">
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-400">
                               Module {mod.module_num}
                               {completed && (
                                 <span className="ml-1.5 text-green-600 font-medium">Passed</span>
                               )}
                             </div>
-                            <div className={`font-semibold text-sm truncate ${unlocked ? 'text-gray-900' : 'text-gray-400'}`}>
+                            <div className={`font-semibold text-sm truncate ${unlocked ? 'text-white' : 'text-gray-400'}`}>
                               {moduleTitle}
                             </div>
                             {!unlocked && (
@@ -656,13 +656,13 @@ export default function TrainingPage() {
                             )}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                        <div className="text-xs text-gray-400 ml-2 whitespace-nowrap">
                           {modVideosDone}/{modVideos.length}
                         </div>
                       </button>
                       {expanded && unlocked && (
                         <>
-                          <ul className="bg-gray-50/50 border-t">
+                          <ul className="bg-[#050507]/50 border-t">
                             {modVideos.map(v => {
                               const isSelected = v.id === selectedVideoId
                               const isVidCompleted = progress[v.id]?.completed
@@ -676,32 +676,32 @@ export default function TrainingPage() {
                                 <li key={v.id}>
                                   <button
                                     onClick={() => setSelectedVideoId(v.id)}
-                                    className={`w-full flex items-center gap-3 px-6 py-2.5 text-left text-sm hover:bg-gray-100 transition ${
-                                      isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                                    className={`w-full flex items-center gap-3 px-6 py-2.5 text-left text-sm hover:bg-[#111] transition ${
+                                      isSelected ? 'bg-blue-500/10 border-l-4 border-blue-600' : ''
                                     }`}
                                   >
                                     {isVidCompleted ? (
                                       <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                                     ) : hasVideo ? (
-                                      <Play className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                      <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     ) : (
                                       <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     )}
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-xs text-gray-400">
                                         {v.video_num}
                                       </div>
                                       <div
                                         className={`truncate ${
                                           isSelected
-                                            ? 'font-semibold text-gray-900'
-                                            : 'text-gray-700'
+                                            ? 'font-semibold text-white'
+                                            : 'text-gray-200'
                                         }`}
                                       >
                                         {videoTitle}
                                       </div>
                                     </div>
-                                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                                    <span className="text-xs text-gray-400 whitespace-nowrap">
                                       {formatDuration(
                                         lang === 'en' ? v.duration_en_sec : v.duration_es_sec
                                       )}
@@ -713,7 +713,7 @@ export default function TrainingPage() {
                           </ul>
                           {/* Quiz button for this module */}
                           {hasQuiz && (
-                            <div className="border-t bg-gray-50 px-4 py-2.5">
+                            <div className="border-t bg-[#050507] px-4 py-2.5">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -721,7 +721,7 @@ export default function TrainingPage() {
                                 }}
                                 className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                                   completed
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                    ? 'bg-green-500/15 text-green-400 hover:bg-green-200'
                                     : 'bg-blue-600 text-white hover:bg-blue-700'
                                 }`}
                               >

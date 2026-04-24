@@ -46,12 +46,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
+      <div className="bg-[#0a0a0f] border border-[#1a1a2e] p-8 rounded-lg shadow-md shadow-black/20 w-full max-w-md">
         <h1 className="text-3xl font-bold mb-8 text-center">HartFelt Agents Portal</h1>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
@@ -63,7 +63,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-[#111] border border-[#222] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               required
             />
           </div>
@@ -74,7 +74,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-[#111] border border-[#222] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               required
             />
           </div>
@@ -82,13 +82,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-[#C9A84C] text-black py-2 rounded-lg font-medium hover:bg-[#d4b65c] disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
-        <p className="mt-4 text-sm text-gray-600 text-center">
+        <p className="mt-4 text-sm text-gray-400 text-center">
           Demo credentials: Use any Supabase user account you've created
         </p>
       </div>

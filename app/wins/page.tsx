@@ -128,8 +128,8 @@ function stageToColor(stageId: string): string {
     case 'under_contract': return 'text-blue-600'
     case 'active': return 'text-yellow-600'
     case 'appointment': return 'text-purple-600'
-    case 'cultivate': return 'text-gray-600'
-    default: return 'text-gray-600'
+    case 'cultivate': return 'text-gray-400'
+    default: return 'text-gray-400'
   }
 }
 
@@ -335,14 +335,14 @@ export default function WinsTrackerPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Wins Tracker</h1>
+            <h1 className="text-2xl font-bold text-white">Wins Tracker</h1>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -359,7 +359,7 @@ export default function WinsTrackerPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
@@ -373,12 +373,12 @@ export default function WinsTrackerPage() {
               className={`px-5 py-2.5 rounded-lg font-medium text-sm transition ${
                 activeFilter === tab.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
               }`}
             >
               {tab.label}
               {tab.id === 'all' && wins.length > 0 && (
-                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                <span className="ml-2 bg-[#0a0a0f]/20 px-2 py-0.5 rounded-full text-xs">
                   {wins.length}
                 </span>
               )}
@@ -388,9 +388,9 @@ export default function WinsTrackerPage() {
 
         <div className="grid grid-cols-3 gap-6 mb-8">
           {/* Leaderboard */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-[#0a0a0f] rounded-lg shadow">
+            <div className="p-6 border-b border-[#1a1a2e]">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Trophy className="w-6 h-6 text-yellow-500" />
                 Leaderboard
               </h2>
@@ -398,19 +398,19 @@ export default function WinsTrackerPage() {
             <div className="divide-y">
               {leaderboard.length > 0 ? (
                 leaderboard.map((agent, index) => (
-                  <div key={agent.agentEmail} className="p-4 hover:bg-gray-50">
+                  <div key={agent.agentEmail} className="p-4 hover:bg-[#0a0a0f]">
                     <div className="flex items-center gap-3 mb-2">
                       <span className={`font-bold text-lg ${
-                        index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-orange-600' : 'text-gray-700'
+                        index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-orange-600' : 'text-gray-200'
                       }`}>
                         #{index + 1}
                       </span>
                       <div>
-                        <p className="font-semibold text-gray-900">{agent.agentName}</p>
-                        <p className="text-xs text-gray-600">{agent.agentEmail}</p>
+                        <p className="font-semibold text-white">{agent.agentName}</p>
+                        <p className="text-xs text-gray-400">{agent.agentEmail}</p>
                       </div>
                     </div>
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-sm text-gray-400">
                       <span>{agent.closedDeals} closed</span>
                       {agent.closedVolume > 0 && (
                         <span>${agent.closedVolume >= 1000000
@@ -422,27 +422,27 @@ export default function WinsTrackerPage() {
                   </div>
                 ))
               ) : winsLoading ? (
-                <div className="p-4 text-gray-600 text-sm">Loading...</div>
+                <div className="p-4 text-gray-400 text-sm">Loading...</div>
               ) : (
-                <div className="p-4 text-gray-600 text-sm">No activity yet</div>
+                <div className="p-4 text-gray-400 text-sm">No activity yet</div>
               )}
             </div>
           </div>
 
           {/* Activity Stats */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
               Activity Stats
             </h3>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Closed Deals</p>
-                <p className="text-3xl font-bold text-gray-900">{totalClosedDeals}</p>
+                <p className="text-sm text-gray-400 mb-1">Closed Deals</p>
+                <p className="text-3xl font-bold text-white">{totalClosedDeals}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Closed Volume</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-sm text-gray-400 mb-1">Closed Volume</p>
+                <p className="text-3xl font-bold text-white">
                   {totalClosedVolume >= 1000000
                     ? `$${(totalClosedVolume / 1000000).toFixed(1)}M`
                     : totalClosedVolume > 0
@@ -452,34 +452,34 @@ export default function WinsTrackerPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Active Milestones</p>
-                <p className="text-3xl font-bold text-gray-900">{totalMilestones}</p>
+                <p className="text-sm text-gray-400 mb-1">Active Milestones</p>
+                <p className="text-3xl font-bold text-white">{totalMilestones}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Pipeline</p>
-                <p className="text-3xl font-bold text-gray-900">{wins.length}</p>
+                <p className="text-sm text-gray-400 mb-1">Total Pipeline</p>
+                <p className="text-3xl font-bold text-white">{wins.length}</p>
               </div>
             </div>
           </div>
 
           {/* How It Works */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
               <Star className="w-5 h-5 text-yellow-500" />
               How It Works
             </h3>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="font-semibold text-gray-900">Auto-Generated Wins</p>
-                <p className="text-gray-600">Wins are created automatically from your pipeline activity</p>
+                <p className="font-semibold text-white">Auto-Generated Wins</p>
+                <p className="text-gray-400">Wins are created automatically from your pipeline activity</p>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Track Progress</p>
-                <p className="text-gray-600">See deals move from appointment to under contract to closed</p>
+                <p className="font-semibold text-white">Track Progress</p>
+                <p className="text-gray-400">See deals move from appointment to under contract to closed</p>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Celebrate Together</p>
-                <p className="text-gray-600">Like team wins and build momentum</p>
+                <p className="font-semibold text-white">Celebrate Together</p>
+                <p className="text-gray-400">Like team wins and build momentum</p>
               </div>
             </div>
           </div>
@@ -488,27 +488,27 @@ export default function WinsTrackerPage() {
         {/* Wins Feed */}
         <div className="space-y-6">
           {winsLoading ? (
-            <div className="text-center py-12 text-gray-600">Loading wins...</div>
+            <div className="text-center py-12 text-gray-400">Loading wins...</div>
           ) : filteredWins.length > 0 ? (
             filteredWins.map((win) => {
               const isLiked = likedWins.has(win.id)
               const likeCount = win.likes + (isLiked ? 1 : 0)
               return (
-                <div key={win.id} className="bg-white rounded-lg shadow hover:shadow-lg transition">
+                <div key={win.id} className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition">
                   {/* Win Header */}
-                  <div className="p-6 border-b border-gray-200">
+                  <div className="p-6 border-b border-[#1a1a2e]">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-2xl ${stageToColor(win.stageId)}`}>
                             {stageToEmoji(win.stageId)}
                           </span>
-                          <h3 className="text-xl font-bold text-gray-900">{win.title}</h3>
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          <h3 className="text-xl font-bold text-white">{win.title}</h3>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#0a0a0f] text-gray-400">
                             {win.groupLabel}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-400">
                           by {win.agentName}
                           {win.closingDate && ` • ${new Date(win.closingDate).toLocaleDateString()}`}
                         </p>
@@ -518,39 +518,39 @@ export default function WinsTrackerPage() {
 
                   {/* Win Content */}
                   <div className="p-6">
-                    <p className="text-gray-700 mb-4">{win.description}</p>
+                    <p className="text-gray-200 mb-4">{win.description}</p>
 
                     {/* Deal Details */}
-                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div className="bg-[#050507] p-4 rounded-lg mb-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {win.propertyAddress && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 uppercase">Property</p>
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-xs font-medium text-gray-400 uppercase">Property</p>
+                            <p className="text-sm font-semibold text-white">
                               {win.propertyAddress}{win.city ? `, ${win.city}` : ''}
                             </p>
                           </div>
                         )}
                         {win.dealAmount > 0 && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 uppercase">Contract Price</p>
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-xs font-medium text-gray-400 uppercase">Contract Price</p>
+                            <p className="text-sm font-semibold text-white">
                               ${win.dealAmount.toLocaleString()}
                             </p>
                           </div>
                         )}
                         {win.gci > 0 && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 uppercase">GCI</p>
-                            <p className="text-sm font-semibold text-green-700">
+                            <p className="text-xs font-medium text-gray-400 uppercase">GCI</p>
+                            <p className="text-sm font-semibold text-green-400">
                               ${win.gci.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </p>
                           </div>
                         )}
                         {win.agentAmount > 0 && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 uppercase">Agent Amount</p>
-                            <p className="text-sm font-semibold text-green-700">
+                            <p className="text-xs font-medium text-gray-400 uppercase">Agent Amount</p>
+                            <p className="text-sm font-semibold text-green-400">
                               ${win.agentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </p>
                           </div>
@@ -565,7 +565,7 @@ export default function WinsTrackerPage() {
                         className={`flex items-center gap-2 transition ${
                           isLiked
                             ? 'text-red-600'
-                            : 'text-gray-600 hover:text-red-600'
+                            : 'text-gray-400 hover:text-red-600'
                         }`}
                       >
                         <Award className="w-4 h-4" />
@@ -577,15 +577,15 @@ export default function WinsTrackerPage() {
               )
             })
           ) : (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
               <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium mb-4">
+              <p className="text-gray-400 font-medium mb-4">
                 {activeFilter === 'all'
                   ? 'No pipeline activity yet!'
                   : `No ${activeFilter === 'closed_deal' ? 'closed deals' : 'milestones'} yet!`
                 }
               </p>
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-400 text-sm">
                 Wins are automatically generated from your pipeline activity. Add transactions to see them here.
               </p>
             </div>
@@ -593,12 +593,12 @@ export default function WinsTrackerPage() {
         </div>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
             <Trophy className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 mb-1">Pipeline-Powered Wins</p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-400">
                 Wins are automatically generated from your pipeline activity. When a deal moves to under contract or closes, it appears here as a win. Keep your pipeline updated to track your progress!
               </p>
             </div>

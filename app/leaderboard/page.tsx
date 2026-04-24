@@ -291,20 +291,20 @@ export default function LeaderboardPage() {
     if (rank === 1) return 'border-[#C9A84C]/50 bg-[#C9A84C]/10'
     if (rank === 2) return 'border-gray-400/30 bg-gray-400/5'
     if (rank === 3) return 'border-amber-700/30 bg-amber-700/5'
-    return 'border-white/5 bg-white/[0.02]'
+    return 'border-white/5 bg-[#0a0a0f]/[0.02]'
   }
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return <Trophy className="w-5 h-5 text-[#C9A84C]" />
     if (rank === 2) return <Medal className="w-5 h-5 text-gray-400" />
-    if (rank === 3) return <Medal className="w-5 h-5 text-amber-700" />
-    return <span className="text-sm font-bold text-gray-500 w-5 text-center">{rank}</span>
+    if (rank === 3) return <Medal className="w-5 h-5 text-amber-400" />
+    return <span className="text-sm font-bold text-gray-400 w-5 text-center">{rank}</span>
   }
 
   const totalDeals = sorted.reduce((s, a) => s + a.deal_count, 0)
   const totalVolume = sorted.reduce((s, a) => s + a.total_volume, 0)
 
-  const inputCls = 'w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#C9A84C]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/20 placeholder:text-gray-600'
+  const inputCls = 'w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-[#C9A84C]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/20 placeholder:text-gray-400'
 
   if (authLoading || !user) return null
 
@@ -314,7 +314,7 @@ export default function LeaderboardPage() {
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
+            <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#0a0a0f]/5 hover:bg-[#0a0a0f]/10 transition">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
@@ -334,11 +334,11 @@ export default function LeaderboardPage() {
               </button>
             )}
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Deals</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Deals</p>
               <p className="text-xl font-bold">{totalDeals}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Volume</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Volume</p>
               <p className="text-xl font-bold text-[#C9A84C]">{formatCurrency(totalVolume)}</p>
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function LeaderboardPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 sortBy === tab.key
                   ? 'bg-[#C9A84C]/20 text-[#C9A84C] border border-[#C9A84C]/30'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+                  : 'bg-[#0a0a0f]/5 text-gray-400 hover:bg-[#0a0a0f]/10 border border-transparent'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -382,9 +382,9 @@ export default function LeaderboardPage() {
 
               {sorted.length === 0 ? (
                 <div className="text-center py-16">
-                  <Trophy className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-400 text-lg font-medium">No rankings yet</p>
-                  <p className="text-gray-500 text-sm mt-1">Rankings will appear as agents close deals.</p>
+                  <p className="text-gray-400 text-sm mt-1">Rankings will appear as agents close deals.</p>
                   {canManage && (
                     <button onClick={openAddModal} className="mt-4 px-4 py-2 rounded-lg bg-[#C9A84C]/20 text-[#C9A84C] text-sm font-medium hover:bg-[#C9A84C]/30 transition">
                       <Plus className="w-4 h-4 inline mr-1" /> Add First Win
@@ -405,7 +405,7 @@ export default function LeaderboardPage() {
                       >
                         <div className="flex items-center justify-center w-8">{getRankBadge(rank)}</div>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                          rank === 1 ? 'bg-[#C9A84C]/20 text-[#C9A84C]' : 'bg-white/10 text-gray-300'
+                          rank === 1 ? 'bg-[#C9A84C]/20 text-[#C9A84C]' : 'bg-[#0a0a0f]/10 text-gray-400'
                         }`}>
                           {agent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
@@ -414,13 +414,13 @@ export default function LeaderboardPage() {
                             {agent.full_name}
                             {isMe && <span className="text-[#2EC4D6] text-xs ml-2">(You)</span>}
                           </p>
-                          <p className="text-xs text-gray-500">{agent.deal_count} deal{agent.deal_count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-400">{agent.deal_count} deal{agent.deal_count !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="text-right">
                           <p className={`font-bold text-lg ${rank === 1 ? 'text-[#C9A84C]' : 'text-white'}`}>
                             {formatCurrency(agent.total_volume)}
                           </p>
-                          <p className="text-xs text-gray-500">volume</p>
+                          <p className="text-xs text-gray-400">volume</p>
                         </div>
                       </div>
                     )
@@ -438,7 +438,7 @@ export default function LeaderboardPage() {
 
               {wins.length === 0 ? (
                 <div className="text-center py-12">
-                  <PartyPopper className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                  <PartyPopper className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-400 font-medium">No closed deals to celebrate yet</p>
                   {canManage && (
                     <button onClick={openAddModal} className="mt-3 px-4 py-2 rounded-lg bg-[#C9A84C]/20 text-[#C9A84C] text-sm font-medium hover:bg-[#C9A84C]/30 transition">
@@ -455,7 +455,7 @@ export default function LeaderboardPage() {
                     return (
                       <div
                         key={`${win.source}-${win.id}`}
-                        className="p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:border-[#C9A84C]/30 transition-all"
+                        className="p-4 rounded-xl border border-white/5 bg-[#0a0a0f]/[0.02] hover:border-[#C9A84C]/30 transition-all"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0">
@@ -464,7 +464,7 @@ export default function LeaderboardPage() {
                               <p className="text-white font-semibold text-sm truncate">{win.property_address}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <p className="text-gray-500 text-xs">{win.agent_name}</p>
+                              <p className="text-gray-400 text-xs">{win.agent_name}</p>
                               {isManual && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20">
                                   Manual
@@ -477,21 +477,21 @@ export default function LeaderboardPage() {
                             <div className="flex items-center gap-1 ml-2 shrink-0">
                               <button
                                 onClick={() => openEditModal(manualWin)}
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-[#C9A84C] hover:bg-white/5 transition"
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-[#C9A84C] hover:bg-[#0a0a0f]/5 transition"
                               >
                                 <Pencil size={14} />
                               </button>
                               {deleteConfirm === win.id ? (
                                 <div className="flex items-center gap-1">
-                                  <button onClick={() => handleDeleteWin(win.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition">
+                                  <button onClick={() => handleDeleteWin(win.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/100/10 transition">
                                     <Check size={14} />
                                   </button>
-                                  <button onClick={() => setDeleteConfirm(null)} className="p-1.5 rounded-lg text-gray-500 hover:bg-white/5 transition">
+                                  <button onClick={() => setDeleteConfirm(null)} className="p-1.5 rounded-lg text-gray-400 hover:bg-[#0a0a0f]/5 transition">
                                     <X size={14} />
                                   </button>
                                 </div>
                               ) : (
-                                <button onClick={() => setDeleteConfirm(win.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition">
+                                <button onClick={() => setDeleteConfirm(win.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/100/10 transition">
                                   <Trash2 size={14} />
                                 </button>
                               )}
@@ -503,7 +503,7 @@ export default function LeaderboardPage() {
 
                         <div className="flex items-center justify-between pt-2 border-t border-white/5">
                           <span className="text-[#C9A84C] font-bold">{formatCurrency(win.contract_price)}</span>
-                          <span className="text-gray-500 text-xs">
+                          <span className="text-gray-400 text-xs">
                             {formatDate(win.closing_date || win.updated_at)}
                           </span>
                         </div>
@@ -523,31 +523,31 @@ export default function LeaderboardPage() {
           <div className="bg-[#121216] rounded-xl border border-white/10 w-full max-w-lg mx-4 shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h2 className="text-lg font-semibold text-white">{editingWin ? 'Edit Win' : 'Add Win'}</h2>
-              <button onClick={() => { setShowModal(false); setEditingWin(null); setFormData(emptyForm) }} className="p-1 rounded-lg hover:bg-white/10 text-gray-400">
+              <button onClick={() => { setShowModal(false); setEditingWin(null); setFormData(emptyForm) }} className="p-1 rounded-lg hover:bg-[#0a0a0f]/10 text-gray-400">
                 <X size={20} />
               </button>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Agent Name *</label>
+                <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Agent Name *</label>
                 <input className={inputCls} placeholder="e.g. John Smith" value={formData.agent_name} onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })} />
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Property Address *</label>
+                <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Property Address *</label>
                 <input className={inputCls} placeholder="e.g. 123 Main St, Miami, FL" value={formData.property_address} onChange={(e) => setFormData({ ...formData, property_address: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Sale Price</label>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Sale Price</label>
                   <input className={inputCls} type="number" placeholder="450000" value={formData.sale_price} onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Date</label>
                   <input className={inputCls} type="date" value={formData.win_date} onChange={(e) => setFormData({ ...formData, win_date: e.target.value })} />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Win Type</label>
+                <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Win Type</label>
                 <select className={inputCls} value={formData.win_type} onChange={(e) => setFormData({ ...formData, win_type: e.target.value })}>
                   {Object.entries(winTypeLabels).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
@@ -555,7 +555,7 @@ export default function LeaderboardPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Notes (optional)</label>
+                <label className="text-xs text-gray-400 uppercase tracking-wider mb-1 block">Notes (optional)</label>
                 <textarea className={`${inputCls} min-h-[60px] resize-none`} placeholder="Any details..." value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
               </div>
               <div className="flex justify-end gap-3 pt-2">

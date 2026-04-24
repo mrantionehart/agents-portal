@@ -32,13 +32,13 @@ export default function ResourcesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Resources</h1>
+            <h1 className="text-2xl font-bold text-white">Resources</h1>
           </div>
           <button
             onClick={handleSignOut}
@@ -53,15 +53,15 @@ export default function ResourcesPage() {
       <main className="max-w-7xl mx-auto px-6 py-12">
         {/* HartFelt Ready Training */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
             <BookOpen className="w-6 h-6" />
             HartFelt Ready Training
           </h2>
 
           <div className="grid grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-bold text-gray-900 mb-2">Volume 1</h3>
-              <p className="text-gray-600 text-sm mb-4">Foundations and essential skills for real estate excellence</p>
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+              <h3 className="font-bold text-white mb-2">Volume 1</h3>
+              <p className="text-gray-400 text-sm mb-4">Foundations and essential skills for real estate excellence</p>
               <a
                 href="/training/volume-1.pdf"
                 target="_blank"
@@ -71,9 +71,9 @@ export default function ResourcesPage() {
                 Download PDF
               </a>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-bold text-gray-900 mb-2">Volume 2</h3>
-              <p className="text-gray-600 text-sm mb-4">Advanced strategies and client management techniques</p>
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+              <h3 className="font-bold text-white mb-2">Volume 2</h3>
+              <p className="text-gray-400 text-sm mb-4">Advanced strategies and client management techniques</p>
               <a
                 href="/training/volume-2.pdf"
                 target="_blank"
@@ -83,9 +83,9 @@ export default function ResourcesPage() {
                 Download PDF
               </a>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-bold text-gray-900 mb-2">Volume 3</h3>
-              <p className="text-gray-600 text-sm mb-4">Growth strategies and business development</p>
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+              <h3 className="font-bold text-white mb-2">Volume 3</h3>
+              <p className="text-gray-400 text-sm mb-4">Growth strategies and business development</p>
               <a
                 href="/training/volume-3.pdf"
                 target="_blank"
@@ -95,9 +95,9 @@ export default function ResourcesPage() {
                 Download PDF
               </a>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 border-2 border-amber-200">
-              <h3 className="font-bold text-gray-900 mb-2">EASE & Portal Manual</h3>
-              <p className="text-gray-600 text-sm mb-4">Step-by-step guide to your apps — leads, deals, CMA, training & more</p>
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-2 border-amber-500/20">
+              <h3 className="font-bold text-white mb-2">EASE & Portal Manual</h3>
+              <p className="text-gray-400 text-sm mb-4">Step-by-step guide to your apps — leads, deals, CMA, training & more</p>
               <a
                 href="/training/HartFelt_Agent_Training_Manual.pdf"
                 target="_blank"
@@ -112,16 +112,16 @@ export default function ResourcesPage() {
 
         {/* Brokerage Policy Manual */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
             <FileText className="w-6 h-6" />
             Brokerage Policy Manual
           </h2>
 
-          <div className="bg-white rounded-lg shadow p-8">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">HartFelt Brokerage Policy Manual</h3>
-                <p className="text-gray-600 mb-4">Complete guide to HartFelt policies, procedures, and best practices for all agents</p>
+                <h3 className="text-lg font-bold text-white mb-2">HartFelt Brokerage Policy Manual</h3>
+                <p className="text-gray-400 mb-4">Complete guide to HartFelt policies, procedures, and best practices for all agents</p>
                 <a
                   href="/training/brokerage-policy-manual.pdf"
                   target="_blank"
@@ -139,40 +139,40 @@ export default function ResourcesPage() {
 
         {/* Resources Grid */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Resource Library</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">Resource Library</h2>
           <div className="grid grid-cols-3 gap-6">
             {/* Marketing Resources */}
-            <div className="bg-white rounded-lg shadow p-8">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
               <div className="flex items-center gap-3 mb-4">
                 <Zap className="w-6 h-6 text-purple-600" />
-                <h3 className="text-xl font-bold text-gray-900">Marketing Resources</h3>
+                <h3 className="text-xl font-bold text-white">Marketing Resources</h3>
               </div>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-400 mb-6">
                 HartFelt branded marketing materials, templates, and assets to help you market properties effectively.
               </p>
               <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
                   Listing presentation templates
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
                   Social media guides & assets
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
                   HartFelt branded templates
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
                   Logo & brand guidelines
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
                   Marketing guides & best practices
                 </li>
               </ul>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-400 mb-4">
                 Note: Social media content can also be generated using the AI tool in your dashboard.
               </p>
               <button className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition font-medium">
@@ -181,32 +181,32 @@ export default function ResourcesPage() {
             </div>
 
             {/* Contracts & Forms */}
-            <div className="bg-white rounded-lg shadow p-8">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
               <div className="flex items-center gap-3 mb-4">
                 <FileText className="w-6 h-6 text-orange-600" />
-                <h3 className="text-xl font-bold text-gray-900">Contracts & Forms</h3>
+                <h3 className="text-xl font-bold text-white">Contracts & Forms</h3>
               </div>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-400 mb-6">
                 Essential documents and templates for all stages of the transaction.
               </p>
               <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
                   Listing agreements
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
                   Buyer representation agreements
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
                   Disclosure forms
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
                   Offer templates
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
                   Addendums
                 </li>
@@ -217,28 +217,28 @@ export default function ResourcesPage() {
             </div>
 
             {/* Private Opportunities */}
-            <div className="bg-white rounded-lg shadow p-8">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
               <div className="flex items-center gap-3 mb-4">
                 <Users className="w-6 h-6 text-blue-600" />
-                <h3 className="text-xl font-bold text-gray-900">Private Opportunities</h3>
+                <h3 className="text-xl font-bold text-white">Private Opportunities</h3>
               </div>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-400 mb-6">
                 Access off-market deals and development opportunities shared within the HartFelt network.
               </p>
               <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                   Exclusive deals
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                   Development opportunities
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                   Investment properties
                 </li>
-                <li className="flex items-center gap-2 text-gray-700">
+                <li className="flex items-center gap-2 text-gray-200">
                   <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                   Partnership opportunities
                 </li>

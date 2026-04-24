@@ -83,7 +83,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
+          <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#0a0a0f]/5 hover:bg-[#0a0a0f]/10 transition">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -120,7 +120,7 @@ export default function ProfilePage() {
                   type="text"
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
                   placeholder="Your full name"
                 />
               </div>
@@ -130,7 +130,7 @@ export default function ProfilePage() {
                   type="tel"
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
                   placeholder="(555) 123-4567"
                 />
               </div>
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                   type="text"
                   value={form.location}
                   onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
                   placeholder="City, State"
                 />
               </div>
@@ -151,7 +151,7 @@ export default function ProfilePage() {
                   type="text"
                   value={form.license_number}
                   onChange={e => setForm(f => ({ ...f, license_number: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
                   placeholder="RE license #"
                 />
               </div>
@@ -162,7 +162,7 @@ export default function ProfilePage() {
                   value={form.bio}
                   onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                   rows={3}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition resize-none"
+                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition resize-none"
                   placeholder="A short bio about yourself..."
                 />
               </div>

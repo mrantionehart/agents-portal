@@ -32,10 +32,10 @@ export default function AdminReportsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold text-gray-900">Agent Performance Reports</h1>
-          <p className="text-sm text-gray-600 mt-1">Monitor and analyze agent performance metrics</p>
+          <h1 className="text-3xl font-bold text-white">Agent Performance Reports</h1>
+          <p className="text-sm text-gray-400 mt-1">Monitor and analyze agent performance metrics</p>
         </div>
       </header>
 

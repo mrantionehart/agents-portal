@@ -89,12 +89,12 @@ export default function AddDealModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-          <h2 className="text-xl font-bold text-gray-900">Add New Deal</h2>
+      <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-[#0a0a0f]">
+          <h2 className="text-xl font-bold text-white">Add New Deal</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-400 hover:text-gray-200"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -105,7 +105,7 @@ export default function AddDealModal({
           {/* Agent Selection (for admins/brokers) */}
           {userRole !== 'agent' && agents.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Agent <span className="text-red-500">*</span>
               </label>
               <select
@@ -113,7 +113,7 @@ export default function AddDealModal({
                 value={formData.agent_id}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">Select an agent...</option>
                 {agents.map(agent => (
@@ -127,7 +127,7 @@ export default function AddDealModal({
 
           {/* Property Address */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Property Address <span className="text-red-500">*</span>
             </label>
             <input
@@ -136,14 +136,14 @@ export default function AddDealModal({
               value={formData.property_address}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               placeholder="e.g., 123 Main St, Newark, NJ"
             />
           </div>
 
           {/* Client Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Client Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -152,14 +152,14 @@ export default function AddDealModal({
               value={formData.client_name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               placeholder="e.g., John Smith"
             />
           </div>
 
           {/* Contract Price */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Contract Price <span className="text-red-500">*</span>
             </label>
             <input
@@ -170,21 +170,21 @@ export default function AddDealModal({
               required
               step="0.01"
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               placeholder="e.g., 450000"
             />
           </div>
 
           {/* Pipeline Stage */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Pipeline Stage
             </label>
             <select
               name="stage"
               value={formData.stage}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             >
               <option value="new">New Lead</option>
               <option value="contacted">Contacted</option>
@@ -199,7 +199,7 @@ export default function AddDealModal({
 
           {/* Closing Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Expected Closing Date
             </label>
             <input
@@ -207,13 +207,13 @@ export default function AddDealModal({
               name="closing_date"
               value={formData.closing_date}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             />
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-200 mb-1">
               Notes
             </label>
             <textarea
@@ -221,13 +221,13 @@ export default function AddDealModal({
               value={formData.notes}
               onChange={handleChange}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               placeholder="Add any additional details..."
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -237,7 +237,7 @@ export default function AddDealModal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition font-medium disabled:opacity-50"
+              className="flex-1 bg-[#1a1a2e] text-gray-200 py-2 rounded-lg hover:bg-[#1a1a2e] transition font-medium disabled:opacity-50"
             >
               Cancel
             </button>

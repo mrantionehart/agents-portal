@@ -165,7 +165,7 @@ export function ComplianceDashboard() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-8">
+      <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
         <div className="flex items-center justify-center">Loading compliance data...</div>
       </div>
     )
@@ -181,54 +181,54 @@ export function ComplianceDashboard() {
       <div className="flex items-center gap-3">
         <CheckCircle className="w-8 h-8 text-green-600" />
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Compliance Management</h2>
-          <p className="text-sm text-gray-600">Track and manage agent compliance status</p>
+          <h2 className="text-2xl font-bold text-white">Compliance Management</h2>
+          <p className="text-sm text-gray-400">Track and manage agent compliance status</p>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-600 text-xs font-medium mb-1">Avg Compliance Score</p>
-          <p className="text-3xl font-bold text-gray-900">{averageScore}%</p>
-          <p className="text-xs text-gray-500 mt-1">Across all agents</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4">
+          <p className="text-gray-400 text-xs font-medium mb-1">Avg Compliance Score</p>
+          <p className="text-3xl font-bold text-white">{averageScore}%</p>
+          <p className="text-xs text-gray-400 mt-1">Across all agents</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-600 text-xs font-medium mb-1">Unresolved Issues</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4">
+          <p className="text-gray-400 text-xs font-medium mb-1">Unresolved Issues</p>
           <p className="text-3xl font-bold text-orange-600">{unresolved}</p>
-          <p className="text-xs text-gray-500 mt-1">Pending review</p>
+          <p className="text-xs text-gray-400 mt-1">Pending review</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-600 text-xs font-medium mb-1">Critical Flags</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4">
+          <p className="text-gray-400 text-xs font-medium mb-1">Critical Flags</p>
           <p className="text-3xl font-bold text-red-600">{critical}</p>
-          <p className="text-xs text-gray-500 mt-1">Require immediate action</p>
+          <p className="text-xs text-gray-400 mt-1">Require immediate action</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-600 text-xs font-medium mb-1">Agents Reviewed</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4">
+          <p className="text-gray-400 text-xs font-medium mb-1">Agents Reviewed</p>
           <p className="text-3xl font-bold text-blue-600">{reviews.length}</p>
-          <p className="text-xs text-gray-500 mt-1">Recent reviews</p>
+          <p className="text-xs text-gray-400 mt-1">Recent reviews</p>
         </div>
       </div>
 
       {/* Compliance Flags Section */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Compliance Flags</h3>
+            <h3 className="text-lg font-bold text-white">Compliance Flags</h3>
             <div className="flex gap-2">
               <select
                 value={filterSeverity || ''}
                 onChange={(e) => setFilterSeverity(e.target.value || null)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">All Severities</option>
                 <option value="warning">Warning</option>
@@ -250,13 +250,13 @@ export function ComplianceDashboard() {
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-2xl">{config.icon}</span>
                         <div>
-                          <h4 className="font-bold text-gray-900">{flag.title}</h4>
-                          <p className="text-sm text-gray-600">{flag.issue_type.replace(/_/g, ' ')}</p>
+                          <h4 className="font-bold text-white">{flag.title}</h4>
+                          <p className="text-sm text-gray-400">{flag.issue_type.replace(/_/g, ' ')}</p>
                         </div>
                       </div>
-                      <p className="text-gray-700 text-sm mt-3">{flag.description}</p>
+                      <p className="text-gray-200 text-sm mt-3">{flag.description}</p>
                       {flag.due_date && (
-                        <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                        <div className="flex items-center gap-2 mt-3 text-sm text-gray-400">
                           <Clock className="w-4 h-4" />
                           <span>Due: {new Date(flag.due_date).toLocaleDateString()}</span>
                         </div>
@@ -271,7 +271,7 @@ export function ComplianceDashboard() {
                       </button>
                     )}
                     {flag.resolved && (
-                      <div className="ml-4 px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                      <div className="ml-4 px-4 py-2 bg-green-500/15 text-green-400 rounded-lg text-sm font-medium">
                         ✓ Resolved
                       </div>
                     )}
@@ -281,7 +281,7 @@ export function ComplianceDashboard() {
             })}
           </div>
         ) : (
-          <div className="p-6 text-center text-gray-500">
+          <div className="p-6 text-center text-gray-400">
             <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
             <p>No {filterResolved ? 'resolved' : 'unresolved'} compliance flags</p>
           </div>
@@ -290,31 +290,31 @@ export function ComplianceDashboard() {
 
       {/* Compliance Reviews */}
       {reviews.length > 0 && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900">Recent Compliance Reviews</h3>
+        <div className="bg-[#0a0a0f] rounded-lg shadow">
+          <div className="p-6 border-b border-[#1a1a2e]">
+            <h3 className="text-lg font-bold text-white">Recent Compliance Reviews</h3>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-[#050507]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Agent</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Compliance Score</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Risk Level</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Issues</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Critical</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white">Agent</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white">Compliance Score</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white">Risk Level</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white">Issues</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white">Critical</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {reviews.slice(0, 10).map((review) => {
                   const riskCfg = riskConfig[review.risk_level]
                   return (
-                    <tr key={review.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{review.agent_name || 'Unknown'}</td>
+                    <tr key={review.id} className="hover:bg-[#0a0a0f]">
+                      <td className="px-6 py-3 text-sm font-medium text-white">{review.agent_name || 'Unknown'}</td>
                       <td className="px-6 py-3 text-sm">
                         <div className="flex items-center gap-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-[#1a1a2e] rounded-full h-2">
                             <div
                               className={`h-2 rounded-full ${
                                 review.compliance_score >= 80
@@ -326,7 +326,7 @@ export function ComplianceDashboard() {
                               style={{ width: `${review.compliance_score}%` }}
                             />
                           </div>
-                          <span className="font-medium text-gray-900 min-w-max">{review.compliance_score}%</span>
+                          <span className="font-medium text-white min-w-max">{review.compliance_score}%</span>
                         </div>
                       </td>
                       <td className="px-6 py-3 text-sm">
@@ -334,7 +334,7 @@ export function ComplianceDashboard() {
                           {riskCfg.label}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-600">{review.issues_count}</td>
+                      <td className="px-6 py-3 text-sm text-gray-400">{review.issues_count}</td>
                       <td className="px-6 py-3 text-sm">
                         {review.critical_issues_count > 0 && <span className="text-red-600 font-bold">{review.critical_issues_count}</span>}
                         {review.critical_issues_count === 0 && <span className="text-gray-400">—</span>}

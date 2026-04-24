@@ -118,11 +118,11 @@ export default function TCNotifications({
       {/* Notification Bell Icon */}
       <button
         onClick={() => setShowPanel(!showPanel)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+        className="relative p-2 text-gray-400 hover:text-white hover:bg-[#111] rounded-lg transition"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute top-0 right-0 bg-red-500/100 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -130,13 +130,13 @@ export default function TCNotifications({
 
       {/* Notifications Panel */}
       {showPanel && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200">
+        <div className="absolute right-0 mt-2 w-96 bg-[#0a0a0f] rounded-lg shadow-xl z-50 border border-[#1a1a2e]">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-            <h3 className="font-semibold text-gray-900">Notifications</h3>
+          <div className="p-4 border-b border-[#1a1a2e] flex items-center justify-between bg-[#050507]">
+            <h3 className="font-semibold text-white">Notifications</h3>
             <button
               onClick={() => setShowPanel(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-400 hover:text-gray-200"
             >
               <X className="w-5 h-5" />
             </button>
@@ -145,36 +145,36 @@ export default function TCNotifications({
           {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">
             {loading ? (
-              <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+              <div className="p-4 text-center text-gray-400 text-sm">Loading...</div>
             ) : notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">
+              <div className="p-4 text-center text-gray-400 text-sm">
                 No notifications yet
               </div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition ${
-                    !notification.read_at ? 'bg-blue-50' : ''
+                  className={`p-4 border-b border-[#1a1a2e] hover:bg-[#0a0a0f] transition ${
+                    !notification.read_at ? 'bg-blue-500/10' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Status Indicator */}
                     <div className="flex-shrink-0 mt-1">
                       {!notification.read_at ? (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                        <div className="w-2 h-2 bg-blue-500/100 rounded-full" />
                       ) : (
-                        <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                        <div className="w-2 h-2 bg-[#1a1a2e] rounded-full" />
                       )}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-white">
                         {getNotificationTitle(notification.notification_type)}
                       </p>
-                      <p className="text-sm text-gray-700 mt-0.5">{notification.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-sm text-gray-200 mt-0.5">{notification.message}</p>
+                      <p className="text-xs text-gray-400 mt-1">
                         {new Date(notification.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -184,7 +184,7 @@ export default function TCNotifications({
                       {!notification.read_at && (
                         <button
                           onClick={() => handleMarkAsRead(notification.id)}
-                          className="p-1 text-blue-600 hover:bg-blue-100 rounded transition"
+                          className="p-1 text-blue-600 hover:bg-blue-500/15 rounded transition"
                           title="Mark as read"
                         >
                           <Check className="w-4 h-4" />
@@ -192,7 +192,7 @@ export default function TCNotifications({
                       )}
                       <button
                         onClick={() => handleDismiss(notification.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition"
+                        className="p-1 text-gray-400 hover:text-gray-400 hover:bg-[#1a1a2e] rounded transition"
                         title="Dismiss"
                       >
                         <X className="w-4 h-4" />
@@ -206,7 +206,7 @@ export default function TCNotifications({
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-500">
+            <div className="p-4 border-t border-[#1a1a2e] text-center text-xs text-gray-400">
               {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
             </div>
           )}

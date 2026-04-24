@@ -46,27 +46,27 @@ export default function ReviewDetailModal({
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/15 text-yellow-400">
             <Clock size={14} />
             Pending
           </span>
         )
       case 'approved':
         return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-500/15 text-green-400">
             <CheckCircle size={14} />
             Approved
           </span>
         )
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-red-500/15 text-red-800">
             <XCircle size={14} />
             Rejected
           </span>
         )
       default:
-        return <span className="px-3 py-1 text-sm font-medium bg-gray-100">{status}</span>
+        return <span className="px-3 py-1 text-sm font-medium bg-[#0a0a0f]">{status}</span>
     }
   }
 
@@ -101,16 +101,16 @@ export default function ReviewDetailModal({
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white">
+          <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-[#0a0a0f]">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Review Details</h2>
-              <p className="text-sm text-gray-600 mt-1">{getStageLabel(review.stage)}</p>
+              <h2 className="text-2xl font-bold text-white">Review Details</h2>
+              <p className="text-sm text-gray-400 mt-1">{getStageLabel(review.stage)}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition"
+              className="text-gray-400 hover:text-gray-400 transition"
               disabled={loading}
             >
               <X size={24} />
@@ -120,15 +120,15 @@ export default function ReviewDetailModal({
           {/* Content */}
           <div className="p-6 space-y-6">
             {/* Status Section */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-[#050507] p-4 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Status</p>
+                  <p className="text-sm font-medium text-gray-400">Status</p>
                   <p className="mt-2">{getStatusBadge(review.status)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-600">Time Waiting</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">
+                  <p className="text-sm font-medium text-gray-400">Time Waiting</p>
+                  <p className="text-lg font-semibold text-white mt-1">
                     {formatTimeWaiting(timeWaiting)}
                   </p>
                 </div>
@@ -137,26 +137,26 @@ export default function ReviewDetailModal({
 
             {/* Transaction Details */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Deal Information</h3>
-              <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-3">Deal Information</h3>
+              <div className="space-y-3 bg-[#050507] p-4 rounded-lg">
                 <div>
-                  <p className="text-sm text-gray-600">Deal Name</p>
-                  <p className="font-semibold text-gray-900">{transaction?.title || 'Untitled'}</p>
+                  <p className="text-sm text-gray-400">Deal Name</p>
+                  <p className="font-semibold text-white">{transaction?.title || 'Untitled'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Transaction ID</p>
-                  <p className="font-mono text-sm text-gray-800">{review.transaction_id}</p>
+                  <p className="text-sm text-gray-400">Transaction ID</p>
+                  <p className="font-mono text-sm text-white">{review.transaction_id}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Requested By</p>
-                  <p className="font-semibold text-gray-900">{review.auth_requester?.email || 'Unknown'}</p>
+                  <p className="text-sm text-gray-400">Requested By</p>
+                  <p className="font-semibold text-white">{review.auth_requester?.email || 'Unknown'}</p>
                 </div>
               </div>
             </div>
 
             {/* Rejection Reason (if applicable) */}
             {review.status === 'rejected' && review.rejection_reason && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                 <h3 className="font-semibold text-red-900 mb-2">Rejection Reason</h3>
                 <p className="text-red-800">{review.rejection_reason}</p>
               </div>
@@ -164,7 +164,7 @@ export default function ReviewDetailModal({
 
             {/* Notes Section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Broker Notes
               </label>
               <textarea
@@ -172,18 +172,18 @@ export default function ReviewDetailModal({
                 onChange={(e) => setNotes(e.target.value)}
                 disabled={review.status !== 'pending' || loading}
                 placeholder="Add any notes about this review..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent disabled:bg-[#0a0a0f]"
                 rows={4}
               />
             </div>
 
             {/* Timeline */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h3>
+              <h3 className="text-sm font-semibold text-white mb-3">Timeline</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Requested:</span>
-                  <span className="text-gray-900">
+                  <span className="text-gray-400">Requested:</span>
+                  <span className="text-white">
                     {review.requested_at
                       ? new Date(review.requested_at).toLocaleString()
                       : 'N/A'}
@@ -191,8 +191,8 @@ export default function ReviewDetailModal({
                 </div>
                 {review.reviewed_at && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Reviewed:</span>
-                    <span className="text-gray-900">
+                    <span className="text-gray-400">Reviewed:</span>
+                    <span className="text-white">
                       {new Date(review.reviewed_at).toLocaleString()}
                     </span>
                   </div>
@@ -202,10 +202,10 @@ export default function ReviewDetailModal({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 p-6 border-t bg-gray-50">
+          <div className="flex gap-3 p-6 border-t bg-[#050507]">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-gray-200 border border-[#1a1a2e] rounded-lg hover:bg-[#111] transition disabled:opacity-50"
               disabled={loading || approving}
             >
               Close

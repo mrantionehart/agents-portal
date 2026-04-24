@@ -37,15 +37,15 @@ export default function MilestoneList({
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800 border-l-4 border-green-500'
+        return 'bg-green-500/15 text-green-400 border-l-4 border-green-500'
       case 'pending':
-        return 'bg-gray-100 text-gray-800 border-l-4 border-gray-400'
+        return 'bg-[#0a0a0f] text-white border-l-4 border-gray-400'
       case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-l-4 border-blue-500'
+        return 'bg-blue-500/15 text-blue-400 border-l-4 border-blue-500'
       case 'overdue':
-        return 'bg-red-100 text-red-800 border-l-4 border-red-500'
+        return 'bg-red-500/15 text-red-800 border-l-4 border-red-500'
       default:
-        return 'bg-gray-100 text-gray-800 border-l-4 border-gray-400'
+        return 'bg-[#0a0a0f] text-white border-l-4 border-gray-400'
     }
   }
 
@@ -56,7 +56,7 @@ export default function MilestoneList({
       case 'overdue':
         return <AlertCircle className="w-5 h-5 text-red-600" />
       default:
-        return <Clock className="w-5 h-5 text-gray-600" />
+        return <Clock className="w-5 h-5 text-gray-400" />
     }
   }
 
@@ -139,7 +139,7 @@ export default function MilestoneList({
 
   if (milestones.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      <div className="bg-[#0a0a0f] rounded-lg shadow p-6 text-center text-gray-400">
         <p>No milestones created yet. Create one to get started!</p>
       </div>
     )
@@ -148,7 +148,7 @@ export default function MilestoneList({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-sm text-red-800">
           {error}
         </div>
       )}
@@ -157,7 +157,7 @@ export default function MilestoneList({
         {sortedMilestones.map((milestone) => (
           <div
             key={milestone.id}
-            className={`rounded-lg shadow p-6 cursor-pointer transition hover:shadow-md ${getStatusColor(milestone.status)}`}
+            className={`rounded-lg shadow p-6 cursor-pointer transition hover:shadow-md shadow-black/20 ${getStatusColor(milestone.status)}`}
             onClick={() => handleStatusChange(milestone.id, milestone.status)}
           >
             <div className="flex items-start justify-between">
@@ -188,7 +188,7 @@ export default function MilestoneList({
                       handleDelete(milestone.id)
                     }}
                     disabled={deletingId === milestone.id}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition disabled:opacity-50"
+                    className="p-2 text-red-600 hover:bg-red-500/15 rounded-lg transition disabled:opacity-50"
                     title="Delete milestone"
                   >
                     <Trash2 className="w-4 h-4" />

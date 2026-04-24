@@ -53,13 +53,13 @@ export default function ReviewRejectionDialog({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+      <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Reject Review Request</h2>
+          <h2 className="text-xl font-bold text-white">Reject Review Request</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
+            className="text-gray-400 hover:text-gray-400 transition"
             disabled={confirming}
           >
             <X size={20} />
@@ -70,7 +70,7 @@ export default function ReviewRejectionDialog({
         <div className="p-6 space-y-4">
           {/* Reason Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-200 mb-2">
               Rejection Reason *
             </label>
             <select
@@ -82,7 +82,7 @@ export default function ReviewRejectionDialog({
                 }
               }}
               disabled={confirming}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-[#0a0a0f]"
             >
               <option value="">Select a reason...</option>
               {commonReasons.map((reason) => (
@@ -96,7 +96,7 @@ export default function ReviewRejectionDialog({
           {/* Custom Reason (if Other selected) */}
           {selectedReason === 'Other' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Please specify
               </label>
               <input
@@ -105,14 +105,14 @@ export default function ReviewRejectionDialog({
                 onChange={(e) => setCustomReason(e.target.value)}
                 disabled={confirming}
                 placeholder="Explain the rejection reason..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-[#0a0a0f]"
               />
             </div>
           )}
 
           {/* Additional Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-200 mb-2">
               Additional Notes (Optional)
             </label>
             <textarea
@@ -120,17 +120,17 @@ export default function ReviewRejectionDialog({
               onChange={(e) => setNotes(e.target.value)}
               disabled={confirming}
               placeholder="Any additional instructions for the agent..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100"
+              className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-[#0a0a0f]"
               rows={3}
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 p-6 border-t bg-gray-50">
+        <div className="flex gap-3 p-6 border-t bg-[#050507]">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 text-gray-200 border border-[#1a1a2e] rounded-lg hover:bg-[#111] transition disabled:opacity-50"
             disabled={confirming}
           >
             Cancel

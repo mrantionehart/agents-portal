@@ -1406,20 +1406,20 @@ The agent who responds first usually wins. AI makes sure that's you.`,
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#050507]">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-[#0a0a0f] border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-white">
               {screen === 'volumes' ? 'HartFelt Ready Training' :
                currentVolume ? `${volumeData[currentVolume].title}` : 'Training'}
             </h1>
-            <p className="text-gray-600 text-sm mt-1">HartFelt Ready™ Training Program</p>
+            <p className="text-gray-400 text-sm mt-1">HartFelt Ready™ Training Program</p>
           </div>
           <button
             onClick={handleSignOut}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+            className="px-4 py-2 text-gray-200 hover:bg-[#111] rounded-lg transition"
           >
             Sign Out
           </button>
@@ -1429,12 +1429,12 @@ The agent who responds first usually wins. AI makes sure that's you.`,
       {/* Alert */}
       {showAlert && (
         <div className="mx-auto max-w-7xl px-6 py-3 mt-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <span className="text-green-800">{alertMessage}</span>
+            <span className="text-green-400">{alertMessage}</span>
             <button
               onClick={() => setShowAlert(false)}
-              className="ml-auto text-green-600 hover:text-green-700 font-medium text-sm"
+              className="ml-auto text-green-600 hover:text-green-400 font-medium text-sm"
             >
               Dismiss
             </button>
@@ -1447,12 +1447,12 @@ The agent who responds first usually wins. AI makes sure that's you.`,
         {/* Volumes Screen */}
         {screen === 'volumes' && (
           <div>
-            <p className="text-gray-600 text-lg mb-8">
+            <p className="text-gray-400 text-lg mb-8">
               Select a training volume to begin. Complete all modules and pass the final certification exam (85%) to earn your HartFelt Ready certification.
             </p>
             <div className="grid grid-cols-3 gap-6">
               {Object.values(volumeData).map(volume => (
-                <div key={volume.id} className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
+                <div key={volume.id} className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition overflow-hidden">
                   <div className="h-40 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center relative">
                     <div className="flex flex-col items-center justify-center">
                       <img src="/logo.png" alt="HartFelt Ready" className="w-16 h-16 object-contain mb-2" />
@@ -1461,14 +1461,14 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                     {volume.locked && <Lock className="w-6 h-6 text-red-300 absolute top-4 right-4" />}
                   </div>
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{volume.title}</h3>
-                    <p className="text-gray-600 text-sm mb-4">{volume.description}</p>
-                    <p className="text-sm text-gray-500 mb-6">{volume.modules.length} modules</p>
+                    <h3 className="text-xl font-bold text-white mb-2">{volume.title}</h3>
+                    <p className="text-gray-400 text-sm mb-4">{volume.description}</p>
+                    <p className="text-sm text-gray-400 mb-6">{volume.modules.length} modules</p>
                     <button
                       onClick={() => handleVolumeSelect(volume.id as Volume)}
                       className={`w-full py-2 rounded-lg transition font-medium ${
                         volume.locked
-                          ? 'bg-gray-300 text-gray-700 cursor-not-allowed'
+                          ? 'bg-[#1a1a2e] text-gray-200 cursor-not-allowed'
                           : 'bg-blue-600 text-white hover:bg-blue-700'
                       }`}
                       disabled={volume.locked}
@@ -1484,17 +1484,17 @@ The agent who responds first usually wins. AI makes sure that's you.`,
 
         {/* Password Prompt */}
         {showPasswordPrompt && (
-          <div className="max-w-md mx-auto bg-white rounded-lg shadow p-8">
+          <div className="max-w-md mx-auto bg-[#0a0a0f] rounded-lg shadow p-8">
             <Lock className="w-12 h-12 text-red-600 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">Volume Locked</h2>
-            <p className="text-gray-600 mb-6">This volume is password protected. Enter the password to access.</p>
+            <h2 className="text-xl font-bold text-white mb-4 text-center">Volume Locked</h2>
+            <p className="text-gray-400 mb-6">This volume is password protected. Enter the password to access.</p>
             <input
               type="password"
               placeholder="Enter password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
             <div className="flex gap-3">
               <button
@@ -1509,7 +1509,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                   setPasswordInput('')
                   setCurrentVolume(null)
                 }}
-                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition font-medium"
+                className="flex-1 bg-[#1a1a2e] text-gray-200 py-2 rounded-lg hover:bg-[#1a1a2e] transition font-medium"
               >
                 Cancel
               </button>
@@ -1526,12 +1526,12 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                   setScreen('volumes')
                   setCurrentVolume(null)
                 }}
-                className="text-blue-600 hover:text-blue-700 font-medium mb-4"
+                className="text-blue-600 hover:text-blue-400 font-medium mb-4"
               >
                 ← Back to Volumes
               </button>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{volumeData[currentVolume].title}</h2>
-              <p className="text-gray-600">{volumeData[currentVolume].description}</p>
+              <h2 className="text-2xl font-bold text-white mb-2">{volumeData[currentVolume].title}</h2>
+              <p className="text-gray-400">{volumeData[currentVolume].description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-6 mb-12">
@@ -1540,11 +1540,11 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                 const canAccess = module.id === 1 || progress?.completed_modules?.includes(module.id - 1)
 
                 return (
-                  <div key={module.id} className={`bg-white rounded-lg shadow p-6 ${!canAccess ? 'opacity-50' : ''}`}>
+                  <div key={module.id} className={`bg-[#0a0a0f] rounded-lg shadow p-6 ${!canAccess ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900">{module.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{module.questions.length} questions</p>
+                        <h3 className="text-lg font-bold text-white">{module.title}</h3>
+                        <p className="text-sm text-gray-400 mt-1">{module.questions.length} questions</p>
                         {!canAccess && <p className="text-xs text-red-600 mt-2">Complete previous module first</p>}
                       </div>
                       {isCompleted && (
@@ -1560,7 +1560,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                       className={`w-full py-2 rounded-lg transition font-medium ${
                         canAccess
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-[#1a1a2e] text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       {isCompleted ? 'Review Module' : 'Start Module'}
@@ -1571,10 +1571,10 @@ The agent who responds first usually wins. AI makes sure that's you.`,
             </div>
 
             {progress?.completed_modules?.length === volumeData[currentVolume].modules.length && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-8 text-center">
                 <Award className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">All Modules Complete!</h3>
-                <p className="text-gray-600 mb-6">You've completed all modules. Take the final certification exam to earn your certificate.</p>
+                <h3 className="text-xl font-bold text-white mb-2">All Modules Complete!</h3>
+                <p className="text-gray-400 mb-6">You've completed all modules. Take the final certification exam to earn your certificate.</p>
                 <button
                   onClick={handleStartFinalExam}
                   className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
@@ -1591,13 +1591,13 @@ The agent who responds first usually wins. AI makes sure that's you.`,
           <div className="max-w-4xl mx-auto">
             <button
               onClick={() => setScreen('modules')}
-              className="text-blue-600 hover:text-blue-700 font-medium mb-6"
+              className="text-blue-600 hover:text-blue-400 font-medium mb-6"
             >
               ← Back to Modules
             </button>
 
-            <div className="bg-white rounded-lg shadow p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
+              <h2 className="text-2xl font-bold text-white mb-6">
                 {volumeData[currentVolume].modules[currentModule - 1]?.title}
               </h2>
 
@@ -1605,11 +1605,11 @@ The agent who responds first usually wins. AI makes sure that's you.`,
               {moduleVideos.length > 0 && (
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                       <Play className="w-5 h-5 text-blue-600" />
                       Video {currentVideoIdx + 1} of {moduleVideos.length}
                       {moduleVideos[currentVideoIdx]?.title_en && (
-                        <span className="text-gray-500 font-normal text-sm">
+                        <span className="text-gray-400 font-normal text-sm">
                           — {moduleVideos[currentVideoIdx].title_en}
                         </span>
                       )}
@@ -1622,7 +1622,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                   </div>
 
                   {videoLoading ? (
-                    <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
+                    <div className="aspect-video bg-[#050507] rounded-lg flex items-center justify-center">
                       <div className="text-white text-center">
                         <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
                         <p>Loading video...</p>
@@ -1640,8 +1640,8 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                       />
                     </div>
                   ) : (
-                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                      <div className="text-gray-500 text-center">
+                    <div className="aspect-video bg-[#0a0a0f] rounded-lg flex items-center justify-center">
+                      <div className="text-gray-400 text-center">
                         <AlertCircle className="w-8 h-8 mx-auto mb-2" />
                         <p>Video not yet available</p>
                       </div>
@@ -1652,7 +1652,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                   {!allVideosWatched && moduleVideos.length > 1 && (
                     <button
                       onClick={handleNextVideo}
-                      className="mt-3 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium text-sm"
+                      className="mt-3 px-6 py-2 bg-[#0a0a0f] text-white rounded-lg hover:bg-[#111] transition font-medium text-sm"
                     >
                       {currentVideoIdx < moduleVideos.length - 1
                         ? `Next Video (${currentVideoIdx + 2} of ${moduleVideos.length})`
@@ -1664,7 +1664,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
 
               {/* Module Text Content */}
               <div className="prose prose-sm max-w-none mb-8 max-h-96 overflow-y-auto">
-                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                <div className="whitespace-pre-wrap text-gray-200 leading-relaxed">
                   {volumeData[currentVolume].modules[currentModule - 1]?.content}
                 </div>
               </div>
@@ -1674,7 +1674,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                 disabled={moduleVideos.length > 0 && !allVideosWatched}
                 className={`w-full py-3 rounded-lg transition font-medium ${
                   moduleVideos.length > 0 && !allVideosWatched
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                    ? 'bg-[#1a1a2e] text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
@@ -1689,20 +1689,20 @@ The agent who responds first usually wins. AI makes sure that's you.`,
         {/* Module Test */}
         {screen === 'module-test' && currentVolume && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
+              <h2 className="text-2xl font-bold text-white mb-6">
                 {volumeData[currentVolume].modules[currentModule - 1]?.title} - Test
               </h2>
 
               <div className="space-y-8">
                 {volumeData[currentVolume].modules[currentModule - 1]?.questions.map((question, idx) => (
                   <div key={question.id} className="border-b pb-6 last:border-b-0">
-                    <p className="font-medium text-gray-900 mb-4">
+                    <p className="font-medium text-white mb-4">
                       {idx + 1}. {question.question}
                     </p>
                     <div className="space-y-2">
                       {question.options.map((option, optIdx) => (
-                        <label key={optIdx} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <label key={optIdx} className="flex items-center gap-3 cursor-pointer hover:bg-[#0a0a0f] p-2 rounded">
                           <input
                             type="radio"
                             name={question.id}
@@ -1711,7 +1711,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                             onChange={() => handleTestAnswer(question.id, optIdx)}
                             className="w-4 h-4"
                           />
-                          <span className="text-gray-700">{option}</span>
+                          <span className="text-gray-200">{option}</span>
                         </label>
                       ))}
                     </div>
@@ -1720,14 +1720,14 @@ The agent who responds first usually wins. AI makes sure that's you.`,
               </div>
 
               {showAlert && (
-                <div className="my-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                <div className="my-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <span className="text-green-800 font-medium">{alertMessage}</span>
+                    <span className="text-green-400 font-medium">{alertMessage}</span>
                   </div>
                   <button
                     onClick={() => setShowAlert(false)}
-                    className="text-green-600 hover:text-green-700 font-medium text-sm"
+                    className="text-green-600 hover:text-green-400 font-medium text-sm"
                   >
                     Dismiss
                   </button>
@@ -1747,21 +1747,21 @@ The agent who responds first usually wins. AI makes sure that's you.`,
         {/* Final Exam */}
         {screen === 'final-exam' && currentVolume && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
+              <h2 className="text-2xl font-bold text-white mb-2">
                 HartFelt Ready™ Volume 1 - Final Certification Exam
               </h2>
-              <p className="text-gray-600 mb-8">50 Questions | 85% Required to Pass</p>
+              <p className="text-gray-400 mb-8">50 Questions | 85% Required to Pass</p>
 
               <div className="space-y-8">
                 {volumeData[currentVolume].finalExam.map((question, idx) => (
                   <div key={question.id} className="border-b pb-6 last:border-b-0">
-                    <p className="font-medium text-gray-900 mb-4">
+                    <p className="font-medium text-white mb-4">
                       {idx + 1}. {question.question}
                     </p>
                     <div className="space-y-2">
                       {question.options.map((option, optIdx) => (
-                        <label key={optIdx} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <label key={optIdx} className="flex items-center gap-3 cursor-pointer hover:bg-[#0a0a0f] p-2 rounded">
                           <input
                             type="radio"
                             name={question.id}
@@ -1770,7 +1770,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
                             onChange={() => handleTestAnswer(question.id, optIdx)}
                             className="w-4 h-4"
                           />
-                          <span className="text-gray-700">{option}</span>
+                          <span className="text-gray-200">{option}</span>
                         </label>
                       ))}
                     </div>
@@ -1779,14 +1779,14 @@ The agent who responds first usually wins. AI makes sure that's you.`,
               </div>
 
               {showAlert && (
-                <div className="my-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                <div className="my-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <span className="text-green-800 font-medium">{alertMessage}</span>
+                    <span className="text-green-400 font-medium">{alertMessage}</span>
                   </div>
                   <button
                     onClick={() => setShowAlert(false)}
-                    className="text-green-600 hover:text-green-700 font-medium text-sm"
+                    className="text-green-600 hover:text-green-400 font-medium text-sm"
                   >
                     Dismiss
                   </button>
@@ -1926,7 +1926,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
             <div className="flex gap-4 justify-center mt-8 no-print">
               <button
                 onClick={() => window.print()}
-                className="bg-yellow-500 text-black px-8 py-3 rounded-lg hover:bg-yellow-400 transition font-bold text-sm"
+                className="bg-yellow-500/100 text-black px-8 py-3 rounded-lg hover:bg-yellow-400 transition font-bold text-sm"
               >
                 Print / Save PDF
               </button>

@@ -148,11 +148,11 @@ export default function BrokeragePage() {
   if (!user || (role !== 'broker' && role !== 'admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+        <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">Only brokers and admins can access this page.</p>
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
+          <p className="text-gray-400 mb-6">Only brokers and admins can access this page.</p>
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
             Return to Dashboard
           </Link>
         </div>
@@ -163,14 +163,14 @@ export default function BrokeragePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Brokerage Management</h1>
+            <h1 className="text-2xl font-bold text-white">Brokerage Management</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -188,19 +188,19 @@ export default function BrokeragePage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-gray-200">
+        <div className="flex gap-2 mb-8 border-b border-[#1a1a2e]">
           <button
             onClick={() => setViewMode('overview')}
             className={`px-4 py-3 font-medium border-b-2 transition ${
               viewMode === 'overview'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Overview
@@ -210,7 +210,7 @@ export default function BrokeragePage() {
             className={`px-4 py-3 font-medium border-b-2 transition ${
               viewMode === 'agents'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Agents
@@ -220,7 +220,7 @@ export default function BrokeragePage() {
             className={`px-4 py-3 font-medium border-b-2 transition ${
               viewMode === 'deals'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             All Deals
@@ -230,7 +230,7 @@ export default function BrokeragePage() {
             className={`px-4 py-3 font-medium border-b-2 transition ${
               viewMode === 'commissions'
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
             Commissions
@@ -242,41 +242,41 @@ export default function BrokeragePage() {
           <>
             {/* Brokerage Stats */}
             <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">Total Agents</p>
-                    <p className="text-3xl font-bold text-gray-900">{brokerageStats.totalAgents}</p>
+                    <p className="text-gray-400 text-sm font-medium mb-1">Total Agents</p>
+                    <p className="text-3xl font-bold text-white">{brokerageStats.totalAgents}</p>
                   </div>
                   <Users className="w-8 h-8 text-blue-500 opacity-20" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">All Deals</p>
-                    <p className="text-3xl font-bold text-gray-900">{brokerageStats.totalDeals}</p>
+                    <p className="text-gray-400 text-sm font-medium mb-1">All Deals</p>
+                    <p className="text-3xl font-bold text-white">{brokerageStats.totalDeals}</p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-green-500 opacity-20" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-orange-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">In Pipeline</p>
-                    <p className="text-3xl font-bold text-gray-900">{brokerageStats.dealsPipeline}</p>
+                    <p className="text-gray-400 text-sm font-medium mb-1">In Pipeline</p>
+                    <p className="text-3xl font-bold text-white">{brokerageStats.dealsPipeline}</p>
                   </div>
                   <BarChart3 className="w-8 h-8 text-orange-500 opacity-20" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-purple-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">Commissions</p>
-                    <p className="text-3xl font-bold text-gray-900">${(brokerageStats.totalEarned / 1000).toFixed(1)}K</p>
+                    <p className="text-gray-400 text-sm font-medium mb-1">Commissions</p>
+                    <p className="text-3xl font-bold text-white">${(brokerageStats.totalEarned / 1000).toFixed(1)}K</p>
                   </div>
                   <DollarSign className="w-8 h-8 text-purple-500 opacity-20" />
                 </div>
@@ -285,25 +285,25 @@ export default function BrokeragePage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="font-bold text-gray-900 mb-4">Deal Status Breakdown</h3>
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+                <h3 className="font-bold text-white mb-4">Deal Status Breakdown</h3>
                 <div className="space-y-3">
                   {PIPELINE_STAGES.map((stage) => (
                     <div key={stage.id} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{stage.label}</span>
-                      <span className="font-semibold text-gray-900">0</span>
+                      <span className="text-sm text-gray-400">{stage.label}</span>
+                      <span className="font-semibold text-white">0</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="font-bold text-gray-900 mb-4">Top Performers</h3>
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+                <h3 className="font-bold text-white mb-4">Top Performers</h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-gray-900">No agents data</p>
-                      <p className="text-sm text-gray-600">Agents will appear here once data loads</p>
+                      <p className="font-medium text-white">No agents data</p>
+                      <p className="text-sm text-gray-400">Agents will appear here once data loads</p>
                     </div>
                   </div>
                 </div>
@@ -314,25 +314,25 @@ export default function BrokeragePage() {
 
         {/* Agents Section */}
         {viewMode === 'agents' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-[#0a0a0f] rounded-lg shadow">
+            <div className="p-6 border-b border-[#1a1a2e]">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900">Team Agents</h2>
+                <h2 className="text-xl font-bold text-white">Team Agents</h2>
               </div>
             </div>
             <div className="p-6">
-              <p className="text-gray-600">No agents loaded yet. Vault API integration needed for /api/agents endpoint.</p>
+              <p className="text-gray-400">No agents loaded yet. Vault API integration needed for /api/agents endpoint.</p>
             </div>
           </div>
         )}
 
         {/* All Deals Section */}
         {viewMode === 'deals' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-[#0a0a0f] rounded-lg shadow">
+            <div className="p-6 border-b border-[#1a1a2e]">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">All Brokerage Deals</h2>
-                <p className="text-sm text-gray-600">{allDeals.length} total deals</p>
+                <h2 className="text-xl font-bold text-white">All Brokerage Deals</h2>
+                <p className="text-sm text-gray-400">{allDeals.length} total deals</p>
               </div>
 
               {/* Search and Filter Controls */}
@@ -344,14 +344,14 @@ export default function BrokeragePage() {
                     placeholder="Search by property address or client name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
 
                 <select
                   value={selectedAgent || ''}
                   onChange={(e) => setSelectedAgent(e.target.value || null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                  className="px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30 text-gray-200"
                 >
                   <option value="">All Agents</option>
                   {agents.map((agent) => (
@@ -364,7 +364,7 @@ export default function BrokeragePage() {
                 <select
                   value={selectedStage || ''}
                   onChange={(e) => setSelectedStage(e.target.value || null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                  className="px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30 text-gray-200"
                 >
                   <option value="">All Stages</option>
                   {PIPELINE_STAGES.map((stage) => (
@@ -377,9 +377,9 @@ export default function BrokeragePage() {
             </div>
 
             {dataLoading ? (
-              <div className="p-6 text-center text-gray-600">Loading deals...</div>
+              <div className="p-6 text-center text-gray-400">Loading deals...</div>
             ) : allDeals.length === 0 ? (
-              <div className="p-6 text-center text-gray-600">
+              <div className="p-6 text-center text-gray-400">
                 <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p>No deals in the brokerage yet</p>
               </div>
@@ -387,14 +387,14 @@ export default function BrokeragePage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-t border-gray-200 bg-gray-50">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Property Address</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Client Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Contract Price</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Stage</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent ID</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Closing Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Created</th>
+                    <tr className="border-t border-[#1a1a2e] bg-[#050507]">
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Property Address</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Client Name</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Contract Price</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Stage</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Agent ID</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Closing Date</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-white">Created</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -413,28 +413,28 @@ export default function BrokeragePage() {
                       .map((deal) => {
                         const stageConfig = PIPELINE_STAGES.find((s) => s.id === (deal.stage || deal.status))
                         const stageColors: Record<string, { bg: string; text: string }> = {
-                          new: { bg: 'bg-blue-100', text: 'text-blue-900' },
-                          contacted: { bg: 'bg-purple-100', text: 'text-purple-900' },
-                          showing: { bg: 'bg-orange-100', text: 'text-orange-900' },
-                          offer: { bg: 'bg-yellow-100', text: 'text-yellow-900' },
-                          contract: { bg: 'bg-green-100', text: 'text-green-900' },
+                          new: { bg: 'bg-blue-500/15', text: 'text-blue-900' },
+                          contacted: { bg: 'bg-purple-500/15', text: 'text-purple-900' },
+                          showing: { bg: 'bg-orange-500/15', text: 'text-orange-900' },
+                          offer: { bg: 'bg-yellow-500/15', text: 'text-yellow-900' },
+                          contract: { bg: 'bg-green-500/15', text: 'text-green-900' },
                           inspection: { bg: 'bg-teal-100', text: 'text-teal-900' },
                           clear: { bg: 'bg-cyan-100', text: 'text-cyan-900' },
-                          closed: { bg: 'bg-amber-100', text: 'text-amber-900' },
+                          closed: { bg: 'bg-amber-500/15', text: 'text-amber-900' },
                         }
-                        const colors = stageColors[deal.stage || deal.status] || { bg: 'bg-gray-100', text: 'text-gray-900' }
+                        const colors = stageColors[deal.stage || deal.status] || { bg: 'bg-[#0a0a0f]', text: 'text-white' }
 
                         return (
                           <tr
                             key={deal.id}
-                            className="border-t border-gray-200 hover:bg-gray-50 transition cursor-pointer"
+                            className="border-t border-[#1a1a2e] hover:bg-[#0a0a0f] transition cursor-pointer"
                             onClick={() => router.push(`/deals/${deal.id}`)}
                           >
-                            <td className="px-6 py-4 text-sm text-gray-900 font-medium truncate max-w-xs">
+                            <td className="px-6 py-4 text-sm text-white font-medium truncate max-w-xs">
                               {deal.property_address}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-700">{deal.client_name}</td>
-                            <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                            <td className="px-6 py-4 text-sm text-gray-200">{deal.client_name}</td>
+                            <td className="px-6 py-4 text-sm font-semibold text-white">
                               ${(deal.contract_price || 0).toLocaleString()}
                             </td>
                             <td className="px-6 py-4 text-sm">
@@ -442,11 +442,11 @@ export default function BrokeragePage() {
                                 {stageConfig?.label || (deal.stage || deal.status)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-700">{deal.agent_id.substring(0, 8)}...</td>
-                            <td className="px-6 py-4 text-sm text-gray-700">
+                            <td className="px-6 py-4 text-sm text-gray-200">{deal.agent_id.substring(0, 8)}...</td>
+                            <td className="px-6 py-4 text-sm text-gray-200">
                               {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : '—'}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-700">
+                            <td className="px-6 py-4 text-sm text-gray-200">
                               {new Date(deal.created_at).toLocaleDateString()}
                             </td>
                           </tr>
@@ -461,23 +461,23 @@ export default function BrokeragePage() {
 
         {/* Commissions Section */}
         {viewMode === 'commissions' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Commission Tracking</h2>
+          <div className="bg-[#0a0a0f] rounded-lg shadow">
+            <div className="p-6 border-b border-[#1a1a2e]">
+              <h2 className="text-xl font-bold text-white">Commission Tracking</h2>
             </div>
             <div className="p-6">
-              <p className="text-gray-600">Commission data will appear here once integrated with full Vault API.</p>
+              <p className="text-gray-400">Commission data will appear here once integrated with full Vault API.</p>
             </div>
           </div>
         )}
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 mb-1">Brokerage Management</p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-400">
                 View all agents' leads, deals, and commission performance. This dashboard requires Vault API endpoints for agents listing and multi-agent data aggregation.
               </p>
             </div>

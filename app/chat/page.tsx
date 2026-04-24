@@ -152,8 +152,8 @@ export default function ChatPage() {
 
   const getAvatarColor = (name: string) => {
     const colors = [
-      'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-amber-500',
-      'bg-rose-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-teal-500',
+      'bg-blue-500/100', 'bg-green-500/100', 'bg-purple-500/100', 'bg-amber-500/100',
+      'bg-rose-500', 'bg-cyan-500', 'bg-indigo-500/100', 'bg-teal-500',
     ]
     let hash = 0
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
@@ -162,7 +162,7 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     )
@@ -173,7 +173,7 @@ export default function ChatPage() {
   const activeChannelData = CHANNELS.find((c) => c.id === activeChannel)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-[#050507] flex">
       <SidebarNav
         onSignOut={handleSignOut}
         userName={user?.user_metadata?.full_name}
@@ -182,10 +182,10 @@ export default function ChatPage() {
 
       <div className="flex-1 flex h-screen">
         {/* Channel List */}
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Team Chat</h2>
-            <p className="text-xs text-gray-500 mt-1">HartFelt Real Estate</p>
+        <div className="w-64 bg-[#0a0a0f] border-r border-[#1a1a2e] flex flex-col">
+          <div className="p-4 border-b border-[#1a1a2e]">
+            <h2 className="text-lg font-bold text-white">Team Chat</h2>
+            <p className="text-xs text-gray-400 mt-1">HartFelt Real Estate</p>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2">
@@ -202,8 +202,8 @@ export default function ChatPage() {
                     onClick={() => setActiveChannel(ch.id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition mb-0.5 ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-blue-500/10 text-blue-400 font-medium'
+                        : 'text-gray-400 hover:bg-[#111]'
                     }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -218,15 +218,15 @@ export default function ChatPage() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           {/* Channel Header */}
-          <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6 flex-shrink-0">
+          <div className="h-16 bg-[#0a0a0f] border-b border-[#1a1a2e] flex items-center px-6 flex-shrink-0">
             <div>
               <div className="flex items-center gap-2">
                 <Hash className="w-5 h-5 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-white">
                   {activeChannelData?.label}
                 </h3>
               </div>
-              <p className="text-xs text-gray-500">{activeChannelData?.description}</p>
+              <p className="text-xs text-gray-400">{activeChannelData?.description}</p>
             </div>
           </div>
 
@@ -268,13 +268,13 @@ export default function ChatPage() {
                       <div className="flex-1 min-w-0">
                         {showAvatar && (
                           <div className="flex items-baseline gap-2 mb-0.5">
-                            <span className={`text-sm font-semibold ${isOwn ? 'text-blue-600' : 'text-gray-900'}`}>
+                            <span className={`text-sm font-semibold ${isOwn ? 'text-blue-600' : 'text-white'}`}>
                               {msg.sender_name}
                             </span>
                             <span className="text-xs text-gray-400">{formatTime(msg.created_at)}</span>
                           </div>
                         )}
-                        <p className="text-sm text-gray-800 break-words leading-relaxed">
+                        <p className="text-sm text-white break-words leading-relaxed">
                           {msg.message}
                         </p>
                       </div>
@@ -287,7 +287,7 @@ export default function ChatPage() {
           </div>
 
           {/* Input */}
-          <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+          <div className="p-4 bg-[#0a0a0f] border-t border-[#1a1a2e] flex-shrink-0">
             <form onSubmit={handleSendMessage} className="flex items-center gap-3">
               <input
                 ref={inputRef}
@@ -295,7 +295,7 @@ export default function ChatPage() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={`Message #${activeChannelData?.label || 'general'}...`}
-                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder-gray-400"
+                className="flex-1 px-4 py-2.5 bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent text-sm text-white placeholder-gray-400"
                 disabled={sending}
               />
               <button

@@ -39,8 +39,8 @@ interface Intake {
 const STATUS_COLORS: Record<string, string> = {
   new: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   contacted: 'bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/30',
-  converted: 'bg-green-500/20 text-green-400 border-green-500/30',
-  archived: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  converted: 'bg-green-500/100/20 text-green-400 border-green-500/30',
+  archived: 'bg-[#050507]0/20 text-gray-400 border-[#1a1a2e]0/30',
 }
 
 const TYPE_ICONS: Record<string, typeof Home> = {
@@ -187,7 +187,7 @@ export default function IntakesPage() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition capitalize ${
               filter === f
                 ? 'bg-[#C9A84C]/20 text-[#C9A84C] border border-[#C9A84C]/40'
-                : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
+                : 'bg-[#0a0a0f]/5 text-gray-400 border border-white/10 hover:bg-[#0a0a0f]/10'
             }`}
           >
             {f === 'all' ? `All (${intakes.length})` : `${f} (${intakes.filter(i => i.status === f).length})`}
@@ -202,7 +202,7 @@ export default function IntakesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <UserPlus className="w-16 h-16 text-gray-600 mb-4" />
+          <UserPlus className="w-16 h-16 text-gray-400 mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No client inquiries yet</h3>
           <p className="text-gray-400 max-w-md">
             Share your business card to start receiving leads!
@@ -218,7 +218,7 @@ export default function IntakesPage() {
         /* Table */
         <div className="border border-white/10 rounded-xl overflow-hidden">
           {/* Table Header */}
-          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-white/5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-[#0a0a0f]/5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             <div className="col-span-3">Client</div>
             <div className="col-span-1">Type</div>
             <div className="col-span-2">Budget</div>
@@ -237,7 +237,7 @@ export default function IntakesPage() {
               <div key={intake.id} className="border-t border-white/10">
                 {/* Main Row */}
                 <div
-                  className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-6 py-4 hover:bg-white/5 cursor-pointer transition"
+                  className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-6 py-4 hover:bg-[#0a0a0f]/5 cursor-pointer transition"
                   onClick={() => setExpandedId(expanded ? null : intake.id)}
                 >
                   {/* Client */}
@@ -255,16 +255,16 @@ export default function IntakesPage() {
                   {/* Type */}
                   <div className="hidden md:flex col-span-1 items-center gap-1">
                     <TypeIcon className="w-4 h-4 text-[#C9A84C]" />
-                    <span className="text-sm text-gray-300">{TYPE_LABELS[intake.transaction_type]}</span>
+                    <span className="text-sm text-gray-400">{TYPE_LABELS[intake.transaction_type]}</span>
                   </div>
 
                   {/* Budget */}
-                  <div className="hidden md:flex col-span-2 items-center text-sm text-gray-300">
+                  <div className="hidden md:flex col-span-2 items-center text-sm text-gray-400">
                     {formatBudget(intake.budget_min, intake.budget_max)}
                   </div>
 
                   {/* Timeline */}
-                  <div className="hidden md:flex col-span-2 items-center text-sm text-gray-300">
+                  <div className="hidden md:flex col-span-2 items-center text-sm text-gray-400">
                     {intake.timeline || '-'}
                   </div>
 
@@ -296,7 +296,7 @@ export default function IntakesPage() {
                       <button
                         onClick={() => updateStatus(intake.id, 'converted')}
                         disabled={updating === intake.id}
-                        className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 transition"
+                        className="p-2 rounded-lg bg-green-500/100/10 hover:bg-green-500/100/20 text-green-400 transition"
                         title="Convert to Lead"
                       >
                         <UserPlus className="w-4 h-4" />
@@ -306,23 +306,23 @@ export default function IntakesPage() {
                       <button
                         onClick={() => updateStatus(intake.id, 'archived')}
                         disabled={updating === intake.id}
-                        className="p-2 rounded-lg bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 transition"
+                        className="p-2 rounded-lg bg-[#050507]0/10 hover:bg-[#0a0a0f]0/20 text-gray-400 transition"
                         title="Archive"
                       >
                         <Archive className="w-4 h-4" />
                       </button>
                     )}
                     {expanded ? (
-                      <ChevronUp className="w-4 h-4 text-gray-500 ml-auto" />
+                      <ChevronUp className="w-4 h-4 text-gray-400 ml-auto" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-500 ml-auto" />
+                      <ChevronDown className="w-4 h-4 text-gray-400 ml-auto" />
                     )}
                   </div>
                 </div>
 
                 {/* Expanded Details */}
                 {expanded && (
-                  <div className="px-6 pb-6 pt-2 bg-white/[0.02] border-t border-white/5">
+                  <div className="px-6 pb-6 pt-2 bg-[#0a0a0f]/[0.02] border-t border-white/5">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Contact */}
                       <div className="space-y-2">
@@ -349,22 +349,22 @@ export default function IntakesPage() {
                       <div className="space-y-2">
                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Property</h4>
                         {intake.location_preferences && (
-                          <p className="text-sm text-gray-300">Location: {intake.location_preferences}</p>
+                          <p className="text-sm text-gray-400">Location: {intake.location_preferences}</p>
                         )}
                         {intake.property_type && (
-                          <p className="text-sm text-gray-300">Type: {intake.property_type}</p>
+                          <p className="text-sm text-gray-400">Type: {intake.property_type}</p>
                         )}
                         {(intake.bedrooms_min || intake.bathrooms_min) && (
-                          <p className="text-sm text-gray-300">
+                          <p className="text-sm text-gray-400">
                             {intake.bedrooms_min ? `${intake.bedrooms_min}+ bd` : ''}{' '}
                             {intake.bathrooms_min ? `${intake.bathrooms_min}+ ba` : ''}
                           </p>
                         )}
                         {intake.current_address && (
-                          <p className="text-sm text-gray-300">Current: {intake.current_address}</p>
+                          <p className="text-sm text-gray-400">Current: {intake.current_address}</p>
                         )}
                         {intake.estimated_value && (
-                          <p className="text-sm text-gray-300">Est. Value: ${Number(intake.estimated_value).toLocaleString()}</p>
+                          <p className="text-sm text-gray-400">Est. Value: ${Number(intake.estimated_value).toLocaleString()}</p>
                         )}
                       </div>
 
@@ -372,18 +372,18 @@ export default function IntakesPage() {
                       <div className="space-y-2">
                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Details</h4>
                         {intake.pre_approval_status && (
-                          <p className="text-sm text-gray-300">Pre-Approval: {intake.pre_approval_status}</p>
+                          <p className="text-sm text-gray-400">Pre-Approval: {intake.pre_approval_status}</p>
                         )}
                         {intake.lender_name && (
-                          <p className="text-sm text-gray-300">
+                          <p className="text-sm text-gray-400">
                             Lender: {intake.lender_name}{intake.lender_contact ? ` (${intake.lender_contact})` : ''}
                           </p>
                         )}
                         {intake.referral_source && (
-                          <p className="text-sm text-gray-300">Referral: {intake.referral_source}</p>
+                          <p className="text-sm text-gray-400">Referral: {intake.referral_source}</p>
                         )}
                         {intake.notes && (
-                          <p className="text-sm text-gray-300 italic">Notes: {intake.notes}</p>
+                          <p className="text-sm text-gray-400 italic">Notes: {intake.notes}</p>
                         )}
                       </div>
                     </div>
@@ -400,7 +400,7 @@ export default function IntakesPage() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div className="bg-[#0a0a0f]/5 border border-white/10 rounded-xl p-4">
       <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
     </div>

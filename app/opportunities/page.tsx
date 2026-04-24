@@ -51,35 +51,35 @@ export default function OpportunitiesPage() {
       case 'Partnership Opportunity':
         return 'text-purple-600'
       default:
-        return 'text-gray-600'
+        return 'text-gray-400'
     }
   }
 
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'Exclusive Deal':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-500/15 text-red-800'
       case 'Development Opportunity':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-500/15 text-blue-400'
       case 'Investment Property':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-500/15 text-green-400'
       case 'Partnership Opportunity':
-        return 'bg-purple-100 text-purple-800'
+        return 'bg-purple-500/15 text-purple-800'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-[#0a0a0f] text-white'
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Private Opportunities</h1>
+            <h1 className="text-2xl font-bold text-white">Private Opportunities</h1>
           </div>
           <button
             onClick={handleSignOut}
@@ -95,10 +95,10 @@ export default function OpportunitiesPage() {
         {!isUnlocked ? (
           // Locked State — agents without broker/admin role
           <div className="flex items-center justify-center py-24">
-            <div className="bg-white rounded-lg shadow p-12 max-w-md w-full text-center">
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-12 max-w-md w-full text-center">
               <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Private Opportunities</h2>
-              <p className="text-gray-600 mb-8">
+              <h2 className="text-2xl font-bold text-white mb-3">Private Opportunities</h2>
+              <p className="text-gray-400 mb-8">
                 This section contains exclusive off-market deals and development opportunities within the HartFelt network. Only brokers and admins can access this page.
               </p>
               <Link
@@ -113,7 +113,7 @@ export default function OpportunitiesPage() {
           // Unlocked State
           <div>
             <div className="mb-8">
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-400 text-lg">
                 Access exclusive off-market deals and development opportunities shared within the HartFelt network. These opportunities are curated for qualified investors and agents looking to expand their portfolios.
               </p>
             </div>
@@ -124,18 +124,18 @@ export default function OpportunitiesPage() {
                 {opportunities.map((opp) => (
                   <div
                     key={opp.id}
-                    className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden border-l-4 border-blue-500"
+                    className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition overflow-hidden border-l-4 border-blue-500"
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-xl font-bold text-gray-900">{opp.title}</h3>
+                            <h3 className="text-xl font-bold text-white">{opp.title}</h3>
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(opp.type)}`}>
                               {opp.type}
                             </span>
                           </div>
-                          <p className="text-gray-600 mb-3">{opp.description}</p>
+                          <p className="text-gray-400 mb-3">{opp.description}</p>
                         </div>
                         <Users className={`w-10 h-10 flex-shrink-0 ${getOpportunityIcon(opp.type)}`} />
                       </div>
@@ -143,20 +143,20 @@ export default function OpportunitiesPage() {
                       <div className="grid grid-cols-3 gap-4 mb-4">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">{opp.location}</span>
+                          <span className="text-sm text-gray-400">{opp.location}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900">{opp.investmentRange}</span>
+                          <span className="text-sm font-medium text-white">{opp.investmentRange}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">{opp.daysPosted} days ago</span>
+                          <span className="text-sm text-gray-400">{opp.daysPosted} days ago</span>
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
-                        <span className="text-sm text-gray-500">Posted by {opp.postedBy}</span>
+                      <div className="border-t border-[#1a1a2e] pt-4 flex items-center justify-between">
+                        <span className="text-sm text-gray-400">Posted by {opp.postedBy}</span>
                         <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                           View Details
                         </button>
@@ -166,10 +166,10 @@ export default function OpportunitiesPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
                 <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium mb-2">No opportunities posted yet.</p>
-                <p className="text-gray-500 text-sm">Check back soon or contact your broker.</p>
+                <p className="text-gray-400 font-medium mb-2">No opportunities posted yet.</p>
+                <p className="text-gray-400 text-sm">Check back soon or contact your broker.</p>
               </div>
             )}
 

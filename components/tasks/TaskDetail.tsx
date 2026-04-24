@@ -172,11 +172,11 @@ export default function TaskDetail({
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+          className="text-blue-600 hover:text-blue-400 flex items-center gap-2"
         >
           ← Back
         </button>
-        <h2 className="text-2xl font-bold text-gray-900">{task.title}</h2>
+        <h2 className="text-2xl font-bold text-white">{task.title}</h2>
         <div />
       </div>
 
@@ -184,17 +184,17 @@ export default function TaskDetail({
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Status & Priority */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-200 mb-2">
                   Status
                 </label>
                 <select
                   value={task.status}
                   onChange={(e) => handleUpdateStatus(e.target.value)}
                   disabled={updating}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30 disabled:bg-[#0a0a0f]"
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
@@ -203,13 +203,13 @@ export default function TaskDetail({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-200 mb-2">
                   Priority
                 </label>
                 <select
                   disabled
                   value={task.priority}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg bg-[#0a0a0f] text-gray-400"
                 >
                   <option value={task.priority}>{task.priority}</option>
                 </select>
@@ -218,19 +218,19 @@ export default function TaskDetail({
           </div>
 
           {/* Checklist */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold">Checklist</h3>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-400">
                 {checklistProgress.completed}/{checklistProgress.total}
               </span>
             </div>
 
             {checklistProgress.total > 0 && (
               <div className="mb-4">
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-[#1a1a2e] rounded-full h-2">
                   <div
-                    className="bg-green-500 h-2 rounded-full transition-all"
+                    className="bg-green-500/100 h-2 rounded-full transition-all"
                     style={{
                       width: `${
                         checklistProgress.total > 0
@@ -247,7 +247,7 @@ export default function TaskDetail({
               {task.task_checklist_items.map((item) => (
                 <label
                   key={item.id}
-                  className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  className="flex items-center p-2 hover:bg-[#0a0a0f] rounded cursor-pointer"
                 >
                   <input
                     type="checkbox"
@@ -259,8 +259,8 @@ export default function TaskDetail({
                   <span
                     className={`ml-3 ${
                       item.is_completed
-                        ? 'line-through text-gray-500'
-                        : 'text-gray-900'
+                        ? 'line-through text-gray-400'
+                        : 'text-white'
                     }`}
                   >
                     {item.title}
@@ -279,12 +279,12 @@ export default function TaskDetail({
                   if (e.key === 'Enter') handleAddChecklistItem();
                 }}
                 placeholder="Add new checklist item..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               />
               <button
                 onClick={handleAddChecklistItem}
                 disabled={updating || !newChecklistItem.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm disabled:opacity-50"
+                className="px-4 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 text-sm disabled:opacity-50"
               >
                 Add
               </button>
@@ -292,22 +292,22 @@ export default function TaskDetail({
           </div>
 
           {/* Comments */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
             <h3 className="text-lg font-bold mb-4">Comments</h3>
 
             <div className="space-y-3 mb-4">
               {task.task_comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="border-l-2 border-gray-200 pl-4 py-2"
+                  className="border-l-2 border-[#1a1a2e] pl-4 py-2"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-gray-900">User</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="font-medium text-white">User</span>
+                    <span className="text-xs text-gray-400">
                       {new Date(comment.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-gray-700">{comment.content}</p>
+                  <p className="text-gray-200">{comment.content}</p>
                 </div>
               ))}
             </div>
@@ -319,12 +319,12 @@ export default function TaskDetail({
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment..."
                 rows={2}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               />
               <button
                 onClick={handleAddComment}
                 disabled={updating || !newComment.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm disabled:opacity-50 self-end"
+                className="px-4 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 text-sm disabled:opacity-50 self-end"
               >
                 Send
               </button>
@@ -335,13 +335,13 @@ export default function TaskDetail({
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Details */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
             <h3 className="text-lg font-bold mb-4">Details</h3>
 
             <div className="space-y-4 text-sm">
               <div>
-                <label className="block text-gray-600 font-medium">Due Date</label>
-                <p className="text-gray-900">
+                <label className="block text-gray-400 font-medium">Due Date</label>
+                <p className="text-white">
                   {new Date(task.due_date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -352,8 +352,8 @@ export default function TaskDetail({
               </div>
 
               <div>
-                <label className="block text-gray-600 font-medium">Created</label>
-                <p className="text-gray-900">
+                <label className="block text-gray-400 font-medium">Created</label>
+                <p className="text-white">
                   {new Date(task.created_at).toLocaleDateString()}
                 </p>
               </div>
@@ -361,15 +361,15 @@ export default function TaskDetail({
           </div>
 
           {/* Activity Log */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
             <h3 className="text-lg font-bold mb-4">Activity</h3>
 
             <div className="space-y-2 text-sm">
               {task.task_activity_log.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="text-gray-600 pb-2 border-b border-gray-100">
-                  <p className="font-medium text-gray-900">{activity.action}</p>
+                <div key={activity.id} className="text-gray-400 pb-2 border-b border-[#1a1a2e]">
+                  <p className="font-medium text-white">{activity.action}</p>
                   {activity.notes && (
-                    <p className="text-xs text-gray-500">{activity.notes}</p>
+                    <p className="text-xs text-gray-400">{activity.notes}</p>
                   )}
                   <p className="text-xs text-gray-400">
                     {new Date(activity.created_at).toLocaleDateString()}

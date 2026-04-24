@@ -162,71 +162,71 @@ export default function TCDashboard({ userId, userRole }: { userId: string; user
   return (
     <div className="space-y-8">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Welcome Card */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-8 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg shadow-black/20 p-8 text-white">
         <h2 className="text-3xl font-bold mb-2">Welcome, Transaction Coordinator</h2>
         <p className="text-blue-100">Here's your workload summary and what needs your attention</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Assigned Agents</p>
+            <p className="text-gray-400 text-sm font-medium">Assigned Agents</p>
             <Users className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats.assigned_agents}</p>
-          <p className="text-xs text-gray-500 mt-2">Agents you're coordinating for</p>
+          <p className="text-3xl font-bold text-white">{stats.assigned_agents}</p>
+          <p className="text-xs text-gray-400 mt-2">Agents you're coordinating for</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Active Transactions</p>
+            <p className="text-gray-400 text-sm font-medium">Active Transactions</p>
             <CheckCircle className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats.active_transactions}</p>
-          <p className="text-xs text-gray-500 mt-2">Currently in progress</p>
+          <p className="text-3xl font-bold text-white">{stats.active_transactions}</p>
+          <p className="text-xs text-gray-400 mt-2">Currently in progress</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Pending Documents</p>
+            <p className="text-gray-400 text-sm font-medium">Pending Documents</p>
             <FileText className="w-5 h-5 text-yellow-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats.pending_docs}</p>
-          <p className="text-xs text-gray-500 mt-2">Awaiting verification</p>
+          <p className="text-3xl font-bold text-white">{stats.pending_docs}</p>
+          <p className="text-xs text-gray-400 mt-2">Awaiting verification</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-red-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Overdue Milestones</p>
+            <p className="text-gray-400 text-sm font-medium">Overdue Milestones</p>
             <AlertCircle className="w-5 h-5 text-red-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats.overdue_milestones}</p>
-          <p className="text-xs text-gray-500 mt-2">Need immediate attention</p>
+          <p className="text-3xl font-bold text-white">{stats.overdue_milestones}</p>
+          <p className="text-xs text-gray-400 mt-2">Need immediate attention</p>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
+          <h2 className="text-xl font-bold text-white">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-3 gap-4 p-6">
-          <button className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-center transition">
+          <button className="bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-lg p-4 text-center transition">
             <p className="font-semibold text-blue-900">Create Transaction</p>
-            <p className="text-sm text-blue-700 mt-1">Start a new deal for an agent</p>
+            <p className="text-sm text-blue-400 mt-1">Start a new deal for an agent</p>
           </button>
-          <button className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-center transition">
+          <button className="bg-green-500/10 hover:bg-green-500/15 border border-green-500/20 rounded-lg p-4 text-center transition">
             <p className="font-semibold text-green-900">Upload Document</p>
-            <p className="text-sm text-green-700 mt-1">Add transaction documents</p>
+            <p className="text-sm text-green-400 mt-1">Add transaction documents</p>
           </button>
-          <button className="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-4 text-center transition">
+          <button className="bg-purple-500/10 hover:bg-purple-500/15 border border-purple-200 rounded-lg p-4 text-center transition">
             <p className="font-semibold text-purple-900">Create Milestone</p>
             <p className="text-sm text-purple-700 mt-1">Track important dates</p>
           </button>
@@ -235,41 +235,41 @@ export default function TCDashboard({ userId, userRole }: { userId: string; user
 
       {/* Assigned Deals */}
       {assignedDeals.length > 0 && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <div className="bg-[#0a0a0f] rounded-lg shadow">
+          <div className="p-6 border-b border-[#1a1a2e]">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <Home className="w-5 h-5 text-indigo-600" />
               Assigned Deals
             </h2>
-            <p className="text-sm text-gray-600 mt-1">Active deals assigned to you</p>
+            <p className="text-sm text-gray-400 mt-1">Active deals assigned to you</p>
           </div>
           <div className="divide-y">
             {assignedDeals.map((deal) => (
-              <div key={deal.id} className="p-6 hover:bg-gray-50 transition">
+              <div key={deal.id} className="p-6 hover:bg-[#0a0a0f] transition">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{deal.client_name}</h3>
-                    <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
+                    <h3 className="font-semibold text-white">{deal.client_name}</h3>
+                    <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
                       <Home className="w-4 h-4" />
                       {deal.property_address}
                     </p>
                     <div className="mt-3 flex items-center gap-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        deal.stage === 'closed' ? 'bg-green-100 text-green-800' :
-                        deal.stage === 'contract' ? 'bg-blue-100 text-blue-800' :
+                        deal.stage === 'closed' ? 'bg-green-500/15 text-green-400' :
+                        deal.stage === 'contract' ? 'bg-blue-500/15 text-blue-400' :
                         deal.stage === 'clear' ? 'bg-cyan-100 text-cyan-800' :
-                        'bg-gray-100 text-gray-800'
+                        'bg-[#0a0a0f] text-white'
                       }`}>
                         {deal.stage?.charAt(0).toUpperCase() + (deal.stage?.slice(1) || '')}
                       </span>
                     </div>
                   </div>
                   <div className="text-right ml-4">
-                    <div className="flex items-center gap-1 justify-end text-lg font-bold text-gray-900">
+                    <div className="flex items-center gap-1 justify-end text-lg font-bold text-white">
                       <DollarSign className="w-5 h-5 text-green-600" />
                       {(deal.contract_price / 1000000).toFixed(2)}M
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Contract Price</p>
+                    <p className="text-xs text-gray-400 mt-1">Contract Price</p>
                   </div>
                 </div>
               </div>
@@ -279,14 +279,14 @@ export default function TCDashboard({ userId, userRole }: { userId: string; user
       )}
 
       {/* Getting Started */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
         <h3 className="font-semibold text-blue-900 mb-3">Getting Started</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+        <ul className="space-y-2 text-sm text-blue-400">
           <li>✓ You have {stats.assigned_agents} agents assigned to you</li>
           <li>✓ {stats.active_transactions} transactions are currently active</li>
           <li>✓ {stats.pending_docs} documents are awaiting verification</li>
           {stats.overdue_milestones > 0 && (
-            <li className="text-red-700">⚠ {stats.overdue_milestones} milestones are overdue - please review!</li>
+            <li className="text-red-400">⚠ {stats.overdue_milestones} milestones are overdue - please review!</li>
           )}
         </ul>
       </div>

@@ -6,7 +6,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 // ─── Inline UI primitives (no external deps) ──────────────────────────────────
 const Card = ({ children, className = '', ...props }: any) => (
-  <div className={`rounded-lg border border-gray-200 bg-white shadow-sm ${className}`} {...props}>{children}</div>
+  <div className={`rounded-lg border border-[#1a1a2e] bg-[#0a0a0f] shadow-sm shadow-black/10 ${className}`} {...props}>{children}</div>
 )
 const CardHeader = ({ children, className = '', ...props }: any) => (
   <div className={`p-6 pb-2 ${className}`} {...props}>{children}</div>
@@ -18,14 +18,14 @@ const CardContent = ({ children, className = '', ...props }: any) => (
   <div className={`p-6 pt-2 ${className}`} {...props}>{children}</div>
 )
 const CardDescription = ({ children, className = '', ...props }: any) => (
-  <p className={`text-sm text-gray-500 ${className}`} {...props}>{children}</p>
+  <p className={`text-sm text-gray-400 ${className}`} {...props}>{children}</p>
 )
 const Button = ({ children, className = '', variant = 'default', size = 'default', disabled, ...props }: any) => {
   const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:pointer-events-none'
   const variants: Record<string, string> = {
     default: 'bg-amber-600 text-white hover:bg-amber-700',
-    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
-    ghost: 'hover:bg-gray-100 text-gray-700',
+    outline: 'border border-[#1a1a2e] bg-[#0a0a0f] hover:bg-[#0a0a0f] text-gray-200',
+    ghost: 'hover:bg-[#111] text-gray-200',
     destructive: 'bg-red-600 text-white hover:bg-red-700',
   }
   const sizes: Record<string, string> = {
@@ -38,12 +38,12 @@ const Button = ({ children, className = '', variant = 'default', size = 'default
 }
 const Badge = ({ children, className = '', variant = 'default', ...props }: any) => {
   const variants: Record<string, string> = {
-    default: 'bg-gray-100 text-gray-800',
-    green: 'bg-green-100 text-green-800',
-    yellow: 'bg-yellow-100 text-yellow-800',
-    blue: 'bg-blue-100 text-blue-800',
-    red: 'bg-red-100 text-red-800',
-    purple: 'bg-purple-100 text-purple-800',
+    default: 'bg-[#0a0a0f] text-white',
+    green: 'bg-green-500/15 text-green-400',
+    yellow: 'bg-yellow-500/15 text-yellow-400',
+    blue: 'bg-blue-500/15 text-blue-400',
+    red: 'bg-red-500/15 text-red-800',
+    purple: 'bg-purple-500/15 text-purple-800',
   }
   return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variants[variant] || variants.default} ${className}`} {...props}>{children}</span>
 }
@@ -132,10 +132,10 @@ const STATUS_BADGE: Record<OfferStatus, { label: string; variant: string }> = {
 }
 
 const READINESS_COLOR: Record<string, { bg: string; text: string; label: string }> = {
-  strong: { bg: 'bg-green-100', text: 'text-green-700', label: 'Strong' },
-  ready: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Ready' },
-  weak: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Weak' },
-  not_ready: { bg: 'bg-red-100', text: 'text-red-700', label: 'Not Ready' },
+  strong: { bg: 'bg-green-500/15', text: 'text-green-400', label: 'Strong' },
+  ready: { bg: 'bg-blue-500/15', text: 'text-blue-400', label: 'Ready' },
+  weak: { bg: 'bg-yellow-500/15', text: 'text-yellow-400', label: 'Weak' },
+  not_ready: { bg: 'bg-red-500/15', text: 'text-red-400', label: 'Not Ready' },
 }
 
 function readinessLevel(score: number) {
@@ -172,7 +172,7 @@ export default function CloseIQPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-[#1E2761] text-white shadow-lg">
+      <header className="bg-[#1E2761] text-white shadow-lg shadow-black/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="text-[#D4AF37] hover:text-[#e6c44a] font-medium text-sm">
@@ -182,17 +182,17 @@ export default function CloseIQPage() {
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 <Sparkles className="w-6 h-6 text-[#D4AF37]" /> CloseIQ
               </h1>
-              <p className="text-xs text-gray-300 mt-0.5">Offer Intelligence &amp; Buyer Readiness</p>
+              <p className="text-xs text-gray-400 mt-0.5">Offer Intelligence &amp; Buyer Readiness</p>
             </div>
           </div>
-          <button onClick={() => { signOut(); router.push('/login') }} className="text-sm text-gray-300 hover:text-white transition">
+          <button onClick={() => { signOut(); router.push('/login') }} className="text-sm text-gray-400 hover:text-white transition">
             Sign Out
           </button>
         </div>
       </header>
 
       {/* Tab Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav className="flex gap-1 py-2">
             {tabs.map(t => {
@@ -202,8 +202,8 @@ export default function CloseIQPage() {
                 <button key={t.key} onClick={() => setTab(t.key)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     active
-                      ? 'bg-[#1E2761] text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-[#1E2761] text-white shadow-sm shadow-black/10'
+                      : 'text-gray-400 hover:bg-[#111]'
                   }`}
                 >
                   <Icon className="w-4 h-4" /> {t.label}
@@ -370,10 +370,10 @@ function DashboardTab({ userId }: { userId: string }) {
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">{s.label}</p>
+                    <p className="text-sm text-gray-400">{s.label}</p>
                     <p className="text-2xl font-bold mt-1">{s.value}</p>
                   </div>
-                  <div className={`p-2 rounded-lg bg-gray-50 ${s.color}`}><Icon className="w-5 h-5" /></div>
+                  <div className={`p-2 rounded-lg bg-[#050507] ${s.color}`}><Icon className="w-5 h-5" /></div>
                 </div>
               </CardContent>
             </Card>
@@ -390,7 +390,7 @@ function DashboardTab({ userId }: { userId: string }) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search by address, buyer, or city..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                className="w-full pl-9 pr-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
               />
             </div>
             {/* Sort */}
@@ -399,7 +399,7 @@ function DashboardTab({ userId }: { userId: string }) {
               {(['date', 'price', 'readiness'] as SortField[]).map(f => (
                 <button key={f} onClick={() => toggleSort(f)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition capitalize ${
-                    sortField === f ? 'bg-[#1E2761] text-white border-[#1E2761]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                    sortField === f ? 'bg-[#1E2761] text-white border-[#1E2761]' : 'bg-[#0a0a0f] text-gray-400 border-[#1a1a2e] hover:border-gray-400'
                   }`}
                 >
                   {f} {sortField === f && (sortDir === 'desc' ? '↓' : '↑')}
@@ -414,7 +414,7 @@ function DashboardTab({ userId }: { userId: string }) {
                 className={`px-3 py-1 rounded-full text-xs font-medium transition ${
                   statusFilter === s.key
                     ? 'bg-[#D4AF37] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-[#0a0a0f] text-gray-400 hover:bg-[#1a1a2e]'
                 }`}
               >
                 {s.label}
@@ -453,15 +453,15 @@ function DashboardTab({ userId }: { userId: string }) {
                 const isComparing = compareIds.includes(o.id)
 
                 return (
-                  <div key={o.id} className={`border rounded-xl overflow-hidden transition ${isExpanded ? 'border-[#D4AF37]/40 shadow-sm' : 'border-gray-200'}`}>
+                  <div key={o.id} className={`border rounded-xl overflow-hidden transition ${isExpanded ? 'border-[#D4AF37]/40 shadow-sm shadow-black/10' : 'border-[#1a1a2e]'}`}>
                     {/* Offer row */}
-                    <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition" onClick={() => setExpanded(isExpanded ? null : o.id)}>
+                    <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#0a0a0f]/50 transition" onClick={() => setExpanded(isExpanded ? null : o.id)}>
                       {/* Compare checkbox */}
                       <input type="checkbox" checked={isComparing} onClick={e => e.stopPropagation()} onChange={() => toggleCompare(o.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]/50 flex-shrink-0" />
+                        className="w-4 h-4 rounded border-[#1a1a2e] text-[#D4AF37] focus:ring-[#D4AF37]/50 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{o.property_address}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-400">
                           {o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim() : 'Unknown Buyer'}
                           {' '}&middot;{' '}{o.property_city || o.city}, {o.property_state || o.state}
                           {' '}&middot;{' '}{new Date(o.created_at).toLocaleDateString()}
@@ -475,14 +475,14 @@ function DashboardTab({ userId }: { userId: string }) {
                         )}
                         <ReadinessBadge score={o.readiness_score} />
                         <Badge variant={badge.variant as any}>{badge.label}</Badge>
-                        <span className="text-sm font-semibold text-gray-700 w-24 text-right">{fmt(o.offer_price)}</span>
+                        <span className="text-sm font-semibold text-gray-200 w-24 text-right">{fmt(o.offer_price)}</span>
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                       </div>
                     </div>
 
                     {/* Expanded panel */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100 bg-gray-50/30">
+                      <div className="border-t border-[#1a1a2e] bg-[#050507]/30">
                         {/* Sub-tabs */}
                         <div className="flex gap-1 px-4 pt-3 pb-1">
                           {[
@@ -495,7 +495,7 @@ function DashboardTab({ userId }: { userId: string }) {
                             return (
                               <button key={t.key} onClick={() => setOfferTab(prev => ({ ...prev, [o.id]: t.key }))}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                                  activeTab === t.key ? 'bg-[#1E2761] text-white' : 'text-gray-500 hover:bg-gray-100'
+                                  activeTab === t.key ? 'bg-[#1E2761] text-white' : 'text-gray-400 hover:bg-[#111]'
                                 }`}
                               >
                                 <TIcon className="w-3 h-3" /> {t.label}
@@ -553,47 +553,47 @@ function OfferDetailsPanel({ offer: o }: { offer: Offer }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Offer Price</p>
           <p className="font-bold text-[#1E2761]">{fmt(o.offer_price)}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Down Payment</p>
           <p className="font-medium">{o.down_payment_pct}%</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Earnest Money</p>
           <p className="font-medium">{fmt(o.earnest_money)}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Close Date</p>
           <p className="font-medium">{o.close_date ? new Date(o.close_date).toLocaleDateString() : '--'}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Inspection Days</p>
           <p className="font-medium">{o.inspection_days}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Concessions</p>
           <p className="font-medium">{fmt(o.concessions)}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Escalation Cap</p>
           <p className="font-medium">{o.escalation_cap ? fmt(o.escalation_cap) : 'None'}</p>
         </div>
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
           <p className="text-gray-400 text-xs">Readiness</p>
           <ReadinessBadge score={o.readiness_score} />
         </div>
       </div>
       {riskFlags.length > 0 && (
-        <div className="bg-white rounded-lg p-3 border border-gray-100">
-          <p className="text-xs font-medium text-gray-500 mb-2">Risk Flags</p>
+        <div className="bg-[#0a0a0f] rounded-lg p-3 border border-[#1a1a2e]">
+          <p className="text-xs font-medium text-gray-400 mb-2">Risk Flags</p>
           <div className="space-y-1.5">
             {riskFlags.map((f, i) => (
               <div key={i} className="flex items-start gap-2 text-sm">
                 <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${f.severity === 'high' ? 'text-red-500' : f.severity === 'moderate' ? 'text-yellow-500' : 'text-gray-400'}`} />
-                <span className="text-gray-700">{f.label}</span>
+                <span className="text-gray-200">{f.label}</span>
               </div>
             ))}
           </div>
@@ -606,10 +606,10 @@ function OfferDetailsPanel({ offer: o }: { offer: Offer }) {
 // ─── Contingency Panel ────────────────────────────────────────────────────────
 function ContingencyPanel({ items, onUpdateStatus }: { items: ContingencyItem[]; onUpdateStatus: (type: string, status: ContingencyStatus) => void }) {
   const statusColors: Record<ContingencyStatus, string> = {
-    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    met: 'bg-green-100 text-green-700 border-green-200',
-    waived: 'bg-blue-100 text-blue-700 border-blue-200',
-    failed: 'bg-red-100 text-red-700 border-red-200',
+    pending: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
+    met: 'bg-green-500/15 text-green-400 border-green-500/20',
+    waived: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
+    failed: 'bg-red-500/15 text-red-400 border-red-500/20',
   }
 
   if (items.length === 0) {
@@ -619,16 +619,16 @@ function ContingencyPanel({ items, onUpdateStatus }: { items: ContingencyItem[];
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-gray-500">
+        <p className="text-xs font-medium text-gray-400">
           {items.filter(c => c.status === 'met' || c.status === 'waived').length} of {items.length} cleared
         </p>
-        <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="w-32 h-2 bg-[#1a1a2e] rounded-full overflow-hidden">
           <div className="h-full bg-[#D4AF37] rounded-full transition-all"
             style={{ width: `${(items.filter(c => c.status === 'met' || c.status === 'waived').length / items.length) * 100}%` }} />
         </div>
       </div>
       {items.map(c => (
-        <div key={c.type} className="bg-white border border-gray-100 rounded-lg p-3">
+        <div key={c.type} className="bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[c.status]}`}>
@@ -641,8 +641,8 @@ function ContingencyPanel({ items, onUpdateStatus }: { items: ContingencyItem[];
                 <button key={s} onClick={() => onUpdateStatus(c.type, s)}
                   className={`px-2 py-1 rounded text-xs font-medium transition ${
                     c.status === s
-                      ? s === 'met' ? 'bg-green-500 text-white' : s === 'waived' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      ? s === 'met' ? 'bg-green-500/100 text-white' : s === 'waived' ? 'bg-blue-500/100 text-white' : 'bg-red-500/100 text-white'
+                      : 'bg-[#0a0a0f] text-gray-400 hover:bg-[#1a1a2e]'
                   }`}
                 >
                   {s}
@@ -681,21 +681,21 @@ function CounterOfferPanel({ counters, originalPrice, listPrice, onAdd }: {
     <div className="space-y-3">
       {/* Negotiation summary */}
       <div className="flex items-center gap-4 text-sm">
-        <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+        <div className="bg-[#0a0a0f] rounded-lg p-2 border border-[#1a1a2e] flex-1 text-center">
           <p className="text-[10px] text-gray-400">Original Offer</p>
           <p className="font-bold text-[#1E2761]">{fmt(originalPrice)}</p>
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-        <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <div className="bg-[#0a0a0f] rounded-lg p-2 border border-[#1a1a2e] flex-1 text-center">
           <p className="text-[10px] text-gray-400">Latest Price</p>
           <p className="font-bold text-[#D4AF37]">{fmt(latestPrice)}</p>
         </div>
         {spread > 0 && (
           <>
-            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-            <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <div className="bg-[#0a0a0f] rounded-lg p-2 border border-[#1a1a2e] flex-1 text-center">
               <p className="text-[10px] text-gray-400">Spread</p>
-              <p className="font-semibold text-gray-700">{fmt(spread)}</p>
+              <p className="font-semibold text-gray-200">{fmt(spread)}</p>
             </div>
           </>
         )}
@@ -707,8 +707,8 @@ function CounterOfferPanel({ counters, originalPrice, listPrice, onAdd }: {
       ) : (
         <div className="space-y-2">
           {counters.map((co, i) => (
-            <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${co.from === 'buyer' ? 'bg-blue-50/50 border-blue-100' : 'bg-amber-50/50 border-amber-100'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${co.from === 'buyer' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+            <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${co.from === 'buyer' ? 'bg-blue-900/10 border-blue-100' : 'bg-amber-500/10/50 border-amber-100'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${co.from === 'buyer' ? 'bg-blue-500/15 text-blue-400' : 'bg-amber-500/15 text-amber-400'}`}>
                 R{co.round}
               </div>
               <div className="flex-1 min-w-0">
@@ -716,7 +716,7 @@ function CounterOfferPanel({ counters, originalPrice, listPrice, onAdd }: {
                   <span className="text-sm font-semibold">{fmt(co.price)}</span>
                   <Badge variant={co.from === 'buyer' ? 'blue' : 'yellow'}>{co.from}</Badge>
                 </div>
-                {co.terms && <p className="text-xs text-gray-500 mt-0.5 truncate">{co.terms}</p>}
+                {co.terms && <p className="text-xs text-gray-400 mt-0.5 truncate">{co.terms}</p>}
               </div>
               <span className="text-xs text-gray-400">{new Date(co.created_at).toLocaleDateString()}</span>
             </div>
@@ -730,16 +730,16 @@ function CounterOfferPanel({ counters, originalPrice, listPrice, onAdd }: {
           + Add Counter Offer
         </Button>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-3">
+        <div className="bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg p-3 space-y-3">
           <div className="flex gap-2">
-            <button onClick={() => setFrom('seller')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'seller' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-500'}`}>Seller Counter</button>
-            <button onClick={() => setFrom('buyer')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'buyer' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500'}`}>Buyer Counter</button>
+            <button onClick={() => setFrom('seller')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'seller' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' : 'bg-[#0a0a0f] text-gray-400'}`}>Seller Counter</button>
+            <button onClick={() => setFrom('buyer')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'buyer' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-[#0a0a0f] text-gray-400'}`}>Buyer Counter</button>
           </div>
           <InputField icon={DollarSign} label="Counter Price" value={price} onChange={setPrice} type="number" required />
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Terms / Notes</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Terms / Notes</label>
             <input type="text" value={terms} onChange={e => setTerms(e.target.value)} placeholder="e.g. Seller to pay closing costs..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]" />
+              className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]" />
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={!price}>Add</Button>
@@ -756,19 +756,19 @@ function TimelinePanel({ offer, contingencies, counters }: { offer: Offer; conti
   // Build timeline from all events
   const events: { date: string; title: string; detail: string; color: string }[] = []
 
-  events.push({ date: offer.created_at, title: 'Offer Created', detail: `${fmt(offer.offer_price)} for ${offer.property_address}`, color: 'bg-blue-500' })
+  events.push({ date: offer.created_at, title: 'Offer Created', detail: `${fmt(offer.offer_price)} for ${offer.property_address}`, color: 'bg-blue-500/100' })
 
   if (offer.status === 'pending_approval') {
-    events.push({ date: offer.created_at, title: 'Submitted for Approval', detail: 'Awaiting broker review', color: 'bg-yellow-500' })
+    events.push({ date: offer.created_at, title: 'Submitted for Approval', detail: 'Awaiting broker review', color: 'bg-yellow-500/100' })
   }
   if (offer.status === 'approved') {
-    events.push({ date: offer.created_at, title: 'Broker Approved', detail: 'Offer approved for submission', color: 'bg-green-500' })
+    events.push({ date: offer.created_at, title: 'Broker Approved', detail: 'Offer approved for submission', color: 'bg-green-500/100' })
   }
   if (offer.status === 'rejected') {
-    events.push({ date: offer.created_at, title: 'Offer Rejected', detail: 'Offer was rejected', color: 'bg-red-500' })
+    events.push({ date: offer.created_at, title: 'Offer Rejected', detail: 'Offer was rejected', color: 'bg-red-500/100' })
   }
   if (offer.status === 'accepted') {
-    events.push({ date: offer.created_at, title: 'Offer Accepted', detail: 'Congratulations!', color: 'bg-green-500' })
+    events.push({ date: offer.created_at, title: 'Offer Accepted', detail: 'Congratulations!', color: 'bg-green-500/100' })
   }
 
   // Counter offers
@@ -795,15 +795,15 @@ function TimelinePanel({ offer, contingencies, counters }: { offer: Offer; conti
 
   return (
     <div className="space-y-0 relative">
-      <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gray-200" />
+      <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#1a1a2e]" />
       {events.map((ev, i) => (
         <div key={i} className="flex gap-3 pb-4 last:pb-0 relative">
           <div className={`w-6 h-6 rounded-full ${ev.color} flex items-center justify-center flex-shrink-0 z-10 ring-2 ring-white`}>
-            <div className="w-2 h-2 bg-white rounded-full" />
+            <div className="w-2 h-2 bg-[#0a0a0f] rounded-full" />
           </div>
           <div className="pt-0.5">
-            <p className="text-sm font-medium text-gray-800">{ev.title}</p>
-            {ev.detail && <p className="text-xs text-gray-500">{ev.detail}</p>}
+            <p className="text-sm font-medium text-white">{ev.title}</p>
+            {ev.detail && <p className="text-xs text-gray-400">{ev.detail}</p>}
             <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ev.date).toLocaleDateString()} {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
         </div>
@@ -836,16 +836,16 @@ function CompareModal({ offers, onClose }: { offers: Offer[]; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
+      <div className="bg-[#0a0a0f] rounded-2xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1a1a2e] sticky top-0 bg-[#0a0a0f] rounded-t-2xl">
           <h3 className="text-lg font-semibold text-[#1E2761] flex items-center gap-2"><GitCompare className="w-5 h-5" /> Compare Offers</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-400"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium w-36">Field</th>
+              <tr className="border-b border-[#1a1a2e]">
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium w-36">Field</th>
                 {offers.map(o => (
                   <th key={o.id} className="text-left px-4 py-3 text-xs font-medium text-[#1E2761] truncate max-w-48">{o.property_address}</th>
                 ))}
@@ -856,14 +856,14 @@ function CompareModal({ offers, onClose }: { offers: Offer[]; onClose: () => voi
                 const values = offers.map(o => getValue(o, f.key))
                 const best = f.key === 'offer_price' ? Math.max(...values.filter(Number)) : null
                 return (
-                  <tr key={f.key} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-2.5 text-xs text-gray-500 font-medium">{f.label}</td>
+                  <tr key={f.key} className="border-b border-[#1a1a2e] hover:bg-[#0a0a0f]/50">
+                    <td className="px-4 py-2.5 text-xs text-gray-400 font-medium">{f.label}</td>
                     {offers.map((o, i) => {
                       const val = values[i]
                       const formatted = f.format ? f.format(val) : String(val || '--')
                       const isBest = best !== null && Number(val) === best
                       return (
-                        <td key={o.id} className={`px-4 py-2.5 text-sm ${isBest ? 'font-bold text-[#D4AF37]' : 'text-gray-700'}`}>
+                        <td key={o.id} className={`px-4 py-2.5 text-sm ${isBest ? 'font-bold text-[#D4AF37]' : 'text-gray-200'}`}>
                           {formatted}
                         </td>
                       )
@@ -1126,14 +1126,14 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
                 <Mic className="w-5 h-5 text-[#D4AF37]" />
                 <span className="font-semibold text-[#1E2761]">Voice / Text Offer Input</span>
               </div>
-              <button onClick={() => setVoiceMode(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+              <button onClick={() => setVoiceMode(false)} className="text-gray-400 hover:text-gray-400"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               Example: &quot;325 thousand on 742 Oak Street, Miami FL for James Wilson, conventional financing, 30-day close, 5000 earnest money, 10-day inspection&quot;
             </p>
             <textarea value={voiceText} onChange={e => setVoiceText(e.target.value)} rows={3}
               placeholder="Type or paste what the agent said about the offer..."
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
+              className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
             />
             <div className="flex gap-2">
               <Button onClick={parseVoiceOffer} disabled={voiceParsing || !voiceText.trim()}>
@@ -1152,14 +1152,14 @@ function NewOfferTab({ userId, onComplete }: { userId: string; onComplete: () =>
           <div key={s} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                i < step ? 'bg-green-500 text-white' : i === step ? 'bg-[#D4AF37] text-white shadow-lg' : 'bg-gray-200 text-gray-500'
+                i < step ? 'bg-green-500/100 text-white' : i === step ? 'bg-[#D4AF37] text-white shadow-lg shadow-black/20' : 'bg-[#1a1a2e] text-gray-400'
               }`}>
                 {i < step ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
               </div>
               <span className={`text-xs mt-1 ${i === step ? 'text-[#D4AF37] font-semibold' : 'text-gray-400'}`}>{s}</span>
             </div>
             {i < WIZARD_STEPS.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 mt-[-12px] ${i < step ? 'bg-green-500' : 'bg-gray-200'}`} />
+              <div className={`flex-1 h-0.5 mx-2 mt-[-12px] ${i < step ? 'bg-green-500/100' : 'bg-[#1a1a2e]'}`} />
             )}
           </div>
         ))}
@@ -1220,10 +1220,10 @@ function BuyerStep({ buyers, buyerId, setBuyerId, newBuyer, setNewBuyer }: {
       <h3 className="text-lg font-semibold text-[#1E2761]">Select or Create Buyer</h3>
 
       <div className="flex gap-2">
-        <button onClick={() => setMode('select')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'select' ? 'bg-[#1E2761] text-white' : 'bg-gray-100 text-gray-600'}`}>
+        <button onClick={() => setMode('select')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'select' ? 'bg-[#1E2761] text-white' : 'bg-[#0a0a0f] text-gray-400'}`}>
           Existing Buyer
         </button>
-        <button onClick={() => { setMode('new'); setBuyerId('') }} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'new' ? 'bg-[#1E2761] text-white' : 'bg-gray-100 text-gray-600'}`}>
+        <button onClick={() => { setMode('new'); setBuyerId('') }} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'new' ? 'bg-[#1E2761] text-white' : 'bg-[#0a0a0f] text-gray-400'}`}>
           New Buyer
         </button>
       </div>
@@ -1233,12 +1233,12 @@ function BuyerStep({ buyers, buyerId, setBuyerId, newBuyer, setNewBuyer }: {
           {buyers.length === 0 && <p className="text-gray-400 text-sm py-4 text-center">No buyers found. Create a new buyer.</p>}
           {buyers.map(b => (
             <div key={b.id} onClick={() => setBuyerId(b.id)}
-              className={`p-3 rounded-lg border cursor-pointer transition ${buyerId === b.id ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-gray-200 hover:border-gray-300'}`}
+              className={`p-3 rounded-lg border cursor-pointer transition ${buyerId === b.id ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#1a1a2e] hover:border-[#1a1a2e]'}`}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{buyerDisplayName(b)}</p>
-                  <p className="text-xs text-gray-500">{b.email} &middot; {b.financing_type}</p>
+                  <p className="text-xs text-gray-400">{b.email} &middot; {b.financing_type}</p>
                 </div>
                 <ReadinessBadge score={b.readiness_score} />
               </div>
@@ -1252,9 +1252,9 @@ function BuyerStep({ buyers, buyerId, setBuyerId, newBuyer, setNewBuyer }: {
           <InputField icon={Phone} label="Phone" value={newBuyer.phone} onChange={v => setNewBuyer({ ...newBuyer, phone: v })} required />
           <InputField icon={CreditCard} label="Pre-Approval Amount" value={newBuyer.preapproval_amount} onChange={v => setNewBuyer({ ...newBuyer, preapproval_amount: v })} type="number" />
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Financing Type</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Financing Type</label>
             <select value={newBuyer.financing_type} onChange={e => setNewBuyer({ ...newBuyer, financing_type: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+              className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
             >
               {['Conventional', 'FHA', 'VA', 'USDA', 'Cash', 'Hard Money', 'Other'].map(t => <option key={t}>{t}</option>)}
             </select>
@@ -1292,21 +1292,21 @@ function ModeStep({ presets, selected, onSelect }: { presets: Preset[]; selected
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-[#1E2761]">Choose Offer Mode</h3>
-      <p className="text-sm text-gray-500">Select a preset to auto-fill terms, then customize in the next step.</p>
+      <p className="text-sm text-gray-400">Select a preset to auto-fill terms, then customize in the next step.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {presets.map(p => (
           <div key={p.id} onClick={() => onSelect(p)}
             className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${
               selected === p.id
-                ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-md'
-                : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-md shadow-black/20'
+                : 'border-[#1a1a2e] hover:border-[#1a1a2e] hover:shadow-sm shadow-black/10'
             }`}
           >
             <div className="flex items-start gap-3">
               <span className="text-2xl">{presetIcons[p.id] || '📋'}</span>
               <div>
                 <p className="font-semibold text-[#1E2761]">{p.label || p.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{p.description}</p>
+                <p className="text-xs text-gray-400 mt-1">{p.description}</p>
               </div>
             </div>
             {selected === p.id && <CheckCircle2 className="w-5 h-5 text-[#D4AF37] mt-2 ml-auto" />}
@@ -1324,7 +1324,7 @@ function TermsStep({ terms, setTerms, listPrice }: { terms: any; setTerms: (v: a
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-[#1E2761]">Offer Terms</h3>
-      {listPrice > 0 && <p className="text-sm text-gray-500">List price: <span className="font-semibold">{fmt(listPrice)}</span></p>}
+      {listPrice > 0 && <p className="text-sm text-gray-400">List price: <span className="font-semibold">{fmt(listPrice)}</span></p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InputField icon={DollarSign} label="Offer Price" value={terms.offer_price} onChange={v => set('offer_price', v)} type="number" required />
@@ -1339,14 +1339,14 @@ function TermsStep({ terms, setTerms, listPrice }: { terms: any; setTerms: (v: a
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Contingencies</label>
+        <label className="block text-xs font-medium text-gray-400 mb-2">Contingencies</label>
         <div className="flex flex-wrap gap-2">
           {contingencyOptions.map(c => {
             const active = terms.contingencies.includes(c)
             return (
               <button key={c} onClick={() => set('contingencies', active ? terms.contingencies.filter((x: string) => x !== c) : [...terms.contingencies, c])}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                  active ? 'bg-[#1E2761] text-white border-[#1E2761]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                  active ? 'bg-[#1E2761] text-white border-[#1E2761]' : 'bg-[#0a0a0f] text-gray-400 border-[#1a1a2e] hover:border-gray-400'
                 }`}
               >
                 {c.replace(/_/g, ' ')}
@@ -1374,41 +1374,41 @@ function ReviewStep({ riskFlags, readinessScore, commission, coverLetter, onGene
 
       {/* Summary row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs">Property</p>
+        <div className="bg-[#050507] rounded-lg p-3">
+          <p className="text-gray-400 text-xs">Property</p>
           <p className="font-medium truncate">{property.address}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs">Buyer</p>
+        <div className="bg-[#050507] rounded-lg p-3">
+          <p className="text-gray-400 text-xs">Buyer</p>
           <p className="font-medium">{buyerDisplayName(buyer) || newBuyerName}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs">Offer Price</p>
+        <div className="bg-[#050507] rounded-lg p-3">
+          <p className="text-gray-400 text-xs">Offer Price</p>
           <p className="font-bold text-[#1E2761]">{fmt(Number(terms.offer_price))}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs">Mode</p>
+        <div className="bg-[#050507] rounded-lg p-3">
+          <p className="text-gray-400 text-xs">Mode</p>
           <p className="font-medium capitalize">{presetName}</p>
         </div>
       </div>
 
       {/* Readiness & Flags */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-500 font-medium mb-2">Offer Readiness</p>
+        <div className="border border-[#1a1a2e] rounded-xl p-4">
+          <p className="text-xs text-gray-400 font-medium mb-2">Offer Readiness</p>
           <div className="flex items-center gap-4">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-lg ${rc.bg} ${rc.text}`}>
               {readinessScore}
             </div>
             <div>
               <p className={`font-semibold ${rc.text}`}>{rc.label}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{readinessScore >= 85 ? 'Highly competitive offer' : readinessScore >= 65 ? 'Solid offer with room to improve' : 'Consider strengthening terms'}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{readinessScore >= 85 ? 'Highly competitive offer' : readinessScore >= 65 ? 'Solid offer with room to improve' : 'Consider strengthening terms'}</p>
             </div>
           </div>
         </div>
 
-        <div className="border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-500 font-medium mb-2">Risk Flags</p>
+        <div className="border border-[#1a1a2e] rounded-xl p-4">
+          <p className="text-xs text-gray-400 font-medium mb-2">Risk Flags</p>
           {riskFlags.length === 0 ? (
             <div className="flex items-center gap-2 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4" /> No risk flags detected</div>
           ) : (
@@ -1416,7 +1416,7 @@ function ReviewStep({ riskFlags, readinessScore, commission, coverLetter, onGene
               {riskFlags.map((f, i) => (
                 <div key={i} className="flex items-start gap-2 text-sm">
                   <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${severityColor[f.severity]}`} />
-                  <span className="text-gray-700">{f.label}</span>
+                  <span className="text-gray-200">{f.label}</span>
                 </div>
               ))}
             </div>
@@ -1426,29 +1426,29 @@ function ReviewStep({ riskFlags, readinessScore, commission, coverLetter, onGene
 
       {/* Commission Preview */}
       {commission && (
-        <div className="border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-500 font-medium mb-3">Commission Preview</p>
+        <div className="border border-[#1a1a2e] rounded-xl p-4">
+          <p className="text-xs text-gray-400 font-medium mb-3">Commission Preview</p>
           <div className="flex items-center gap-3">
             <CommBox label="Gross Commission" value={fmt(commission.gross)} />
-            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <CommBox label="Brokerage Split" value={fmt(commission.brokerage_split)} sub="20%" />
-            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <CommBox label="Your Net" value={fmt(commission.agent_net)} highlight />
           </div>
         </div>
       )}
 
       {/* Cover Letter */}
-      <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+      <div className="border border-[#1a1a2e] rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500 font-medium">Cover Letter</p>
+          <p className="text-xs text-gray-400 font-medium">Cover Letter</p>
           <Button variant="outline" size="sm" onClick={onGenerateLetter} disabled={letterLoading}>
             {letterLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
             Generate with AI
           </Button>
         </div>
         <textarea value={coverLetter} onChange={e => setCoverLetter(e.target.value)} rows={5} placeholder="AI-generated cover letter will appear here, or write your own..."
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
+          className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
         />
       </div>
     </div>
@@ -1488,7 +1488,7 @@ function BuyersTab({ userId }: { userId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[#1E2761]">Buyer Directory</h2>
-        <span className="text-sm text-gray-500">{buyers.length} buyer{buyers.length !== 1 ? 's' : ''}</span>
+        <span className="text-sm text-gray-400">{buyers.length} buyer{buyers.length !== 1 ? 's' : ''}</span>
       </div>
 
       {buyers.length === 0 ? (
@@ -1514,7 +1514,7 @@ function BuyersTab({ userId }: { userId: string }) {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{buyerDisplayName(b)}</p>
-                        <p className="text-xs text-gray-500">{b.financing_type} &middot; {b.email || 'No email'}</p>
+                        <p className="text-xs text-gray-400">{b.financing_type} &middot; {b.email || 'No email'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1523,7 +1523,7 @@ function BuyersTab({ userId }: { userId: string }) {
                       </Badge>
                       {/* Checklist mini bar */}
                       <div className="hidden sm:flex items-center gap-2">
-                        <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="w-20 h-2 bg-[#1a1a2e] rounded-full overflow-hidden">
                           <div className="h-full bg-[#D4AF37] rounded-full transition-all" style={{ width: `${checkPct}%` }} />
                         </div>
                         <span className="text-xs text-gray-400">{checkPct}%</span>
@@ -1534,7 +1534,7 @@ function BuyersTab({ userId }: { userId: string }) {
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-gray-100 px-4 py-4 bg-gray-50/50 space-y-4">
+                  <div className="border-t border-[#1a1a2e] px-4 py-4 bg-[#050507]/50 space-y-4">
                     {isEditing ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <InputField label="First Name" value={editData.first_name ?? b.first_name ?? ''} onChange={v => setEditData({ ...editData, first_name: v })} />
@@ -1558,13 +1558,13 @@ function BuyersTab({ userId }: { userId: string }) {
 
                         {/* Checklist */}
                         <div>
-                          <p className="text-xs font-medium text-gray-500 mb-2">Readiness Checklist</p>
+                          <p className="text-xs font-medium text-gray-400 mb-2">Readiness Checklist</p>
                           <div className="flex flex-wrap gap-2">
                             {CHECKLIST_ITEMS.map(item => (
                               <span key={item} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                                checklist[item] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                                checklist[item] ? 'bg-green-500/15 text-green-400' : 'bg-[#0a0a0f] text-gray-400'
                               }`}>
-                                {checklist[item] ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-gray-300" />}
+                                {checklist[item] ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-[#1a1a2e]" />}
                                 {item.replace(/_/g, ' ')}
                               </span>
                             ))}
@@ -1648,19 +1648,19 @@ function CoverLettersTab({ userId }: { userId: string }) {
         <CardContent className="space-y-4">
           {/* Source toggle */}
           <div className="flex gap-2">
-            <button onClick={() => setMode('offer')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'offer' ? 'bg-[#1E2761] text-white' : 'bg-gray-100 text-gray-600'}`}>
+            <button onClick={() => setMode('offer')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'offer' ? 'bg-[#1E2761] text-white' : 'bg-[#0a0a0f] text-gray-400'}`}>
               From Offer
             </button>
-            <button onClick={() => setMode('manual')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'manual' ? 'bg-[#1E2761] text-white' : 'bg-gray-100 text-gray-600'}`}>
+            <button onClick={() => setMode('manual')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'manual' ? 'bg-[#1E2761] text-white' : 'bg-[#0a0a0f] text-gray-400'}`}>
               Manual Entry
             </button>
           </div>
 
           {mode === 'offer' ? (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Select Offer</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Select Offer</label>
               <select value={selectedOffer} onChange={e => setSelectedOffer(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
               >
                 <option value="">Choose an offer...</option>
                 {offers.map(o => <option key={o.id} value={o.id}>{o.property_address} - {(o as any).buyers ? `${(o as any).buyers.first_name || ''} ${(o as any).buyers.last_name || ''}`.trim() : 'Unknown'}</option>)}
@@ -1672,9 +1672,9 @@ function CoverLettersTab({ userId }: { userId: string }) {
               <InputField label="Property Address" value={manualDetails.property_address} onChange={v => setManualDetails({ ...manualDetails, property_address: v })} />
               <InputField label="Offer Price" value={manualDetails.offer_price} onChange={v => setManualDetails({ ...manualDetails, offer_price: v })} type="number" />
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Financing Type</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Financing Type</label>
                 <select value={manualDetails.financing_type} onChange={e => setManualDetails({ ...manualDetails, financing_type: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                  className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
                 >
                   {[{v:'conventional',l:'Conventional'},{v:'fha',l:'FHA'},{v:'va',l:'VA'},{v:'cash',l:'Cash'},{v:'other',l:'Other'}].map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
                 </select>
@@ -1684,12 +1684,12 @@ function CoverLettersTab({ userId }: { userId: string }) {
 
           {/* Tone */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">Tone</label>
+            <label className="block text-xs font-medium text-gray-400 mb-2">Tone</label>
             <div className="flex gap-2">
               {['professional', 'warm', 'confident', 'empathetic'].map(t => (
                 <button key={t} onClick={() => setTone(t)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border capitalize transition ${
-                    tone === t ? 'bg-[#D4AF37] text-white border-[#D4AF37]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                    tone === t ? 'bg-[#D4AF37] text-white border-[#D4AF37]' : 'bg-[#0a0a0f] text-gray-400 border-[#1a1a2e] hover:border-gray-400'
                   }`}
                 >{t}</button>
               ))}
@@ -1698,9 +1698,9 @@ function CoverLettersTab({ userId }: { userId: string }) {
 
           {/* Buyer Story */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Buyer Story <span className="text-gray-400">(optional)</span></label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Buyer Story <span className="text-gray-400">(optional)</span></label>
             <textarea value={buyerStory} onChange={e => setBuyerStory(e.target.value)} rows={3} placeholder="Tell us about the buyer — first-time homebuyer, growing family, relocating for work, etc."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
+              className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-none"
             />
           </div>
 
@@ -1725,7 +1725,7 @@ function CoverLettersTab({ userId }: { userId: string }) {
           </CardHeader>
           <CardContent>
             <textarea value={result} onChange={e => setResult(e.target.value)} rows={12}
-              className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-y"
+              className="w-full border border-[#1a1a2e] rounded-lg px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] resize-y"
             />
           </CardContent>
         </Card>
@@ -1743,13 +1743,13 @@ function InputField({ label, value, onChange, type = 'text', icon: Icon, require
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">
+      <label className="block text-xs font-medium text-gray-400 mb-1">
         {label} {required && <span className="text-red-400">*</span>}
       </label>
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />}
         <input type={type} value={value} onChange={e => onChange(e.target.value)}
-          className={`w-full border border-gray-300 rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] ${Icon ? 'pl-9 pr-3' : 'px-3'}`}
+          className={`w-full border border-[#1a1a2e] rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] ${Icon ? 'pl-9 pr-3' : 'px-3'}`}
         />
       </div>
     </div>
@@ -1769,9 +1769,9 @@ function ReadinessBadge({ score }: { score: number }) {
 
 function CommBox({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
   return (
-    <div className={`flex-1 text-center p-3 rounded-lg ${highlight ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30' : 'bg-gray-50'}`}>
-      <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-lg font-bold mt-0.5 ${highlight ? 'text-[#D4AF37]' : 'text-gray-800'}`}>{value}</p>
+    <div className={`flex-1 text-center p-3 rounded-lg ${highlight ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30' : 'bg-[#050507]'}`}>
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className={`text-lg font-bold mt-0.5 ${highlight ? 'text-[#D4AF37]' : 'text-white'}`}>{value}</p>
       {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
     </div>
   )

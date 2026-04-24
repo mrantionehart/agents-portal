@@ -237,22 +237,22 @@ export default function CMAPage() {
     setGenerating(false)
   }
 
-  const inputCls = 'w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none'
-  const labelCls = 'text-xs text-gray-500 font-medium mb-1 block'
+  const inputCls = 'w-full bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none'
+  const labelCls = 'text-xs text-gray-400 font-medium mb-1 block'
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <Link href="/dashboard" className="text-sm text-amber-600 hover:text-amber-700 mb-2 inline-block">&larr; Dashboard</Link>
-          <h1 className="text-2xl font-bold text-gray-900">CMA Generator</h1>
-          <p className="text-sm text-gray-500 mt-1">Create a branded Confidential Market Analysis PDF</p>
+          <Link href="/dashboard" className="text-sm text-amber-600 hover:text-amber-400 mb-2 inline-block">&larr; Dashboard</Link>
+          <h1 className="text-2xl font-bold text-white">CMA Generator</h1>
+          <p className="text-sm text-gray-400 mt-1">Create a branded Confidential Market Analysis PDF</p>
         </div>
         <button
           onClick={generatePdf}
           disabled={generating || !subject.address || comps.filter((c) => c.address).length === 0}
-          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition"
+          className="bg-amber-500/100 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition"
         >
           {generating ? 'Generating...' : 'Generate PDF'}
         </button>
@@ -260,7 +260,7 @@ export default function CMAPage() {
 
       <div className="space-y-6">
         {/* Subject Property */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Subject Property</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -276,21 +276,21 @@ export default function CMAPage() {
 
                 {/* Address Autocomplete Dropdown */}
                 {showDropdown && (filteredLeads.length > 0 || suggestions.length > 0) && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden max-h-[350px] overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg shadow-xl z-50 overflow-hidden max-h-[350px] overflow-y-auto">
                     {/* Lead Addresses */}
                     {filteredLeads.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 bg-amber-50 border-b border-gray-100">
+                        <div className="px-3 py-1.5 bg-amber-500/10 border-b border-[#1a1a2e]">
                           <span className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Your Leads</span>
                         </div>
                         {filteredLeads.map((lead) => (
                           <button
                             key={lead.id}
                             onClick={() => selectLeadAddress(lead)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                            className="w-full text-left px-3 py-2 hover:bg-[#0a0a0f] transition-colors border-b border-[#1a1a2e]"
                           >
-                            <div className="text-sm text-gray-900 font-medium">{lead.address}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-sm text-white font-medium">{lead.address}</div>
+                            <div className="text-xs text-gray-400">
                               {[lead.city, lead.state, lead.zip].filter(Boolean).join(', ')}
                               {lead.name && <span className="ml-1 text-gray-400">({lead.name})</span>}
                             </div>
@@ -302,17 +302,17 @@ export default function CMAPage() {
                     {/* IDX / Rentcast Results */}
                     {suggestions.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 bg-blue-50 border-b border-gray-100">
+                        <div className="px-3 py-1.5 bg-blue-500/10 border-b border-[#1a1a2e]">
                           <span className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">Property Search</span>
                         </div>
                         {suggestions.map((s, idx) => (
                           <button
                             key={idx}
                             onClick={() => selectSuggestion(s)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                            className="w-full text-left px-3 py-2 hover:bg-[#0a0a0f] transition-colors border-b border-[#1a1a2e]"
                           >
-                            <div className="text-sm text-gray-900 font-medium">{s.address}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-sm text-white font-medium">{s.address}</div>
+                            <div className="text-xs text-gray-400">
                               {s.beds > 0 && `${s.beds}bd/${s.baths}ba`}
                               {s.sqft > 0 && ` · ${s.sqft.toLocaleString()}sf`}
                               {s.propertyType && ` · ${s.propertyType}`}
@@ -326,7 +326,7 @@ export default function CMAPage() {
                 )}
 
                 {loadingSuggestions && subject.address.length >= 6 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg p-2 z-50">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg p-2 z-50">
                     <span className="text-xs text-gray-400">Searching addresses...</span>
                   </div>
                 )}
@@ -360,17 +360,17 @@ export default function CMAPage() {
         </div>
 
         {/* Narrative */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Market Narrative</h2>
           <textarea className={`${inputCls} min-h-[100px]`} placeholder="After 69 days, the market has signaled..." value={narrative} onChange={(e) => setNarrative(e.target.value)} />
         </div>
 
         {/* Comparable Sales */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Recent Sold Comps</h2>
           <div className="space-y-4">
             {comps.map((comp, idx) => (
-              <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+              <div key={idx} className="p-4 bg-[#050507] rounded-lg border border-[#1a1a2e] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-400">Comp #{idx + 1}</span>
                   {comps.length > 1 && <button onClick={() => setComps(comps.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>}
@@ -384,17 +384,17 @@ export default function CMAPage() {
                   <div><label className={labelCls}>Beds</label><input className={inputCls} placeholder="6" value={comp.beds} onChange={(e) => updateComp(idx, 'beds', e.target.value)} /></div>
                   <div><label className={labelCls}>Baths</label><input className={inputCls} placeholder="7" value={comp.baths} onChange={(e) => updateComp(idx, 'baths', e.target.value)} /></div>
                   <div><label className={labelCls}>Sq Ft</label><input className={inputCls} type="number" placeholder="6124" value={comp.sqft || ''} onChange={(e) => updateComp(idx, 'sqft', Number(e.target.value))} /></div>
-                  <div><label className={labelCls}>$/SF (auto)</label><input className={`${inputCls} bg-gray-100`} value={comp.pricePerSqft ? `$${comp.pricePerSqft}` : ''} readOnly /></div>
+                  <div><label className={labelCls}>$/SF (auto)</label><input className={`${inputCls} bg-[#0a0a0f]`} value={comp.pricePerSqft ? `$${comp.pricePerSqft}` : ''} readOnly /></div>
                   <div><label className={labelCls}>Notes</label><input className={inputCls} placeholder="Sold under list" value={comp.notes} onChange={(e) => updateComp(idx, 'notes', e.target.value)} /></div>
                 </div>
               </div>
             ))}
-            <button onClick={() => setComps([...comps, { ...emptyComp }])} className="text-sm text-amber-600 hover:text-amber-700 font-medium">+ Add Comp</button>
+            <button onClick={() => setComps([...comps, { ...emptyComp }])} className="text-sm text-amber-600 hover:text-amber-400 font-medium">+ Add Comp</button>
           </div>
         </div>
 
         {/* Pricing Math */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Pricing Math</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -410,7 +410,7 @@ export default function CMAPage() {
                   {pricing.adjustments.length > 1 && <button onClick={() => setPricing({ ...pricing, adjustments: pricing.adjustments.filter((_, i) => i !== idx) })} className="text-red-400 hover:text-red-600 text-xs mt-2">Remove</button>}
                 </div>
               ))}
-              <button onClick={() => setPricing({ ...pricing, adjustments: [...pricing.adjustments, { label: '', value: '' }] })} className="text-sm text-amber-600 hover:text-amber-700 font-medium">+ Add Adjustment</button>
+              <button onClick={() => setPricing({ ...pricing, adjustments: [...pricing.adjustments, { label: '', value: '' }] })} className="text-sm text-amber-600 hover:text-amber-400 font-medium">+ Add Adjustment</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><label className={labelCls}>Engagement Range</label><input className={inputCls} placeholder="$3,950,000 - $4,300,000" value={pricing.engagementRange} onChange={(e) => setPricing({ ...pricing, engagementRange: e.target.value })} /></div>
@@ -420,11 +420,11 @@ export default function CMAPage() {
         </div>
 
         {/* Pricing Ladder */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Pricing Ladder</h2>
           <div className="space-y-4">
             {pricingLadder.map((step, idx) => (
-              <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+              <div key={idx} className="p-4 bg-[#050507] rounded-lg border border-[#1a1a2e] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-400">Step #{idx + 1}</span>
                   {pricingLadder.length > 1 && <button onClick={() => setPricingLadder(pricingLadder.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>}
@@ -437,12 +437,12 @@ export default function CMAPage() {
                 </div>
               </div>
             ))}
-            <button onClick={() => setPricingLadder([...pricingLadder, { ...emptyStep }])} className="text-sm text-amber-600 hover:text-amber-700 font-medium">+ Add Step</button>
+            <button onClick={() => setPricingLadder([...pricingLadder, { ...emptyStep }])} className="text-sm text-amber-600 hover:text-amber-400 font-medium">+ Add Step</button>
           </div>
         </div>
 
         {/* Recommendation */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6">
           <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wider mb-4">Recommendation</h2>
           <textarea className={`${inputCls} min-h-[80px]`} placeholder="Reposition to $4,495,000 this week..." value={recommendation} onChange={(e) => setRecommendation(e.target.value)} />
         </div>
@@ -452,7 +452,7 @@ export default function CMAPage() {
           <button
             onClick={generatePdf}
             disabled={generating || !subject.address || comps.filter((c) => c.address).length === 0}
-            className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-lg text-sm transition"
+            className="bg-amber-500/100 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-lg text-sm transition"
           >
             {generating ? 'Generating CMA...' : 'Generate CMA PDF'}
           </button>

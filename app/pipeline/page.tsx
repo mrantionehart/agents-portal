@@ -68,10 +68,10 @@ const stageLineColors: Record<string, string> = {
 
 const stageBadgeColors: Record<string, string> = {
   listings: 'bg-teal-500',
-  buyers: 'bg-red-500',
-  leases: 'bg-blue-500',
-  referrals: 'bg-amber-500',
-  other: 'bg-purple-500',
+  buyers: 'bg-red-500/100',
+  leases: 'bg-blue-500/100',
+  referrals: 'bg-amber-500/100',
+  other: 'bg-purple-500/100',
 }
 
 export default function PipelinePage() {
@@ -124,7 +124,7 @@ export default function PipelinePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     )
@@ -133,18 +133,18 @@ export default function PipelinePage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-[#050507] flex">
       <SidebarNav onSignOut={handleSignOut} userName={user?.user_metadata?.full_name} role={role} />
 
       <div className="flex-1 p-6 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <Briefcase className="w-6 h-6 text-blue-600" />
               Deals Pipeline
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               Track your opportunities from cultivation to close
             </p>
           </div>
@@ -154,7 +154,7 @@ export default function PipelinePage() {
               <select
                 value={selectedAgent}
                 onChange={(e) => setSelectedAgent(e.target.value)}
-                className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2.5 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">All Agents</option>
                 {agents.map((a: any) => (
@@ -175,39 +175,39 @@ export default function PipelinePage() {
         {/* Top Summary Cards */}
         {totals && (
           <div className="grid grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
                   <Briefcase className="w-4 h-4 text-blue-600" />
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Total Deals</span>
+                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Deals</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{totals.totalDeals}</p>
+              <p className="text-3xl font-bold text-white">{totals.totalDeals}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Volume</span>
+                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Volume</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(totals.totalVolume)}</p>
+              <p className="text-3xl font-bold text-white">{formatCurrency(totals.totalVolume)}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
                   <DollarSign className="w-4 h-4 text-amber-600" />
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Potential GCI</span>
+                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Potential GCI</span>
               </div>
               <p className="text-3xl font-bold text-amber-600">{formatCurrency(totals.potentialGCI)}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
                   <DollarSign className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Probable Income</span>
+                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Probable Income</span>
               </div>
               <p className="text-3xl font-bold text-green-600">{formatCurrency(totals.probableGCI)}</p>
             </div>
@@ -219,9 +219,9 @@ export default function PipelinePage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           </div>
         ) : pipeline.length === 0 || (totals && totals.totalDeals === 0) ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-500 mb-2">No deals in your pipeline yet</p>
+          <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-lg font-medium text-gray-400 mb-2">No deals in your pipeline yet</p>
             <p className="text-sm text-gray-400 mb-6">Create a transaction to start tracking your opportunities</p>
             <button
               onClick={() => router.push('/transactions/new')}
@@ -235,29 +235,29 @@ export default function PipelinePage() {
           <div className="space-y-5">
             {pipeline.map(group => {
               const Icon = iconMap[group.icon] || Briefcase
-              const lineColor = stageLineColors[group.id] || 'bg-gray-300'
-              const badgeColor = stageBadgeColors[group.id] || 'bg-gray-500'
+              const lineColor = stageLineColors[group.id] || 'bg-[#1a1a2e]'
+              const badgeColor = stageBadgeColors[group.id] || 'bg-[#050507]0'
 
               return (
-                <div key={group.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div key={group.id} className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] overflow-hidden">
                   <div className="flex items-stretch">
                     {/* Pipeline stages */}
                     <div className="flex-1 p-6 pb-5">
                       {/* Group title */}
                       <div className="flex items-center gap-2.5 mb-5">
-                        <Icon className="w-5 h-5 text-gray-600" />
-                        <h2 className="text-base font-bold text-gray-900">{group.label}</h2>
+                        <Icon className="w-5 h-5 text-gray-400" />
+                        <h2 className="text-base font-bold text-white">{group.label}</h2>
                       </div>
 
                       {/* Stage labels */}
                       <div className="flex items-center mb-3 px-4">
                         {group.stages.map((stage, idx) => (
                           <div key={stage.id} className="flex items-center flex-1">
-                            <span className="text-[11px] font-semibold text-gray-500 text-center w-full">
+                            <span className="text-[11px] font-semibold text-gray-400 text-center w-full">
                               {stage.label}
                             </span>
                             {idx < group.stages.length - 1 && (
-                              <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                              <ArrowRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                             )}
                           </div>
                         ))}
@@ -273,10 +273,10 @@ export default function PipelinePage() {
                           <div key={stage.id} className="flex-1 flex justify-center relative z-10">
                             <div className="flex flex-col items-center">
                               {/* Circle with icon */}
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center bg-white border-2 ${
-                                stage.count > 0 ? 'border-gray-300 shadow-sm' : 'border-gray-200'
+                              <div className={`w-14 h-14 rounded-full flex items-center justify-center bg-[#0a0a0f] border-2 ${
+                                stage.count > 0 ? 'border-[#1a1a2e] shadow-sm shadow-black/10' : 'border-[#1a1a2e]'
                               }`}>
-                                <Icon className="w-5 h-5 text-gray-500" />
+                                <Icon className="w-5 h-5 text-gray-400" />
                               </div>
                               {/* Count badge */}
                               <div className={`-mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white ${
@@ -293,7 +293,7 @@ export default function PipelinePage() {
                       <div className="flex items-center px-4 mt-1">
                         {group.stages.map(stage => (
                           <div key={stage.id} className="flex-1 text-center">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-400">
                               Volume: {stage.volume > 0 ? formatVolume(stage.volume) : '0'}
                             </p>
                             <p className="text-[10px] text-gray-400">
@@ -305,13 +305,13 @@ export default function PipelinePage() {
                     </div>
 
                     {/* GCI Sidebar */}
-                    <div className="w-72 border-l border-gray-200 bg-gray-50 p-6 flex flex-col justify-center">
-                      <h3 className="text-base font-bold text-gray-900 mb-4">GCI</h3>
+                    <div className="w-72 border-l border-[#1a1a2e] bg-[#050507] p-6 flex flex-col justify-center">
+                      <h3 className="text-base font-bold text-white mb-4">GCI</h3>
 
                       <div className="space-y-4">
                         <div>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Potential Income</span>
+                            <span className="text-sm text-gray-400">Potential Income</span>
                             <span className="text-lg font-bold text-blue-600">
                               {formatCurrency(group.summary.potentialGCI)}
                             </span>
@@ -321,9 +321,9 @@ export default function PipelinePage() {
                           </p>
                         </div>
 
-                        <div className="border-t border-gray-200 pt-3">
+                        <div className="border-t border-[#1a1a2e] pt-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Probable Income</span>
+                            <span className="text-sm text-gray-400">Probable Income</span>
                             <span className="text-lg font-bold text-green-600">
                               {formatCurrency(group.summary.probableGCI)}
                             </span>

@@ -40,7 +40,7 @@ export default function AddAgentForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-200 mb-2">
             First Name *
           </label>
           <input
@@ -49,12 +49,12 @@ export default function AddAgentForm({
             value={formData.first_name}
             onChange={handleChange}
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
             placeholder="John"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-200 mb-2">
             Last Name *
           </label>
           <input
@@ -63,14 +63,14 @@ export default function AddAgentForm({
             value={formData.last_name}
             onChange={handleChange}
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
             placeholder="Smith"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-200 mb-2">
           Email Address *
         </label>
         <input
@@ -79,16 +79,16 @@ export default function AddAgentForm({
           value={formData.email}
           onChange={handleChange}
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
           placeholder="john.smith@example.com"
         />
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-400">
           This is their personal email. Workspace email will be generated automatically.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-200 mb-2">
           Phone Number
         </label>
         <input
@@ -96,7 +96,7 @@ export default function AddAgentForm({
           name="phone"
           value={formData.phone}
           onChange={handleChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
           placeholder="555-1234"
         />
       </div>
@@ -106,7 +106,7 @@ export default function AddAgentForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+          className="px-6 py-2 border border-[#1a1a2e] text-gray-200 font-semibold rounded-lg hover:bg-[#0a0a0f] transition disabled:opacity-50"
         >
           Cancel
         </button>

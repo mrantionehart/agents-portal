@@ -23,11 +23,11 @@ export default function BrokerDashboardPage() {
   // Only allow brokers and admins
   if (!loading && role !== 'broker' && role !== 'admin') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow p-8 text-center max-w-md">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-4">Only brokers and admins can view this dashboard.</p>
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-8 text-center max-w-md">
+          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
+          <p className="text-gray-400 mb-4">Only brokers and admins can view this dashboard.</p>
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
             Return to Dashboard
           </Link>
         </div>
@@ -44,7 +44,7 @@ export default function BrokerDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-[#050507] flex">
       {/* Sidebar Navigation */}
       <SidebarNav
         onSignOut={handleSignOut}
@@ -55,18 +55,18 @@ export default function BrokerDashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <header className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-40">
           <div className="px-8 py-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
+              <Link href="/dashboard" className="text-gray-400 hover:text-white">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                   <BarChart3 className="w-6 h-6" />
                   Broker Performance Dashboard
                 </h1>
-                <p className="text-sm text-gray-600">Monitor agent performance and team metrics</p>
+                <p className="text-sm text-gray-400">Monitor agent performance and team metrics</p>
               </div>
             </div>
             <button
@@ -79,14 +79,14 @@ export default function BrokerDashboardPage() {
         </header>
 
         {/* Tab Navigation */}
-        <div className="bg-white border-b border-gray-200 px-8">
+        <div className="bg-[#0a0a0f] border-b border-[#1a1a2e] px-8">
           <div className="flex gap-8">
             <button
               onClick={() => setActiveTab('broker')}
               className={`py-4 px-2 font-medium border-b-2 transition ${
                 activeTab === 'broker'
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function BrokerDashboardPage() {
               className={`py-4 px-2 font-medium border-b-2 transition ${
                 activeTab === 'tc'
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export default function BrokerDashboardPage() {
               className={`py-4 px-2 font-medium border-b-2 transition ${
                 activeTab === 'compliance'
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2">

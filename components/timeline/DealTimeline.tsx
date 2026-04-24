@@ -27,16 +27,16 @@ interface DealTimelineProps {
 }
 
 const priorityColors: Record<string, string> = {
-  critical: 'border-red-500 bg-red-50',
-  high: 'border-orange-500 bg-orange-50',
-  medium: 'border-yellow-500 bg-yellow-50',
+  critical: 'border-red-500 bg-red-500/10',
+  high: 'border-orange-500 bg-orange-500/10',
+  medium: 'border-yellow-500 bg-yellow-500/10',
 };
 
 const statusColors: Record<string, string> = {
-  completed: 'bg-green-100 text-green-800',
-  in_progress: 'bg-blue-100 text-blue-800',
-  pending: 'bg-gray-100 text-gray-800',
-  blocked: 'bg-red-100 text-red-800',
+  completed: 'bg-green-500/15 text-green-400',
+  in_progress: 'bg-blue-500/15 text-blue-400',
+  pending: 'bg-[#0a0a0f] text-white',
+  blocked: 'bg-red-500/15 text-red-800',
 };
 
 export default function DealTimeline({
@@ -72,7 +72,7 @@ export default function DealTimeline({
   }
 
   if (!timeline) {
-    return <div className="text-center py-8 text-gray-500">No timeline data available</div>;
+    return <div className="text-center py-8 text-gray-400">No timeline data available</div>;
   }
 
   const now = new Date();
@@ -131,10 +131,10 @@ export default function DealTimeline({
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="font-medium text-gray-900 capitalize">
+            <h3 className="font-medium text-white capitalize">
               {date.date_type.replace(/_/g, ' ')}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               {formatDate(date.scheduled_date)}
             </p>
 
@@ -145,7 +145,7 @@ export default function DealTimeline({
                     ? 'text-red-600'
                     : daysUntil <= 7
                     ? 'text-orange-600'
-                    : 'text-gray-600'
+                    : 'text-gray-400'
                 }`}
               >
                 {daysUntil === 0 ? 'TODAY' : `${daysUntil} days away`}
@@ -153,21 +153,21 @@ export default function DealTimeline({
             )}
 
             {isPast && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-400 mt-2">
                 {Math.abs(daysUntil)} days ago
               </p>
             )}
           </div>
 
           {date.is_critical && (
-            <span className="ml-2 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded">
+            <span className="ml-2 px-2 py-1 bg-red-500/100 text-white text-xs font-medium rounded">
               URGENT
             </span>
           )}
         </div>
 
         {date.confidence_score && (
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-3 text-xs text-gray-400">
             Confidence: {Math.round(date.confidence_score * 100)}%
           </div>
         )}
@@ -180,9 +180,9 @@ export default function DealTimeline({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Deal Timeline</h2>
+          <h2 className="text-2xl font-bold text-white">Deal Timeline</h2>
           {timeline.closing_date && (
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               Closing: {new Date(timeline.closing_date).toLocaleDateString()}
             </p>
           )}
@@ -193,7 +193,7 @@ export default function DealTimeline({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
           >
             <option value="date">Sort by Date</option>
             <option value="priority">Sort by Priority</option>
@@ -201,7 +201,7 @@ export default function DealTimeline({
 
           <button
             onClick={loadTimeline}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+            className="px-3 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 text-sm"
           >
             Refresh
           </button>
@@ -210,27 +210,27 @@ export default function DealTimeline({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-          <div className="text-2xl font-bold text-gray-900">{timeline.dates?.total || 0}</div>
-          <div className="text-xs text-gray-600">Total Dates</div>
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-3 text-center">
+          <div className="text-2xl font-bold text-white">{timeline.dates?.total || 0}</div>
+          <div className="text-xs text-gray-400">Total Dates</div>
         </div>
-        <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-3 text-center">
+        <div className="bg-yellow-500/10 rounded-lg border border-yellow-500/20 p-3 text-center">
           <div className="text-2xl font-bold text-yellow-600">{timeline.dates?.critical || 0}</div>
-          <div className="text-xs text-yellow-700">Critical</div>
+          <div className="text-xs text-yellow-400">Critical</div>
         </div>
-        <div className="bg-red-50 rounded-lg border border-red-200 p-3 text-center">
+        <div className="bg-red-500/10 rounded-lg border border-red-500/20 p-3 text-center">
           <div className="text-2xl font-bold text-red-600">{timeline.dates?.overdue || 0}</div>
-          <div className="text-xs text-red-700">Overdue</div>
+          <div className="text-xs text-red-400">Overdue</div>
         </div>
-        <div className="bg-blue-50 rounded-lg border border-blue-200 p-3 text-center">
+        <div className="bg-blue-500/10 rounded-lg border border-blue-500/20 p-3 text-center">
           <div className="text-2xl font-bold text-blue-600">{timeline.tasks?.total || 0}</div>
-          <div className="text-xs text-blue-700">Tasks</div>
+          <div className="text-xs text-blue-400">Tasks</div>
         </div>
       </div>
 
       {/* Timeline Sections */}
       {upcomingDates.length > 0 && (
-        <div className="bg-white rounded-lg border-2 border-orange-200 p-4">
+        <div className="bg-[#0a0a0f] rounded-lg border-2 border-orange-200 p-4">
           <h3 className="text-lg font-bold text-orange-900 mb-3">
             🚨 Upcoming (Next 14 Days)
           </h3>
@@ -241,8 +241,8 @@ export default function DealTimeline({
       )}
 
       {futureDates.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-lg font-bold text-gray-900 mb-3">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <h3 className="text-lg font-bold text-white mb-3">
             📅 Future Dates
           </h3>
           <div className="space-y-2">
@@ -252,8 +252,8 @@ export default function DealTimeline({
       )}
 
       {pastDates.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-lg font-bold text-gray-900 mb-3">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <h3 className="text-lg font-bold text-white mb-3">
             ✓ Past Dates
           </h3>
           <div className="space-y-2">
@@ -264,21 +264,21 @@ export default function DealTimeline({
 
       {/* Associated Tasks */}
       {timeline.tasks?.items && timeline.tasks.items.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-lg font-bold text-gray-900 mb-3">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <h3 className="text-lg font-bold text-white mb-3">
             📋 Generated Tasks
           </h3>
           <div className="space-y-2">
             {timeline.tasks.items.map((item: any) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded border border-gray-100"
+                className="flex items-center justify-between p-2 hover:bg-[#0a0a0f] rounded border border-[#1a1a2e]"
               >
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-white">
                     {item.tasks?.[0]?.title || 'Task'}
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-400">
                     {item.deadline_type}
                   </p>
                 </div>
@@ -297,9 +297,9 @@ export default function DealTimeline({
       )}
 
       {/* Health Status */}
-      <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+      <div className="bg-blue-500/10 rounded-lg border border-blue-500/20 p-4">
         <h3 className="font-bold text-blue-900 mb-2">Timeline Health</h3>
-        <div className="space-y-1 text-sm text-blue-800">
+        <div className="space-y-1 text-sm text-blue-400">
           <p>
             ✓ Closing Date:{' '}
             <span className="font-medium">

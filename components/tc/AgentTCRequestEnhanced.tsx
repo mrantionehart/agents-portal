@@ -243,73 +243,73 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
     <div className="space-y-6">
       {/* Existing Assignment */}
       {hasApprovedAssignment && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-green-800 font-medium">You have an approved TC assignment</p>
-            <p className="text-green-700 text-sm mt-1">You can use this TC when creating transactions</p>
+            <p className="text-green-400 font-medium">You have an approved TC assignment</p>
+            <p className="text-green-400 text-sm mt-1">You can use this TC when creating transactions</p>
           </div>
         </div>
       )}
 
       {hasPendingAssignment && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-yellow-800 font-medium">Pending TC assignment approval</p>
-            <p className="text-yellow-700 text-sm mt-1">Your request is waiting for broker approval</p>
+            <p className="text-yellow-400 font-medium">Pending TC assignment approval</p>
+            <p className="text-yellow-400 text-sm mt-1">Your request is waiting for broker approval</p>
           </div>
         </div>
       )}
 
       {hasPendingTCRequest && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-blue-800 font-medium">TC creation request pending</p>
-            <p className="text-blue-700 text-sm mt-1">Your TC creation request is being reviewed by your broker</p>
+            <p className="text-blue-400 font-medium">TC creation request pending</p>
+            <p className="text-blue-400 text-sm mt-1">Your TC creation request is being reviewed by your broker</p>
           </div>
         </div>
       )}
 
       {hasApprovedTCRequest && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-green-800 font-medium">Your TC has been created and approved</p>
-            <p className="text-green-700 text-sm mt-1">You can now use this TC for your transactions</p>
+            <p className="text-green-400 font-medium">Your TC has been created and approved</p>
+            <p className="text-green-400 text-sm mt-1">You can now use this TC for your transactions</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800 text-sm">{success}</p>
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+          <p className="text-green-400 text-sm">{success}</p>
         </div>
       )}
 
       {/* Request Existing TC */}
       {!hasApprovedAssignment && !hasPendingAssignment && (
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Request Existing TC</h3>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <h3 className="text-lg font-bold text-white mb-4">Request Existing TC</h3>
           <form onSubmit={handleRequestTC} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Select Transaction Coordinator
               </label>
               {tcs.length === 0 ? (
-                <p className="text-gray-500 text-sm">No active Transaction Coordinators available</p>
+                <p className="text-gray-400 text-sm">No active Transaction Coordinators available</p>
               ) : (
                 <select
                   value={selectedTCId}
                   onChange={(e) => setSelectedTCId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 >
                   <option value="">-- Select a TC --</option>
                   {tcs.map((tc) => (
@@ -322,7 +322,7 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Commission Split (%)
               </label>
               <input
@@ -333,7 +333,7 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
                 value={commissionSplit !== undefined ? commissionSplit : ''}
                 onChange={(e) => setCommissionSplit(parseFloat(e.target.value) || 0)}
                 placeholder="0.0"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               />
             </div>
 
@@ -350,9 +350,9 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
       )}
 
       {/* Create New TC */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-emerald-500">
+      <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-emerald-500">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Request New TC</h3>
+          <h3 className="text-lg font-bold text-white">Request New TC</h3>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1"
@@ -365,7 +365,7 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
         {showCreateForm && (
           <form onSubmit={handleCreateTC} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 TC Name
               </label>
               <input
@@ -373,12 +373,12 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
                 value={tcName}
                 onChange={(e) => setTCName(e.target.value)}
                 placeholder="e.g., John Smith"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 TC Email
               </label>
               <input
@@ -386,12 +386,12 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
                 value={tcEmail}
                 onChange={(e) => setTCEmail(e.target.value)}
                 placeholder="e.g., john@example.com"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Commission Split (%)
               </label>
               <input
@@ -402,7 +402,7 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
                 value={tcCommissionSplit !== undefined ? tcCommissionSplit : ''}
                 onChange={(e) => setTCCommissionSplit(parseFloat(e.target.value) || 0)}
                 placeholder="0.0"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
@@ -418,7 +418,7 @@ export default function AgentTCRequestEnhanced({ userId, userRole }: { userId: s
         )}
 
         {!showCreateForm && (
-          <p className="text-gray-600 text-sm">Don't see the TC you need? Request a new one to be created and approved by your broker.</p>
+          <p className="text-gray-400 text-sm">Don't see the TC you need? Request a new one to be created and approved by your broker.</p>
         )}
       </div>
     </div>

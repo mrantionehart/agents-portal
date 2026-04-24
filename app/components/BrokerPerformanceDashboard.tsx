@@ -128,7 +128,7 @@ export default function BrokerPerformanceDashboard({ userId, role }: BrokerPerfo
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
         <p className="text-red-800 text-sm">{error}</p>
       </div>
     )
@@ -137,111 +137,111 @@ export default function BrokerPerformanceDashboard({ userId, role }: BrokerPerfo
   return (
     <div className="space-y-8">
       {agents.length === 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 text-sm">No agent data available. Make sure your backend is running on port 3000.</p>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+          <p className="text-blue-400 text-sm">No agent data available. Make sure your backend is running on port 3000.</p>
         </div>
       )}
       {/* Overview Stats */}
       <div className="grid grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Total Volume</p>
+            <p className="text-gray-400 text-sm font-medium">Total Volume</p>
             <TrendingUp className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-white">
             ${(totalVolume / 1000000).toFixed(1)}M
           </p>
-          <p className="text-xs text-gray-500 mt-2">All agents combined</p>
+          <p className="text-xs text-gray-400 mt-2">All agents combined</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Total Commission</p>
+            <p className="text-gray-400 text-sm font-medium">Total Commission</p>
             <DollarSign className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-white">
             ${(totalCommission / 1000).toFixed(0)}K
           </p>
-          <p className="text-xs text-gray-500 mt-2">GCI this month</p>
+          <p className="text-xs text-gray-400 mt-2">GCI this month</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-purple-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Closings</p>
+            <p className="text-gray-400 text-sm font-medium">Closings</p>
             <CheckCircle className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{totalClosings}</p>
-          <p className="text-xs text-gray-500 mt-2">Deals closed this month</p>
+          <p className="text-3xl font-bold text-white">{totalClosings}</p>
+          <p className="text-xs text-gray-400 mt-2">Deals closed this month</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-amber-500">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-amber-500">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-600 text-sm font-medium">Avg Win Rate</p>
+            <p className="text-gray-400 text-sm font-medium">Avg Win Rate</p>
             <Target className="w-5 h-5 text-amber-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{avgWinRate}%</p>
-          <p className="text-xs text-gray-500 mt-2">Team average</p>
+          <p className="text-3xl font-bold text-white">{avgWinRate}%</p>
+          <p className="text-xs text-gray-400 mt-2">Team average</p>
         </div>
       </div>
 
       {/* Top Agents Leaderboard */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-600" />
             Top Agents
           </h2>
-          <p className="text-sm text-gray-600 mt-1">Performance leaderboard</p>
+          <p className="text-sm text-gray-400 mt-1">Performance leaderboard</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-[#050507] border-b border-[#1a1a2e]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Agent</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Deals</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Volume</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Commission</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Closings</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Win Rate</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Avg Deal</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Agent</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Deals</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Volume</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Commission</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Closings</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Win Rate</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Avg Deal</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-[#1a1a2e]">
               {agents.sort((a, b) => b.commission - a.commission).map((agent, idx) => (
-                <tr key={agent.id} className="hover:bg-gray-50 transition">
+                <tr key={agent.id} className="hover:bg-[#0a0a0f] transition">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-white">
                         {idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '•'} {agent.name}
                       </p>
-                      <p className="text-sm text-gray-600">{agent.email}</p>
+                      <p className="text-sm text-gray-400">{agent.email}</p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">{agent.deals}</td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">
+                  <td className="px-6 py-4 text-white font-medium">{agent.deals}</td>
+                  <td className="px-6 py-4 text-white font-medium">
                     ${(agent.volume / 1000000).toFixed(2)}M
                   </td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">
+                  <td className="px-6 py-4 text-white font-medium">
                     ${(agent.commission / 1000).toFixed(0)}K
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    <span className="px-3 py-1 bg-green-500/15 text-green-400 rounded-full text-sm font-medium">
                       {agent.closings}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div className="w-24 bg-[#1a1a2e] rounded-full h-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full"
                           style={{ width: `${agent.winRate}%` }}
                         ></div>
                       </div>
-                      <span className="text-gray-900 font-medium">{agent.winRate}%</span>
+                      <span className="text-white font-medium">{agent.winRate}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">
+                  <td className="px-6 py-4 text-white font-medium">
                     ${(agent.avgDealSize / 1000).toFixed(0)}K
                   </td>
                 </tr>
@@ -252,24 +252,24 @@ export default function BrokerPerformanceDashboard({ userId, role }: BrokerPerfo
       </div>
 
       {/* Compliance Alerts Section */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Alerts & Actions</h2>
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
+          <h2 className="text-xl font-bold text-white">Alerts & Actions</h2>
         </div>
         <div className="p-6 space-y-4">
-          <div className="flex items-start gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
             <div className="text-2xl">⚠️</div>
             <div>
               <p className="font-semibold text-yellow-900">Compliance Review Due</p>
-              <p className="text-sm text-yellow-800 mt-1">5 agents have reviews pending broker approval</p>
+              <p className="text-sm text-yellow-400 mt-1">5 agents have reviews pending broker approval</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
             <div className="text-2xl">📊</div>
             <div>
               <p className="font-semibold text-blue-900">Monthly Reports Ready</p>
-              <p className="text-sm text-blue-800 mt-1">Download production reports for all agents</p>
+              <p className="text-sm text-blue-400 mt-1">Download production reports for all agents</p>
             </div>
           </div>
         </div>

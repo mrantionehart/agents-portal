@@ -122,7 +122,7 @@ export function AgentPerformanceReport() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-8">
+      <div className="bg-[#0a0a0f] rounded-lg shadow p-8">
         <div className="flex items-center justify-center">Loading reports...</div>
       </div>
     )
@@ -134,21 +134,21 @@ export function AgentPerformanceReport() {
       <div className="flex items-center gap-3">
         <BarChart3 className="w-8 h-8 text-blue-600" />
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Agent Performance Reports</h2>
-          <p className="text-sm text-gray-600">Monthly and quarterly performance metrics</p>
+          <h2 className="text-2xl font-bold text-white">Agent Performance Reports</h2>
+          <p className="text-sm text-gray-400">Monthly and quarterly performance metrics</p>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Report Selection Tabs */}
       {reports.length > 0 && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200 overflow-x-auto">
+        <div className="bg-[#0a0a0f] rounded-lg shadow">
+          <div className="border-b border-[#1a1a2e] overflow-x-auto">
             <div className="flex">
               {reports.map((report) => (
                 <button
@@ -157,7 +157,7 @@ export function AgentPerformanceReport() {
                   className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition ${
                     selectedReport?.id === report.id
                       ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                      : 'border-transparent text-gray-400 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -174,12 +174,12 @@ export function AgentPerformanceReport() {
             <div className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <p className="text-gray-600 text-sm">Report Type</p>
-                  <p className="text-gray-900 font-medium capitalize">{selectedReport.report_type}</p>
+                  <p className="text-gray-400 text-sm">Report Type</p>
+                  <p className="text-white font-medium capitalize">{selectedReport.report_type}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Period</p>
-                  <p className="text-gray-900 font-medium">
+                  <p className="text-gray-400 text-sm">Period</p>
+                  <p className="text-white font-medium">
                     {new Date(selectedReport.period_start).toLocaleDateString()} - {new Date(selectedReport.period_end).toLocaleDateString()}
                   </p>
                 </div>
@@ -188,23 +188,23 @@ export function AgentPerformanceReport() {
               {/* Agent Metrics Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-[#050507]">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Agent</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Deals Closed</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Avg Deal Size</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Total Commission</th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Commission %</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-white">Agent</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-white">Deals Closed</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-white">Avg Deal Size</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-white">Total Commission</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-white">Commission %</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {Array.isArray(selectedReport.metrics_data) &&
                       selectedReport.metrics_data.map((metric: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900">{metric.agent_name || 'Unknown'}</td>
-                          <td className="px-6 py-3 text-sm text-gray-600">{metric.deals_closed || 0}</td>
-                          <td className="px-6 py-3 text-sm text-gray-600">${((metric.average_deal_size || 0) / 1000000).toFixed(2)}M</td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900">${((metric.total_commission || 0) / 1000).toFixed(2)}K</td>
+                        <tr key={idx} className="hover:bg-[#0a0a0f]">
+                          <td className="px-6 py-3 text-sm font-medium text-white">{metric.agent_name || 'Unknown'}</td>
+                          <td className="px-6 py-3 text-sm text-gray-400">{metric.deals_closed || 0}</td>
+                          <td className="px-6 py-3 text-sm text-gray-400">${((metric.average_deal_size || 0) / 1000000).toFixed(2)}M</td>
+                          <td className="px-6 py-3 text-sm font-medium text-white">${((metric.total_commission || 0) / 1000).toFixed(2)}K</td>
                           <td className="px-6 py-3 text-sm">
                             <span className="flex items-center gap-1">
                               <TrendingUp className="w-4 h-4 text-green-600" />
@@ -233,9 +233,9 @@ export function AgentPerformanceReport() {
       )}
 
       {reports.length === 0 && !error && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-bold text-gray-900 mb-2">No Reports Generated Yet</h3>
-          <p className="text-gray-700 text-sm">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
+          <h3 className="font-bold text-white mb-2">No Reports Generated Yet</h3>
+          <p className="text-gray-200 text-sm">
             Agent performance reports are generated automatically on a schedule. Reports will appear here once available.
           </p>
         </div>

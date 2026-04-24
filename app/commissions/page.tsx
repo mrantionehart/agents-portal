@@ -51,13 +51,13 @@ export default function CommissionsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-500/15 text-green-400'
       case 'broker_approved':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-500/15 text-blue-400'
       case 'pending_calculation':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-500/15 text-yellow-400'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-[#0a0a0f] text-white'
     }
   }
 
@@ -73,12 +73,12 @@ export default function CommissionsPage() {
   const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#0a0a0f]">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-[#0a0a0f] shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400">
               ← Dashboard
             </Link>
             <h1 className="text-3xl font-bold">Commissions</h1>
@@ -96,18 +96,18 @@ export default function CommissionsPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-2">Total Gross Commissions</h3>
             <p className="text-3xl font-bold">${totalGross.toLocaleString()}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-2">Your Earned Amount</h3>
             <p className="text-3xl font-bold">${totalEarned.toLocaleString()}</p>
           </div>
         </div>
 
         {/* Commissions Table */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-[#0a0a0f] rounded-lg shadow">
           <div className="p-6 border-b">
             <h2 className="text-2xl font-bold">Commission Details</h2>
           </div>
@@ -116,7 +116,7 @@ export default function CommissionsPage() {
           ) : commissions.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-[#050507]">
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Property</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Client</th>
@@ -128,7 +128,7 @@ export default function CommissionsPage() {
                 </thead>
                 <tbody className="divide-y">
                   {commissions.map((comm) => (
-                    <tr key={comm.id} className="hover:bg-gray-50">
+                    <tr key={comm.id} className="hover:bg-[#0a0a0f]">
                       <td className="px-6 py-3">{comm.transactions?.property_address || 'N/A'}</td>
                       <td className="px-6 py-3">{comm.transactions?.client_name || 'N/A'}</td>
                       <td className="px-6 py-3">${(comm.gross_commission || 0).toLocaleString()}</td>
@@ -147,7 +147,7 @@ export default function CommissionsPage() {
               </table>
             </div>
           ) : (
-            <div className="p-6 text-gray-500">No commissions found</div>
+            <div className="p-6 text-gray-400">No commissions found</div>
           )}
         </div>
       </main>

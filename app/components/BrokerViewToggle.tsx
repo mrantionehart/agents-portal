@@ -16,13 +16,13 @@ export default function BrokerViewToggle({ role, onViewChange, currentView = 'ag
   }
 
   return (
-    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+    <div className="flex items-center gap-2 bg-[#0a0a0f] rounded-lg p-1">
       <button
         onClick={() => onViewChange('agent')}
         className={`flex items-center gap-2 px-4 py-2 rounded-md transition font-medium text-sm ${
           currentView === 'agent'
-            ? 'bg-white text-gray-900 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-[#0a0a0f] text-white shadow-sm shadow-black/10'
+            : 'text-gray-400 hover:text-white'
         }`}
       >
         <Users className="w-4 h-4" />
@@ -32,8 +32,8 @@ export default function BrokerViewToggle({ role, onViewChange, currentView = 'ag
         onClick={() => onViewChange('broker')}
         className={`flex items-center gap-2 px-4 py-2 rounded-md transition font-medium text-sm ${
           currentView === 'broker'
-            ? 'bg-white text-gray-900 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-[#0a0a0f] text-white shadow-sm shadow-black/10'
+            : 'text-gray-400 hover:text-white'
         }`}
       >
         <Building2 className="w-4 h-4" />

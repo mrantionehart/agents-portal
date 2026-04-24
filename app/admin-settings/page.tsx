@@ -76,11 +76,11 @@ export default function AdminSettingsPage() {
   if (role !== 'broker' && role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow p-8 text-center max-w-md">
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-8 text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-6">Only administrators and brokers can access this page.</p>
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+          <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
+          <p className="text-gray-400 mb-6">Only administrators and brokers can access this page.</p>
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
             ← Back to Dashboard
           </Link>
         </div>
@@ -99,15 +99,15 @@ export default function AdminSettingsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
             <div className="flex items-center gap-3">
-              <Settings className="w-6 h-6 text-gray-700" />
-              <h1 className="text-2xl font-bold text-gray-900">Admin Settings</h1>
+              <Settings className="w-6 h-6 text-gray-200" />
+              <h1 className="text-2xl font-bold text-white">Admin Settings</h1>
             </div>
           </div>
           <button
@@ -122,12 +122,12 @@ export default function AdminSettingsPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         {/* Warning Banner */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-8">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-yellow-900 font-semibold">Confidential Information</p>
-              <p className="text-yellow-800 text-sm mt-1">
+              <p className="text-yellow-400 text-sm mt-1">
                 This page contains sensitive configuration passwords. Keep these secure and only share with authorized team members. All access is logged.
               </p>
             </div>
@@ -138,25 +138,25 @@ export default function AdminSettingsPage() {
         <div className="space-y-8">
           {Object.entries(groupedByCategory).map(([category, configs]) => (
             <div key={category}>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
                 <Lock className="w-6 h-6 text-blue-600" />
                 {category} Passwords
               </h2>
 
               <div className="grid gap-6">
                 {configs.map(config => (
-                  <div key={config.name} className="bg-white rounded-lg shadow-lg overflow-hidden">
+                  <div key={config.name} className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 overflow-hidden">
                     {/* Card Header */}
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-6">
-                      <h3 className="text-lg font-bold text-gray-900">{config.name}</h3>
-                      <p className="text-gray-600 text-sm mt-1">{config.description}</p>
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-[#1a1a2e] p-6">
+                      <h3 className="text-lg font-bold text-white">{config.name}</h3>
+                      <p className="text-gray-400 text-sm mt-1">{config.description}</p>
                     </div>
 
                     {/* Card Content */}
                     <div className="p-6 space-y-6">
                       {/* Password Display */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-sm font-semibold text-gray-200 mb-2">
                           Password
                         </label>
                         <div className="flex gap-2">
@@ -165,23 +165,23 @@ export default function AdminSettingsPage() {
                               type={visiblePasswords.includes(config.name) ? 'text' : 'password'}
                               value={config.current}
                               readOnly
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
+                              className="w-full px-4 py-3 border border-[#1a1a2e] rounded-lg bg-[#050507] font-mono text-sm"
                             />
                           </div>
                           <button
                             onClick={() => togglePasswordVisibility(config.name)}
-                            className="px-4 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition flex items-center gap-2"
+                            className="px-4 py-3 border border-[#1a1a2e] rounded-lg bg-[#0a0a0f] hover:bg-[#0a0a0f] transition flex items-center gap-2"
                             title="Toggle visibility"
                           >
                             {visiblePasswords.includes(config.name) ? (
-                              <EyeOff className="w-4 h-4 text-gray-600" />
+                              <EyeOff className="w-4 h-4 text-gray-400" />
                             ) : (
-                              <Eye className="w-4 h-4 text-gray-600" />
+                              <Eye className="w-4 h-4 text-gray-400" />
                             )}
                           </button>
                           <button
                             onClick={() => copyToClipboard(config.current, config.name)}
-                            className="px-4 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition flex items-center gap-2"
+                            className="px-4 py-3 border border-[#1a1a2e] rounded-lg bg-[#0a0a0f] hover:bg-[#0a0a0f] transition flex items-center gap-2"
                             title="Copy to clipboard"
                           >
                             {copiedPassword === config.name ? (
@@ -190,7 +190,7 @@ export default function AdminSettingsPage() {
                                 <span className="text-xs text-green-600 font-medium">Copied!</span>
                               </>
                             ) : (
-                              <Copy className="w-4 h-4 text-gray-600" />
+                              <Copy className="w-4 h-4 text-gray-400" />
                             )}
                           </button>
                         </div>
@@ -198,15 +198,15 @@ export default function AdminSettingsPage() {
 
                       {/* Usage Information */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-sm font-semibold text-gray-200 mb-2">
                           Used In
                         </label>
-                        <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="bg-[#050507] rounded-lg p-4">
                           <ul className="space-y-1">
                             {config.usage.map((usage, idx) => (
-                              <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                              <li key={idx} className="text-sm text-gray-200 flex items-start gap-2">
                                 <span className="text-gray-400 mt-1">•</span>
-                                <code className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+                                <code className="font-mono text-xs bg-[#0a0a0f] px-2 py-1 rounded border border-[#1a1a2e]">
                                   {usage}
                                 </code>
                               </li>
@@ -216,11 +216,11 @@ export default function AdminSettingsPage() {
                       </div>
 
                       {/* Change Password Button */}
-                      <div className="pt-4 border-t border-gray-200">
+                      <div className="pt-4 border-t border-[#1a1a2e]">
                         <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                           Change Password
                         </button>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs text-gray-400 mt-2">
                           Note: Changing passwords requires updating code in multiple locations. Contact development team.
                         </p>
                       </div>
@@ -233,7 +233,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Configuration Reference */}
-        <div className="mt-12 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="mt-12 bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
           <h3 className="text-lg font-bold text-blue-900 mb-4">📋 Configuration Reference</h3>
           <div className="space-y-3 text-sm text-blue-900">
             <p>
@@ -257,9 +257,9 @@ export default function AdminSettingsPage() {
 
         {/* Portal Configuration Summary */}
         <div className="mt-12 grid grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h4 className="font-bold text-gray-900 mb-4">Training Settings</h4>
-            <ul className="space-y-2 text-sm text-gray-700">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+            <h4 className="font-bold text-white mb-4">Training Settings</h4>
+            <ul className="space-y-2 text-sm text-gray-200">
               <li>✓ Volume 1: Unlocked (no password)</li>
               <li>✓ Volume 2: Locked (password required)</li>
               <li>✓ Volume 3: Locked (password required)</li>
@@ -269,9 +269,9 @@ export default function AdminSettingsPage() {
             </ul>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h4 className="font-bold text-gray-900 mb-4">Security Features</h4>
-            <ul className="space-y-2 text-sm text-gray-700">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+            <h4 className="font-bold text-white mb-4">Security Features</h4>
+            <ul className="space-y-2 text-sm text-gray-200">
               <li>✓ Policy acceptance on first login</li>
               <li>✓ Role-based access control</li>
               <li>✓ Supabase authentication</li>

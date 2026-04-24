@@ -105,13 +105,13 @@ export default function AIChatPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">AI Assistant</h1>
+            <h1 className="text-2xl font-bold text-white">AI Assistant</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -128,15 +128,15 @@ export default function AIChatPage() {
       {/* Main Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-8 flex flex-col">
         {/* Chat Area */}
-        <div className="flex-1 bg-white rounded-lg shadow-lg mb-6 p-6 flex flex-col">
+        <div className="flex-1 bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 mb-6 p-6 flex flex-col">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-4 mb-6">
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-center">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to HartFelt AI Assistant</h2>
-                  <p className="text-gray-600 mb-6">Ask me anything about:</p>
-                  <ul className="text-gray-600 space-y-2 mb-8">
+                  <h2 className="text-2xl font-bold text-white mb-2">Welcome to HartFelt AI Assistant</h2>
+                  <p className="text-gray-400 mb-6">Ask me anything about:</p>
+                  <ul className="text-gray-400 space-y-2 mb-8">
                     <li>📊 Market analysis and comparable properties</li>
                     <li>📋 Compliance requirements and document review</li>
                     <li>💰 Commission calculations and projections</li>
@@ -144,7 +144,7 @@ export default function AIChatPage() {
                     <li>🏠 Real estate strategies and tips</li>
                     <li>⚖️ Fair housing compliance</li>
                   </ul>
-                  <p className="text-sm text-gray-500">Start typing your question below to begin!</p>
+                  <p className="text-sm text-gray-400">Start typing your question below to begin!</p>
                 </div>
               </div>
             ) : (
@@ -157,13 +157,13 @@ export default function AIChatPage() {
                     className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
                       message.type === 'user'
                         ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-none border border-gray-200'
+                        : 'bg-[#0a0a0f] text-white rounded-bl-none border border-[#1a1a2e]'
                     }`}
                   >
                     <p className="text-sm">{message.content}</p>
                     <p
                       className={`text-xs mt-1 ${
-                        message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                        message.type === 'user' ? 'text-blue-100' : 'text-gray-400'
                       }`}
                     >
                       {message.timestamp.toLocaleTimeString([], {
@@ -177,7 +177,7 @@ export default function AIChatPage() {
             )}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg border border-gray-200 rounded-bl-none">
+                <div className="bg-[#0a0a0f] text-white px-4 py-3 rounded-lg border border-[#1a1a2e] rounded-bl-none">
                   <div className="flex gap-2">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
@@ -191,7 +191,7 @@ export default function AIChatPage() {
 
           {/* Error Banner */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-red-800 text-sm">{error}</p>
@@ -207,12 +207,12 @@ export default function AIChatPage() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me a question..."
               disabled={isLoading}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+              className="flex-1 px-4 py-3 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent disabled:bg-[#050507]"
             />
             <button
               type="submit"
               disabled={isLoading || !inputValue.trim()}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 flex items-center gap-2"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-700 flex items-center gap-2"
             >
               <Send className="w-4 h-4" />
               Send
@@ -221,7 +221,7 @@ export default function AIChatPage() {
               <button
                 type="button"
                 onClick={handleClearChat}
-                className="bg-red-100 text-red-600 px-4 py-3 rounded-lg hover:bg-red-200 transition"
+                className="bg-red-500/15 text-red-600 px-4 py-3 rounded-lg hover:bg-red-200 transition"
                 title="Clear chat"
               >
                 <Trash2 className="w-4 h-4" />
@@ -237,30 +237,30 @@ export default function AIChatPage() {
               setInputValue('What are the current market trends in Miami?')
               setMessages([])
             }}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition text-left"
+            className="bg-[#0a0a0f] p-4 rounded-lg shadow hover:shadow-lg shadow-black/20 transition text-left"
           >
-            <p className="font-semibold text-gray-900 mb-1">Market Analysis</p>
-            <p className="text-sm text-gray-600">Get market insights and trends</p>
+            <p className="font-semibold text-white mb-1">Market Analysis</p>
+            <p className="text-sm text-gray-400">Get market insights and trends</p>
           </button>
           <button
             onClick={() => {
               setInputValue('Help me check if my documents are compliant.')
               setMessages([])
             }}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition text-left"
+            className="bg-[#0a0a0f] p-4 rounded-lg shadow hover:shadow-lg shadow-black/20 transition text-left"
           >
-            <p className="font-semibold text-gray-900 mb-1">Compliance Check</p>
-            <p className="text-sm text-gray-600">Review document compliance</p>
+            <p className="font-semibold text-white mb-1">Compliance Check</p>
+            <p className="text-sm text-gray-400">Review document compliance</p>
           </button>
           <button
             onClick={() => {
               setInputValue('Calculate my commission on a $500,000 sale.')
               setMessages([])
             }}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition text-left"
+            className="bg-[#0a0a0f] p-4 rounded-lg shadow hover:shadow-lg shadow-black/20 transition text-left"
           >
-            <p className="font-semibold text-gray-900 mb-1">Commission Help</p>
-            <p className="text-sm text-gray-600">Calculate commissions and splits</p>
+            <p className="font-semibold text-white mb-1">Commission Help</p>
+            <p className="text-sm text-gray-400">Calculate commissions and splits</p>
           </button>
         </div>
       </main>

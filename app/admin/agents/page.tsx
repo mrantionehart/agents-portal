@@ -181,27 +181,27 @@ export default function AdminAgentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-[#050507] p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Agent Management</h1>
-          <p className="text-gray-600">Create, approve, and manage HartFelt real estate agents</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Agent Management</h1>
+          <p className="text-gray-400">Create, approve, and manage HartFelt real estate agents</p>
         </div>
         {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400">
             {successMessage}
           </div>
         )}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-800">
             {error}
           </div>
         )}
         {showAddForm ? (
           <div className="mb-8">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900">Add New Agent</h2>
+            <div className="bg-[#0a0a0f] rounded-lg shadow">
+              <div className="p-6 border-b border-[#1a1a2e]">
+                <h2 className="text-2xl font-bold text-white">Add New Agent</h2>
               </div>
               <div className="p-6">
                 <AddAgentForm onSubmit={handleAddAgent} onCancel={() => setShowAddForm(false)} isLoading={isProcessing} />
@@ -213,14 +213,14 @@ export default function AdminAgentsPage() {
             + Add New Agent
           </button>
         )}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">All Agents ({agents.length})</h2>
+        <div className="bg-[#0a0a0f] rounded-lg shadow">
+          <div className="p-6 border-b border-[#1a1a2e]">
+            <h2 className="text-2xl font-bold text-white">All Agents ({agents.length})</h2>
           </div>
           {loading ? (
-            <div className="p-6 text-center text-gray-500">Loading agents...</div>
+            <div className="p-6 text-center text-gray-400">Loading agents...</div>
           ) : agents.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No agents yet. Create one to get started!</div>
+            <div className="p-6 text-center text-gray-400">No agents yet. Create one to get started!</div>
           ) : (
             <AgentsTable
               agents={agents}
@@ -242,19 +242,19 @@ export default function AdminAgentsPage() {
 
         {editingAgent && editMode === 'delete' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900">Delete Agent</h2>
+            <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 max-w-md w-full mx-4">
+              <div className="p-6 border-b border-[#1a1a2e]">
+                <h2 className="text-2xl font-bold text-white">Delete Agent</h2>
               </div>
               <div className="p-6">
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-400 mb-6">
                   Are you sure you want to delete <strong>{editingAgent.first_name} {editingAgent.last_name}</strong>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={cancelEdit}
                     disabled={isProcessing}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-[#1a1a2e] text-white rounded-lg hover:bg-[#1a1a2e] transition disabled:opacity-50"
                   >
                     Cancel
                   </button>

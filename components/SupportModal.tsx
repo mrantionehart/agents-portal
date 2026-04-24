@@ -64,12 +64,12 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Contact Support</h2>
+          <h2 className="text-xl font-bold text-white">Contact Support</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-400 hover:text-gray-200"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -79,15 +79,15 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
         {submitted ? (
           <div className="p-6 text-center">
             <div className="text-4xl mb-4">✓</div>
-            <p className="text-lg font-medium text-gray-900 mb-2">Message Sent!</p>
-            <p className="text-gray-600">
+            <p className="text-lg font-medium text-white mb-2">Message Sent!</p>
+            <p className="text-gray-400">
               Thank you for contacting support. We'll get back to you shortly.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Name
               </label>
               <input
@@ -96,13 +96,13 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 placeholder="Your name"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Email
               </label>
               <input
@@ -111,13 +111,13 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 placeholder="your@email.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Subject
               </label>
               <input
@@ -126,13 +126,13 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
                 value={formData.subject}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 placeholder="What do you need help with?"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Message
               </label>
               <textarea
@@ -141,13 +141,13 @@ export default function SupportModal({ isOpen, onClose, userEmail = '', userName
                 onChange={handleChange}
                 required
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 placeholder="Describe your issue or question..."
               />
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
                 {error}
               </div>
             )}

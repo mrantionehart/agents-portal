@@ -159,17 +159,17 @@ export default function TemplateManager({
       <div className="space-y-4">
         <button
           onClick={() => setSelectedTemplate(null)}
-          className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+          className="text-blue-600 hover:text-blue-400 flex items-center gap-2"
         >
           ← Back to Templates
         </button>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-6">
           <h2 className="text-2xl font-bold mb-4">{selectedTemplate.name}</h2>
-          <p className="text-gray-600 mb-4">{selectedTemplate.description}</p>
+          <p className="text-gray-400 mb-4">{selectedTemplate.description}</p>
 
           <div className="mb-6">
-            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            <span className="inline-block px-3 py-1 bg-blue-500/15 text-blue-400 rounded-full text-sm font-medium">
               {selectedTemplate.deal_type}
             </span>
           </div>
@@ -177,9 +177,9 @@ export default function TemplateManager({
           <h3 className="text-lg font-bold mb-3">Checklist Items</h3>
           <div className="space-y-2">
             {selectedTemplate.task_template_items.map((item) => (
-              <div key={item.id} className="flex items-center p-2 bg-gray-50 rounded">
+              <div key={item.id} className="flex items-center p-2 bg-[#050507] rounded">
                 <span className="text-gray-400 mr-3">☐</span>
-                <span className="text-gray-900">{item.title}</span>
+                <span className="text-white">{item.title}</span>
               </div>
             ))}
           </div>
@@ -200,13 +200,13 @@ export default function TemplateManager({
                 });
                 setSelectedTemplate(null);
               }}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="px-4 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600"
             >
               Edit
             </button>
             <button
               onClick={() => setSelectedTemplate(null)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 border border-[#1a1a2e] text-gray-200 rounded-lg hover:bg-[#0a0a0f]"
             >
               Close
             </button>
@@ -227,7 +227,7 @@ export default function TemplateManager({
             setEditingTemplate(null);
             setShowCreateModal(true);
           }}
-          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+          className="px-4 py-2 bg-green-500/100 text-white rounded-lg hover:bg-green-600"
         >
           + Create Template
         </button>
@@ -237,7 +237,7 @@ export default function TemplateManager({
       {loading ? (
         <div className="text-center py-8">Loading templates...</div>
       ) : templates.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-gray-400">
           No templates found. Create one to get started!
         </div>
       ) : (
@@ -246,16 +246,16 @@ export default function TemplateManager({
             <div
               key={template.id}
               onClick={() => setSelectedTemplate(template)}
-              className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-400 cursor-pointer transition-colors"
+              className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4 hover:border-blue-400 cursor-pointer transition-colors"
             >
               <h3 className="text-lg font-bold mb-2">{template.name}</h3>
-              <p className="text-gray-600 text-sm mb-3">{template.description}</p>
+              <p className="text-gray-400 text-sm mb-3">{template.description}</p>
 
               <div className="flex items-center justify-between">
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                <span className="inline-block px-3 py-1 bg-blue-500/15 text-blue-400 rounded-full text-xs font-medium">
                   {template.deal_type}
                 </span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-400">
                   {template.task_template_items.length} items
                 </span>
               </div>
@@ -267,7 +267,7 @@ export default function TemplateManager({
       {/* Create/Edit Modal */}
       {(showCreateModal || editingTemplate) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-2xl font-bold">
                 {editingTemplate ? 'Edit Template' : 'Create Template'}
@@ -278,7 +278,7 @@ export default function TemplateManager({
                   setEditingTemplate(null);
                   resetForm();
                 }}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-400 hover:text-gray-200 text-2xl"
               >
                 ×
               </button>
@@ -296,7 +296,7 @@ export default function TemplateManager({
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Residential Purchase Checklist"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                   required
                 />
               </div>
@@ -309,7 +309,7 @@ export default function TemplateManager({
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Brief description of this template"
                   rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
@@ -319,7 +319,7 @@ export default function TemplateManager({
                 <select
                   value={formData.deal_type}
                   onChange={(e) => setFormData({ ...formData, deal_type: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                   required
                 >
                   {dealTypes.map((type) => (
@@ -337,7 +337,7 @@ export default function TemplateManager({
                   <button
                     type="button"
                     onClick={handleAddTemplateItem}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-blue-600 hover:text-blue-400"
                   >
                     + Add Item
                   </button>
@@ -355,7 +355,7 @@ export default function TemplateManager({
                           setFormData({ ...formData, template_items: newItems });
                         }}
                         placeholder="Checklist item"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                       />
                       <button
                         type="button"
@@ -378,13 +378,13 @@ export default function TemplateManager({
                     setEditingTemplate(null);
                     resetForm();
                   }}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                  className="px-6 py-2 border border-[#1a1a2e] rounded-lg text-gray-200 hover:bg-[#0a0a0f] font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                  className="px-6 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 font-medium"
                 >
                   {editingTemplate ? 'Update Template' : 'Create Template'}
                 </button>

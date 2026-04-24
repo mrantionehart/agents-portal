@@ -35,24 +35,24 @@ interface BrokerWarningsProps {
 
 const severityConfig = {
   critical: {
-    bg: 'bg-red-50',
-    border: 'border-red-200',
+    bg: 'bg-red-500/10',
+    border: 'border-red-500/20',
     icon: '🚨',
-    badge: 'bg-red-500 text-white',
+    badge: 'bg-red-500/100 text-white',
     text: 'text-red-900',
   },
   warning: {
-    bg: 'bg-yellow-50',
-    border: 'border-yellow-200',
+    bg: 'bg-yellow-500/10',
+    border: 'border-yellow-500/20',
     icon: '⚠️',
-    badge: 'bg-yellow-500 text-white',
+    badge: 'bg-yellow-500/100 text-white',
     text: 'text-yellow-900',
   },
   info: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
+    bg: 'bg-blue-500/10',
+    border: 'border-blue-500/20',
     icon: 'ℹ️',
-    badge: 'bg-blue-500 text-white',
+    badge: 'bg-blue-500/100 text-white',
     text: 'text-blue-900',
   },
 };
@@ -172,11 +172,11 @@ export default function BrokerWarnings({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Deal Timeline Warnings</h2>
+        <h2 className="text-xl font-bold text-white">Deal Timeline Warnings</h2>
         <button
           onClick={loadWarnings}
           disabled={loading}
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          className="px-3 py-1 text-sm bg-blue-500/100 text-white rounded hover:bg-blue-600 disabled:opacity-50"
         >
           Refresh
         </button>
@@ -185,21 +185,21 @@ export default function BrokerWarnings({
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-4 gap-3">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-            <div className="text-2xl font-bold text-gray-900">{summary.total}</div>
-            <div className="text-xs text-gray-600">Total</div>
+          <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-3 text-center">
+            <div className="text-2xl font-bold text-white">{summary.total}</div>
+            <div className="text-xs text-gray-400">Total</div>
           </div>
-          <div className="bg-red-50 rounded-lg border border-red-200 p-3 text-center">
+          <div className="bg-red-500/10 rounded-lg border border-red-500/20 p-3 text-center">
             <div className="text-2xl font-bold text-red-600">{summary.by_severity.critical}</div>
-            <div className="text-xs text-red-700">Critical</div>
+            <div className="text-xs text-red-400">Critical</div>
           </div>
-          <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-3 text-center">
+          <div className="bg-yellow-500/10 rounded-lg border border-yellow-500/20 p-3 text-center">
             <div className="text-2xl font-bold text-yellow-600">{summary.by_severity.warning}</div>
-            <div className="text-xs text-yellow-700">Warning</div>
+            <div className="text-xs text-yellow-400">Warning</div>
           </div>
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 text-center">
-            <div className="text-2xl font-bold text-gray-600">{summary.unresolved}</div>
-            <div className="text-xs text-gray-700">Unresolved</div>
+          <div className="bg-[#050507] rounded-lg border border-[#1a1a2e] p-3 text-center">
+            <div className="text-2xl font-bold text-gray-400">{summary.unresolved}</div>
+            <div className="text-xs text-gray-200">Unresolved</div>
           </div>
         </div>
       )}
@@ -209,7 +209,7 @@ export default function BrokerWarnings({
         <select
           value={filterSeverity}
           onChange={(e) => setFilterSeverity(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
         >
           <option value="">All Severities</option>
           <option value="critical">Critical Only</option>
@@ -220,7 +220,7 @@ export default function BrokerWarnings({
         <select
           value={filterResolved}
           onChange={(e) => setFilterResolved(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
         >
           <option value="false">Unresolved Only</option>
           <option value="true">Resolved Only</option>
@@ -230,17 +230,17 @@ export default function BrokerWarnings({
 
       {/* Warnings List */}
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Loading warnings...</div>
+        <div className="text-center py-8 text-gray-400">Loading warnings...</div>
       ) : warnings.length === 0 ? (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-6 text-center">
           <p className="text-lg font-medium text-green-900">✓ No Active Warnings</p>
-          <p className="text-sm text-green-700 mt-1">All deals are on track</p>
+          <p className="text-sm text-green-400 mt-1">All deals are on track</p>
         </div>
       ) : (
         <div className="space-y-3">
           {/* Bulk Actions */}
           {displayedWarnings.length > 0 && (
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between bg-[#050507] p-3 rounded-lg border border-[#1a1a2e]">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -248,7 +248,7 @@ export default function BrokerWarnings({
                   onChange={toggleAllWarnings}
                   className="w-4 h-4"
                 />
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-200">
                   {selectedWarnings.size > 0
                     ? `${selectedWarnings.size} selected`
                     : 'Select all'}
@@ -259,13 +259,13 @@ export default function BrokerWarnings({
                 <div className="flex gap-2">
                   <button
                     onClick={handleResolveWarnings}
-                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                    className="px-3 py-1 text-sm bg-green-500/100 text-white rounded hover:bg-green-600"
                   >
                     Resolve ({selectedWarnings.size})
                   </button>
                   <button
                     onClick={handleDismissWarnings}
-                    className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                    className="px-3 py-1 text-sm bg-[#050507]0 text-white rounded hover:bg-[#1a1a2e]"
                   >
                     Dismiss ({selectedWarnings.size})
                   </button>
@@ -346,7 +346,7 @@ export default function BrokerWarnings({
                         setSelectedWarnings(new Set([warning.id]));
                         setTimeout(() => handleResolveWarnings(), 0);
                       }}
-                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 whitespace-nowrap"
+                      className="px-2 py-1 text-xs bg-green-500/100 text-white rounded hover:bg-green-600 whitespace-nowrap"
                     >
                       Resolve
                     </button>
@@ -355,7 +355,7 @@ export default function BrokerWarnings({
                         setSelectedWarnings(new Set([warning.id]));
                         setTimeout(() => handleDismissWarnings(), 0);
                       }}
-                      className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 whitespace-nowrap"
+                      className="px-2 py-1 text-xs bg-[#050507]0 text-white rounded hover:bg-[#1a1a2e] whitespace-nowrap"
                     >
                       Dismiss
                     </button>
@@ -368,7 +368,7 @@ export default function BrokerWarnings({
           {/* Show More Link */}
           {warnings.length > maxDisplay && (
             <div className="text-center pt-2">
-              <button className="text-sm text-blue-600 hover:text-blue-800">
+              <button className="text-sm text-blue-600 hover:text-blue-400">
                 Show {warnings.length - maxDisplay} more warnings
               </button>
             </div>

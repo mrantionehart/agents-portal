@@ -35,43 +35,43 @@ export default function AdminCommissionsPage() {
     <div className="p-8">
       <div className="flex items-center gap-3 mb-8">
         <TrendingUp className="w-8 h-8 text-orange-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Commission Approvals</h1>
+        <h1 className="text-3xl font-bold text-white">Commission Approvals</h1>
       </div>
 
       {loading ? (
         <div className="text-center py-12">Loading commissions...</div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-[#0a0a0f] rounded-lg shadow overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-[#050507] border-b">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Agent</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Deal ID</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Gross Commission</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Agent Amount</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Action</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Agent</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Deal ID</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Gross Commission</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Agent Amount</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Status</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-white">Action</th>
               </tr>
             </thead>
             <tbody>
               {commissions.slice(0, 20).map((comm) => (
-                <tr key={comm.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-3 font-medium text-gray-900">{comm.agent_name || 'Unknown'}</td>
-                  <td className="px-6 py-3 text-gray-600">{comm.deal_id}</td>
+                <tr key={comm.id} className="border-b hover:bg-[#0a0a0f]">
+                  <td className="px-6 py-3 font-medium text-white">{comm.agent_name || 'Unknown'}</td>
+                  <td className="px-6 py-3 text-gray-400">{comm.deal_id}</td>
                   <td className="px-6 py-3 font-medium">${(comm.gross_commission || 0).toLocaleString()}</td>
                   <td className="px-6 py-3 font-medium">${(comm.agent_amount || 0).toLocaleString()}</td>
                   <td className="px-6 py-3">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      comm.status === 'approved' ? 'bg-green-100 text-green-800' :
-                      comm.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
+                      comm.status === 'approved' ? 'bg-green-500/15 text-green-400' :
+                      comm.status === 'pending' ? 'bg-yellow-500/15 text-yellow-400' :
+                      'bg-[#0a0a0f] text-white'
                     }`}>
                       {comm.status || 'Pending'}
                     </span>
                   </td>
                   <td className="px-6 py-3">
                     {comm.status === 'pending' && (
-                      <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">Approve</button>
+                      <button className="text-blue-600 hover:text-blue-400 text-sm font-medium">Approve</button>
                     )}
                   </td>
                 </tr>

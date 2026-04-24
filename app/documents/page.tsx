@@ -73,13 +73,13 @@ export default function DocumentsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Contracts & Documents</h1>
+            <h1 className="text-2xl font-bold text-white">Contracts & Documents</h1>
           </div>
           <button
             onClick={handleSignOut}
@@ -93,21 +93,21 @@ export default function DocumentsPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         {error && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 text-sm">{error}</p>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+            <p className="text-blue-400 text-sm">{error}</p>
           </div>
         )}
 
         {docsLoading ? (
           <div className="flex items-center justify-center py-12">
-            <p className="text-gray-600">Loading documents...</p>
+            <p className="text-gray-400">Loading documents...</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-6">
             {Object.entries(documents).map(([category, docs]) => (
-              <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="p-6 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <div key={category} className="bg-[#0a0a0f] rounded-lg shadow overflow-hidden">
+                <div className="p-6 bg-[#050507] border-b border-[#1a1a2e]">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Folder className="w-5 h-5 text-blue-600" />
                     {category}
                   </h3>
@@ -116,16 +116,16 @@ export default function DocumentsPage() {
                   {docs.map((doc: any) => (
                     <li
                       key={doc.id || doc.name}
-                      className="p-4 hover:bg-blue-50 transition flex items-center justify-between group"
+                      className="p-4 hover:bg-blue-500/10 transition flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
                         <div>
-                          <p className="text-gray-900 group-hover:text-blue-600 cursor-pointer font-medium">
+                          <p className="text-white group-hover:text-blue-600 cursor-pointer font-medium">
                             {doc.name || doc}
                           </p>
                           {doc.size && (
-                            <p className="text-xs text-gray-600">{(doc.size / 1024).toFixed(2)} KB</p>
+                            <p className="text-xs text-gray-400">{(doc.size / 1024).toFixed(2)} KB</p>
                           )}
                         </div>
                       </div>
@@ -139,14 +139,14 @@ export default function DocumentsPage() {
         )}
 
         {/* Florida Realtors Forms Section */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Florida Realtors Forms Library</h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="mt-12 pt-8 border-t border-[#1a1a2e]">
+          <h2 className="text-2xl font-bold text-white mb-6">Florida Realtors Forms Library</h2>
+          <div className="bg-[#0a0a0f] rounded-lg shadow overflow-hidden">
             <div className="p-8">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Access Florida Realtors Official Forms</h3>
-                  <p className="text-gray-600 mb-4">
+                  <h3 className="text-xl font-bold text-white mb-2">Access Florida Realtors Official Forms</h3>
+                  <p className="text-gray-400 mb-4">
                     Browse and download all official Florida Realtors forms and contracts. Keep your documents up-to-date with the latest state requirements.
                   </p>
                   <a

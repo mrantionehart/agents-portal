@@ -113,7 +113,7 @@ export default function AgentReviewStatus({
       case 'rejected':
         return <XCircle className="text-red-600" size={20} />
       default:
-        return <AlertCircle className="text-gray-600" size={20} />
+        return <AlertCircle className="text-gray-400" size={20} />
     }
   }
 
@@ -133,13 +133,13 @@ export default function AgentReviewStatus({
   const getStatusColor = () => {
     switch (review.status) {
       case 'pending':
-        return 'bg-yellow-50 border-yellow-200'
+        return 'bg-yellow-500/10 border-yellow-500/20'
       case 'approved':
-        return 'bg-green-50 border-green-200'
+        return 'bg-green-500/10 border-green-500/20'
       case 'rejected':
-        return 'bg-red-50 border-red-200'
+        return 'bg-red-500/10 border-red-500/20'
       default:
-        return 'bg-gray-50 border-gray-200'
+        return 'bg-[#050507] border-[#1a1a2e]'
     }
   }
 
@@ -162,8 +162,8 @@ export default function AgentReviewStatus({
         <div className="flex items-start gap-3 flex-1">
           {getStatusIcon()}
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{getStatusLabel()}</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="font-semibold text-white">{getStatusLabel()}</h3>
+            <p className="text-sm text-gray-400 mt-1">
               {review.status === 'pending' && `Waiting for ${formatTimeWaiting(timeWaiting)}`}
               {review.status === 'approved' &&
                 `Approved on ${new Date(review.reviewed_at).toLocaleDateString()}`}
@@ -171,7 +171,7 @@ export default function AgentReviewStatus({
             </p>
 
             {review.status === 'rejected' && review.rejection_reason && (
-              <div className="mt-3 bg-red-100 rounded p-3 text-sm">
+              <div className="mt-3 bg-red-500/15 rounded p-3 text-sm">
                 <p className="font-semibold text-red-900 mb-1">Reason:</p>
                 <p className="text-red-800">{review.rejection_reason}</p>
               </div>
@@ -198,7 +198,7 @@ export default function AgentReviewStatus({
                 </button>
                 <button
                   onClick={() => setShowResubmit(false)}
-                  className="w-full px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
+                  className="w-full px-3 py-1 text-sm bg-[#1a1a2e] text-gray-200 rounded hover:bg-gray-400 transition"
                 >
                   Cancel
                 </button>

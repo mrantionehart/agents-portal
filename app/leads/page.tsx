@@ -207,13 +207,13 @@ export default function LeadsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'hot':
-        return 'bg-red-100 text-red-800 border-red-300'
+        return 'bg-red-500/15 text-red-800 border-red-300'
       case 'warm':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-yellow-500/15 text-yellow-400 border-yellow-300'
       case 'cold':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
+        return 'bg-blue-500/15 text-blue-400 border-blue-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-[#0a0a0f] text-white border-[#1a1a2e]'
     }
   }
 
@@ -228,13 +228,13 @@ export default function LeadsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">My Leads</h1>
+            <h1 className="text-2xl font-bold text-white">My Leads</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -252,7 +252,7 @@ export default function LeadsPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
@@ -267,7 +267,7 @@ export default function LeadsPage() {
                 placeholder="Search by name, email, phone, or address..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
               />
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function LeadsPage() {
               className={`px-4 py-2 rounded-lg transition ${
                 statusFilter === status
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
               }`}
             >
               {status === 'all' ? 'All Leads' : `${status.charAt(0).toUpperCase() + status.slice(1)} (${leads.filter(l => l.status === status).length})`}
@@ -299,101 +299,101 @@ export default function LeadsPage() {
 
         {/* Add Lead Form */}
         {showAddForm && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Lead</h2>
+          <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Add New Lead</h2>
             <form onSubmit={handleAddLead} className="space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">First Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.first_name}
                     onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Last Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.last_name}
                     onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Email</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Phone</label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Property Address</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Property Address</label>
                 <input
                   type="text"
                   value={formData.property_address}
                   onChange={(e) => setFormData({ ...formData, property_address: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">City</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">State</label>
                   <input
                     type="text"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                     placeholder="FL"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">ZIP</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">ZIP</label>
                   <input
                     type="text"
                     value={formData.zip}
                     onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Lead Source</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Lead Source</label>
                   <select
                     value={formData.lead_source}
                     onChange={(e) => setFormData({ ...formData, lead_source: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   >
                     <option value="">Select source...</option>
                     <option value="Referral">Referral</option>
@@ -406,11 +406,11 @@ export default function LeadsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   >
                     <option value="hot">🔥 Hot</option>
                     <option value="warm">⏱️ Warm</option>
@@ -420,12 +420,12 @@ export default function LeadsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Notes</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   placeholder="Add any notes about this lead..."
                 />
               </div>
@@ -443,36 +443,36 @@ export default function LeadsPage() {
         {/* Convert to Deal Modal */}
         {showConvertModal && selectedLeadForConvert && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Convert to Deal</h2>
-              <p className="text-gray-600 mb-6">
+            <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full p-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Convert to Deal</h2>
+              <p className="text-gray-400 mb-6">
                 Converting <strong>{selectedLeadForConvert.first_name} {selectedLeadForConvert.last_name}</strong> to a deal
               </p>
 
               <form onSubmit={handleConvertToDeal} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contract Price *</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Contract Price *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                    <span className="absolute left-3 top-3 text-gray-400">$</span>
                     <input
                       type="number"
                       required
                       placeholder="0.00"
                       value={dealData.contract_price}
                       onChange={(e) => setDealData({ ...dealData, contract_price: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full pl-8 pr-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-green-500"
                       step="0.01"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Additional Notes</label>
                   <textarea
                     value={dealData.notes}
                     onChange={(e) => setDealData({ ...dealData, notes: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-green-500"
                     placeholder="Any notes for this deal..."
                   />
                 </div>
@@ -485,7 +485,7 @@ export default function LeadsPage() {
                       setSelectedLeadForConvert(null)
                       setDealData({ contract_price: '', notes: '' })
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                    className="flex-1 px-4 py-2 border border-[#1a1a2e] text-gray-200 rounded-lg hover:bg-[#0a0a0f] transition font-medium"
                   >
                     Cancel
                   </button>
@@ -504,18 +504,18 @@ export default function LeadsPage() {
 
         {/* Leads List */}
         {leadsLoading ? (
-          <div className="text-center py-12 text-gray-600">Loading leads...</div>
+          <div className="text-center py-12 text-gray-400">Loading leads...</div>
         ) : filteredLeads.length > 0 ? (
           <div className="space-y-4">
             {filteredLeads.map((lead) => (
               <div
                 key={lead.id}
-                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition"
+                className="bg-[#0a0a0f] rounded-lg shadow p-6 hover:shadow-lg shadow-black/20 transition"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-gray-900">
+                      <h3 className="text-lg font-bold text-white">
                         {lead.first_name} {lead.last_name}
                       </h3>
                       <div className={`px-3 py-1 rounded-full border text-sm font-medium flex items-center gap-1 ${getStatusColor(lead.status)}`}>
@@ -526,7 +526,7 @@ export default function LeadsPage() {
 
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       {lead.email && (
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-gray-400">
                           <Mail className="w-4 h-4" />
                           <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline">
                             {lead.email}
@@ -534,7 +534,7 @@ export default function LeadsPage() {
                         </div>
                       )}
                       {lead.phone && (
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-gray-400">
                           <Phone className="w-4 h-4" />
                           <a href={`tel:${lead.phone}`} className="text-blue-600 hover:underline">
                             {lead.phone}
@@ -544,7 +544,7 @@ export default function LeadsPage() {
                     </div>
 
                     {lead.property_address && (
-                      <p className="text-gray-700 mb-2">
+                      <p className="text-gray-200 mb-2">
                         <span className="font-semibold">Property:</span> {lead.property_address}
                         {lead.city && `, ${lead.city}`}
                         {lead.state && `, ${lead.state}`}
@@ -553,13 +553,13 @@ export default function LeadsPage() {
                     )}
 
                     {lead.lead_source && (
-                      <p className="text-gray-600 text-sm mb-2">
+                      <p className="text-gray-400 text-sm mb-2">
                         <span className="font-semibold">Source:</span> {lead.lead_source}
                       </p>
                     )}
 
                     {lead.notes && (
-                      <p className="text-gray-600 text-sm italic">
+                      <p className="text-gray-400 text-sm italic">
                         <span className="font-semibold">Notes:</span> {lead.notes}
                       </p>
                     )}
@@ -568,7 +568,7 @@ export default function LeadsPage() {
                   <div className="flex items-center gap-2 ml-4">
                     <button
                       onClick={() => openConvertModal(lead)}
-                      className="px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition text-sm font-medium flex items-center gap-2"
+                      className="px-4 py-2 bg-green-500/15 text-green-400 hover:bg-green-200 rounded-lg transition text-sm font-medium flex items-center gap-2"
                       title="Convert to deal"
                     >
                       <Briefcase className="w-4 h-4" />
@@ -576,14 +576,14 @@ export default function LeadsPage() {
                     </button>
                     <button
                       onClick={() => router.push(`/leads/${lead.id}`)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      className="p-2 text-blue-600 hover:bg-blue-500/10 rounded-lg transition"
                       title="View details"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDeleteLead(lead.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-red-600 hover:bg-red-500/10 rounded-lg transition"
                       title="Delete lead"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -594,9 +594,9 @@ export default function LeadsPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium mb-4">
+            <p className="text-gray-400 font-medium mb-4">
               {searchTerm || statusFilter !== 'all' ? 'No leads match your filters.' : 'No leads yet. Add your first lead to get started!'}
             </p>
             {!showAddForm && (
@@ -612,19 +612,19 @@ export default function LeadsPage() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-4 gap-4 mt-12">
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm font-medium mb-2">Total Leads</p>
-            <p className="text-3xl font-bold text-gray-900">{leads.length}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+            <p className="text-gray-400 text-sm font-medium mb-2">Total Leads</p>
+            <p className="text-3xl font-bold text-white">{leads.length}</p>
           </div>
-          <div className="bg-red-50 rounded-lg shadow p-6 border border-red-200">
+          <div className="bg-red-500/10 rounded-lg shadow p-6 border border-red-500/20">
             <p className="text-red-600 text-sm font-medium mb-2">🔥 Hot Leads</p>
             <p className="text-3xl font-bold text-red-600">{leads.filter(l => l.status === 'hot').length}</p>
           </div>
-          <div className="bg-yellow-50 rounded-lg shadow p-6 border border-yellow-200">
+          <div className="bg-yellow-500/10 rounded-lg shadow p-6 border border-yellow-500/20">
             <p className="text-yellow-600 text-sm font-medium mb-2">⏱️ Warm Leads</p>
             <p className="text-3xl font-bold text-yellow-600">{leads.filter(l => l.status === 'warm').length}</p>
           </div>
-          <div className="bg-blue-50 rounded-lg shadow p-6 border border-blue-200">
+          <div className="bg-blue-500/10 rounded-lg shadow p-6 border border-blue-500/20">
             <p className="text-blue-600 text-sm font-medium mb-2">❄️ Cold Leads</p>
             <p className="text-3xl font-bold text-blue-600">{leads.filter(l => l.status === 'cold').length}</p>
           </div>

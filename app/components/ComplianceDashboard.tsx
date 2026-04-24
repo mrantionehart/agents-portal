@@ -92,13 +92,13 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'high':
-        return 'bg-red-50 border-red-200'
+        return 'bg-red-500/10 border-red-500/20'
       case 'medium':
-        return 'bg-yellow-50 border-yellow-200'
+        return 'bg-yellow-500/10 border-yellow-500/20'
       case 'low':
-        return 'bg-blue-50 border-blue-200'
+        return 'bg-blue-500/10 border-blue-500/20'
       default:
-        return 'bg-gray-50 border-gray-200'
+        return 'bg-[#050507] border-[#1a1a2e]'
     }
   }
 
@@ -111,7 +111,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
       case 'low':
         return <AlertCircle className="w-5 h-5 text-blue-600" />
       default:
-        return <FileText className="w-5 h-5 text-gray-600" />
+        return <FileText className="w-5 h-5 text-gray-400" />
     }
   }
 
@@ -148,40 +148,40 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <p className="text-gray-600 text-sm font-medium">Pending Review</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{pendingCount}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-red-500">
+          <p className="text-gray-400 text-sm font-medium">Pending Review</p>
+          <p className="text-2xl font-bold text-white mt-1">{pendingCount}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-gray-600 text-sm font-medium">Reviewed</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{reviewedCount}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-blue-500">
+          <p className="text-gray-400 text-sm font-medium">Reviewed</p>
+          <p className="text-2xl font-bold text-white mt-1">{reviewedCount}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-gray-600 text-sm font-medium">Resolved</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{resolvedCount}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-4 border-l-4 border-green-500">
+          <p className="text-gray-400 text-sm font-medium">Resolved</p>
+          <p className="text-2xl font-bold text-white mt-1">{resolvedCount}</p>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="flex gap-4 p-4 border-b border-gray-200">
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="flex gap-4 p-4 border-b border-[#1a1a2e]">
           {(['all', 'pending', 'reviewed'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setFilter(tab)}
               className={`px-4 py-2 rounded font-medium transition ${
                 filter === tab
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  ? 'bg-blue-500/15 text-blue-400'
+                  : 'text-gray-400 hover:bg-[#0a0a0f]'
               }`}
             >
               {tab === 'all' && 'All Alerts'}
@@ -193,7 +193,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
 
         {/* Alerts List */}
         {filteredAlerts.length > 0 ? (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-[#1a1a2e]">
             {filteredAlerts.map(alert => (
               <div
                 key={alert.id}
@@ -206,15 +206,15 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-gray-900">
+                        <h4 className="font-semibold text-white">
                           {alert.title}
                         </h4>
-                        <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded">
+                        <span className="text-xs px-2 py-1 bg-[#1a1a2e] text-gray-200 rounded">
                           {getTypeLabel(alert.type)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{alert.description}</p>
-                      <div className="flex gap-4 text-xs text-gray-500">
+                      <p className="text-sm text-gray-400 mb-2">{alert.description}</p>
+                      <div className="flex gap-4 text-xs text-gray-400">
                         {alert.related_transaction && (
                           <span>📋 Transaction: {alert.related_transaction}</span>
                         )}
@@ -223,7 +223,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
                         )}
                       </div>
                       {alert.status === 'reviewed' && alert.reviewed_at && (
-                        <div className="mt-2 text-xs text-green-700">
+                        <div className="mt-2 text-xs text-green-400">
                           ✓ Reviewed {new Date(alert.reviewed_at).toLocaleDateString()}
                         </div>
                       )}
@@ -241,7 +241,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
                   )}
 
                   {alert.status === 'pending' && role !== 'compliance' && (
-                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
                       Pending review
                     </span>
                   )}
@@ -251,8 +251,8 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
           </div>
         ) : (
           <div className="p-8 text-center">
-            <Eye className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No compliance alerts</p>
+            <Eye className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm">No compliance alerts</p>
           </div>
         )}
       </div>

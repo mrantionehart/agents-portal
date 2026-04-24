@@ -119,7 +119,7 @@ export default function NotificationsPage() {
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
+            <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#0a0a0f]/5 hover:bg-[#0a0a0f]/10 transition">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
@@ -149,7 +149,7 @@ export default function NotificationsPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 filter === f
                   ? 'bg-[#C9A84C]/20 text-[#C9A84C] border border-[#C9A84C]/30'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+                  : 'bg-[#0a0a0f]/5 text-gray-400 hover:bg-[#0a0a0f]/10 border border-transparent'
               }`}
             >
               {f === 'all' ? 'All' : `Unread (${unreadCount})`}
@@ -166,11 +166,11 @@ export default function NotificationsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <BellOff className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+            <BellOff className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-400 text-lg font-medium">
               {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
             </p>
-            <p className="text-gray-500 text-sm mt-1">
+            <p className="text-gray-400 text-sm mt-1">
               {filter === 'unread' ? 'You\'re all caught up!' : 'Notifications will appear here as activity happens.'}
             </p>
           </div>
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
                 onClick={() => !notification.is_read && markAsRead(notification.id)}
                 className={`w-full text-left p-4 rounded-xl border transition ${
                   notification.is_read
-                    ? 'bg-white/[0.02] border-white/5 hover:bg-white/5'
+                    ? 'bg-[#0a0a0f]/[0.02] border-white/5 hover:bg-[#0a0a0f]/5'
                     : 'bg-[#0a0a1a] border-[#C9A84C]/20 hover:bg-[#C9A84C]/5'
                 }`}
               >
@@ -190,20 +190,20 @@ export default function NotificationsPage() {
                   <span className="text-lg mt-0.5">{getTypeIcon(notification.type)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-semibold ${notification.is_read ? 'text-gray-300' : 'text-white'}`}>
+                      <p className={`text-sm font-semibold ${notification.is_read ? 'text-gray-400' : 'text-white'}`}>
                         {notification.title}
                       </p>
                       {!notification.is_read && (
                         <span className="w-2 h-2 rounded-full bg-[#2EC4D6] flex-shrink-0" />
                       )}
                     </div>
-                    <p className={`text-sm mt-0.5 ${notification.is_read ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className={`text-sm mt-0.5 ${notification.is_read ? 'text-gray-400' : 'text-gray-400'}`}>
                       {notification.message}
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">{timeAgo(notification.created_at)}</p>
+                    <p className="text-xs text-gray-400 mt-1">{timeAgo(notification.created_at)}</p>
                   </div>
                   {notification.is_read && (
-                    <Check className="w-4 h-4 text-gray-600 flex-shrink-0 mt-1" />
+                    <Check className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                   )}
                 </div>
               </button>

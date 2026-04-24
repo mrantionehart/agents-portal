@@ -61,8 +61,8 @@ export default function MilestoneTracker({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+      <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+        <div className="h-4 bg-[#1a1a2e] rounded animate-pulse"></div>
       </div>
     )
   }
@@ -74,16 +74,16 @@ export default function MilestoneTracker({
   const percentage = status.completion_percentage
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+    <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
       <div className="space-y-4">
         {/* Title and Percentage */}
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Milestone Progress</h3>
+          <h3 className="font-semibold text-white">Milestone Progress</h3>
           <span className="text-2xl font-bold text-blue-600">{percentage}%</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="w-full bg-[#1a1a2e] rounded-full h-3 overflow-hidden">
           <div
             className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-500 ease-out"
             style={{ width: `${percentage}%` }}
@@ -93,20 +93,20 @@ export default function MilestoneTracker({
         {/* Details */}
         {showDetails && (
           <div className="grid grid-cols-4 gap-3 pt-2">
-            <div className="bg-blue-50 rounded p-3 text-center">
-              <p className="text-xs text-gray-600 font-medium">Total</p>
+            <div className="bg-blue-500/10 rounded p-3 text-center">
+              <p className="text-xs text-gray-400 font-medium">Total</p>
               <p className="text-xl font-bold text-blue-600">{status.total_milestones}</p>
             </div>
-            <div className="bg-green-50 rounded p-3 text-center">
-              <p className="text-xs text-gray-600 font-medium">Completed</p>
+            <div className="bg-green-500/10 rounded p-3 text-center">
+              <p className="text-xs text-gray-400 font-medium">Completed</p>
               <p className="text-xl font-bold text-green-600">{status.completed_milestones}</p>
             </div>
-            <div className="bg-yellow-50 rounded p-3 text-center">
-              <p className="text-xs text-gray-600 font-medium">Pending</p>
+            <div className="bg-yellow-500/10 rounded p-3 text-center">
+              <p className="text-xs text-gray-400 font-medium">Pending</p>
               <p className="text-xl font-bold text-yellow-600">{status.pending_milestones}</p>
             </div>
-            <div className="bg-red-50 rounded p-3 text-center">
-              <p className="text-xs text-gray-600 font-medium">Overdue</p>
+            <div className="bg-red-500/10 rounded p-3 text-center">
+              <p className="text-xs text-gray-400 font-medium">Overdue</p>
               <p className="text-xl font-bold text-red-600">{status.overdue_milestones}</p>
             </div>
           </div>
@@ -115,15 +115,15 @@ export default function MilestoneTracker({
         {/* Status Message */}
         <div className="pt-2">
           {percentage === 100 ? (
-            <p className="text-sm text-green-700 font-medium">
+            <p className="text-sm text-green-400 font-medium">
               All milestones completed!
             </p>
           ) : status.overdue_milestones > 0 ? (
-            <p className="text-sm text-red-700 font-medium">
+            <p className="text-sm text-red-400 font-medium">
               {status.overdue_milestones} milestone{status.overdue_milestones > 1 ? 's' : ''} overdue
             </p>
           ) : (
-            <p className="text-sm text-gray-700 font-medium">
+            <p className="text-sm text-gray-200 font-medium">
               {status.pending_milestones} milestone{status.pending_milestones > 1 ? 's' : ''} remaining
             </p>
           )}

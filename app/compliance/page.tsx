@@ -266,9 +266,9 @@ export default function CompliancePage() {
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { bg: string; text: string; icon: any; label: string }> = {
       approved: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: CheckCircle2, label: 'Approved' },
-      uploaded: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: Clock, label: 'Pending Review' },
-      rejected: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: XCircle, label: 'Rejected' },
-      missing: { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-500', icon: AlertCircle, label: 'Not Uploaded' },
+      uploaded: { bg: 'bg-blue-500/10 border-blue-500/20', text: 'text-blue-400', icon: Clock, label: 'Pending Review' },
+      rejected: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', icon: XCircle, label: 'Rejected' },
+      missing: { bg: 'bg-[#050507] border-[#1a1a2e]', text: 'text-gray-400', icon: AlertCircle, label: 'Not Uploaded' },
     }
     const c = config[status] || config.missing
     const Icon = c.icon
@@ -288,8 +288,8 @@ export default function CompliancePage() {
 
     const config: Record<string, { bg: string; text: string; icon: any; label: string }> = {
       present: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: PenLine, label: 'Signed' },
-      missing: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: AlertTriangle, label: 'Signature Missing' },
-      required: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: PenLine, label: 'Sig. Required' },
+      missing: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', icon: AlertTriangle, label: 'Signature Missing' },
+      required: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', icon: PenLine, label: 'Sig. Required' },
     }
     const c = config[sigStatus] || config.required
     const Icon = c.icon
@@ -304,7 +304,7 @@ export default function CompliancePage() {
   // Requirement badge
   const RequirementBadge = ({ required }: { required: boolean }) => (
     <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-      required ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-600'
+      required ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/10 text-amber-600'
     }`}>
       {required ? 'Required' : 'Optional'}
     </span>
@@ -315,15 +315,15 @@ export default function CompliancePage() {
     const pct = max > 0 ? Math.round((value / max) * 100) : 0
     return (
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 bg-[#1a1a2e] rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all ${
-              pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'
+              pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500/100' : 'bg-amber-500/100'
             }`}
             style={{ width: `${Math.min(pct, 100)}%` }}
           />
         </div>
-        <span className="text-xs text-gray-500 font-medium w-16 text-right">
+        <span className="text-xs text-gray-400 font-medium w-16 text-right">
           {value} / {max}
         </span>
       </div>
@@ -344,17 +344,17 @@ export default function CompliancePage() {
   }
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-600',
-    submitted: 'bg-blue-100 text-blue-700',
-    pending_review: 'bg-amber-100 text-amber-700',
-    revisions_required: 'bg-red-100 text-red-700',
+    draft: 'bg-[#0a0a0f] text-gray-400',
+    submitted: 'bg-blue-500/15 text-blue-400',
+    pending_review: 'bg-amber-500/15 text-amber-400',
+    revisions_required: 'bg-red-500/15 text-red-400',
     approved: 'bg-emerald-100 text-emerald-700',
-    closed: 'bg-purple-100 text-purple-700',
+    closed: 'bg-purple-500/15 text-purple-700',
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     )
@@ -378,7 +378,7 @@ export default function CompliancePage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-[#050507] flex">
       <SidebarNav onSignOut={handleSignOut} userName={user?.user_metadata?.full_name} role={role} />
       <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff" onChange={handleFileSelect} />
 
@@ -387,17 +387,17 @@ export default function CompliancePage() {
         <div className="mb-6">
           {selectedTx ? (
             <button onClick={() => { setSelectedTx(null); setFolders([]); setStats(null) }}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-3">
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-400 text-sm font-medium mb-3">
               <ArrowLeft className="w-4 h-4" /> Back to Transactions
             </button>
           ) : null}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Shield className="w-6 h-6 text-blue-600" />
                 Compliance Checker
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 {selectedTx
                   ? `${selectedTx.property_address}, ${selectedTx.city}`
                   : userRole === 'agent'
@@ -409,21 +409,21 @@ export default function CompliancePage() {
             <div className="relative">
               <button
                 onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications && unreadCount > 0) markNotificationsRead() }}
-                className="relative p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                className="relative p-2.5 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg hover:bg-[#0a0a0f] transition"
               >
-                <Bell className="w-5 h-5 text-gray-600" />
+                <Bell className="w-5 h-5 text-gray-400" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500/100 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-96 bg-white rounded-xl border border-gray-200 shadow-xl z-50 max-h-[28rem] overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-900">Compliance Alerts</h3>
+                <div className="absolute right-0 top-12 w-96 bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] shadow-xl z-50 max-h-[28rem] overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a2e]">
+                    <h3 className="text-sm font-semibold text-white">Compliance Alerts</h3>
                     {notifications.length > 0 && (
-                      <button onClick={() => markNotificationsRead()} className="text-xs text-blue-600 hover:text-blue-700">
+                      <button onClick={() => markNotificationsRead()} className="text-xs text-blue-600 hover:text-blue-400">
                         Mark all read
                       </button>
                     )}
@@ -433,12 +433,12 @@ export default function CompliancePage() {
                       <div className="p-6 text-center text-sm text-gray-400">No notifications yet</div>
                     ) : (
                       notifications.map(n => (
-                        <div key={n.id} className={`px-4 py-3 border-b border-gray-50 ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
+                        <div key={n.id} className={`px-4 py-3 border-b border-[#1a1a2e] ${!n.read_at ? 'bg-blue-900/10' : ''}`}>
                           <div className="flex items-start gap-2">
-                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read_at ? 'bg-blue-500' : 'bg-transparent'}`} />
+                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read_at ? 'bg-blue-500/100' : 'bg-transparent'}`} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{n.title}</p>
-                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="text-sm font-medium text-white truncate">{n.title}</p>
+                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
                               <p className="text-[10px] text-gray-400 mt-1">
                                 {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
@@ -466,13 +466,13 @@ export default function CompliancePage() {
                   placeholder="Search by address, client, or agent..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg text-sm focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
                 />
               </div>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
+                className="px-4 py-2.5 bg-[#0a0a0f] border border-[#1a1a2e] rounded-lg text-sm"
               >
                 <option value="all">All Transactions</option>
                 <option value="incomplete">Incomplete Docs</option>
@@ -485,9 +485,9 @@ export default function CompliancePage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-lg font-medium text-gray-500">No transactions found</p>
+              <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-12 text-center">
+                <FileText className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                <p className="text-lg font-medium text-gray-400">No transactions found</p>
                 <p className="text-sm text-gray-400 mt-1">
                   {transactions.length === 0
                     ? 'Create a transaction in the Vault to get started'
@@ -500,37 +500,37 @@ export default function CompliancePage() {
                   <button
                     key={tx.id}
                     onClick={() => loadChecklist(tx.id)}
-                    className="w-full bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition text-left"
+                    className="w-full bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5 hover:border-blue-300 hover:shadow-sm shadow-black/10 transition text-left"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-base font-semibold text-gray-900 truncate">
+                          <h3 className="text-base font-semibold text-white truncate">
                             {tx.property_address}
                           </h3>
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${statusColors[tx.status] || 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${statusColors[tx.status] || 'bg-[#0a0a0f] text-gray-400'}`}>
                             {tx.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
                           <span>{tx.client_name || 'No client'}</span>
-                          <span className="text-gray-300">|</span>
+                          <span className="text-gray-400">|</span>
                           <span>{typeLabels[tx.type] || tx.type}</span>
                           {tx.contract_price > 0 && (
                             <>
-                              <span className="text-gray-300">|</span>
+                              <span className="text-gray-400">|</span>
                               <span>{formatCurrency(tx.contract_price)}</span>
                             </>
                           )}
                           {tx.closing_date && (
                             <>
-                              <span className="text-gray-300">|</span>
+                              <span className="text-gray-400">|</span>
                               <span>Close: {formatDate(tx.closing_date)}</span>
                             </>
                           )}
                           {userRole !== 'agent' && tx.agent_name && (
                             <>
-                              <span className="text-gray-300">|</span>
+                              <span className="text-gray-400">|</span>
                               <span className="font-medium">{tx.agent_name}</span>
                             </>
                           )}
@@ -552,7 +552,7 @@ export default function CompliancePage() {
                             {tx.compliance.approved} approved
                           </p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-300" />
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     </div>
                   </button>
@@ -572,29 +572,29 @@ export default function CompliancePage() {
             ) : (
               <>
                 {/* Transaction Info Card */}
-                <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+                <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5 mb-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h2 className="text-lg font-bold text-gray-900">{selectedTx.property_address}</h2>
-                      <p className="text-sm text-gray-500">{selectedTx.city}, {selectedTx.state}</p>
+                      <h2 className="text-lg font-bold text-white">{selectedTx.property_address}</h2>
+                      <p className="text-sm text-gray-400">{selectedTx.city}, {selectedTx.state}</p>
                       <div className="flex items-center gap-4 mt-2 text-sm">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${statusColors[selectedTx.status] || 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${statusColors[selectedTx.status] || 'bg-[#0a0a0f] text-gray-400'}`}>
                           {selectedTx.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
-                        <span className="text-gray-500">{typeLabels[selectedTx.type] || selectedTx.type}</span>
-                        <span className="text-gray-500">Client: <strong>{selectedTx.client_name}</strong></span>
+                        <span className="text-gray-400">{typeLabels[selectedTx.type] || selectedTx.type}</span>
+                        <span className="text-gray-400">Client: <strong>{selectedTx.client_name}</strong></span>
                         {selectedTx.contract_price > 0 && (
-                          <span className="text-gray-500">{formatCurrency(selectedTx.contract_price)}</span>
+                          <span className="text-gray-400">{formatCurrency(selectedTx.contract_price)}</span>
                         )}
                       </div>
                     </div>
                     {stats && (
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">
-                          <span className="font-bold text-gray-900">{stats.uploaded}</span> of{' '}
-                          <span className="font-bold text-gray-900">{stats.total_required}</span> required docs uploaded
+                        <p className="text-sm text-gray-400">
+                          <span className="font-bold text-white">{stats.uploaded}</span> of{' '}
+                          <span className="font-bold text-white">{stats.total_required}</span> required docs uploaded
                         </p>
-                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {stats.approved} approved
                           </span>
@@ -611,7 +611,7 @@ export default function CompliancePage() {
                         <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
                           selectedTx?.compliance_approved
                             ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                            : 'bg-red-50 text-red-700 border border-red-200'
+                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
                         }`}>
                           {selectedTx?.compliance_approved ? (
                             <><Unlock className="w-3.5 h-3.5" /> Commission Unlocked</>
@@ -633,21 +633,21 @@ export default function CompliancePage() {
                       : folder.stats.uploaded > 0
 
                     return (
-                      <div key={folder.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div key={folder.id} className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] overflow-hidden">
                         {/* Folder Header */}
                         <button
                           onClick={() => toggleFolder(folder.id)}
-                          className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition"
+                          className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#0a0a0f] transition"
                         >
                           <div className="flex items-center gap-3">
                             <FolderOpen className={`w-5 h-5 ${folderComplete ? 'text-emerald-500' : 'text-gray-400'}`} />
-                            <span className="font-semibold text-gray-900">{folder.label}</span>
+                            <span className="font-semibold text-white">{folder.label}</span>
                             {folderComplete && (
                               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                             )}
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-400">
                               {folder.stats.uploaded} of {folder.stats.total} uploaded
                             </span>
                             {isExpanded ? (
@@ -660,9 +660,9 @@ export default function CompliancePage() {
 
                         {/* Folder Items */}
                         {isExpanded && (
-                          <div className="border-t border-gray-100">
+                          <div className="border-t border-[#1a1a2e]">
                             {/* Table Header */}
-                            <div className="grid grid-cols-12 gap-3 px-5 py-2.5 bg-gray-50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <div className="grid grid-cols-12 gap-3 px-5 py-2.5 bg-[#050507] text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                               <div className="col-span-1">Status</div>
                               <div className="col-span-1">Type</div>
                               <div className="col-span-3">Document</div>
@@ -674,9 +674,9 @@ export default function CompliancePage() {
                             {folder.items.map((item, idx) => (
                               <div key={item.requirement_id || idx}>
                                 <div
-                                  className={`grid grid-cols-12 gap-3 px-5 py-3.5 items-center border-t border-gray-100 ${
-                                    item.status === 'missing' && item.is_required ? 'bg-red-50/30'
-                                    : item.document?.signature_status === 'missing' ? 'bg-amber-50/30'
+                                  className={`grid grid-cols-12 gap-3 px-5 py-3.5 items-center border-t border-[#1a1a2e] ${
+                                    item.status === 'missing' && item.is_required ? 'bg-red-500/10/30'
+                                    : item.document?.signature_status === 'missing' ? 'bg-amber-500/10/30'
                                     : ''
                                   }`}
                                 >
@@ -689,7 +689,7 @@ export default function CompliancePage() {
                                   <div className="col-span-3">
                                     <div className="flex items-center gap-2">
                                       <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                      <span className="text-sm font-medium text-gray-900 truncate">
+                                      <span className="text-sm font-medium text-white truncate">
                                         {item.doc_label}
                                       </span>
                                     </div>
@@ -702,7 +702,7 @@ export default function CompliancePage() {
                                   <div className="col-span-1">
                                     <SignatureBadge item={item} />
                                   </div>
-                                  <div className="col-span-2 text-xs text-gray-500">
+                                  <div className="col-span-2 text-xs text-gray-400">
                                     {item.document?.upload_date
                                       ? formatDate(item.document.upload_date)
                                       : '--'}
@@ -724,7 +724,7 @@ export default function CompliancePage() {
                                       <button
                                         onClick={() => handleUploadClick(item.doc_label, item.folder)}
                                         disabled={uploading === item.doc_label}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0a0a0f] text-gray-200 text-xs font-medium rounded-lg hover:bg-[#1a1a2e] transition"
                                       >
                                         <Upload className="w-3.5 h-3.5" />
                                         Replace
@@ -746,7 +746,7 @@ export default function CompliancePage() {
                                         {item.status === 'uploaded' && (
                                           <button
                                             onClick={() => setRejectingDocId(rejectingDocId === item.document!.id ? null : item.document!.id)}
-                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200 transition"
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500/15 text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 transition"
                                           >
                                             <XCircle className="w-3.5 h-3.5" /> Reject
                                           </button>
@@ -755,7 +755,7 @@ export default function CompliancePage() {
                                         {item.document && item.signature_required && item.document.signature_status !== 'present' && item.status !== 'rejected' && (
                                           <button
                                             onClick={() => handleReview(item.document!.id, 'flag_signature')}
-                                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-200 transition"
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/15 text-amber-400 text-xs font-medium rounded-lg hover:bg-amber-200 transition"
                                           >
                                             <PenLine className="w-3.5 h-3.5" /> Flag Signature
                                           </button>
@@ -766,13 +766,13 @@ export default function CompliancePage() {
                                 </div>
                                 {/* Reject notes input */}
                                 {rejectingDocId === item.document?.id && (
-                                  <div className="px-5 py-3 bg-red-50 border-t border-red-100 flex items-center gap-3">
+                                  <div className="px-5 py-3 bg-red-500/10 border-t border-red-100 flex items-center gap-3">
                                     <input
                                       type="text"
                                       placeholder="Reason for rejection (optional)..."
                                       value={rejectNotes}
                                       onChange={(e) => setRejectNotes(e.target.value)}
-                                      className="flex-1 px-3 py-2 text-sm border border-red-200 rounded-lg focus:ring-2 focus:ring-red-300 bg-white"
+                                      className="flex-1 px-3 py-2 text-sm border border-red-500/20 rounded-lg focus:ring-2 focus:ring-red-300 bg-[#0a0a0f]"
                                       onKeyDown={(e) => { if (e.key === 'Enter') { handleReview(item.document!.id, 'reject', rejectNotes); } }}
                                     />
                                     <button
@@ -783,7 +783,7 @@ export default function CompliancePage() {
                                     </button>
                                     <button
                                       onClick={() => { setRejectingDocId(null); setRejectNotes('') }}
-                                      className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700"
+                                      className="px-3 py-2 text-xs text-gray-400 hover:text-gray-200"
                                     >
                                       Cancel
                                     </button>
@@ -791,7 +791,7 @@ export default function CompliancePage() {
                                 )}
                                 {/* Signature notes display */}
                                 {item.document?.signature_status === 'missing' && item.document?.signature_notes && (
-                                  <div className="px-5 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                                  <div className="px-5 py-2 bg-amber-500/10 border-t border-amber-100 text-xs text-amber-400">
                                     <AlertTriangle className="w-3 h-3 inline mr-1" />
                                     Signature note: {item.document.signature_notes}
                                   </div>
@@ -807,9 +807,9 @@ export default function CompliancePage() {
 
                 {/* Empty state */}
                 {folders.length === 0 && !loadingChecklist && (
-                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                    <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p className="text-lg font-medium text-gray-500">No document requirements found</p>
+                  <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-12 text-center">
+                    <FileText className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-lg font-medium text-gray-400">No document requirements found</p>
                     <p className="text-sm text-gray-400 mt-1">
                       This transaction type may not have compliance requirements configured yet.
                     </p>

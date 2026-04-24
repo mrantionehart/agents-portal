@@ -5,12 +5,12 @@ function cn(...classes: (string | undefined | false)[]) {
 }
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-gray-100 text-gray-800',
-  green: 'bg-green-100 text-green-800',
-  yellow: 'bg-yellow-100 text-yellow-800',
-  red: 'bg-red-100 text-red-800',
-  blue: 'bg-blue-100 text-blue-800',
-  purple: 'bg-purple-100 text-purple-800',
+  default: 'bg-[#0a0a0f] text-white',
+  green: 'bg-green-500/15 text-green-400',
+  yellow: 'bg-yellow-500/15 text-yellow-400',
+  red: 'bg-red-500/15 text-red-800',
+  blue: 'bg-blue-500/15 text-blue-400',
+  purple: 'bg-purple-500/15 text-purple-800',
   emerald: 'bg-emerald-100 text-emerald-800',
   gold: 'bg-[#D4AF37]/15 text-[#D4AF37]',
 }

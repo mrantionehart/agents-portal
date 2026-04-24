@@ -252,14 +252,14 @@ export default function EmailTemplatesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
+            <h1 className="text-2xl font-bold text-white">Email Templates</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -288,26 +288,26 @@ export default function EmailTemplatesPage() {
 
         {/* Create Template Form */}
         {showCreateForm && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Template</h2>
+          <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Create New Template</h2>
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Template Name *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Template Name *</label>
                 <input
                   type="text"
                   value={newTemplate.name}
                   onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
                   placeholder="e.g., Monthly Market Update"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Category *</label>
                 <select
                   value={newTemplate.category}
                   onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 >
                   {DEFAULT_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -318,28 +318,28 @@ export default function EmailTemplatesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject Line *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Subject Line *</label>
                 <input
                   type="text"
                   value={newTemplate.subject}
                   onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
                   placeholder="e.g., Market Update for {area_name}"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Body *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Email Body *</label>
                 <textarea
                   value={newTemplate.body}
                   onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
                   rows={8}
                   placeholder="Use {variable_name} for dynamic content like {client_name}, {property_address}, etc."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
+              <div className="bg-blue-500/10 p-4 rounded-lg text-sm text-blue-400">
                 <p className="font-semibold mb-2">Available Variables:</p>
                 <p>{'{client_name}'}, {'{first_name}'}, {'{property_address}'}, {'{agent_name}'}, {'{inspection_date}'}, and more</p>
               </div>
@@ -361,7 +361,7 @@ export default function EmailTemplatesPage() {
             className={`px-4 py-2 rounded-lg transition ${
               selectedCategory === null
                 ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
             }`}
           >
             All Templates
@@ -373,7 +373,7 @@ export default function EmailTemplatesPage() {
               className={`px-4 py-2 rounded-lg transition ${
                 selectedCategory === cat.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
               }`}
             >
               {cat.icon} {cat.name}
@@ -384,20 +384,20 @@ export default function EmailTemplatesPage() {
         {/* Templates Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {filteredTemplates.map((template) => (
-            <div key={template.id} className="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
+            <div key={template.id} className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 mb-1">{template.name}</h3>
-                  <p className="text-xs text-gray-500">
+                  <h3 className="font-bold text-white mb-1">{template.name}</h3>
+                  <p className="text-xs text-gray-400">
                     {DEFAULT_CATEGORIES.find((c) => c.id === template.category)?.name}
                   </p>
                 </div>
                 {template.isDefault && (
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Default</span>
+                  <span className="text-xs bg-blue-500/15 text-blue-400 px-2 py-1 rounded">Default</span>
                 )}
               </div>
 
-              <p className="text-sm text-gray-700 mb-4 line-clamp-2">{template.subject}</p>
+              <p className="text-sm text-gray-200 mb-4 line-clamp-2">{template.subject}</p>
 
               <div className="flex gap-2">
                 <button
@@ -411,7 +411,7 @@ export default function EmailTemplatesPage() {
                   <>
                     <button
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+                      className="px-3 py-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/15 transition"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -425,12 +425,12 @@ export default function EmailTemplatesPage() {
         {/* Email Composer Modal */}
         {showComposer && selectedTemplate && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
+            <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
               {/* Modal Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900">Send Email: {selectedTemplate.name}</h2>
+              <div className="sticky top-0 bg-[#0a0a0f] border-b border-[#1a1a2e] p-6 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Send Email: {selectedTemplate.name}</h2>
                 <button onClick={() => setShowComposer(false)}>
-                  <X className="w-6 h-6 text-gray-500 hover:text-gray-700" />
+                  <X className="w-6 h-6 text-gray-400 hover:text-gray-200" />
                 </button>
               </div>
 
@@ -438,20 +438,20 @@ export default function EmailTemplatesPage() {
               <div className="p-6 space-y-4">
                 {/* Recipient Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recipient Email *</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">Recipient Email *</label>
                   <input
                     type="email"
                     value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)}
                     placeholder="recipient@example.com"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                   />
                 </div>
 
                 {/* Variables */}
                 {extractVariables(`${selectedTemplate.subject}${selectedTemplate.body}`).length > 0 && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900 mb-3">Fill in Variables:</p>
+                  <div className="bg-[#050507] p-4 rounded-lg">
+                    <p className="text-sm font-medium text-white mb-3">Fill in Variables:</p>
                     <div className="space-y-2">
                       {extractVariables(`${selectedTemplate.subject}${selectedTemplate.body}`).map((variable) => (
                         <input
@@ -462,7 +462,7 @@ export default function EmailTemplatesPage() {
                           onChange={(e) =>
                             setComposerVariables({ ...composerVariables, [variable]: e.target.value })
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg text-sm focus:ring-2 focus:ring-[#C9A84C]/30"
                         />
                       ))}
                     </div>
@@ -470,15 +470,15 @@ export default function EmailTemplatesPage() {
                 )}
 
                 {/* Preview */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Preview:</p>
-                  <div className="bg-white border border-gray-300 rounded p-3">
-                    <p className="text-xs text-gray-500 mb-1">Subject:</p>
-                    <p className="text-sm font-semibold text-gray-900 mb-4">
+                <div className="bg-[#050507] p-4 rounded-lg">
+                  <p className="text-sm font-medium text-white mb-2">Preview:</p>
+                  <div className="bg-[#0a0a0f] border border-[#1a1a2e] rounded p-3">
+                    <p className="text-xs text-gray-400 mb-1">Subject:</p>
+                    <p className="text-sm font-semibold text-white mb-4">
                       {selectedTemplate.subject.replace(/{(\w+)}/g, (match, variable) => composerVariables[variable] || match)}
                     </p>
-                    <p className="text-xs text-gray-500 mb-1">Body:</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    <p className="text-xs text-gray-400 mb-1">Body:</p>
+                    <p className="text-sm text-gray-200 whitespace-pre-wrap">
                       {selectedTemplate.body.replace(/{(\w+)}/g, (match, variable) => composerVariables[variable] || match)}
                     </p>
                   </div>

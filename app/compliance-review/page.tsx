@@ -208,13 +208,13 @@ export default function ComplianceReviewPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">✅ Approved</span>
+        return <span className="px-3 py-1 bg-green-500/15 text-green-400 rounded-full text-sm font-medium">✅ Approved</span>
       case 'rejected':
-        return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">❌ Rejected</span>
+        return <span className="px-3 py-1 bg-red-500/15 text-red-800 rounded-full text-sm font-medium">❌ Rejected</span>
       case 'revision_needed':
-        return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">🔄 Revision Needed</span>
+        return <span className="px-3 py-1 bg-yellow-500/15 text-yellow-400 rounded-full text-sm font-medium">🔄 Revision Needed</span>
       default:
-        return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">⏳ Pending Review</span>
+        return <span className="px-3 py-1 bg-blue-500/15 text-blue-400 rounded-full text-sm font-medium">⏳ Pending Review</span>
     }
   }
 
@@ -229,11 +229,11 @@ export default function ComplianceReviewPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Compliance Review Dashboard</h1>
-            <p className="text-sm text-gray-600">Review and approve agent compliance submissions</p>
+            <h1 className="text-2xl font-bold text-white">Compliance Review Dashboard</h1>
+            <p className="text-sm text-gray-400">Review and approve agent compliance submissions</p>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -252,14 +252,14 @@ export default function ComplianceReviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Submissions List */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="font-bold text-gray-900 text-lg">Pending & Recent Submissions</h2>
+            <div className="bg-[#0a0a0f] rounded-lg shadow">
+              <div className="p-6 border-b border-[#1a1a2e]">
+                <h2 className="font-bold text-white text-lg">Pending & Recent Submissions</h2>
               </div>
 
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-[#1a1a2e]">
                 {submissions.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
+                  <div className="p-8 text-center text-gray-400">
                     <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>No compliance submissions to review</p>
                   </div>
@@ -267,20 +267,20 @@ export default function ComplianceReviewPage() {
                   submissions.map(submission => (
                     <div
                       key={submission.id}
-                      className={`p-6 hover:bg-gray-50 cursor-pointer transition ${
-                        selectedSubmission?.id === submission.id ? 'bg-blue-50' : ''
+                      className={`p-6 hover:bg-[#0a0a0f] cursor-pointer transition ${
+                        selectedSubmission?.id === submission.id ? 'bg-blue-500/10' : ''
                       }`}
                       onClick={() => setSelectedSubmission(submission)}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <p className="font-semibold text-gray-900">{submission.agent_name}</p>
-                          <p className="text-sm text-gray-600">{submission.deal_name} • {submission.stage}</p>
+                          <p className="font-semibold text-white">{submission.agent_name}</p>
+                          <p className="text-sm text-gray-400">{submission.deal_name} • {submission.stage}</p>
                         </div>
                         {getStatusBadge(submission.status)}
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">{submission.document_name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm text-gray-200 mb-2">{submission.document_name}</p>
+                      <p className="text-xs text-gray-400">
                         Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -292,32 +292,32 @@ export default function ComplianceReviewPage() {
 
           {/* Review Panel */}
           {selectedSubmission && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-bold text-gray-900 mb-4">Review Submission</h3>
+            <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
+              <h3 className="font-bold text-white mb-4">Review Submission</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
-                  <p className="text-gray-900">{selectedSubmission.agent_name}</p>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">Agent</label>
+                  <p className="text-white">{selectedSubmission.agent_name}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deal</label>
-                  <p className="text-gray-900">{selectedSubmission.deal_name}</p>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">Deal</label>
+                  <p className="text-white">{selectedSubmission.deal_name}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-                  <p className="text-gray-900 capitalize">{selectedSubmission.stage}</p>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">Stage</label>
+                  <p className="text-white capitalize">{selectedSubmission.stage}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Document</label>
-                  <p className="text-gray-900">{selectedSubmission.document_name}</p>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">Document</label>
+                  <p className="text-white">{selectedSubmission.document_name}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">Status</label>
                   <div>{getStatusBadge(selectedSubmission.status)}</div>
                 </div>
 
@@ -325,8 +325,8 @@ export default function ComplianceReviewPage() {
                 {selectedSubmission.ai_analysis && (
                   <div className={`border-2 rounded-lg p-4 ${
                     selectedSubmission.ai_analysis.issues && selectedSubmission.ai_analysis.issues.length > 0
-                      ? 'bg-yellow-50 border-yellow-300'
-                      : 'bg-green-50 border-green-300'
+                      ? 'bg-yellow-500/10 border-yellow-300'
+                      : 'bg-green-500/10 border-green-300'
                   }`}>
                     <h4 className="font-semibold text-sm mb-3">
                       {selectedSubmission.ai_analysis.issues && selectedSubmission.ai_analysis.issues.length > 0
@@ -339,7 +339,7 @@ export default function ComplianceReviewPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium">Score: {selectedSubmission.ai_analysis.compliance_score}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-[#1a1a2e] rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
                               selectedSubmission.ai_analysis.compliance_score >= 80
@@ -359,7 +359,7 @@ export default function ComplianceReviewPage() {
                         {selectedSubmission.ai_analysis.issues.map((issue: string, idx: number) => (
                           <li key={idx} className="flex items-start gap-2">
                             <span className="text-yellow-600 font-bold">•</span>
-                            <span className="text-yellow-800">{issue}</span>
+                            <span className="text-yellow-400">{issue}</span>
                           </li>
                         ))}
                       </ul>
@@ -370,13 +370,13 @@ export default function ComplianceReviewPage() {
                 {selectedSubmission.status === 'pending' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
                         Notes / Rejection Reason (if rejecting)
                       </label>
                       <textarea
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className="w-full px-3 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                         rows={3}
                         placeholder="Optional: Add notes about why this needs revision..."
                       />
@@ -386,21 +386,21 @@ export default function ComplianceReviewPage() {
                       <button
                         onClick={() => handleApprove(selectedSubmission)}
                         disabled={isSubmitting}
-                        className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium disabled:bg-gray-400"
+                        className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium disabled:bg-gray-700"
                       >
                         ✅ Approve
                       </button>
                       <button
                         onClick={() => handleRequestRevision(selectedSubmission)}
                         disabled={isSubmitting || !rejectionReason.trim()}
-                        className="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition font-medium disabled:bg-gray-400"
+                        className="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition font-medium disabled:bg-gray-700"
                       >
                         🔄 Request Revision
                       </button>
                       <button
                         onClick={() => handleReject(selectedSubmission)}
                         disabled={isSubmitting || !rejectionReason.trim()}
-                        className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium disabled:bg-gray-400"
+                        className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium disabled:bg-gray-700"
                       >
                         ❌ Reject
                       </button>
@@ -409,10 +409,10 @@ export default function ComplianceReviewPage() {
                 )}
 
                 {selectedSubmission.status !== 'pending' && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Review Notes</p>
-                    <p className="text-gray-900">{selectedSubmission.rejection_reason || 'No notes'}</p>
-                    <p className="text-xs text-gray-500 mt-3">
+                  <div className="bg-[#050507] p-4 rounded-lg">
+                    <p className="text-sm font-medium text-gray-200 mb-2">Review Notes</p>
+                    <p className="text-white">{selectedSubmission.rejection_reason || 'No notes'}</p>
+                    <p className="text-xs text-gray-400 mt-3">
                       Reviewed: {new Date(selectedSubmission.reviewed_at || '').toLocaleDateString()}
                     </p>
                   </div>

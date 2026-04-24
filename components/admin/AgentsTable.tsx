@@ -60,13 +60,13 @@ export default function AgentsTable({
         {statusButtons}
         <button
           onClick={() => onEdit(agent)}
-          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
+          className="px-3 py-1 bg-blue-500/100 text-white text-sm rounded hover:bg-blue-600 transition"
         >
           Edit
         </button>
         <button
           onClick={() => onDelete(agent)}
-          className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition"
+          className="px-3 py-1 bg-[#1a1a2e] text-white text-sm rounded hover:bg-[#1a1a2e] transition"
         >
           Delete
         </button>
@@ -78,23 +78,23 @@ export default function AgentsTable({
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+          <tr className="border-b border-[#1a1a2e] bg-[#050507]">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white">
               Name
             </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white">
               Email
             </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white">
               Workspace Email
             </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white">
               Status
             </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white">
               Created
             </th>
-            <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+            <th className="px-6 py-4 text-right text-sm font-semibold text-white">
               Actions
             </th>
           </tr>
@@ -103,26 +103,26 @@ export default function AgentsTable({
           {agents.map((agent) => (
             <tr
               key={agent.id}
-              className="border-b border-gray-200 hover:bg-gray-50 transition"
+              className="border-b border-[#1a1a2e] hover:bg-[#0a0a0f] transition"
             >
               <td className="px-6 py-4">
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-white">
                   {agent.first_name} {agent.last_name}
                 </div>
                 {agent.phone && (
-                  <div className="text-sm text-gray-500">{agent.phone}</div>
+                  <div className="text-sm text-gray-400">{agent.phone}</div>
                 )}
               </td>
-              <td className="px-6 py-4 text-sm text-gray-600">
+              <td className="px-6 py-4 text-sm text-gray-400">
                 {agent.email}
               </td>
-              <td className="px-6 py-4 text-sm text-gray-600">
+              <td className="px-6 py-4 text-sm text-gray-400">
                 {agent.workspace_email || '—'}
               </td>
               <td className="px-6 py-4">
                 <StatusBadge status={agent.status} />
               </td>
-              <td className="px-6 py-4 text-sm text-gray-600">
+              <td className="px-6 py-4 text-sm text-gray-400">
                 {new Date(agent.created_at).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 text-right">

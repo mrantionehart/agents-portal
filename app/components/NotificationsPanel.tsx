@@ -151,28 +151,28 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       case 'event':
         return <CalendarDays className="w-5 h-5 text-amber-500" />
       default:
-        return <Bell className="w-5 h-5 text-gray-600" />
+        return <Bell className="w-5 h-5 text-gray-400" />
     }
   }
 
   const getNotificationColor = (type: string) => {
     switch (type) {
       case 'lead_assigned':
-        return 'bg-blue-50'
+        return 'bg-blue-500/10'
       case 'deal_updated':
-        return 'bg-green-50'
+        return 'bg-green-500/10'
       case 'document_requested':
-        return 'bg-yellow-50'
+        return 'bg-yellow-500/10'
       case 'tc_assigned':
-        return 'bg-purple-50'
+        return 'bg-purple-500/10'
       case 'approval_needed':
-        return 'bg-red-50'
+        return 'bg-red-500/10'
       case 'milestone_due':
-        return 'bg-orange-50'
+        return 'bg-orange-500/10'
       case 'event':
-        return 'bg-amber-50'
+        return 'bg-amber-500/10'
       default:
-        return 'bg-gray-50'
+        return 'bg-[#050507]'
     }
   }
 
@@ -194,10 +194,10 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       {/* Bell Icon Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 hover:bg-gray-100 rounded-lg transition"
+        className="relative p-2 hover:bg-[#111] rounded-lg transition"
         title="Notifications"
       >
-        <Bell className="w-5 h-5 text-gray-600" />
+        <Bell className="w-5 h-5 text-gray-400" />
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -207,26 +207,26 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
 
       {/* Notifications Panel */}
       {isOpen && (
-        <div className="absolute right-0 top-12 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+        <div className="absolute right-0 top-12 w-96 bg-[#0a0a0f] rounded-lg shadow-2xl border border-[#1a1a2e] z-50 max-h-96 overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="font-bold text-gray-900">Notifications</h3>
+          <div className="sticky top-0 bg-[#0a0a0f] p-4 border-b border-[#1a1a2e] flex justify-between items-center">
+            <h3 className="font-bold text-white">Notifications</h3>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 hover:bg-[#111] rounded"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
 
           {/* Loading State */}
           {loading ? (
             <div className="p-8 text-center">
-              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">Loading notifications...</p>
+              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Loading notifications...</p>
             </div>
           ) : error ? (
-            <div className="p-4 bg-red-50 border-b border-red-200">
+            <div className="p-4 bg-red-500/10 border-b border-red-500/20">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           ) : null}
@@ -243,7 +243,7 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
                       window.location.href = notif.actionUrl
                     }
                   }}
-                  className={`p-4 hover:bg-gray-50 transition cursor-pointer ${getNotificationColor(notif.type)} ${
+                  className={`p-4 hover:bg-[#0a0a0f] transition cursor-pointer ${getNotificationColor(notif.type)} ${
                     !notif.read ? 'border-l-4 border-amber-500' : ''
                   }`}
                 >
@@ -253,15 +253,15 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-gray-900 text-sm">
+                        <p className="font-semibold text-white text-sm">
                           {notif.title}
                         </p>
                         {!notif.read && (
-                          <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0 mt-1"></div>
+                          <div className="w-2 h-2 bg-amber-500/100 rounded-full flex-shrink-0 mt-1"></div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{notif.description}</p>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-sm text-gray-400 mt-1">{notif.description}</p>
+                      <p className="text-xs text-gray-400 mt-2">
                         {formatTime(notif.timestamp)}
                       </p>
                     </div>
@@ -271,15 +271,15 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
             </div>
           ) : (
             <div className="p-8 text-center">
-              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">No notifications yet</p>
+              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">No notifications yet</p>
             </div>
           )}
 
           {/* View All Link */}
           {notifications.length > 0 && (
-            <div className="sticky bottom-0 p-3 border-t border-gray-200 bg-gray-50">
-              <button className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700">
+            <div className="sticky bottom-0 p-3 border-t border-[#1a1a2e] bg-[#050507]">
+              <button className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-400">
                 View All Notifications →
               </button>
             </div>

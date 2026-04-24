@@ -5,11 +5,11 @@ function cn(...classes: (string | undefined | false)[]) {
 }
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-[#1E2761] text-white hover:bg-[#162050] shadow-sm',
-  gold: 'bg-[#D4AF37] text-white hover:bg-[#C5A033] shadow-sm',
-  outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-  ghost: 'text-gray-700 hover:bg-gray-100',
-  destructive: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+  default: 'bg-[#1E2761] text-white hover:bg-[#162050] shadow-sm shadow-black/10',
+  gold: 'bg-[#D4AF37] text-white hover:bg-[#C5A033] shadow-sm shadow-black/10',
+  outline: 'border border-[#1a1a2e] bg-[#0a0a0f] text-gray-200 hover:bg-[#0a0a0f]',
+  ghost: 'text-gray-200 hover:bg-[#111]',
+  destructive: 'bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-black/10',
 }
 
 const sizeStyles: Record<string, string> = {

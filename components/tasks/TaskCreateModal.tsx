@@ -141,13 +141,13 @@ export default function TaskCreateModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-2xl font-bold">Create Task</h2>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-gray-400 hover:text-gray-200 text-2xl"
           >
             ×
           </button>
@@ -171,7 +171,7 @@ export default function TaskCreateModal({
               <select
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">Select a template...</option>
                 {templates.map((template) => (
@@ -191,7 +191,7 @@ export default function TaskCreateModal({
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="e.g., Obtain title commitment"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               required
             />
           </div>
@@ -204,7 +204,7 @@ export default function TaskCreateModal({
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Add details about this task..."
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             />
           </div>
 
@@ -214,7 +214,7 @@ export default function TaskCreateModal({
             <select
               value={formData.assigned_to_id}
               onChange={(e) => setFormData({ ...formData, assigned_to_id: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               required
             >
               <option value="">Select team member...</option>
@@ -232,7 +232,7 @@ export default function TaskCreateModal({
             <select
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -248,17 +248,17 @@ export default function TaskCreateModal({
               type="datetime-local"
               value={formData.due_date}
               onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             />
           </div>
 
           {/* Selected Template Preview */}
           {useTemplate && selectedTemplate && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
               <p className="text-sm font-medium text-blue-900 mb-2">
                 Checklist items will be created:
               </p>
-              <ul className="text-sm text-blue-800 space-y-1">
+              <ul className="text-sm text-blue-400 space-y-1">
                 {templates
                   .find((t) => t.id === selectedTemplate)
                   ?.task_template_items.map((item) => (
@@ -276,14 +276,14 @@ export default function TaskCreateModal({
             <button
               type="button"
               onClick={handleClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+              className="px-6 py-2 border border-[#1a1a2e] rounded-lg text-gray-200 hover:bg-[#0a0a0f] font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50"
+              className="px-6 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Task'}
             </button>

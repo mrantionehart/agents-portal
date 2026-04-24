@@ -135,54 +135,54 @@ export default function AgentTCRequest({ userId, userRole }: { userId: string; u
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Request Transaction Coordinator</h3>
+    <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
+      <h3 className="text-lg font-bold text-white mb-4">Request Transaction Coordinator</h3>
 
       {hasApprovedAssignment && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-green-800 font-medium">You have an approved TC assignment</p>
-            <p className="text-green-700 text-sm mt-1">You can view your TC's work in the TC Work view below</p>
+            <p className="text-green-400 font-medium">You have an approved TC assignment</p>
+            <p className="text-green-400 text-sm mt-1">You can view your TC's work in the TC Work view below</p>
           </div>
         </div>
       )}
 
       {hasPendingRequest && (
-        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-yellow-800 font-medium">Pending request awaiting broker approval</p>
-            <p className="text-yellow-700 text-sm mt-1">Your TC request has been submitted and is pending approval from your broker</p>
+            <p className="text-yellow-400 font-medium">Pending request awaiting broker approval</p>
+            <p className="text-yellow-400 text-sm mt-1">Your TC request has been submitted and is pending approval from your broker</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800 text-sm">{success}</p>
+        <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+          <p className="text-green-400 text-sm">{success}</p>
         </div>
       )}
 
       {!hasApprovedAssignment && !hasPendingRequest && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-200 mb-2">
               Select Transaction Coordinator
             </label>
             {tcs.length === 0 ? (
-              <p className="text-gray-500 text-sm">No active Transaction Coordinators available</p>
+              <p className="text-gray-400 text-sm">No active Transaction Coordinators available</p>
             ) : (
               <select
                 value={selectedTCId}
                 onChange={(e) => setSelectedTCId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
               >
                 <option value="">-- Select a TC --</option>
                 {tcs.map((tc) => (
@@ -195,7 +195,7 @@ export default function AgentTCRequest({ userId, userRole }: { userId: string; u
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-200 mb-2">
               Commission Split (%)
             </label>
             <input
@@ -206,9 +206,9 @@ export default function AgentTCRequest({ userId, userRole }: { userId: string; u
               value={commissionSplit || ''}
               onChange={(e) => setCommissionSplit(parseFloat(e.target.value) || 0)}
               placeholder="0.0"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
             />
-            <p className="text-gray-500 text-xs mt-1">What percentage of your commission will the TC receive?</p>
+            <p className="text-gray-400 text-xs mt-1">What percentage of your commission will the TC receive?</p>
           </div>
 
           <button

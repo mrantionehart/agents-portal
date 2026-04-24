@@ -222,44 +222,44 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
   return (
     <div className="space-y-8">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-          <p className="text-gray-600 text-sm font-medium mb-1">Active Transactions</p>
-          <p className="text-3xl font-bold text-gray-900">{activeTransactions.length}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <p className="text-gray-400 text-sm font-medium mb-1">Active Transactions</p>
+          <p className="text-3xl font-bold text-white">{activeTransactions.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-          <p className="text-gray-600 text-sm font-medium mb-1">Pending Documents</p>
-          <p className="text-3xl font-bold text-gray-900">{pendingDocs.length}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-yellow-500">
+          <p className="text-gray-400 text-sm font-medium mb-1">Pending Documents</p>
+          <p className="text-3xl font-bold text-white">{pendingDocs.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-          <p className="text-gray-600 text-sm font-medium mb-1">Overdue Milestones</p>
-          <p className="text-3xl font-bold text-gray-900">{overdueMilestones.length}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-purple-500">
+          <p className="text-gray-400 text-sm font-medium mb-1">Overdue Milestones</p>
+          <p className="text-3xl font-bold text-white">{overdueMilestones.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-          <p className="text-gray-600 text-sm font-medium mb-1">Total Transactions</p>
-          <p className="text-3xl font-bold text-gray-900">{transactions.length}</p>
+        <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
+          <p className="text-gray-400 text-sm font-medium mb-1">Total Transactions</p>
+          <p className="text-3xl font-bold text-white">{transactions.length}</p>
         </div>
       </div>
 
       {/* Transactions */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Your TC's Transactions</h2>
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
+          <h2 className="text-xl font-bold text-white">Your TC's Transactions</h2>
         </div>
         {transactions.length > 0 ? (
           <div className="space-y-4 p-6">
             {transactions.map((txn) => (
-              <div key={txn.id} className="border rounded-lg p-4 hover:bg-gray-50">
+              <div key={txn.id} className="border rounded-lg p-4 hover:bg-[#0a0a0f]">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{txn.title}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <h3 className="font-semibold text-white">{txn.title}</h3>
+                    <p className="text-sm text-gray-400 mt-1">
                       Type: {txn.transaction_type.replace('_', ' ')} • Close: {txn.expected_close_date ? new Date(txn.expected_close_date).toLocaleDateString() : '—'}
                     </p>
                   </div>
@@ -277,7 +277,7 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
             ))}
           </div>
         ) : (
-          <div className="p-6 text-center text-gray-600">No transactions yet</div>
+          <div className="p-6 text-center text-gray-400">No transactions yet</div>
         )}
       </div>
 
@@ -292,19 +292,19 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
       )}
 
       {/* Documents */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Documents</h2>
+      <div className="bg-[#0a0a0f] rounded-lg shadow">
+        <div className="p-6 border-b border-[#1a1a2e]">
+          <h2 className="text-xl font-bold text-white">Documents</h2>
         </div>
         {documents.length > 0 ? (
           <div className="divide-y">
             {documents.map((doc) => (
-              <div key={doc.id} className="p-6 flex items-center justify-between hover:bg-gray-50">
+              <div key={doc.id} className="p-6 flex items-center justify-between hover:bg-[#0a0a0f]">
                 <div className="flex items-center gap-4">
                   <FileText className="w-6 h-6 text-gray-400" />
                   <div>
-                    <p className="font-medium text-gray-900">{doc.file_name}</p>
-                    <p className="text-sm text-gray-600 capitalize">{doc.doc_type}</p>
+                    <p className="font-medium text-white">{doc.file_name}</p>
+                    <p className="text-sm text-gray-400 capitalize">{doc.doc_type}</p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDocStatusColor(doc.status)}`}>
@@ -314,7 +314,7 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
             ))}
           </div>
         ) : (
-          <div className="p-6 text-center text-gray-600">No documents uploaded</div>
+          <div className="p-6 text-center text-gray-400">No documents uploaded</div>
         )}
       </div>
 
@@ -341,7 +341,7 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
       {/* Milestones List */}
       {milestones.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Your Milestones</h2>
+          <h2 className="text-xl font-bold text-white">Your Milestones</h2>
           <MilestoneList
             milestones={milestones}
             userId={userId}
@@ -356,7 +356,7 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
       {/* Milestone Timeline */}
       {milestones.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Timeline View</h2>
+          <h2 className="text-xl font-bold text-white">Timeline View</h2>
           <MilestoneTimeline milestones={milestones} />
         </div>
       )}
@@ -367,44 +367,44 @@ export default function AgentTCView({ userId, userRole }: { userId: string; user
 function getStatusColor(status: string): string {
   switch (status) {
     case 'completed':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-500/15 text-green-400'
     case 'in_progress':
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-blue-500/15 text-blue-400'
     case 'pending_docs':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-yellow-500/15 text-yellow-400'
     case 'stalled':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-500/15 text-red-800'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-[#0a0a0f] text-white'
   }
 }
 
 function getDocStatusColor(status: string): string {
   switch (status) {
     case 'verified':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-500/15 text-green-400'
     case 'received':
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-blue-500/15 text-blue-400'
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-yellow-500/15 text-yellow-400'
     case 'failed':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-500/15 text-red-800'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-[#0a0a0f] text-white'
   }
 }
 
 function getMilestoneStatusColor(status: string): string {
   switch (status) {
     case 'completed':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-500/15 text-green-400'
     case 'pending':
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-blue-500/15 text-blue-400'
     case 'overdue':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-500/15 text-red-800'
     case 'skipped':
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-[#0a0a0f] text-white'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-[#0a0a0f] text-white'
   }
 }

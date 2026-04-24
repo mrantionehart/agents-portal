@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from './providers'
-import { HartFeltWatermark } from './components/HartFeltHeart'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,9 +27,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-      <body className="bg-gray-50 font-sans">
+      <body className="bg-[#050507] text-white font-sans">
         <AuthProvider>
-          <HartFeltWatermark />
           <div className="relative z-10">
             {children}
           </div>

@@ -79,18 +79,35 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Settings', href: '/admin-settings', icon: Settings },
   ]
 
+  const navItemClass = (active: boolean) =>
+    `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium ${
+      active
+        ? 'bg-[#C9A84C]/10 text-[#C9A84C] border-l-2 border-[#C9A84C]'
+        : 'text-gray-400 hover:bg-[#0a0a0f] hover:text-white'
+    }`
+
+  const subNavItemClass = (active: boolean) =>
+    `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 text-xs font-medium ${
+      active
+        ? 'bg-[#C9A84C]/10 text-[#C9A84C] border-l-2 border-[#C9A84C]'
+        : 'text-gray-400 hover:bg-[#0a0a0f] hover:text-white'
+    }`
+
   return (
-    <aside className="w-64 bg-gray-900 text-white flex flex-col h-screen sticky top-0 overflow-y-auto">
+    <aside className="w-64 bg-[#050507] text-white flex flex-col h-screen sticky top-0 overflow-y-auto border-r border-[#1a1a2e]">
       {/* Logo/Brand */}
-      <div className="p-6 border-b border-gray-800">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+      <div className="p-6 border-b border-[#1a1a2e]">
+        <h1
+          className="text-2xl font-bold bg-clip-text text-transparent"
+          style={{ backgroundImage: 'linear-gradient(to right, #C9A84C, #E8D5A3)' }}
+        >
           HF
         </h1>
-        <p className="text-xs text-gray-400 mt-1">EASE Agent Portal</p>
+        <p className="text-xs text-gray-500 mt-1">EASE Agent Portal</p>
       </div>
 
       {/* User Info */}
-      <div className="px-6 py-4 border-b border-gray-800">
+      <div className="px-6 py-4 border-b border-[#1a1a2e]">
         <p className="text-sm font-medium text-white truncate">{userName}</p>
         <p className="text-xs text-gray-400 capitalize mt-1">{role}</p>
       </div>
@@ -105,11 +122,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition text-sm font-medium ${
-                active
-                  ? 'bg-amber-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              }`}
+              className={navItemClass(active)}
             >
               <Icon className="w-5 h-5" />
               {item.label}
@@ -118,8 +131,8 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
         })}
 
         {/* Operations Section */}
-        <div className="pt-4 border-t border-gray-800 mt-4">
-          <p className="px-4 text-xs uppercase text-gray-500 font-semibold mb-2">Operations</p>
+        <div className="pt-4 border-t border-[#1a1a2e] mt-4">
+          <p className="px-4 text-xs uppercase text-gray-600 font-semibold tracking-wider mb-2">Operations</p>
           <div className="space-y-1">
             {operationsItems.map((item) => {
               const Icon = item.icon
@@ -128,11 +141,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-lg transition text-sm font-medium ${
-                    active
-                      ? 'bg-amber-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                  }`}
+                  className={navItemClass(active)}
                 >
                   <Icon className="w-5 h-5" />
                   {item.label}
@@ -143,20 +152,20 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
         </div>
 
         {/* Tools Section */}
-        <div className="pt-4 border-t border-gray-800 mt-4">
+        <div className="pt-4 border-t border-[#1a1a2e] mt-4">
           <button
             onClick={() => setIsToolsOpen(!isToolsOpen)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition text-sm font-medium"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-[#0a0a0f] hover:text-white transition-all duration-150 text-sm font-medium"
           >
             <Wrench className="w-5 h-5" />
             <span className="flex-1 text-left">Tools</span>
             <ChevronDown
-              className={`w-4 h-4 transition-transform ${isToolsOpen ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 transition-transform duration-150 ${isToolsOpen ? 'rotate-180' : ''}`}
             />
           </button>
 
           {isToolsOpen && (
-            <div className="mt-2 space-y-1 ml-2 pl-2 border-l border-gray-800">
+            <div className="mt-2 space-y-1 ml-2 pl-2 border-l border-[#1a1a2e]">
               {toolsItems.map((item) => {
                 const Icon = item.icon
                 const active = isActive(item.href)
@@ -164,11 +173,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition text-xs font-medium ${
-                      active
-                        ? 'bg-amber-600 text-white'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                    }`}
+                    className={subNavItemClass(active)}
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
@@ -181,8 +186,8 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
 
         {/* Admin Section - Only for brokers/admins */}
         {(role === 'broker' || role === 'admin') && (
-          <div className="pt-4 border-t border-gray-800 mt-4">
-            <p className="px-4 text-xs uppercase text-gray-500 font-semibold mb-2">Admin</p>
+          <div className="pt-4 border-t border-[#1a1a2e] mt-4">
+            <p className="px-4 text-xs uppercase text-gray-600 font-semibold tracking-wider mb-2">Admin</p>
             <div className="space-y-1">
               {adminItems.map((item) => {
                 const Icon = item.icon
@@ -191,11 +196,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg transition text-xs font-medium ${
-                      active
-                        ? 'bg-amber-600 text-white'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                    }`}
+                    className={subNavItemClass(active)}
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
@@ -208,21 +209,17 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
       </nav>
 
       {/* Profile + Sign Out */}
-      <div className="p-4 border-t border-gray-800 space-y-1">
+      <div className="p-4 border-t border-[#1a1a2e] space-y-1">
         <Link
           href="/profile"
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition text-sm font-medium ${
-            isActive('/profile')
-              ? 'bg-amber-600 text-white'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-          }`}
+          className={navItemClass(isActive('/profile'))}
         >
           <User className="w-5 h-5" />
           Profile
         </Link>
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition text-sm font-medium"
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-red-500/100/10 hover:text-red-400 transition-all duration-150 text-sm font-medium"
         >
           <LogOut className="w-5 h-5" />
           Sign Out

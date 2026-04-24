@@ -25,11 +25,11 @@ interface Recruit {
 }
 
 const STATUS_TYPES = [
-  { id: 'prospect', label: 'Prospect', color: 'bg-blue-100', textColor: 'text-blue-800', borderColor: 'border-blue-300' },
-  { id: 'interested', label: 'Interested', color: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-300' },
-  { id: 'pipeline', label: 'In Pipeline', color: 'bg-orange-100', textColor: 'text-orange-800', borderColor: 'border-orange-300' },
-  { id: 'hired', label: 'Hired', color: 'bg-green-100', textColor: 'text-green-800', borderColor: 'border-green-300' },
-  { id: 'declined', label: 'Declined', color: 'bg-red-100', textColor: 'text-red-800', borderColor: 'border-red-300' },
+  { id: 'prospect', label: 'Prospect', color: 'bg-blue-500/15', textColor: 'text-blue-400', borderColor: 'border-blue-300' },
+  { id: 'interested', label: 'Interested', color: 'bg-yellow-500/15', textColor: 'text-yellow-400', borderColor: 'border-yellow-300' },
+  { id: 'pipeline', label: 'In Pipeline', color: 'bg-orange-500/15', textColor: 'text-orange-800', borderColor: 'border-orange-300' },
+  { id: 'hired', label: 'Hired', color: 'bg-green-500/15', textColor: 'text-green-400', borderColor: 'border-green-300' },
+  { id: 'declined', label: 'Declined', color: 'bg-red-500/15', textColor: 'text-red-800', borderColor: 'border-red-300' },
 ]
 
 const EXPERIENCE_LEVELS = [
@@ -263,14 +263,14 @@ export default function RecruitingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Recruiting</h1>
+            <h1 className="text-2xl font-bold text-white">Recruiting</h1>
           </div>
           <div className="flex items-center gap-4">
             <ComplianceNotifications userId={user?.id} role={role} />
@@ -288,7 +288,7 @@ export default function RecruitingPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
@@ -306,70 +306,70 @@ export default function RecruitingPage() {
 
         {/* Add Recruit Form */}
         {showAddForm && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Recruit</h2>
+          <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Add New Recruit</h2>
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">First Name *</label>
                 <input
                   type="text"
                   value={newRecruit.firstName}
                   onChange={(e) => setNewRecruit({ ...newRecruit, firstName: e.target.value })}
                   placeholder="First name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Last Name *</label>
                 <input
                   type="text"
                   value={newRecruit.lastName}
                   onChange={(e) => setNewRecruit({ ...newRecruit, lastName: e.target.value })}
                   placeholder="Last name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Email *</label>
                 <input
                   type="email"
                   value={newRecruit.email}
                   onChange={(e) => setNewRecruit({ ...newRecruit, email: e.target.value })}
                   placeholder="email@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Phone</label>
                 <input
                   type="tel"
                   value={newRecruit.phone}
                   onChange={(e) => setNewRecruit({ ...newRecruit, phone: e.target.value })}
                   placeholder="(305) 555-0000"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Location</label>
                 <input
                   type="text"
                   value={newRecruit.location}
                   onChange={(e) => setNewRecruit({ ...newRecruit, location: e.target.value })}
                   placeholder="Miami, FL"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Experience</label>
                 <select
                   value={newRecruit.experience}
                   onChange={(e) => setNewRecruit({ ...newRecruit, experience: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 >
                   {EXPERIENCE_LEVELS.map((level) => (
                     <option key={level.id} value={level.id}>
@@ -380,22 +380,22 @@ export default function RecruitingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Source</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Source</label>
                 <input
                   type="text"
                   value={newRecruit.source}
                   onChange={(e) => setNewRecruit({ ...newRecruit, source: e.target.value })}
                   placeholder="e.g., Referral, Job Board, Network"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Initial Status</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Initial Status</label>
                 <select
                   value={newRecruit.status}
                   onChange={(e) => setNewRecruit({ ...newRecruit, status: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 >
                   {STATUS_TYPES.map((status) => (
                     <option key={status.id} value={status.id}>
@@ -406,13 +406,13 @@ export default function RecruitingPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Notes</label>
                 <textarea
                   value={newRecruit.notes}
                   onChange={(e) => setNewRecruit({ ...newRecruit, notes: e.target.value })}
                   placeholder="Any additional notes about this recruit"
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
                 />
               </div>
 
@@ -428,29 +428,29 @@ export default function RecruitingPage() {
 
         {/* Statistics */}
         <div className="grid grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Total</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Total</p>
+            <p className="text-3xl font-bold text-white">{stats.total}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-400">
-            <p className="text-gray-600 text-sm font-medium mb-1">Prospects</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.prospects}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-blue-400">
+            <p className="text-gray-400 text-sm font-medium mb-1">Prospects</p>
+            <p className="text-3xl font-bold text-white">{stats.prospects}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Interested</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.interested}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-yellow-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Interested</p>
+            <p className="text-3xl font-bold text-white">{stats.interested}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Pipeline</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.pipeline}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-orange-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Pipeline</p>
+            <p className="text-3xl font-bold text-white">{stats.pipeline}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <p className="text-gray-600 text-sm font-medium mb-1">Hired</p>
-            <p className="text-3xl font-bold text-gray-900">{stats.hired}</p>
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
+            <p className="text-gray-400 text-sm font-medium mb-1">Hired</p>
+            <p className="text-3xl font-bold text-white">{stats.hired}</p>
           </div>
         </div>
 
@@ -462,13 +462,13 @@ export default function RecruitingPage() {
               placeholder="Search by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
             />
           </div>
           <select
             value={statusFilter || ''}
             onChange={(e) => setStatusFilter(e.target.value || null)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
           >
             <option value="">All Statuses</option>
             {STATUS_TYPES.map((status) => (
@@ -481,13 +481,13 @@ export default function RecruitingPage() {
 
         {/* Recruits List */}
         {recruitsLoading ? (
-          <div className="text-center py-12 text-gray-600">Loading recruits...</div>
+          <div className="text-center py-12 text-gray-400">Loading recruits...</div>
         ) : filteredRecruits.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRecruits.map((recruit) => {
               const statusType = STATUS_TYPES.find((t) => t.id === recruit.status)
               return (
-                <div key={recruit.id} className="bg-white rounded-lg shadow hover:shadow-lg transition">
+                <div key={recruit.id} className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition">
                   <div className={`${statusType?.color} rounded-t-lg p-4 border-b-2 ${statusType?.borderColor}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -505,35 +505,35 @@ export default function RecruitingPage() {
                   </div>
 
                   <div className="p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
                       <Mail className="w-4 h-4" />
-                      <a href={`mailto:${recruit.email}`} className="text-blue-600 hover:text-blue-700">
+                      <a href={`mailto:${recruit.email}`} className="text-blue-600 hover:text-blue-400">
                         {recruit.email}
                       </a>
                     </div>
 
                     {recruit.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
                         <Phone className="w-4 h-4" />
-                        <a href={`tel:${recruit.phone}`} className="text-blue-600 hover:text-blue-700">
+                        <a href={`tel:${recruit.phone}`} className="text-blue-600 hover:text-blue-400">
                           {recruit.phone}
                         </a>
                       </div>
                     )}
 
                     {recruit.location && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
                         <MapPin className="w-4 h-4" />
                         {recruit.location}
                       </div>
                     )}
 
-                    <div className="text-xs text-gray-500 pt-2 border-t">
+                    <div className="text-xs text-gray-400 pt-2 border-t">
                       Source: {recruit.source}
                     </div>
 
                     {recruit.notes && (
-                      <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <div className="text-sm text-gray-400 bg-[#050507] p-2 rounded">
                         {recruit.notes}
                       </div>
                     )}
@@ -542,7 +542,7 @@ export default function RecruitingPage() {
                       <select
                         value={recruit.status}
                         onChange={(e) => handleStatusChange(recruit.id, e.target.value as any)}
-                        className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 text-xs px-2 py-1 border border-[#1a1a2e] rounded focus:ring-2 focus:ring-[#C9A84C]/30"
                       >
                         {STATUS_TYPES.map((status) => (
                           <option key={status.id} value={status.id}>
@@ -553,7 +553,7 @@ export default function RecruitingPage() {
 
                       <button
                         onClick={() => handleDeleteRecruit(recruit.id)}
-                        className="px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition"
+                        className="px-2 py-1 bg-red-500/10 text-red-600 rounded hover:bg-red-500/15 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -564,22 +564,22 @@ export default function RecruitingPage() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium mb-4">
+            <p className="text-gray-400 font-medium mb-4">
               {searchTerm || statusFilter ? 'No recruits matching filters' : 'No recruits yet'}
             </p>
-            <p className="text-gray-500 text-sm">Start adding recruits to build your recruitment pipeline.</p>
+            <p className="text-gray-400 text-sm">Start adding recruits to build your recruitment pipeline.</p>
           </div>
         )}
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6 mt-8">
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 mb-1">Recruitment Pipeline</p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-400">
                 Manage your recruitment pipeline and track potential agents. Follow prospects through prospect → interested → pipeline → hired. This feature helps you build your team.
               </p>
             </div>

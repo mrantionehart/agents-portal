@@ -90,10 +90,10 @@ export default function TaskDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Task Management Dashboard</h1>
+        <h1 className="text-3xl font-bold text-white">Task Management Dashboard</h1>
         <button
           onClick={loadDashboard}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+          className="px-4 py-2 bg-blue-500/100 text-white rounded-lg hover:bg-blue-600 text-sm"
         >
           Refresh
         </button>
@@ -102,45 +102,45 @@ export default function TaskDashboard() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Total Tasks */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm font-medium text-gray-600 mb-1">Total Tasks</div>
-          <div className="text-3xl font-bold text-gray-900 mb-2">{metrics.total_tasks}</div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <div className="text-sm font-medium text-gray-400 mb-1">Total Tasks</div>
+          <div className="text-3xl font-bold text-white mb-2">{metrics.total_tasks}</div>
+          <div className="w-full bg-[#1a1a2e] rounded-full h-2">
             <div
-              className="bg-blue-500 h-2 rounded-full"
+              className="bg-blue-500/100 h-2 rounded-full"
               style={{ width: `${getCompletionPercentage()}%` }}
             />
           </div>
-          <div className="text-xs text-gray-600 mt-2">
+          <div className="text-xs text-gray-400 mt-2">
             {getCompletionPercentage()}% completed
           </div>
         </div>
 
         {/* Pending */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm font-medium text-gray-600 mb-1">Pending</div>
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <div className="text-sm font-medium text-gray-400 mb-1">Pending</div>
           <div className="text-3xl font-bold text-yellow-600">{metrics.pending}</div>
-          <div className="text-sm text-gray-600 mt-4">Awaiting start</div>
+          <div className="text-sm text-gray-400 mt-4">Awaiting start</div>
         </div>
 
         {/* In Progress */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm font-medium text-gray-600 mb-1">In Progress</div>
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
+          <div className="text-sm font-medium text-gray-400 mb-1">In Progress</div>
           <div className="text-3xl font-bold text-blue-600">{metrics.in_progress}</div>
-          <div className="text-sm text-gray-600 mt-4">Currently being worked on</div>
+          <div className="text-sm text-gray-400 mt-4">Currently being worked on</div>
         </div>
 
         {/* Overdue Alert */}
         <div
           className={`rounded-lg border p-4 ${
             metrics.overdue > 0
-              ? 'bg-red-50 border-red-200'
-              : 'bg-green-50 border-green-200'
+              ? 'bg-red-500/10 border-red-500/20'
+              : 'bg-green-500/10 border-green-500/20'
           }`}
         >
           <div
             className={`text-sm font-medium mb-1 ${
-              metrics.overdue > 0 ? 'text-red-700' : 'text-green-700'
+              metrics.overdue > 0 ? 'text-red-400' : 'text-green-400'
             }`}
           >
             Overdue Tasks
@@ -160,7 +160,7 @@ export default function TaskDashboard() {
 
       {/* Critical Alerts */}
       {(metrics.critical_priority_pending > 0 || metrics.high_priority_pending > 0) && (
-        <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
+        <div className="bg-orange-500/10 border-l-4 border-orange-400 p-4 rounded">
           <div className="flex">
             <div className="flex-shrink-0">
               <span className="text-2xl">⚠️</span>
@@ -182,7 +182,7 @@ export default function TaskDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Agent Workload */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
           <h2 className="text-xl font-bold mb-4">Agent Workload</h2>
 
           <div className="space-y-4">
@@ -190,10 +190,10 @@ export default function TaskDashboard() {
               <div
                 key={agent.agent_id}
                 onClick={() => setSelectedAgent(agent.agent_id)}
-                className="p-4 border border-gray-200 rounded-lg hover:border-blue-400 cursor-pointer transition-colors"
+                className="p-4 border border-[#1a1a2e] rounded-lg hover:border-blue-400 cursor-pointer transition-colors"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">Agent {agent.agent_id}</h3>
+                  <h3 className="font-medium text-white">Agent {agent.agent_id}</h3>
                   <span className="text-2xl font-bold text-blue-600">
                     {agent.total_tasks}
                   </span>
@@ -201,28 +201,28 @@ export default function TaskDashboard() {
 
                 <div className="grid grid-cols-4 gap-2 mb-3 text-sm">
                   <div>
-                    <span className="text-gray-600">Pending:</span>
-                    <p className="font-medium text-gray-900">{agent.pending}</p>
+                    <span className="text-gray-400">Pending:</span>
+                    <p className="font-medium text-white">{agent.pending}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">In Progress:</span>
-                    <p className="font-medium text-gray-900">{agent.in_progress}</p>
+                    <span className="text-gray-400">In Progress:</span>
+                    <p className="font-medium text-white">{agent.in_progress}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Completed:</span>
+                    <span className="text-gray-400">Completed:</span>
                     <p className="font-medium text-green-600">{agent.completed}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Overdue:</span>
-                    <p className={`font-medium ${agent.overdue > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    <span className="text-gray-400">Overdue:</span>
+                    <p className={`font-medium ${agent.overdue > 0 ? 'text-red-600' : 'text-white'}`}>
                       {agent.overdue}
                     </p>
                   </div>
                 </div>
 
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-[#1a1a2e] rounded-full h-2">
                   <div
-                    className="bg-green-500 h-2 rounded-full"
+                    className="bg-green-500/100 h-2 rounded-full"
                     style={{
                       width: `${agent.total_tasks > 0 ? Math.round((agent.completed / agent.total_tasks) * 100) : 0}%`,
                     }}
@@ -234,7 +234,7 @@ export default function TaskDashboard() {
         </div>
 
         {/* Overdue Tasks */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
           <h2 className="text-xl font-bold mb-4">
             Overdue Tasks ({overdue_tasks.length})
           </h2>
@@ -248,11 +248,11 @@ export default function TaskDashboard() {
               {overdue_tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="p-3 bg-red-50 border border-red-200 rounded-lg"
+                  className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{task.title}</h3>
+                      <h3 className="font-medium text-white">{task.title}</h3>
                       <p className="text-sm text-red-600 mt-1">
                         Due: {new Date(task.due_date).toLocaleDateString()}
                       </p>
@@ -263,7 +263,7 @@ export default function TaskDashboard() {
                           ? 'bg-red-200 text-red-800'
                           : task.priority === 'high'
                           ? 'bg-orange-200 text-orange-800'
-                          : 'bg-yellow-200 text-yellow-800'
+                          : 'bg-yellow-200 text-yellow-400'
                       }`}
                     >
                       {task.priority}
@@ -277,14 +277,14 @@ export default function TaskDashboard() {
       </div>
 
       {/* Status Summary */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-[#0a0a0f] rounded-lg border border-[#1a1a2e] p-4">
         <h2 className="text-xl font-bold mb-4">Status Summary</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="text-center">
-            <div className="text-sm text-gray-600">Pending</div>
+            <div className="text-sm text-gray-400">Pending</div>
             <div className="text-2xl font-bold text-yellow-600 mt-1">{metrics.pending}</div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-400 mt-2">
               {metrics.total_tasks > 0
                 ? Math.round((metrics.pending / metrics.total_tasks) * 100)
                 : 0}%
@@ -292,11 +292,11 @@ export default function TaskDashboard() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600">In Progress</div>
+            <div className="text-sm text-gray-400">In Progress</div>
             <div className="text-2xl font-bold text-blue-600 mt-1">
               {metrics.in_progress}
             </div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-400 mt-2">
               {metrics.total_tasks > 0
                 ? Math.round((metrics.in_progress / metrics.total_tasks) * 100)
                 : 0}%
@@ -304,9 +304,9 @@ export default function TaskDashboard() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600">Completed</div>
+            <div className="text-sm text-gray-400">Completed</div>
             <div className="text-2xl font-bold text-green-600 mt-1">{metrics.completed}</div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-400 mt-2">
               {metrics.total_tasks > 0
                 ? Math.round((metrics.completed / metrics.total_tasks) * 100)
                 : 0}%
@@ -314,9 +314,9 @@ export default function TaskDashboard() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600">Blocked</div>
+            <div className="text-sm text-gray-400">Blocked</div>
             <div className="text-2xl font-bold text-red-600 mt-1">{metrics.blocked}</div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-400 mt-2">
               {metrics.total_tasks > 0
                 ? Math.round((metrics.blocked / metrics.total_tasks) * 100)
                 : 0}%
@@ -324,11 +324,11 @@ export default function TaskDashboard() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600">Overdue</div>
+            <div className="text-sm text-gray-400">Overdue</div>
             <div className={`text-2xl font-bold mt-1 ${metrics.overdue > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {metrics.overdue}
             </div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-gray-400 mt-2">
               {metrics.total_tasks > 0
                 ? Math.round((metrics.overdue / metrics.total_tasks) * 100)
                 : 0}%

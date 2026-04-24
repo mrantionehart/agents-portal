@@ -31,22 +31,22 @@ export default function TransactionCoordinatorPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
+            <Link href="/dashboard" className="text-gray-400 hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Transaction Coordinator</h1>
-              <p className="text-sm text-gray-600">Manage your TC workload and assignments</p>
+              <h1 className="text-3xl font-bold text-white">Transaction Coordinator</h1>
+              <p className="text-sm text-gray-400">Manage your TC workload and assignments</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
             <TCNotifications userId={user.id} userRole={role} />
             <div className="text-right">
-              <p className="font-medium text-gray-900">{user.email}</p>
-              <p className="text-sm text-gray-600 capitalize">{role}</p>
+              <p className="font-medium text-white">{user.email}</p>
+              <p className="text-sm text-gray-400 capitalize">{role}</p>
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function TransactionCoordinatorPage() {
             <div className="space-y-8">
               <AgentTCRequestEnhanced userId={user.id} userRole={role} />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Your TC's Work</h2>
+                <h2 className="text-2xl font-bold text-white mb-6">Your TC's Work</h2>
                 <AgentTCView userId={user.id} userRole={role} />
               </div>
             </div>
@@ -79,8 +79,8 @@ export default function TransactionCoordinatorPage() {
         )}
 
         {role !== 'broker' && role !== 'tc' && role !== 'agent' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <p className="text-yellow-800">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6">
+            <p className="text-yellow-400">
               Transaction Coordinator features are not available for your role. Please contact support.
             </p>
           </div>

@@ -157,33 +157,33 @@ export default function BrokerTCCreationApprovals({ userId, userRole }: { userId
   return (
     <div className="space-y-8">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* Pending Approvals */}
       <div>
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <AlertCircle className="w-5 h-5 text-yellow-600" />
           Pending TC Creation Requests ({pendingRequests.length})
         </h3>
         {pendingRequests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">
+          <div className="bg-[#0a0a0f] rounded-lg shadow p-6 text-center text-gray-400">
             No pending TC creation requests
           </div>
         ) : (
           <div className="space-y-4">
             {pendingRequests.map((request) => (
-              <div key={request.id} className="bg-white rounded-lg shadow p-6">
+              <div key={request.id} className="bg-[#0a0a0f] rounded-lg shadow p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="font-semibold text-gray-900 text-lg">{request.tc_name}</p>
-                    <p className="text-sm text-gray-600">{request.tc_email}</p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="font-semibold text-white text-lg">{request.tc_name}</p>
+                    <p className="text-sm text-gray-400">{request.tc_email}</p>
+                    <p className="text-sm text-gray-400 mt-1">
                       Commission Split: <span className="font-medium">{request.commission_split}%</span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-gray-400 mt-2">
                       Requested: {new Date(request.requested_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -191,7 +191,7 @@ export default function BrokerTCCreationApprovals({ userId, userRole }: { userId
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
                       Denial Reason (optional)
                     </label>
                     <textarea
@@ -199,7 +199,7 @@ export default function BrokerTCCreationApprovals({ userId, userRole }: { userId
                       onChange={(e) => setDenialReason({ ...denialReason, [request.id]: e.target.value })}
                       placeholder="Provide a reason if you're going to deny this request"
                       rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-[#1a1a2e] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
 
@@ -231,13 +231,13 @@ export default function BrokerTCCreationApprovals({ userId, userRole }: { userId
       {/* Approved Requests */}
       {approvedRequests.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Approved Requests ({approvedRequests.length})</h3>
+          <h3 className="text-lg font-bold text-white mb-4">Approved Requests ({approvedRequests.length})</h3>
           <div className="space-y-3">
             {approvedRequests.map((request) => (
-              <div key={request.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="font-semibold text-gray-900">{request.tc_name}</p>
-                <p className="text-sm text-gray-600">{request.tc_email}</p>
-                <p className="text-xs text-green-700 mt-2">✓ TC created and approved</p>
+              <div key={request.id} className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <p className="font-semibold text-white">{request.tc_name}</p>
+                <p className="text-sm text-gray-400">{request.tc_email}</p>
+                <p className="text-xs text-green-400 mt-2">✓ TC created and approved</p>
               </div>
             ))}
           </div>
@@ -247,13 +247,13 @@ export default function BrokerTCCreationApprovals({ userId, userRole }: { userId
       {/* Denied Requests */}
       {deniedRequests.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Denied Requests ({deniedRequests.length})</h3>
+          <h3 className="text-lg font-bold text-white mb-4">Denied Requests ({deniedRequests.length})</h3>
           <div className="space-y-3">
             {deniedRequests.map((request) => (
-              <div key={request.id} className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="font-semibold text-gray-900">{request.tc_name}</p>
-                <p className="text-sm text-gray-600">{request.tc_email}</p>
-                <p className="text-xs text-red-700 mt-2">✗ Request denied</p>
+              <div key={request.id} className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                <p className="font-semibold text-white">{request.tc_name}</p>
+                <p className="text-sm text-gray-400">{request.tc_email}</p>
+                <p className="text-xs text-red-400 mt-2">✗ Request denied</p>
               </div>
             ))}
           </div>

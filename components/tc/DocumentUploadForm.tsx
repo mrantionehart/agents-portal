@@ -126,34 +126,34 @@ export default function DocumentUploadForm({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-      <h3 className="text-lg font-bold text-gray-900 mb-6">Upload Document</h3>
+    <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-green-500">
+      <h3 className="text-lg font-bold text-white mb-6">Upload Document</h3>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <p className="text-red-800 text-sm">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <p className="text-green-800 text-sm">{success}</p>
+          <p className="text-green-400 text-sm">{success}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Document Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-200 mb-2">
             Document Type
           </label>
           <select
             value={docType}
             onChange={(e) => setDocType(e.target.value)}
             disabled={uploading}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+            className="w-full border border-[#1a1a2e] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-[#0a0a0f]"
           >
             {docTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -170,14 +170,14 @@ export default function DocumentUploadForm({
           onDragOver={handleDrag}
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-lg p-8 text-center transition ${
-            isDragActive ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
+            isDragActive ? 'border-green-500 bg-green-500/10' : 'border-[#1a1a2e] bg-[#050507]'
           } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
         >
           <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragActive ? 'text-green-600' : 'text-gray-400'}`} />
-          <p className="text-sm font-medium text-gray-900 mb-1">
+          <p className="text-sm font-medium text-white mb-1">
             Drag and drop your file here
           </p>
-          <p className="text-xs text-gray-600 mb-4">or click to select a file</p>
+          <p className="text-xs text-gray-400 mb-4">or click to select a file</p>
 
           <input
             type="file"
@@ -196,9 +196,9 @@ export default function DocumentUploadForm({
 
         {/* File Preview */}
         {file && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
             <p className="text-sm font-medium text-blue-900">Selected file:</p>
-            <p className="text-sm text-blue-700 break-all">
+            <p className="text-sm text-blue-400 break-all">
               {file.name} ({(file.size / 1024).toFixed(2)} KB)
             </p>
           </div>
@@ -207,13 +207,13 @@ export default function DocumentUploadForm({
         {/* Upload Progress */}
         {uploading && uploadProgress > 0 && (
           <div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-[#1a1a2e] rounded-full h-2">
               <div
                 className="bg-green-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
-            <p className="text-xs text-gray-600 mt-2 text-center">
+            <p className="text-xs text-gray-400 mt-2 text-center">
               Uploading... {uploadProgress}%
             </p>
           </div>

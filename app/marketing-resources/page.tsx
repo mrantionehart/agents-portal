@@ -106,13 +106,13 @@ export default function MarketingResourcesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
               ← Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Marketing Resources</h1>
+            <h1 className="text-2xl font-bold text-white">Marketing Resources</h1>
           </div>
           <button
             onClick={handleSignOut}
@@ -126,7 +126,7 @@ export default function MarketingResourcesPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-400 text-lg">
             Access professionally designed templates, guides, and resources to enhance your marketing efforts and grow your real estate business.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function MarketingResourcesPage() {
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 selectedCategory === cat.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
               }`}
             >
               {cat.label}
@@ -153,17 +153,17 @@ export default function MarketingResourcesPage() {
           {filteredResources.map(resource => (
             <div
               key={resource.id}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
+              className="bg-[#0a0a0f] rounded-lg shadow hover:shadow-lg shadow-black/20 transition overflow-hidden"
             >
               <div className="h-40 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
                 {resource.icon}
               </div>
               <div className="p-6">
-                <h3 className="font-bold text-gray-900 mb-2">{resource.title}</h3>
-                <p className="text-gray-600 text-sm mb-4">{resource.description}</p>
+                <h3 className="font-bold text-white mb-2">{resource.title}</h3>
+                <p className="text-gray-400 text-sm mb-4">{resource.description}</p>
 
                 <div className="mb-4">
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-500/15 text-blue-400">
                     {resource.type === 'template' ? 'Template' : resource.type === 'guide' ? 'Guide' : 'Document'}
                   </span>
                 </div>
@@ -185,15 +185,15 @@ export default function MarketingResourcesPage() {
         {filteredResources.length === 0 && (
           <div className="text-center py-12">
             <Zap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">No resources in this category yet</p>
+            <p className="text-gray-400 text-lg">No resources in this category yet</p>
           </div>
         )}
 
         {/* Upload Section for Admins */}
         {/* This can be enabled for admin users to upload new resources */}
-        <div className="mt-16 bg-white rounded-lg shadow p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Need Custom Resources?</h2>
-          <p className="text-gray-600 mb-4">
+        <div className="mt-16 bg-[#0a0a0f] rounded-lg shadow p-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Need Custom Resources?</h2>
+          <p className="text-gray-400 mb-4">
             Contact your administrator to request custom marketing templates or resources tailored to your needs.
           </p>
           <button

@@ -71,18 +71,18 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#0a0a0f] rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
+        <div className="sticky top-0 bg-[#0a0a0f] border-b px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{quiz.title}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h2 className="text-xl font-bold text-white">{quiz.title}</h2>
+            <p className="text-sm text-gray-400 mt-0.5">
               {quiz.questions.length} questions — {quiz.passingScore}% to pass
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            className="p-2 text-gray-400 hover:text-gray-400 hover:bg-[#111] rounded-lg transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -93,8 +93,8 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
           <div
             className={`mx-6 mt-4 p-4 rounded-lg flex items-center gap-3 ${
               result.passed
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
+                ? 'bg-green-500/10 border border-green-500/20'
+                : 'bg-red-500/10 border border-red-500/20'
             }`}
           >
             {result.passed ? (
@@ -105,12 +105,12 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
             <div>
               <p
                 className={`font-bold text-lg ${
-                  result.passed ? 'text-green-800' : 'text-red-800'
+                  result.passed ? 'text-green-400' : 'text-red-800'
                 }`}
               >
                 {result.passed ? 'You passed!' : 'Not quite — try again'}
               </p>
-              <p className={`text-sm ${result.passed ? 'text-green-700' : 'text-red-700'}`}>
+              <p className={`text-sm ${result.passed ? 'text-green-400' : 'text-red-400'}`}>
                 Score: {result.score}% ({result.correctCount}/{result.totalQuestions} correct)
               </p>
             </div>
@@ -119,7 +119,7 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
 
         {/* Error banner */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mx-6 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
             {error}
           </div>
         )}
@@ -133,7 +133,7 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
 
             return (
               <div key={q.id} className="space-y-3">
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-white">
                   <span className="text-blue-600 mr-2">{idx + 1}.</span>
                   {q.question}
                 </p>
@@ -148,17 +148,17 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
 
                     if (result) {
                       if (isThisCorrect) {
-                        optionClasses += ' bg-green-50 border-green-300 text-green-900'
+                        optionClasses += ' bg-green-500/10 border-green-300 text-green-900'
                       } else if (isThisWrong) {
-                        optionClasses += ' bg-red-50 border-red-300 text-red-900'
+                        optionClasses += ' bg-red-500/10 border-red-300 text-red-900'
                       } else {
-                        optionClasses += ' border-gray-200 text-gray-500'
+                        optionClasses += ' border-[#1a1a2e] text-gray-400'
                       }
                     } else if (isSelected) {
-                      optionClasses += ' bg-blue-50 border-blue-400 text-blue-900'
+                      optionClasses += ' bg-blue-500/10 border-blue-400 text-blue-900'
                     } else {
                       optionClasses +=
-                        ' border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
+                        ' border-[#1a1a2e] text-gray-200 hover:bg-[#0a0a0f] hover:border-[#1a1a2e] cursor-pointer'
                     }
 
                     return (
@@ -173,12 +173,12 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
                             isSelected
                               ? result
                                 ? isThisCorrect
-                                  ? 'border-green-500 bg-green-500'
-                                  : 'border-red-500 bg-red-500'
-                                : 'border-blue-500 bg-blue-500'
+                                  ? 'border-green-500 bg-green-500/100'
+                                  : 'border-red-500 bg-red-500/100'
+                                : 'border-blue-500 bg-blue-500/100'
                               : isThisCorrect
-                                ? 'border-green-500 bg-green-500'
-                                : 'border-gray-300'
+                                ? 'border-green-500 bg-green-500/100'
+                                : 'border-[#1a1a2e]'
                           }`}
                         >
                           {(isSelected || isThisCorrect) && result && (
@@ -189,7 +189,7 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
                             )
                           )}
                           {isSelected && !result && (
-                            <span className="w-2 h-2 rounded-full bg-white" />
+                            <span className="w-2 h-2 rounded-full bg-[#0a0a0f]" />
                           )}
                         </span>
                         <span className="flex-1">{opt.text}</span>
@@ -208,7 +208,7 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
         </div>
 
         {/* Footer actions */}
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-end gap-3 rounded-b-xl">
+        <div className="sticky bottom-0 bg-[#0a0a0f] border-t px-6 py-4 flex items-center justify-end gap-3 rounded-b-xl">
           {!result ? (
             <button
               onClick={handleSubmit}
@@ -216,7 +216,7 @@ export default function QuizModal({ quiz, volume, moduleNum, onComplete, onClose
               className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition ${
                 allAnswered && !submitting
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-[#1a1a2e] text-gray-400 cursor-not-allowed'
               }`}
             >
               {submitting ? 'Submitting...' : 'Submit Quiz'}
