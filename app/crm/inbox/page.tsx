@@ -43,75 +43,6 @@ interface InboxMessage {
 type CategoryFilter = 'all' | 'hot' | 'showings' | 'offers' | 'follow-ups'
 type ToneOption = 'professional' | 'friendly' | 'urgent' | 'follow-up'
 
-// --- Fallback demo data ---
-
-const DEMO_MESSAGES: InboxMessage[] = [
-  {
-    id: '1',
-    contactName: 'Maria Rodriguez',
-    channel: 'email',
-    subject: 'Looking for 3BR in Doral',
-    content:
-      "Hi, I'm looking for a 3-bedroom home in Doral under $500K. We need good schools nearby and preferably a newer build. Can you send me some options?",
-    category: 'hot_buyer',
-    urgency: 5,
-    timeAgo: '5m ago',
-    contactEmail: 'maria.r@email.com',
-    contactPhone: '(305) 555-0142',
-  },
-  {
-    id: '2',
-    contactName: 'James Chen',
-    channel: 'sms',
-    subject: 'Showing Request',
-    content: 'Can we see the house on 124 Palm Ave this Saturday? My wife and I are both free after 10am.',
-    category: 'showing_request',
-    urgency: 3,
-    timeAgo: '1h ago',
-    contactEmail: 'james.chen@email.com',
-    contactPhone: '(786) 555-0198',
-  },
-  {
-    id: '3',
-    contactName: 'Sarah Thompson',
-    channel: 'email',
-    subject: 'Offer Update - 890 Brickell',
-    content:
-      'We want to submit a revised offer at $475K with a 30-day close. Conventional financing already pre-approved. Let me know if the seller is open to negotiation.',
-    category: 'offer',
-    urgency: 4,
-    timeAgo: '2h ago',
-    contactEmail: 's.thompson@email.com',
-    contactPhone: '(954) 555-0331',
-  },
-  {
-    id: '4',
-    contactName: 'David Park',
-    channel: 'phone',
-    subject: 'Follow-up: Open House Visit',
-    content:
-      'David visited the open house at 456 Coral Way last Sunday. He seemed very interested in the property but wanted to check with his financial advisor first. Time to follow up.',
-    category: 'follow_up',
-    urgency: 2,
-    timeAgo: '1d ago',
-    contactEmail: 'dpark@email.com',
-    contactPhone: '(305) 555-0274',
-  },
-  {
-    id: '5',
-    contactName: 'Lisa Martinez',
-    channel: 'web',
-    subject: 'New Lead - Website Inquiry',
-    content:
-      'Submitted a form on hartfeltrealestate.com interested in selling her condo in Brickell. Estimated value $380K. Wants a market analysis.',
-    category: 'hot_buyer',
-    urgency: 4,
-    timeAgo: '30m ago',
-    contactEmail: 'lisa.m@email.com',
-    contactPhone: '(786) 555-0415',
-  },
-]
-
 // --- Helpers ---
 
 function categoryLabel(cat: string): string {
@@ -195,9 +126,9 @@ export default function SmartInboxPage() {
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         const items = Array.isArray(data) ? data : data.messages || data.data || []
-        setMessages(items.length > 0 ? items : DEMO_MESSAGES)
+        setMessages(items)
       } catch {
-        setMessages(DEMO_MESSAGES)
+        setMessages([])
       } finally {
         setLoading(false)
       }
