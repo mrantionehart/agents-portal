@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 import {
   Phone, Mail, Archive, CheckCircle, UserPlus, Clock,
-  Home, Key, Plane, Tag, ChevronDown, ChevronUp, RefreshCw
+  Home, Key, Plane, Tag, ChevronDown, ChevronUp, RefreshCw, ArrowLeft
 } from 'lucide-react'
 
 interface Intake {
@@ -166,6 +167,10 @@ export default function IntakesPage() {
     <div className="min-h-screen bg-[#050507] text-white p-6 md:p-8">
       {/* Header */}
       <div className="mb-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-[#C9A84C] hover:text-[#E8D5A3] mb-3 transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          Dashboard
+        </Link>
         <h1 className="text-3xl font-bold">Client Intakes</h1>
         <p className="text-gray-400 mt-1">Manage inquiries from your business card QR code</p>
       </div>

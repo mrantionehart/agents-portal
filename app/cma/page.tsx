@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 // ============================================================================
@@ -266,13 +267,16 @@ export default function CMAPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2 relative" ref={dropdownRef}>
                 <label className={labelCls}>Property Address *</label>
-                <input
-                  className={inputCls}
-                  placeholder="Start typing or select from your leads..."
-                  value={subject.address}
-                  onChange={(e) => handleAddressInput(e.target.value)}
-                  onFocus={() => (suggestions.length > 0 || leadAddresses.length > 0) && setShowDropdown(true)}
-                />
+                <div className="relative">
+                  <input
+                    className={`${inputCls} pr-8`}
+                    placeholder="Start typing or select from your leads..."
+                    value={subject.address}
+                    onChange={(e) => handleAddressInput(e.target.value)}
+                    onFocus={() => setShowDropdown(true)}
+                  />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                </div>
 
                 {/* Address Autocomplete Dropdown */}
                 {showDropdown && (filteredLeads.length > 0 || suggestions.length > 0) && (
@@ -287,7 +291,7 @@ export default function CMAPage() {
                           <button
                             key={lead.id}
                             onClick={() => selectLeadAddress(lead)}
-                            className="w-full text-left px-3 py-2 hover:bg-[#0a0a0f] transition-colors border-b border-[#1a1a2e]"
+                            className="w-full text-left px-3 py-2 hover:bg-[#1a1a2e] transition-colors border-b border-[#1a1a2e]/50"
                           >
                             <div className="text-sm text-white font-medium">{lead.address}</div>
                             <div className="text-xs text-gray-400">
@@ -309,7 +313,7 @@ export default function CMAPage() {
                           <button
                             key={idx}
                             onClick={() => selectSuggestion(s)}
-                            className="w-full text-left px-3 py-2 hover:bg-[#0a0a0f] transition-colors border-b border-[#1a1a2e]"
+                            className="w-full text-left px-3 py-2 hover:bg-[#1a1a2e] transition-colors border-b border-[#1a1a2e]/50"
                           >
                             <div className="text-sm text-white font-medium">{s.address}</div>
                             <div className="text-xs text-gray-400">
