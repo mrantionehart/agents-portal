@@ -58,7 +58,7 @@ export default function CMAPage() {
   const [subject, setSubject] = useState({
     address: '', city: '', state: 'FL', zip: '',
     currentList: 0, dom: 0, beds: 0, baths: 0, sqft: 0,
-    lotSize: '', yearBuilt: 0, features: '', mlsNumber: '',
+    lotSize: '', yearBuilt: 0, features: '', mlsNumber: '', ownerName: '',
   })
 
   // Address autocomplete state
@@ -352,9 +352,9 @@ export default function CMAPage() {
               <div><label className={labelCls}>Year Built</label><input className={inputCls} type="number" placeholder="1982" value={subject.yearBuilt || ''} onChange={(e) => setSubject({ ...subject, yearBuilt: Number(e.target.value) })} /></div>
               <div><label className={labelCls}>MLS #</label><input className={inputCls} placeholder="A10807554" value={subject.mlsNumber} onChange={(e) => setSubject({ ...subject, mlsNumber: e.target.value })} /></div>
             </div>
-            <div>
-              <label className={labelCls}>Key Features</label>
-              <input className={inputCls} placeholder="Private E-Lake frontage (operable — boating/jet ski)" value={subject.features} onChange={(e) => setSubject({ ...subject, features: e.target.value })} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label className={labelCls}>Owner Name</label><input className={inputCls} placeholder="Property owner name" value={subject.ownerName} onChange={(e) => setSubject({ ...subject, ownerName: e.target.value })} /></div>
+              <div><label className={labelCls}>Key Features</label><input className={inputCls} placeholder="Private E-Lake frontage (operable — boating/jet ski)" value={subject.features} onChange={(e) => setSubject({ ...subject, features: e.target.value })} /></div>
             </div>
           </div>
         </div>

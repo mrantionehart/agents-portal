@@ -53,7 +53,8 @@ import {
   DollarSign, TrendingUp, Clock, Copy, Check, Sparkles,
   Shield, Percent, Calendar, Home, Phone, Mail, CreditCard,
   MapPin, Hash, ArrowUpRight, X, Edit3, ChevronDown, ChevronUp,
-  Mic, MicOff, FileDown,
+  Mic, MicOff, FileDown, Search, ArrowUpDown, RotateCcw,
+  Eye, GitCompare, ListChecks, History,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -86,6 +87,34 @@ interface Offer {
   risk_flags: { label: string; severity: 'high' | 'moderate' | 'low' }[]
   created_at: string; preset_name?: string
   buyers?: { first_name?: string; last_name?: string; email?: string; phone?: string }
+}
+
+// Contingency tracking types
+type ContingencyStatus = 'pending' | 'met' | 'waived' | 'failed'
+interface ContingencyItem {
+  type: string
+  status: ContingencyStatus
+  due_date?: string
+  notes?: string
+}
+
+// Counter-offer types
+interface CounterOffer {
+  id?: string
+  round: number
+  from: 'buyer' | 'seller'
+  price: number
+  terms?: string
+  created_at: string
+}
+
+// Timeline event types
+interface TimelineEvent {
+  id: string
+  type: string
+  title: string
+  description?: string
+  created_at: string
 }
 
 interface Preset { id: string; label: string; name?: string; description: string; defaults: Record<string, any>; config?: Record<string, any> }
@@ -208,21 +237,107 @@ async function api(method: string, path: string, body?: any) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB 1 — DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+type SortField = 'date' | 'price' | 'readiness' | 'status'
+type SortDir = 'asc' | 'desc'
+
 function DashboardTab({ userId }: { userId: string }) {
   const [offers, setOffers] = useState<Offer[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<OfferStatus | 'all'>('all')
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [offerTab, setOfferTab] = useState<Record<string, string>>({})
+  // Contingency tracking local state (per offer)
+  const [contingencies, setContingencies] = useState<Record<string, ContingencyItem[]>>({})
+  // Counter-offer local state
+  const [counterOffers, setCounterOffers] = useState<Record<string, CounterOffer[]>>({})
+  // Compare mode
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [showCompare, setShowCompare] = useState(false)
 
   useEffect(() => {
     api('GET', `/api/closeiq?entity=offers`)
-      .then(d => setOffers(d.offers || d.data || []))
+      .then(d => {
+        const list = d.offers || d.data || []
+        setOffers(list)
+        // Initialize contingencies from offer data
+        const cMap: Record<string, ContingencyItem[]> = {}
+        const coMap: Record<string, CounterOffer[]> = {}
+        list.forEach((o: any) => {
+          // Build contingencies from offer fields
+          const items: ContingencyItem[] = []
+          if (o.inspection_days > 0) items.push({ type: 'inspection', status: 'pending', due_date: o.close_date })
+          if (o.financing_contingency || o.contingencies?.includes('financing')) items.push({ type: 'financing', status: 'pending' })
+          if (o.appraisal_contingency || o.contingencies?.includes('appraisal')) items.push({ type: 'appraisal', status: 'pending' })
+          if (o.contingencies?.includes('title')) items.push({ type: 'title', status: 'pending' })
+          if (o.contingencies?.includes('hoa')) items.push({ type: 'hoa', status: 'pending' })
+          if (o.contingencies?.includes('sale_of_home')) items.push({ type: 'sale_of_home', status: 'pending' })
+          cMap[o.id] = items
+          coMap[o.id] = []
+        })
+        setContingencies(cMap)
+        setCounterOffers(coMap)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  // Filtering
+  const filtered = offers.filter(o => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      const buyerName = o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim().toLowerCase() : ''
+      if (!o.property_address.toLowerCase().includes(q) && !buyerName.includes(q) && !(o.property_city || o.city || '').toLowerCase().includes(q)) return false
+    }
+    return true
+  })
+
+  // Sorting
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0
+    switch (sortField) {
+      case 'date': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break
+      case 'price': cmp = (a.offer_price || 0) - (b.offer_price || 0); break
+      case 'readiness': cmp = (a.readiness_score || 0) - (b.readiness_score || 0); break
+      case 'status': cmp = a.status.localeCompare(b.status); break
+    }
+    return sortDir === 'desc' ? -cmp : cmp
+  })
 
   const active = offers.filter(o => !['accepted', 'rejected'].includes(o.status)).length
   const pending = offers.filter(o => o.status === 'pending_approval').length
   const avgReadiness = offers.length ? Math.round(offers.reduce((s, o) => s + (o.readiness_score || 0), 0) / offers.length) : 0
   const pipeline = offers.reduce((s, o) => s + (o.offer_price || 0), 0)
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('desc') }
+  }
+
+  const updateContingencyStatus = (offerId: string, type: string, status: ContingencyStatus) => {
+    setContingencies(prev => ({
+      ...prev,
+      [offerId]: (prev[offerId] || []).map(c => c.type === type ? { ...c, status } : c),
+    }))
+  }
+
+  const addCounterOffer = (offerId: string, from: 'buyer' | 'seller', price: number, terms: string) => {
+    setCounterOffers(prev => {
+      const existing = prev[offerId] || []
+      const round = existing.length + 1
+      return {
+        ...prev,
+        [offerId]: [...existing, { round, from, price, terms, created_at: new Date().toISOString() }],
+      }
+    })
+  }
+
+  const toggleCompare = (id: string) => {
+    setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 4 ? [...prev, id] : prev)
+  }
 
   if (loading) return <LoadingState />
 
@@ -233,8 +348,20 @@ function DashboardTab({ userId }: { userId: string }) {
     { label: 'Pipeline Value', value: fmt(pipeline), icon: DollarSign, color: 'text-[#D4AF37]' },
   ]
 
+  const statusOptions: { key: OfferStatus | 'all'; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'draft', label: 'Draft' },
+    { key: 'pending_approval', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'submitted', label: 'Submitted' },
+    { key: 'countered', label: 'Countered' },
+    { key: 'accepted', label: 'Accepted' },
+    { key: 'rejected', label: 'Rejected' },
+  ]
+
   return (
     <div className="space-y-6">
+      {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => {
           const Icon = s.icon
@@ -254,29 +381,153 @@ function DashboardTab({ userId }: { userId: string }) {
         })}
       </div>
 
+      {/* Filters & Search */}
+      <Card>
+        <CardContent className="pt-5 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search by address, buyer, or city..."
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+              />
+            </div>
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-gray-400" />
+              {(['date', 'price', 'readiness'] as SortField[]).map(f => (
+                <button key={f} onClick={() => toggleSort(f)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition capitalize ${
+                    sortField === f ? 'bg-[#1E2761] text-white border-[#1E2761]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {f} {sortField === f && (sortDir === 'desc' ? '↓' : '↑')}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Status filter pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {statusOptions.map(s => (
+              <button key={s.key} onClick={() => setStatusFilter(s.key)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                  statusFilter === s.key
+                    ? 'bg-[#D4AF37] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+            {compareIds.length >= 2 && (
+              <button onClick={() => setShowCompare(true)} className="ml-auto px-3 py-1 rounded-full text-xs font-medium bg-[#1E2761] text-white hover:bg-[#2a3580] transition flex items-center gap-1">
+                <GitCompare className="w-3 h-3" /> Compare ({compareIds.length})
+              </button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Offers List */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Offers</CardTitle>
-          <CardDescription>Your latest offer activity</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Offers</CardTitle>
+              <CardDescription>{sorted.length} offer{sorted.length !== 1 ? 's' : ''} {statusFilter !== 'all' ? `(${statusFilter.replace('_', ' ')})` : ''}</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {offers.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No offers yet. Create your first offer to get started.</p>
+          {sorted.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">{search || statusFilter !== 'all' ? 'No offers match your filters.' : 'No offers yet. Create your first offer to get started.'}</p>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {offers.slice(0, 10).map(o => {
+            <div className="space-y-2">
+              {sorted.map(o => {
                 const badge = STATUS_BADGE[o.status] || STATUS_BADGE.draft
+                const isExpanded = expanded === o.id
+                const activeTab = offerTab[o.id] || 'details'
+                const offerContingencies = contingencies[o.id] || []
+                const offerCounters = counterOffers[o.id] || []
+                const isComparing = compareIds.includes(o.id)
+
                 return (
-                  <div key={o.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{o.property_address}</p>
-                      <p className="text-xs text-gray-500">{o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim() : 'Unknown Buyer'} &middot; {o.property_city || o.city}, {o.property_state || o.state}</p>
+                  <div key={o.id} className={`border rounded-xl overflow-hidden transition ${isExpanded ? 'border-[#D4AF37]/40 shadow-sm' : 'border-gray-200'}`}>
+                    {/* Offer row */}
+                    <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition" onClick={() => setExpanded(isExpanded ? null : o.id)}>
+                      {/* Compare checkbox */}
+                      <input type="checkbox" checked={isComparing} onClick={e => e.stopPropagation()} onChange={() => toggleCompare(o.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]/50 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{o.property_address}</p>
+                        <p className="text-xs text-gray-500">
+                          {o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim() : 'Unknown Buyer'}
+                          {' '}&middot;{' '}{o.property_city || o.city}, {o.property_state || o.state}
+                          {' '}&middot;{' '}{new Date(o.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {offerContingencies.length > 0 && (
+                          <span className="text-xs text-gray-400">
+                            {offerContingencies.filter(c => c.status === 'met' || c.status === 'waived').length}/{offerContingencies.length} cleared
+                          </span>
+                        )}
+                        <ReadinessBadge score={o.readiness_score} />
+                        <Badge variant={badge.variant as any}>{badge.label}</Badge>
+                        <span className="text-sm font-semibold text-gray-700 w-24 text-right">{fmt(o.offer_price)}</span>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                      <ReadinessBadge score={o.readiness_score} />
-                      <Badge variant={badge.variant as any}>{badge.label}</Badge>
-                      <span className="text-sm font-semibold text-gray-700 w-24 text-right">{fmt(o.offer_price)}</span>
-                    </div>
+
+                    {/* Expanded panel */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-100 bg-gray-50/30">
+                        {/* Sub-tabs */}
+                        <div className="flex gap-1 px-4 pt-3 pb-1">
+                          {[
+                            { key: 'details', label: 'Details', icon: Eye },
+                            { key: 'contingencies', label: 'Contingencies', icon: ListChecks },
+                            { key: 'counters', label: 'Counter Offers', icon: GitCompare },
+                            { key: 'timeline', label: 'Timeline', icon: History },
+                          ].map(t => {
+                            const TIcon = t.icon
+                            return (
+                              <button key={t.key} onClick={() => setOfferTab(prev => ({ ...prev, [o.id]: t.key }))}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                                  activeTab === t.key ? 'bg-[#1E2761] text-white' : 'text-gray-500 hover:bg-gray-100'
+                                }`}
+                              >
+                                <TIcon className="w-3 h-3" /> {t.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        <div className="px-4 py-3">
+                          {activeTab === 'details' && (
+                            <OfferDetailsPanel offer={o} />
+                          )}
+                          {activeTab === 'contingencies' && (
+                            <ContingencyPanel
+                              items={offerContingencies}
+                              onUpdateStatus={(type, status) => updateContingencyStatus(o.id, type, status)}
+                            />
+                          )}
+                          {activeTab === 'counters' && (
+                            <CounterOfferPanel
+                              counters={offerCounters}
+                              originalPrice={o.offer_price}
+                              listPrice={o.list_price}
+                              onAdd={(from, price, terms) => addCounterOffer(o.id, from, price, terms)}
+                            />
+                          )}
+                          {activeTab === 'timeline' && (
+                            <TimelinePanel offer={o} contingencies={offerContingencies} counters={offerCounters} />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -284,6 +535,346 @@ function DashboardTab({ userId }: { userId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Compare Modal */}
+      {showCompare && compareIds.length >= 2 && (
+        <CompareModal
+          offers={offers.filter(o => compareIds.includes(o.id))}
+          onClose={() => setShowCompare(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Offer Details Panel ──────────────────────────────────────────────────────
+function OfferDetailsPanel({ offer: o }: { offer: Offer }) {
+  const riskFlags = o.risk_flags || []
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Offer Price</p>
+          <p className="font-bold text-[#1E2761]">{fmt(o.offer_price)}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Down Payment</p>
+          <p className="font-medium">{o.down_payment_pct}%</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Earnest Money</p>
+          <p className="font-medium">{fmt(o.earnest_money)}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Close Date</p>
+          <p className="font-medium">{o.close_date ? new Date(o.close_date).toLocaleDateString() : '--'}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Inspection Days</p>
+          <p className="font-medium">{o.inspection_days}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Concessions</p>
+          <p className="font-medium">{fmt(o.concessions)}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Escalation Cap</p>
+          <p className="font-medium">{o.escalation_cap ? fmt(o.escalation_cap) : 'None'}</p>
+        </div>
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-gray-400 text-xs">Readiness</p>
+          <ReadinessBadge score={o.readiness_score} />
+        </div>
+      </div>
+      {riskFlags.length > 0 && (
+        <div className="bg-white rounded-lg p-3 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500 mb-2">Risk Flags</p>
+          <div className="space-y-1.5">
+            {riskFlags.map((f, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${f.severity === 'high' ? 'text-red-500' : f.severity === 'moderate' ? 'text-yellow-500' : 'text-gray-400'}`} />
+                <span className="text-gray-700">{f.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Contingency Panel ────────────────────────────────────────────────────────
+function ContingencyPanel({ items, onUpdateStatus }: { items: ContingencyItem[]; onUpdateStatus: (type: string, status: ContingencyStatus) => void }) {
+  const statusColors: Record<ContingencyStatus, string> = {
+    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    met: 'bg-green-100 text-green-700 border-green-200',
+    waived: 'bg-blue-100 text-blue-700 border-blue-200',
+    failed: 'bg-red-100 text-red-700 border-red-200',
+  }
+
+  if (items.length === 0) {
+    return <p className="text-sm text-gray-400 text-center py-4">No contingencies on this offer.</p>
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-gray-500">
+          {items.filter(c => c.status === 'met' || c.status === 'waived').length} of {items.length} cleared
+        </p>
+        <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-[#D4AF37] rounded-full transition-all"
+            style={{ width: `${(items.filter(c => c.status === 'met' || c.status === 'waived').length / items.length) * 100}%` }} />
+        </div>
+      </div>
+      {items.map(c => (
+        <div key={c.type} className="bg-white border border-gray-100 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[c.status]}`}>
+                {c.status}
+              </span>
+              <span className="text-sm font-medium capitalize">{c.type.replace(/_/g, ' ')}</span>
+            </div>
+            <div className="flex gap-1">
+              {(['met', 'waived', 'failed'] as ContingencyStatus[]).map(s => (
+                <button key={s} onClick={() => onUpdateStatus(c.type, s)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition ${
+                    c.status === s
+                      ? s === 'met' ? 'bg-green-500 text-white' : s === 'waived' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Counter Offer Panel ──────────────────────────────────────────────────────
+function CounterOfferPanel({ counters, originalPrice, listPrice, onAdd }: {
+  counters: CounterOffer[]; originalPrice: number; listPrice: number
+  onAdd: (from: 'buyer' | 'seller', price: number, terms: string) => void
+}) {
+  const [showForm, setShowForm] = useState(false)
+  const [from, setFrom] = useState<'buyer' | 'seller'>('seller')
+  const [price, setPrice] = useState('')
+  const [terms, setTerms] = useState('')
+
+  const handleAdd = () => {
+    if (!price) return
+    onAdd(from, Number(price), terms)
+    setShowForm(false)
+    setPrice('')
+    setTerms('')
+  }
+
+  const latestPrice = counters.length > 0 ? counters[counters.length - 1].price : originalPrice
+  const spread = listPrice && latestPrice ? Math.abs(listPrice - latestPrice) : 0
+
+  return (
+    <div className="space-y-3">
+      {/* Negotiation summary */}
+      <div className="flex items-center gap-4 text-sm">
+        <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+          <p className="text-[10px] text-gray-400">Original Offer</p>
+          <p className="font-bold text-[#1E2761]">{fmt(originalPrice)}</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+        <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+          <p className="text-[10px] text-gray-400">Latest Price</p>
+          <p className="font-bold text-[#D4AF37]">{fmt(latestPrice)}</p>
+        </div>
+        {spread > 0 && (
+          <>
+            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <div className="bg-white rounded-lg p-2 border border-gray-100 flex-1 text-center">
+              <p className="text-[10px] text-gray-400">Spread</p>
+              <p className="font-semibold text-gray-700">{fmt(spread)}</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Counter offer history */}
+      {counters.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-3">No counter offers yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {counters.map((co, i) => (
+            <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${co.from === 'buyer' ? 'bg-blue-50/50 border-blue-100' : 'bg-amber-50/50 border-amber-100'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${co.from === 'buyer' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                R{co.round}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{fmt(co.price)}</span>
+                  <Badge variant={co.from === 'buyer' ? 'blue' : 'yellow'}>{co.from}</Badge>
+                </div>
+                {co.terms && <p className="text-xs text-gray-500 mt-0.5 truncate">{co.terms}</p>}
+              </div>
+              <span className="text-xs text-gray-400">{new Date(co.created_at).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add counter offer */}
+      {!showForm ? (
+        <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="w-full">
+          + Add Counter Offer
+        </Button>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-3">
+          <div className="flex gap-2">
+            <button onClick={() => setFrom('seller')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'seller' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-500'}`}>Seller Counter</button>
+            <button onClick={() => setFrom('buyer')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${from === 'buyer' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500'}`}>Buyer Counter</button>
+          </div>
+          <InputField icon={DollarSign} label="Counter Price" value={price} onChange={setPrice} type="number" required />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Terms / Notes</label>
+            <input type="text" value={terms} onChange={e => setTerms(e.target.value)} placeholder="e.g. Seller to pay closing costs..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]" />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleAdd} disabled={!price}>Add</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Timeline Panel ───────────────────────────────────────────────────────────
+function TimelinePanel({ offer, contingencies, counters }: { offer: Offer; contingencies: ContingencyItem[]; counters: CounterOffer[] }) {
+  // Build timeline from all events
+  const events: { date: string; title: string; detail: string; color: string }[] = []
+
+  events.push({ date: offer.created_at, title: 'Offer Created', detail: `${fmt(offer.offer_price)} for ${offer.property_address}`, color: 'bg-blue-500' })
+
+  if (offer.status === 'pending_approval') {
+    events.push({ date: offer.created_at, title: 'Submitted for Approval', detail: 'Awaiting broker review', color: 'bg-yellow-500' })
+  }
+  if (offer.status === 'approved') {
+    events.push({ date: offer.created_at, title: 'Broker Approved', detail: 'Offer approved for submission', color: 'bg-green-500' })
+  }
+  if (offer.status === 'rejected') {
+    events.push({ date: offer.created_at, title: 'Offer Rejected', detail: 'Offer was rejected', color: 'bg-red-500' })
+  }
+  if (offer.status === 'accepted') {
+    events.push({ date: offer.created_at, title: 'Offer Accepted', detail: 'Congratulations!', color: 'bg-green-500' })
+  }
+
+  // Counter offers
+  counters.forEach(co => {
+    events.push({
+      date: co.created_at,
+      title: `${co.from === 'buyer' ? 'Buyer' : 'Seller'} Counter (Round ${co.round})`,
+      detail: `${fmt(co.price)}${co.terms ? ` — ${co.terms}` : ''}`,
+      color: co.from === 'buyer' ? 'bg-blue-400' : 'bg-amber-400',
+    })
+  })
+
+  // Contingency status changes
+  contingencies.filter(c => c.status !== 'pending').forEach(c => {
+    events.push({
+      date: new Date().toISOString(),
+      title: `${c.type.replace(/_/g, ' ')} contingency ${c.status}`,
+      detail: '',
+      color: c.status === 'met' ? 'bg-green-400' : c.status === 'waived' ? 'bg-blue-400' : 'bg-red-400',
+    })
+  })
+
+  events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  return (
+    <div className="space-y-0 relative">
+      <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gray-200" />
+      {events.map((ev, i) => (
+        <div key={i} className="flex gap-3 pb-4 last:pb-0 relative">
+          <div className={`w-6 h-6 rounded-full ${ev.color} flex items-center justify-center flex-shrink-0 z-10 ring-2 ring-white`}>
+            <div className="w-2 h-2 bg-white rounded-full" />
+          </div>
+          <div className="pt-0.5">
+            <p className="text-sm font-medium text-gray-800">{ev.title}</p>
+            {ev.detail && <p className="text-xs text-gray-500">{ev.detail}</p>}
+            <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ev.date).toLocaleDateString()} {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Compare Modal ────────────────────────────────────────────────────────────
+function CompareModal({ offers, onClose }: { offers: Offer[]; onClose: () => void }) {
+  const fields: { label: string; key: string; format?: (v: any) => string }[] = [
+    { label: 'Property', key: 'property_address' },
+    { label: 'Buyer', key: '_buyer' },
+    { label: 'Offer Price', key: 'offer_price', format: v => fmt(v || 0) },
+    { label: 'List Price', key: 'list_price', format: v => v ? fmt(v) : '--' },
+    { label: 'Down Payment', key: 'down_payment_pct', format: v => `${v || 0}%` },
+    { label: 'Earnest Money', key: 'earnest_money', format: v => fmt(v || 0) },
+    { label: 'Inspection Days', key: 'inspection_days', format: v => `${v || 0}` },
+    { label: 'Close Date', key: 'close_date', format: v => v ? new Date(v).toLocaleDateString() : '--' },
+    { label: 'Concessions', key: 'concessions', format: v => fmt(v || 0) },
+    { label: 'Escalation Cap', key: 'escalation_cap', format: v => v ? fmt(v) : 'None' },
+    { label: 'Readiness', key: 'readiness_score', format: v => `${v || 0}%` },
+    { label: 'Status', key: 'status', format: v => (STATUS_BADGE[v as OfferStatus] || STATUS_BADGE.draft).label },
+  ]
+
+  const getValue = (o: Offer, key: string) => {
+    if (key === '_buyer') return o.buyers ? `${o.buyers.first_name || ''} ${o.buyers.last_name || ''}`.trim() : 'Unknown'
+    return (o as any)[key]
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
+          <h3 className="text-lg font-semibold text-[#1E2761] flex items-center gap-2"><GitCompare className="w-5 h-5" /> Compare Offers</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium w-36">Field</th>
+                {offers.map(o => (
+                  <th key={o.id} className="text-left px-4 py-3 text-xs font-medium text-[#1E2761] truncate max-w-48">{o.property_address}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {fields.map(f => {
+                const values = offers.map(o => getValue(o, f.key))
+                const best = f.key === 'offer_price' ? Math.max(...values.filter(Number)) : null
+                return (
+                  <tr key={f.key} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-4 py-2.5 text-xs text-gray-500 font-medium">{f.label}</td>
+                    {offers.map((o, i) => {
+                      const val = values[i]
+                      const formatted = f.format ? f.format(val) : String(val || '--')
+                      const isBest = best !== null && Number(val) === best
+                      return (
+                        <td key={o.id} className={`px-4 py-2.5 text-sm ${isBest ? 'font-bold text-[#D4AF37]' : 'text-gray-700'}`}>
+                          {formatted}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

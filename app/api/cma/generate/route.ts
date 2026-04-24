@@ -40,6 +40,7 @@ interface CMARequest {
     yearBuilt: number;
     features: string;
     mlsNumber?: string;
+    ownerName?: string;
   };
   narrative: string;
   comps: CMAComp[];
@@ -107,6 +108,15 @@ function generateCMAPdf(data: CMARequest): Buffer {
   doc.setTextColor(...navy);
   doc.text(data.subject.address, margin, y);
   y += 16;
+
+  if (data.subject.ownerName) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...gold);
+    doc.text(`Owner: ${data.subject.ownerName}`, margin, y);
+    y += 14;
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...medGray);
