@@ -12,7 +12,7 @@ interface Notification {
   title: string
   message: string
   type: string
-  read: boolean
+  is_read: boolean
   created_at: string
   metadata?: any
 }
@@ -53,11 +53,11 @@ export default function NotificationsPage() {
     try {
       await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('id', id)
 
       setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
+        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       )
     } catch (e) {
       console.error('Error marking notification as read:', e)
@@ -66,26 +66,26 @@ export default function NotificationsPage() {
 
   const markAllRead = async () => {
     try {
-      const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+      const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
       if (unreadIds.length === 0) return
 
       await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('user_id', user!.id)
-        .eq('read', false)
+        .eq('is_read', false)
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
     } catch (e) {
       console.error('Error marking all as read:', e)
     }
   }
 
   const filtered = filter === 'unread'
-    ? notifications.filter(n => !n.read)
+    ? notifications.filter(n => !n.is_read)
     : notifications
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -179,9 +179,9 @@ export default function NotificationsPage() {
             {filtered.map(notification => (
               <button
                 key={notification.id}
-                onClick={() => !notification.read && markAsRead(notification.id)}
+                onClick={() => !notification.is_read && markAsRead(notification.id)}
                 className={`w-full text-left p-4 rounded-xl border transition ${
-                  notification.read
+                  notification.is_read
                     ? 'bg-white/[0.02] border-white/5 hover:bg-white/5'
                     : 'bg-[#0a0a1a] border-[#C9A84C]/20 hover:bg-[#C9A84C]/5'
                 }`}
@@ -190,19 +190,19 @@ export default function NotificationsPage() {
                   <span className="text-lg mt-0.5">{getTypeIcon(notification.type)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-semibold ${notification.read ? 'text-gray-300' : 'text-white'}`}>
+                      <p className={`text-sm font-semibold ${notification.is_read ? 'text-gray-300' : 'text-white'}`}>
                         {notification.title}
                       </p>
-                      {!notification.read && (
+                      {!notification.is_read && (
                         <span className="w-2 h-2 rounded-full bg-[#2EC4D6] flex-shrink-0" />
                       )}
                     </div>
-                    <p className={`text-sm mt-0.5 ${notification.read ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className={`text-sm mt-0.5 ${notification.is_read ? 'text-gray-500' : 'text-gray-400'}`}>
                       {notification.message}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">{timeAgo(notification.created_at)}</p>
                   </div>
-                  {notification.read && (
+                  {notification.is_read && (
                     <Check className="w-4 h-4 text-gray-600 flex-shrink-0 mt-1" />
                   )}
                 </div>
