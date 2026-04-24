@@ -35,7 +35,9 @@ interface Adjustment {
 const emptyComp: Comp = { address: '', soldDate: '', salePrice: 0, beds: '', baths: '', sqft: 0, pricePerSqft: 0, notes: '' }
 const emptyStep: PricingStep = { step: '', price: 0, strategy: '', indicator: '' }
 
-const VAULT_URL = process.env.NEXT_PUBLIC_VAULT_URL || process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app'
+const VAULT_URL = process.env.NEXT_PUBLIC_VAULT_URL
+  || (process.env.NEXT_PUBLIC_VAULT_API_URL || '').replace(/\/api\/?$/, '')
+  || 'https://hartfelt-vault.vercel.app'
 
 interface LeadAddress {
   id: string
@@ -126,7 +128,7 @@ export default function CMAPage() {
     }
     setLoadingSuggestions(true)
     try {
-      const res = await fetch(`${VAULT_URL}/api/cma/autocomplete?q=${encodeURIComponent(query)}`)
+      const res = await fetch(`/api/cma/autocomplete?q=${encodeURIComponent(query)}`)
       if (res.ok) {
         const data = await res.json()
         setSuggestions(data)
