@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus } from 'lucide-react'
+import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus, Store } from 'lucide-react'
 import VaultDashboard from './vault-dashboard'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
@@ -284,6 +284,10 @@ export default function DashboardPage() {
             <Link href="/ai-chat" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-500/10 transition text-sm text-gray-200 hover:text-indigo-700">
               <Sparkles className="w-4 h-4" />
               Ask AI
+            </Link>
+            <Link href="/vendors" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#C9A84C]/10 transition text-sm text-gray-200 hover:text-[#C9A84C]">
+              <Store className="w-4 h-4" />
+              Vendor Marketplace
             </Link>
           </div>
         </div>
