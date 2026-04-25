@@ -6,7 +6,7 @@ import {
   Zap, ArrowLeft, Inbox, Clock, DollarSign, AlertTriangle,
   Calendar, TrendingUp, ChevronRight, RefreshCw, Mic, MicOff,
   Check, X, Target, MapPin, Phone, Mail, MessageSquare,
-  Send, Loader2, Users,
+  Send, Loader2, Users, Settings,
 } from 'lucide-react'
 
 // ─── Constants ───────────────────────────────────────────────────────────────────
@@ -511,7 +511,7 @@ export default function CRMPage() {
             <CardTitle className="flex items-center gap-2"><Zap className="w-5 h-5 text-[#C9A84C]" /> Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <Link href="/crm/inbox">
                 <div className="p-4 rounded-lg bg-[#050507] border border-[#1a1a2e] hover:border-[#C9A84C]/30 transition-colors text-center cursor-pointer group">
                   <Inbox className="w-6 h-6 mx-auto mb-2 text-blue-400 group-hover:scale-110 transition-transform" />
@@ -530,6 +530,12 @@ export default function CRMPage() {
                 <Mic className="w-6 h-6 mx-auto mb-2 text-purple-400 group-hover:scale-110 transition-transform" />
                 <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Voice Command</span>
               </div>
+              <Link href="/crm/settings">
+                <div className="p-4 rounded-lg bg-[#050507] border border-[#1a1a2e] hover:border-[#C9A84C]/30 transition-colors text-center cursor-pointer group">
+                  <Settings className="w-6 h-6 mx-auto mb-2 text-gray-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Email Settings</span>
+                </div>
+              </Link>
             </div>
           </CardContent>
         </Card>
