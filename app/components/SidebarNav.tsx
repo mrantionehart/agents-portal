@@ -32,6 +32,7 @@ import {
   Zap,
   Inbox,
   Store,
+  Radar,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -66,6 +67,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Notifications', href: '/notifications', icon: Bell },
     { label: 'Active Listings', href: '/listings', icon: Home },
     { label: 'Vendor Marketplace', href: '/vendors', icon: Store },
+    { label: 'Development Radar', href: '/development-radar', icon: Radar },
     { label: 'Referrals', href: '/recruiting', icon: Users },
   ]
 
