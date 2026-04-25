@@ -31,6 +31,7 @@ import {
   Home,
   Zap,
   Inbox,
+  Store,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -64,6 +65,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Smart Inbox', href: '/crm/inbox', icon: Inbox },
     { label: 'Notifications', href: '/notifications', icon: Bell },
     { label: 'Active Listings', href: '/listings', icon: Home },
+    { label: 'Vendor Marketplace', href: '/vendors', icon: Store },
     { label: 'Referrals', href: '/recruiting', icon: Users },
   ]
 
