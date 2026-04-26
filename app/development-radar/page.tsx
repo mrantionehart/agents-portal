@@ -5,7 +5,9 @@ import {
   Radar, Search, Filter, ChevronDown, ChevronLeft, ChevronRight,
   Bookmark, BookmarkCheck, Share2, ExternalLink, Eye, Building2,
   TrendingUp, MapPin, Calendar, DollarSign, Users, ArrowUpDown,
-  Loader2, AlertCircle, Sparkles, Trophy, BarChart3, X
+  Loader2, AlertCircle, Sparkles, Trophy, BarChart3, X,
+  BadgeDollarSign, Target, ClipboardCheck, CheckCircle2, Mail,
+  FileText, Layers, Link2, BellPlus, UserCheck, Percent, Zap
 } from 'lucide-react'
 
 const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
@@ -13,7 +15,7 @@ const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
 const STATUSES = ['Proposed', 'Approved', 'Under Construction', 'Pre-Sales', 'Completed'] as const
 const ASSET_TYPES = ['Condo', 'Apartment', 'Townhome', 'Mixed Use', 'Retail', 'Industrial', 'Luxury SFH'] as const
 
-type Tab = 'Feed' | 'Saved' | 'Developers' | 'City Rankings'
+type Tab = 'Feed' | 'Saved' | 'Developers' | 'City Rankings' | 'Pre-Sales'
 type Status = typeof STATUSES[number]
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -176,6 +178,15 @@ export default function DevelopmentRadarPage() {
   const [cityRankings, setCityRankings] = useState<CityRanking[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
 
+  // Pre-Sales
+  const [presales, setPresales] = useState<any[]>([])
+  const [presalesLoading, setPresalesLoading] = useState(false)
+  const [presaleAlerts, setPresaleAlerts] = useState<any[]>([])
+  const [presaleUnread, setPresaleUnread] = useState(0)
+  const [presaleMatches, setPresaleMatches] = useState<any[]>([])
+  const [matchingDevId, setMatchingDevId] = useState<string | null>(null)
+  const [selectedPresale, setSelectedPresale] = useState<any>(null)
+
   // Toasts
   const [toast, setToast] = useState<string | null>(null)
 
@@ -291,6 +302,85 @@ export default function DevelopmentRadarPage() {
       .catch(() => setCityRankings([]))
       .finally(() => setCitiesLoading(false))
   }, [activeTab])
+
+  // ── Pre-Sales Fetch ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (activeTab !== 'Pre-Sales') return
+    fetchPresales()
+    fetchPresaleAlerts()
+  }, [activeTab])
+
+  async function fetchPresales() {
+    setPresalesLoading(true)
+    try {
+      const res = await fetch(`${VAULT_API}/development-radar/presales`, {
+        headers: { 'X-User-ID': userId, 'X-User-Role': 'agent' },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPresales(data.presales || [])
+      }
+    } catch (e) { console.error('Presales error:', e) }
+    setPresalesLoading(false)
+  }
+
+  async function fetchPresaleAlerts() {
+    try {
+      const res = await fetch(`${VAULT_API}/development-radar/presales/notify?limit=20`, {
+        headers: { 'X-User-ID': userId },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPresaleAlerts(data.alerts || [])
+        setPresaleUnread(data.unread_count || 0)
+      }
+    } catch (e) { console.error('Presale alerts error:', e) }
+  }
+
+  async function runMatchEngine(devId: string) {
+    setMatchingDevId(devId)
+    setSelectedPresale(devId)
+    try {
+      const res = await fetch(`${VAULT_API}/development-radar/presales/matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        body: JSON.stringify({ development_id: devId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPresaleMatches(data.matches || [])
+        showToast(`Found ${data.total_matches || 0} matching contacts`)
+      }
+    } catch (e) { console.error('Match error:', e) }
+    setMatchingDevId(null)
+  }
+
+  async function registerForPresale(devId: string) {
+    try {
+      const res = await fetch(`${VAULT_API}/development-radar/presales/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        body: JSON.stringify({ development_id: devId }),
+      })
+      if (res.ok) {
+        showToast('Registered successfully!')
+        fetchPresales()
+      }
+    } catch (e) { console.error('Register error:', e) }
+  }
+
+  async function markPresaleAlertsRead() {
+    try {
+      await fetch(`${VAULT_API}/development-radar/presales/notify`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        body: JSON.stringify({ mark_all: true }),
+      })
+      setPresaleUnread(0)
+      setPresaleAlerts(prev => prev.map(a => ({ ...a, is_read: true })))
+    } catch (e) { console.error('Mark read error:', e) }
+  }
 
   // ── Sorted Saved ─────────────────────────────────────────────────────
 
@@ -491,7 +581,7 @@ export default function DevelopmentRadarPage() {
 
         {/* ── Tabs ──────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-1 bg-[#0a0a0f] border border-[#1a1a2e] rounded-xl p-1.5 w-fit">
-          {(['Feed', 'Saved', 'Developers', 'City Rankings'] as Tab[]).map((tab) => (
+          {(['Feed', 'Saved', 'Developers', 'City Rankings', 'Pre-Sales'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -856,6 +946,250 @@ export default function DevelopmentRadarPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Pre-Sales Tab ── */}
+        {activeTab === 'Pre-Sales' && (
+          <div className="space-y-4">
+            {/* Pre-Sale Alerts Banner */}
+            {presaleUnread > 0 && (
+              <div className="flex items-center justify-between p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-3">
+                  <BellPlus className="text-purple-400" size={20} />
+                  <div>
+                    <p className="text-sm font-bold text-purple-300">{presaleUnread} New Pre-Sale Alert{presaleUnread > 1 ? 's' : ''}</p>
+                    <p className="text-xs text-purple-400/70">New developments entering pre-sales in your area</p>
+                  </div>
+                </div>
+                <button
+                  onClick={markPresaleAlertsRead}
+                  className="text-xs text-purple-400 hover:text-purple-300 font-semibold transition"
+                >
+                  Mark all read
+                </button>
+              </div>
+            )}
+
+            {presalesLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+              </div>
+            ) : presales.length === 0 ? (
+              <div className="text-center py-16">
+                <BadgeDollarSign size={48} className="mx-auto text-gray-700 mb-4" />
+                <p className="text-lg font-bold text-gray-400">No Pre-Sale Developments</p>
+                <p className="text-sm text-gray-600 mt-1">Developments entering pre-sales will appear here with commission info and lead matching.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {presales.map((dev: any) => (
+                  <div key={dev.id} className="bg-[#0a0a0f] border border-[#1a1a2e] rounded-2xl overflow-hidden hover:border-purple-500/20 transition-all">
+                    {/* Header */}
+                    <div className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase tracking-widest text-purple-400 font-bold">Pre-Sales</span>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute h-full w-full rounded-full bg-purple-400 opacity-75" />
+                              <span className="relative rounded-full h-2 w-2 bg-purple-500" />
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-bold text-white">{dev.project_name}</h3>
+                          <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
+                            <Building2 size={12} className="text-gray-600" />
+                            {dev.developer}
+                          </p>
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                            <MapPin size={12} />
+                            {dev.city}{dev.county ? `, ${dev.county}` : ''}
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 flex gap-3">
+                          {/* Matched clients */}
+                          <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col items-center justify-center">
+                            <span className="text-xl font-black text-purple-300">{dev.matched_clients || 0}</span>
+                            <span className="text-[8px] text-purple-400 font-bold uppercase">Matches</span>
+                          </div>
+                          {/* Score */}
+                          {dev.opportunity_score > 0 && (
+                            <ScoreRing score={dev.opportunity_score} size={48} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-4 gap-3 mt-4">
+                        <div className="bg-[#111] rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Units</p>
+                          <p className="text-sm font-bold text-white">{formatNumber(dev.units)}</p>
+                        </div>
+                        <div className="bg-[#111] rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Value</p>
+                          <p className="text-sm font-bold text-[#C9A84C]">{formatCurrency(dev.estimated_value)}</p>
+                        </div>
+                        <div className="bg-[#111] rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Commission</p>
+                          <p className="text-sm font-bold text-emerald-400">{dev.commission?.commission_rate ? `${dev.commission.commission_rate}%` : '—'}</p>
+                        </div>
+                        <div className="bg-[#111] rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Bonus</p>
+                          <p className="text-sm font-bold text-amber-400">{dev.commission?.bonus_rate ? `+${dev.commission.bonus_rate}%` : '—'}</p>
+                        </div>
+                      </div>
+
+                      {/* Commission details */}
+                      {dev.commission && (
+                        <div className="mt-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Percent size={12} className="text-emerald-400" />
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Commission Info</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 text-xs">
+                            <div>
+                              <span className="text-gray-500">Price Range:</span>
+                              <span className="text-white ml-1">{dev.commission.min_price ? `${formatCurrency(dev.commission.min_price)} – ${formatCurrency(dev.commission.max_price)}` : 'TBD'}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Available:</span>
+                              <span className="text-white ml-1">{formatNumber(dev.commission.available_units)} / {formatNumber(dev.commission.total_units)}</span>
+                            </div>
+                            {dev.commission.deposit_structure && (
+                              <div>
+                                <span className="text-gray-500">Deposit:</span>
+                                <span className="text-white ml-1">{dev.commission.deposit_structure}</span>
+                              </div>
+                            )}
+                          </div>
+                          {dev.commission.incentives && (
+                            <p className="text-xs text-emerald-400 mt-2">
+                              <Sparkles size={10} className="inline mr-1" />
+                              {dev.commission.incentives}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#111]">
+                        <button
+                          onClick={() => runMatchEngine(dev.id)}
+                          disabled={matchingDevId === dev.id}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/20 transition disabled:opacity-50"
+                        >
+                          {matchingDevId === dev.id ? <Loader2 size={14} className="animate-spin" /> : <Target size={14} />}
+                          Match My Leads
+                        </button>
+
+                        {!dev.is_registered ? (
+                          <button
+                            onClick={() => registerForPresale(dev.id)}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition"
+                          >
+                            <ClipboardCheck size={14} />
+                            Register
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                            <CheckCircle2 size={14} />
+                            Registered
+                          </span>
+                        )}
+
+                        {dev.commission?.contact_email && (
+                          <a
+                            href={`mailto:${dev.commission.contact_email}`}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#111] text-gray-400 border border-[#1a1a2e] hover:text-white transition"
+                          >
+                            <Mail size={14} />
+                            Contact
+                          </a>
+                        )}
+
+                        {dev.commission?.registration_url && (
+                          <a
+                            href={dev.commission.registration_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#111] text-gray-400 border border-[#1a1a2e] hover:text-white transition"
+                          >
+                            <Link2 size={14} />
+                            Dev Portal
+                          </a>
+                        )}
+
+                        {dev.commission?.brochure_url && (
+                          <a
+                            href={dev.commission.brochure_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#111] text-gray-400 border border-[#1a1a2e] hover:text-white transition"
+                          >
+                            <FileText size={14} />
+                            Brochure
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* CRM Match Results (inline) */}
+                    {presaleMatches.length > 0 && selectedPresale === dev.id && (
+                      <div className="border-t border-[#1a1a2e] p-5 bg-[#08080c]">
+                        <p className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">
+                          <UserCheck size={12} className="inline mr-1" />
+                          {presaleMatches.length} Matched Contacts
+                        </p>
+                        <div className="space-y-2">
+                          {presaleMatches.slice(0, 5).map((match: any) => (
+                            <div key={match.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#0a0a0f] border border-[#1a1a2e]">
+                              <ScoreRing score={match.match_score} size={32} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-white">
+                                  {match.contact?.first_name} {match.contact?.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">{match.contact?.email || match.contact?.phone}</p>
+                              </div>
+                              <div className="flex gap-1 flex-wrap">
+                                {(match.match_reasons || []).slice(0, 3).map((r: string) => (
+                                  <span key={r} className="text-[9px] px-2 py-0.5 rounded-full bg-[#1a1a2e] text-gray-400">
+                                    {r.replace(/_/g, ' ')}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent Alerts */}
+            {presaleAlerts.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <BellPlus size={14} />
+                  Recent Pre-Sale Alerts
+                </h3>
+                <div className="space-y-2">
+                  {presaleAlerts.slice(0, 5).map((alert: any) => (
+                    <div key={alert.id} className={`p-3 rounded-xl border ${alert.is_read ? 'bg-[#0a0a0f] border-[#1a1a2e]' : 'bg-purple-500/5 border-purple-500/20'}`}>
+                      <div className="flex items-center gap-3">
+                        <Zap size={14} className={alert.is_read ? 'text-gray-600' : 'text-purple-400'} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white">{alert.title}</p>
+                          {alert.message && <p className="text-xs text-gray-500 mt-0.5 truncate">{alert.message}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
