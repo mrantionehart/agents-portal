@@ -150,21 +150,20 @@ async function checkComplianceComplete(admin: any, transactionId: string): Promi
   unapproved: number
   missingSignatures: number
 }> {
-  // Get transaction
+  // Get transaction with conditional fields
   const { data: tx } = await admin
     .from('transactions')
-    .select('type')
+    .select('type, financing_type, has_hoa, year_built')
     .eq('id', transactionId)
     .single()
 
   if (!tx) return { complete: false, missing: 0, unapproved: 0, missingSignatures: 0 }
 
-  // Get required documents for this type
+  // Get required documents for this type (include conditional ones)
   const { data: reqs } = await admin
     .from('transaction_doc_requirements')
-    .select('doc_label, signature_required')
+    .select('doc_label, signature_required, is_required, condition')
     .eq('transaction_type', tx.type)
-    .eq('is_required', true)
     .eq('is_active', true)
 
   if (!reqs || reqs.length === 0) return { complete: true, missing: 0, unapproved: 0, missingSignatures: 0 }
@@ -181,12 +180,33 @@ async function checkComplianceComplete(admin: any, transactionId: string): Promi
     docsByLabel[d.name?.toLowerCase().trim()] = d
   }
 
+  // Evaluate conditions
+  const isFinanced = tx.financing_type !== 'cash'
+  const hasHoa = tx.has_hoa === true
+  const isPre1978 = tx.year_built ? tx.year_built < 1978 : true
+
   let missing = 0
   let unapproved = 0
   let missingSignatures = 0
 
   for (const req of reqs) {
     const doc = docsByLabel[req.doc_label?.toLowerCase().trim()]
+    const condition = req.condition || null
+
+    // Evaluate if this requirement applies
+    let conditionMet = true
+    if (condition === 'if_financed') conditionMet = isFinanced
+    else if (condition === 'if_hoa') conditionMet = hasHoa
+    else if (condition === 'if_pre1978') conditionMet = isPre1978
+    else if (condition === 'if_uploaded') conditionMet = !!doc // only required if uploaded
+
+    // Skip requirements where condition isn't met
+    const effectiveRequired = condition === 'if_uploaded'
+      ? !!doc  // if uploaded, must be approved
+      : (req.is_required && conditionMet)
+
+    if (!effectiveRequired) continue
+
     if (!doc) {
       missing++
     } else if (doc.status !== 'verified') {
@@ -197,7 +217,7 @@ async function checkComplianceComplete(admin: any, transactionId: string): Promi
       missingSignatures++
     }
     if (req.signature_required && !doc) {
-      missingSignatures++ // Can't have signature if doc is missing
+      missingSignatures++
     }
   }
 

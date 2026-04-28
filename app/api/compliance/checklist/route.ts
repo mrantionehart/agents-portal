@@ -128,17 +128,53 @@ export async function GET(request: NextRequest) {
       optional: 'Optional',
     }
 
+    // ── Evaluate conditional requirements ──────────────────────
+    // Conditions: if_financed, if_hoa, if_pre1978, if_uploaded
+    const isFinanced = transaction.financing_type !== 'cash'
+    const hasHoa = transaction.has_hoa === true
+    const isPre1978 = transaction.year_built ? transaction.year_built < 1978 : true // default true (safer)
+
     for (const req of requirements || []) {
       const folder = req.folder
       if (!folders[folder]) folders[folder] = []
 
       const matchedDoc = docsByName[req.doc_label?.toLowerCase().trim()]
+      const condition = req.condition || null
+
+      // Evaluate whether this condition applies to this transaction
+      let conditionMet = true // no condition = always applies
+      let conditionLabel: string | null = null
+
+      if (condition === 'if_financed') {
+        conditionMet = isFinanced
+        conditionLabel = 'Required if Financed'
+      } else if (condition === 'if_hoa') {
+        conditionMet = hasHoa
+        conditionLabel = 'Required if HOA'
+      } else if (condition === 'if_pre1978') {
+        conditionMet = isPre1978
+        conditionLabel = 'Required if Pre-1978'
+      } else if (condition === 'if_uploaded') {
+        // Optional until uploaded, then must be approved
+        conditionMet = !!matchedDoc
+        conditionLabel = 'Required once uploaded'
+      }
+
+      // Effective required status: base required AND condition met
+      const effectiveRequired = req.is_required && conditionMet
+      // For if_uploaded: becomes required once a doc is uploaded
+      const isEffectiveRequired = condition === 'if_uploaded'
+        ? !!matchedDoc  // required once uploaded regardless of is_required
+        : effectiveRequired
 
       folders[folder].push({
         requirement_id: req.id,
         doc_label: req.doc_label,
-        is_required: req.is_required,
+        is_required: isEffectiveRequired,
         signature_required: req.signature_required || false,
+        condition,
+        condition_met: conditionMet,
+        condition_label: conditionLabel,
         folder: req.folder,
         sort_order: req.sort_order,
         // Document info (if uploaded)

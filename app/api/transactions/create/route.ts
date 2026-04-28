@@ -81,6 +81,9 @@ export async function POST(request: NextRequest) {
       commission_rate_pct,
       agent_split_pct,
       notes,
+      financing_type,
+      has_hoa,
+      year_built,
     } = body
 
     // Validate required fields
@@ -134,6 +137,9 @@ export async function POST(request: NextRequest) {
         referral_fee_pct: referral_fee_pct ? parseFloat(referral_fee_pct) : null,
         referral_party: referral_party?.trim() || null,
         notes: notes?.trim() || null,
+        financing_type: financing_type || 'conventional',
+        has_hoa: has_hoa || false,
+        year_built: year_built ? parseInt(year_built) : null,
       })
       .select()
       .single()
@@ -155,6 +161,7 @@ export async function POST(request: NextRequest) {
             folder: doc.folder,
             required: doc.required,
             signature_required: doc.signatureRequired,
+            condition: doc.condition || null,
             sort_order: idx,
           }))
         )
@@ -194,100 +201,91 @@ export async function POST(request: NextRequest) {
 function getDocRequirements(type: string) {
   // ── Florida-specific compliance document requirements ──────────
   // Phases: listing_intake → under_contract → pre_closing → closing → compliance
-  // Based on Florida real estate statutes and HartFelt brokerage standards
+  // Conditions: null=always, if_financed, if_hoa, if_pre1978, if_uploaded
 
-  // Common disclosures required for ALL Florida transaction types
   const common = [
-    { label: 'Brokerage Relationship Disclosure', folder: 'listing_intake', required: true, signatureRequired: true },
-    { label: 'Wire Fraud Notice', folder: 'listing_intake', required: true, signatureRequired: true },
-    { label: 'Compliance Acknowledgment', folder: 'compliance', required: true, signatureRequired: true },
+    { label: 'Brokerage Relationship Disclosure', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+    { label: 'Wire Fraud Notice', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+    { label: 'Compliance Acknowledgment', folder: 'compliance', required: true, signatureRequired: true, condition: null },
   ]
 
   const typeSpecific: Record<string, any[]> = {
     seller: [
-      // ── Listing Intake (Listing-Side) ──
-      { label: 'Listing Agreement', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Seller Disclosure', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Permission to Advertise', folder: 'listing_intake', required: false, signatureRequired: true },
-      { label: 'Marketing Authorization', folder: 'listing_intake', required: false, signatureRequired: true },
-      { label: 'HOA/Condo Association Disclosure', folder: 'listing_intake', required: false, signatureRequired: false },
+      // ── Listing Intake ──
+      { label: 'Listing Agreement', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Seller Disclosure', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'listing_intake', required: true, signatureRequired: true, condition: 'if_pre1978' },
+      { label: 'Permission to Advertise', folder: 'listing_intake', required: false, signatureRequired: true, condition: null },
+      { label: 'Marketing Authorization', folder: 'listing_intake', required: false, signatureRequired: true, condition: null },
+      { label: 'HOA/Condo Association Disclosure', folder: 'listing_intake', required: true, signatureRequired: false, condition: 'if_hoa' },
       // ── Under Contract ──
-      { label: 'Purchase Agreement (As-Is or FAR/BAR)', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Buyer Pre-Approval / Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'Amendments / Addenda', folder: 'under_contract', required: false, signatureRequired: true },
+      { label: 'Purchase Agreement (As-Is or FAR/BAR)', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Buyer Pre-Approval / Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'Amendments / Addenda', folder: 'under_contract', required: false, signatureRequired: true, condition: 'if_uploaded' },
       // ── Pre-Closing ──
-      { label: 'Home Inspection Report', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Appraisal Report', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Title Commitment / Search', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Survey', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Clear to Close', folder: 'pre_closing', required: false, signatureRequired: false },
+      { label: 'Home Inspection Report', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Appraisal Report', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Title Commitment / Search', folder: 'pre_closing', required: true, signatureRequired: false, condition: null },
+      { label: 'Survey', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Clear to Close', folder: 'pre_closing', required: true, signatureRequired: false, condition: 'if_financed' },
       // ── Closing ──
-      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true },
+      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true, condition: null },
     ],
     buyer: [
-      // ── Listing Intake (Buyer-Side) ──
-      { label: 'Buyer Representation Agreement', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Pre-Approval Letter / Proof of Funds', folder: 'listing_intake', required: true, signatureRequired: false },
+      // ── Listing Intake ──
+      { label: 'Buyer Representation Agreement', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Pre-Approval Letter / Proof of Funds', folder: 'listing_intake', required: true, signatureRequired: false, condition: null },
       // ── Under Contract ──
-      { label: 'Purchase Agreement (As-Is or FAR/BAR)', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Seller Disclosure (received)', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'HOA/Condo Association Disclosure', folder: 'under_contract', required: false, signatureRequired: false },
-      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'Amendments / Addenda', folder: 'under_contract', required: false, signatureRequired: true },
+      { label: 'Purchase Agreement (As-Is or FAR/BAR)', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'under_contract', required: true, signatureRequired: true, condition: 'if_pre1978' },
+      { label: 'Seller Property Disclosure (Signed)', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'HOA/Condo Association Disclosure', folder: 'under_contract', required: true, signatureRequired: false, condition: 'if_hoa' },
+      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'Amendments / Addenda', folder: 'under_contract', required: false, signatureRequired: true, condition: 'if_uploaded' },
       // ── Pre-Closing ──
-      { label: 'Home Inspection Report', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Appraisal Report', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Title Commitment / Search', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Survey', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Homeowners Insurance Binder', folder: 'pre_closing', required: false, signatureRequired: false },
-      { label: 'Clear to Close', folder: 'pre_closing', required: false, signatureRequired: false },
+      { label: 'Home Inspection Report', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Appraisal Report', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Title Commitment / Search', folder: 'pre_closing', required: true, signatureRequired: false, condition: null },
+      { label: 'Survey', folder: 'pre_closing', required: false, signatureRequired: false, condition: null },
+      { label: 'Homeowners Insurance Binder', folder: 'pre_closing', required: true, signatureRequired: false, condition: 'if_financed' },
+      { label: 'Clear to Close', folder: 'pre_closing', required: true, signatureRequired: false, condition: 'if_financed' },
       // ── Closing ──
-      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true },
+      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true, condition: null },
     ],
     lease: [
-      // ── Listing Intake ──
-      { label: 'Lease Agreement', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Tenant Application', folder: 'listing_intake', required: false, signatureRequired: false },
-      // ── Compliance ──
-      { label: 'Security Deposit Receipt', folder: 'compliance', required: false, signatureRequired: false },
+      { label: 'Lease Agreement', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Lead Paint Disclosure (Pre-1978)', folder: 'listing_intake', required: true, signatureRequired: true, condition: 'if_pre1978' },
+      { label: 'Tenant Application', folder: 'listing_intake', required: false, signatureRequired: false, condition: null },
+      { label: 'Security Deposit Receipt', folder: 'compliance', required: false, signatureRequired: false, condition: null },
     ],
     referral: [
-      // ── Listing Intake ──
-      { label: 'Referral Agreement', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Commission Agreement', folder: 'listing_intake', required: true, signatureRequired: true },
-      { label: 'Cooperating Broker Compensation Agreement', folder: 'listing_intake', required: false, signatureRequired: true },
-      // ── Closing ──
-      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true },
+      { label: 'Referral Agreement', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Commission Agreement', folder: 'listing_intake', required: true, signatureRequired: true, condition: null },
+      { label: 'Cooperating Broker Compensation Agreement', folder: 'listing_intake', required: false, signatureRequired: true, condition: null },
+      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true, condition: null },
     ],
     wholesale: [
-      // ── Under Contract ──
-      { label: 'Purchase Agreement', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Assignment Agreement', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false },
-      // ── Closing ──
-      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true },
+      { label: 'Purchase Agreement', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Assignment Agreement', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'ALTA Settlement Statement / HUD-1', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true, condition: null },
     ],
     double_close: [
-      // ── Under Contract ──
-      { label: 'Purchase Agreement (A-B)', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Purchase Agreement (B-C)', folder: 'under_contract', required: true, signatureRequired: true },
-      { label: 'Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false },
-      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false },
-      // ── Closing ──
-      { label: 'ALTA Settlement Statement / HUD-1 (A-B)', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'ALTA Settlement Statement / HUD-1 (B-C)', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true },
-      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true },
+      { label: 'Purchase Agreement (A-B)', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Purchase Agreement (B-C)', folder: 'under_contract', required: true, signatureRequired: true, condition: null },
+      { label: 'Proof of Funds', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'Proof of Earnest Money Delivered', folder: 'under_contract', required: true, signatureRequired: false, condition: null },
+      { label: 'ALTA Settlement Statement / HUD-1 (A-B)', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'ALTA Settlement Statement / HUD-1 (B-C)', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Commission Disbursement Authorization (CDA)', folder: 'closing', required: true, signatureRequired: true, condition: null },
+      { label: 'Closing Disclosure', folder: 'closing', required: true, signatureRequired: true, condition: null },
     ],
   }
 
