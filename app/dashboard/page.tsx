@@ -63,8 +63,11 @@ export default function DashboardPage() {
     } else if (user && !role) {
       // Role is still loading, wait for it
       setCheckingPolicy(true)
+    } else if (!loading && !user) {
+      // Auth failed or user not logged in — stop waiting
+      setCheckingPolicy(false)
     }
-  }, [user, role])
+  }, [user, role, loading])
 
   const checkPolicyAcceptance = async () => {
     try {
@@ -137,6 +140,7 @@ export default function DashboardPage() {
   }
 
   if (!user) {
+    router.push('/login')
     return null
   }
 

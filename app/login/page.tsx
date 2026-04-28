@@ -36,8 +36,8 @@ export default function LoginPage() {
       console.log('Login successful, redirecting to:', data.redirectPath)
       setLoading(false)
 
-      // Redirect using router to the dashboard
-      router.push(data.redirectPath)
+      // Full page reload so AuthProvider re-initializes with fresh cookies
+      window.location.href = data.redirectPath
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Login failed')
