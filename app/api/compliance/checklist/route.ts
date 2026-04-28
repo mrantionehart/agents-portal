@@ -118,11 +118,12 @@ export async function GET(request: NextRequest) {
 
     // Build checklist grouped by folder
     const folders: Record<string, any[]> = {}
-    const folderOrder = ['listing_intake', 'under_contract', 'closing', 'compliance', 'optional']
+    const folderOrder = ['listing_intake', 'under_contract', 'pre_closing', 'closing', 'compliance', 'optional']
     const folderLabels: Record<string, string> = {
-      listing_intake: 'Listed',
+      listing_intake: 'Intake / Listed',
       under_contract: 'Under Contract',
-      closing: 'Closed',
+      pre_closing: 'Pre-Closing',
+      closing: 'Closing',
       compliance: 'Compliance',
       optional: 'Optional',
     }
