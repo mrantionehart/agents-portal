@@ -33,6 +33,8 @@ import {
   Inbox,
   Store,
   Radar,
+  Contact,
+  MailOpen,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -66,6 +68,8 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Smart Inbox', href: '/crm/inbox', icon: Inbox },
     { label: 'Notifications', href: '/notifications', icon: Bell },
     { label: 'Active Listings', href: '/listings', icon: Home },
+    { label: 'Email', href: '/email', icon: MailOpen },
+    { label: 'Contacts', href: '/contacts', icon: Contact },
     { label: 'Vendor Marketplace', href: '/vendors', icon: Store },
     { label: 'Development Radar', href: '/development-radar', icon: Radar },
     { label: 'Referrals', href: '/recruiting', icon: Users },
