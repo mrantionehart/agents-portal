@@ -88,8 +88,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-sm text-gray-400 text-center">
-          Demo credentials: Use any Supabase user account you've created
+        <p className="mt-4 text-sm text-center">
+          <a href="/forgot-password" className="text-[#C9A84C] hover:text-[#d4b65c]">
+            Forgot your password?
+          </a>
         </p>
       </div>
     </div>

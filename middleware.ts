@@ -3,11 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Pages that agents can access even before completing Vol 1 training
-const TRAINING_GATE_ALLOWED = ['/login', '/training', '/training-interactive']
+const TRAINING_GATE_ALLOWED = ['/login', '/forgot-password', '/reset-password', '/training', '/training-interactive']
 
 export async function middleware(request: NextRequest) {
-  // Skip auth check for login page - let it load freely
-  if (request.nextUrl.pathname === '/login') {
+  // Skip auth check for public pages
+  const publicPaths = ['/login', '/forgot-password', '/reset-password']
+  if (publicPaths.includes(request.nextUrl.pathname)) {
     return NextResponse.next({
       request: {
         headers: request.headers,
