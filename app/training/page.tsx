@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe, ClipboardCheck } from 'lucide-react'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe, ClipboardCheck, Award, X } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getQuizForModule } from '@/app/data/quizzes'
 import type { Quiz } from '@/app/data/quizzes'
@@ -84,6 +84,11 @@ export default function TrainingPage() {
   const [trainingProgress, setTrainingProgress] = useState<TrainingProgress[]>([])
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [activeQuiz, setActiveQuiz] = useState<{ quiz: Quiz; volume: number; moduleNum: number } | null>(null)
+
+  // Celebration video state
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [celebrationDismissed, setCelebrationDismissed] = useState(false)
+  const celebrationVideoRef = useRef<HTMLVideoElement>(null)
 
   const loadProgressData = useCallback(async () => {
     try {
@@ -320,6 +325,12 @@ export default function TrainingPage() {
   const totalVideos = videos.length
   const completedCount = Object.values(progress).filter(p => p.completed).length
 
+  // Vol 1 completion check
+  const vol1ModuleIds = useMemo(() => new Set(modules.filter(m => m.volume === 1).map(m => m.id)), [modules])
+  const vol1Videos = useMemo(() => videos.filter(v => vol1ModuleIds.has(v.module_id)), [videos, vol1ModuleIds])
+  const vol1CompletedCount = vol1Videos.filter(v => progress[v.id]?.completed).length
+  const vol1Complete = vol1Videos.length > 0 && vol1CompletedCount === vol1Videos.length
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
@@ -480,6 +491,74 @@ export default function TrainingPage() {
             </div>
           </div>
         </section>
+
+        {/* Vol 1 Completion Celebration Card */}
+        {vol1Complete && (
+          <section className="mb-6">
+            <div className="bg-gradient-to-r from-[#0a0a0f] to-[#111118] rounded-lg border border-[#C9A84C]/30 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#C9A84C]/20 flex items-center justify-center">
+                  <Award className="text-[#C9A84C]" size={24} />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-lg">Vol 1 — Foundations Complete</p>
+                  <p className="text-gray-400 text-sm">You&apos;ve completed all {vol1Videos.length} videos</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setCelebrationDismissed(false); setShowCelebration(true) }}
+                className="inline-flex items-center gap-2 bg-[#C9A84C]/20 text-[#C9A84C] hover:bg-[#C9A84C]/30 border border-[#C9A84C]/30 px-4 py-2 rounded-lg font-medium text-sm transition"
+              >
+                <Play size={14} /> Watch Celebration
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Vol 1 Celebration Video Modal */}
+        {showCelebration && (
+          <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
+            <div className="relative max-w-3xl w-full">
+              <button
+                onClick={() => { setShowCelebration(false); setCelebrationDismissed(true) }}
+                className="absolute -top-12 right-0 text-white/70 hover:text-white p-2 z-10"
+              >
+                <X size={24} />
+              </button>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center gap-2 bg-[#C9A84C]/20 text-[#C9A84C] px-4 py-1.5 rounded-full text-sm font-semibold mb-3">
+                  <Award size={16} />
+                  Volume 1 Complete
+                </div>
+                <h2 className="text-3xl font-bold text-white">
+                  Congratulations!
+                </h2>
+                <p className="text-gray-400 mt-2">
+                  You&apos;ve completed HartFelt Ready™ — Foundations. Welcome to the team.
+                </p>
+              </div>
+              <div className="rounded-2xl overflow-hidden border border-gray-700 bg-black">
+                <video
+                  ref={celebrationVideoRef}
+                  src="https://vault.hartfeltrealestate.com/videos/vol1-complete-web.mp4"
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full"
+                  onEnded={() => { setShowCelebration(false); setCelebrationDismissed(true) }}
+                />
+              </div>
+              <div className="text-center mt-6">
+                <button
+                  onClick={() => { setShowCelebration(false); setCelebrationDismissed(true) }}
+                  className="bg-[#C9A84C] hover:bg-[#b8963f] text-black font-semibold px-8 py-3 rounded-xl transition-colors"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {dataLoading ? (
           <div className="flex items-center justify-center py-16">
