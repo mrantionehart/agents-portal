@@ -9,6 +9,7 @@ import {
   Mail,
   Phone,
   MessageSquare,
+  MessageCircle,
   Zap,
   Clock,
   Send,
@@ -29,7 +30,7 @@ const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
 interface InboxMessage {
   id: string
   contactName: string
-  channel: 'email' | 'sms' | 'phone' | 'web'
+  channel: 'email' | 'sms' | 'phone' | 'web' | 'whatsapp'
   subject: string
   content: string
   category: string
@@ -73,6 +74,8 @@ function channelIcon(channel: string) {
       return <MessageSquare className="w-3.5 h-3.5" />
     case 'phone':
       return <Phone className="w-3.5 h-3.5" />
+    case 'whatsapp':
+      return <MessageCircle className="w-3.5 h-3.5 text-green-400" />
     default:
       return <Zap className="w-3.5 h-3.5" />
   }
@@ -210,18 +213,32 @@ export default function SmartInboxPage() {
     }
   }
 
-  // Send draft (stub)
+  // Send draft via appropriate channel
   async function handleSendDraft() {
     if (!draft || !selected) return
     setSendingDraft(true)
     try {
-      await fetch(`${VAULT_API}/crm/inbox/${selected.id}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft, channel: selected.channel }),
-      })
+      if (selected.channel === 'whatsapp' && selected.contactPhone) {
+        // Send via WhatsApp
+        await fetch(`${VAULT_API}/crm/whatsapp/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: selected.contactPhone,
+            message: draft,
+            contactId: selected.id,
+          }),
+        })
+      } else {
+        // Send via email or other
+        await fetch(`${VAULT_API}/crm/inbox/${selected.id}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draft, channel: selected.channel }),
+        })
+      }
     } catch {
-      // Silently handle - will show success state anyway for demo
+      // Silently handle
     } finally {
       setSendingDraft(false)
       setDraft('')
@@ -531,10 +548,22 @@ export default function SmartInboxPage() {
                       <button
                         onClick={handleSendDraft}
                         disabled={sendingDraft}
-                        className="flex-1 py-2 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                          selected.channel === 'whatsapp'
+                            ? 'bg-green-600 text-white hover:bg-green-500'
+                            : 'bg-green-600 text-white hover:bg-green-500'
+                        }`}
                       >
-                        <Send className="w-4 h-4" />
-                        {sendingDraft ? 'Sending...' : 'Send'}
+                        {selected.channel === 'whatsapp' ? (
+                          <MessageCircle className="w-4 h-4" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                        {sendingDraft
+                          ? 'Sending...'
+                          : selected.channel === 'whatsapp'
+                          ? 'Send via WhatsApp'
+                          : 'Send'}
                       </button>
                       <button
                         onClick={generateDraft}
