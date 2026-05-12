@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
   <div style="background:#f0f9ff;padding:15px;border-left:4px solid #2E75B6;margin:20px 0;border-radius:4px;">
     <p style="margin:0;"><strong>Agent:</strong> ${agentName}</p>
     <p style="margin:8px 0 0;"><strong>Volume:</strong> ${volName}</p>
-    <p style="margin:8px 0 0;"><strong>Modules Completed:</strong> ${completedModules.length} of ${(VOLUME_MODULE_COUNTS[volume] || []).length}</p>
+    <p style="margin:8px 0 0;"><strong>Modules Completed:</strong> ${(VOLUME_MODULE_COUNTS[volume] || []).length} of ${(VOLUME_MODULE_COUNTS[volume] || []).length}</p>
     <p style="margin:8px 0 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
   </div>
   <p>
