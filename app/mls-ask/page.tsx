@@ -28,12 +28,13 @@ import {
   Car,
   FolderPlus,
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 // ============================================================================
 // Ask MLS — Natural language MLS search powered by AI
 // ============================================================================
 
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 const IDX_SITE = 'https://hartfeltrealestate.idxbroker.com'
 
 interface MLSListing {

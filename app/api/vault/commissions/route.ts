@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 export const dynamic = 'force-dynamic'
-
-const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
 
 export async function GET(request: NextRequest) {
   try {

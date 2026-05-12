@@ -3,10 +3,9 @@
  * Provides methods to interact with hartfelt-vault API endpoints
  */
 
-const VAULT_BASE_URL =
-  process.env.NEXT_PUBLIC_VAULT_API_URL ||
-  process.env.NEXT_PUBLIC_VAULT_URL ||
-  'https://vault.hartfeltrealestate.com/api'
+import { VAULT_API_URL } from './vault-client'
+
+const VAULT_BASE_URL = VAULT_API_URL
 
 interface ApiResponse<T> {
   success: boolean

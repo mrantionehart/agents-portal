@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AlertCircle, CheckCircle, Clock, FileText, Flag, Eye } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 interface ComplianceAlert {
   id: string
@@ -37,7 +38,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
       setLoading(true)
       setError(null)
 
-      const response = await fetch('https://hartfelt-vault.vercel.app/api/compliance/alerts', {
+      const response = await fetch(`${VAULT_API_URL}/compliance/alerts`, {
         headers: {
           'X-User-ID': userId,
           'X-User-Role': role,
@@ -70,7 +71,7 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
       ))
 
       // Persist to backend
-      await fetch('https://hartfelt-vault.vercel.app/api/compliance/alerts', {
+      await fetch(`${VAULT_API_URL}/compliance/alerts`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

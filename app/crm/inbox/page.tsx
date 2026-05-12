@@ -22,8 +22,9 @@ import {
   ChevronRight,
   Star,
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 
 // --- Types ---
 

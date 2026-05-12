@@ -8,9 +8,10 @@ import {
   Check, X, Target, MapPin, Phone, Mail, MessageSquare,
   Send, Loader2, Users, Settings,
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 // ─── Constants ───────────────────────────────────────────────────────────────────
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 
 // ─── Inline UI primitives ────────────────────────────────────────────────────────
 const Card = ({ children, className = '', ...props }: any) => (

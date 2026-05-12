@@ -3,7 +3,10 @@
  * Handles all communication between Agent Portal and Vault backend
  */
 
-const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
+export const VAULT_API_URL = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
+
+/** Base Vault URL without the /api suffix — useful for non-API links (calendar, videos, etc.) */
+export const VAULT_BASE_URL = VAULT_API_URL.replace(/\/api\/?$/, '')
 
 interface VaultRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'

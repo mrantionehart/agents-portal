@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Users, FileText, CheckCircle, AlertCircle, Home, DollarSign } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 interface TCStats {
   assigned_agents: number
@@ -47,7 +48,7 @@ export default function TCDashboard({ userId, userRole }: { userId: string; user
 
       // Fetch transaction stats from backend
       try {
-        const statsResponse = await fetch('https://hartfelt-vault.vercel.app/api/broker/tc/transactions', {
+        const statsResponse = await fetch(`${VAULT_API_URL}/broker/tc/transactions`, {
           headers: {
             'X-User-ID': userId,
             'X-User-Role': userRole,
@@ -69,7 +70,7 @@ export default function TCDashboard({ userId, userRole }: { userId: string; user
 
       // Fetch assigned deals from backend
       try {
-        const dealsResponse = await fetch('https://hartfelt-vault.vercel.app/api/broker/tc/assigned-deals', {
+        const dealsResponse = await fetch(`${VAULT_API_URL}/broker/tc/assigned-deals`, {
           headers: {
             'X-User-ID': userId,
             'X-User-Role': userRole,

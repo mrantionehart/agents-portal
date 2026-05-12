@@ -6,9 +6,10 @@ import {
   ArrowLeft, Mail, RefreshCw, Trash2, Settings, Link2,
   CheckCircle, AlertCircle, Loader2, ExternalLink,
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 // ─── Constants ───────────────────────────────────────────────────────────────────
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 
 // ─── Inline UI primitives (matches CRM page style) ──────────────────────────────
 const Card = ({ children, className = '', ...props }: any) => (

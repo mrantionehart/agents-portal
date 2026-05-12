@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { TrendingUp, Users, DollarSign, CheckCircle, Target } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 interface AgentMetrics {
   id: string
@@ -34,7 +35,7 @@ export default function BrokerPerformanceDashboard({ userId, role }: BrokerPerfo
       setLoading(true)
       setError(null)
 
-      const response = await fetch('https://hartfelt-vault.vercel.app/api/broker/agents', {
+      const response = await fetch(`${VAULT_API_URL}/broker/agents`, {
         headers: {
           'X-User-ID': userId,
           'X-User-Role': role,

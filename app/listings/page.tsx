@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Home, Bed, Bath, Maximize, ExternalLink, Share2, Mail, MessageSquare, RefreshCw } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 // ============================================================================
 // Active Listings — Browse & share brokerage listings (agent view)
 // ============================================================================
 
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 const IDX_SITE = 'https://hartfeltrealestate.idxbroker.com'
 
 interface Listing {

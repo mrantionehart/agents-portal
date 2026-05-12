@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 // ============================================================================
 // CMA Generator — Agents Portal (with address autocomplete)
@@ -35,9 +36,7 @@ interface Adjustment {
 const emptyComp: Comp = { address: '', soldDate: '', salePrice: 0, beds: '', baths: '', sqft: 0, pricePerSqft: 0, notes: '' }
 const emptyStep: PricingStep = { step: '', price: 0, strategy: '', indicator: '' }
 
-const VAULT_URL = process.env.NEXT_PUBLIC_VAULT_URL
-  || (process.env.NEXT_PUBLIC_VAULT_API_URL || '').replace(/\/api\/?$/, '')
-  || 'https://hartfelt-vault.vercel.app'
+const VAULT_URL = VAULT_BASE_URL
 
 interface LeadAddress {
   id: string

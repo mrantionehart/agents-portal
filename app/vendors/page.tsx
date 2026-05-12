@@ -9,8 +9,9 @@ import {
   Truck, Home, Scale, CreditCard, Briefcase, Users, Send,
   ThumbsUp, Loader2
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 
 const CATEGORIES = [
   'Mortgage', 'Title', 'Insurance', 'Photography', 'Inspection',

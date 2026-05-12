@@ -9,8 +9,9 @@ import {
   BadgeDollarSign, Target, ClipboardCheck, CheckCircle2, Mail,
   FileText, Layers, Link2, BellPlus, UserCheck, Percent, Zap
 } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
-const VAULT_API = 'https://hartfelt-vault.vercel.app/api'
+const VAULT_API = VAULT_API_URL
 
 const STATUSES = ['Proposed', 'Approved', 'Under Construction', 'Pre-Sales', 'Completed'] as const
 const ASSET_TYPES = ['Condo', 'Apartment', 'Townhome', 'Mixed Use', 'Retail', 'Industrial', 'Luxury SFH'] as const

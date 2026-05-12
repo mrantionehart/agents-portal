@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { BookOpen, Play, Clock, FileText, CheckCircle2, Lock, ChevronDown, ChevronRight, Globe, ClipboardCheck, Award, X } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 import { getQuizForModule } from '@/app/data/quizzes'
 import type { Quiz } from '@/app/data/quizzes'
 import QuizModal from '@/app/components/QuizModal'
@@ -540,7 +541,7 @@ export default function TrainingPage() {
               <div className="rounded-2xl overflow-hidden border border-gray-700 bg-black">
                 <video
                   ref={celebrationVideoRef}
-                  src="https://vault.hartfeltrealestate.com/videos/vol1-complete-web.mp4"
+                  src={`${VAULT_BASE_URL}/videos/vol1-complete-web.mp4`}
                   controls
                   autoPlay
                   playsInline

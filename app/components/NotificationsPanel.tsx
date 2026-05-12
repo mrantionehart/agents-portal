@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Bell, X, AlertCircle, CheckCircle, FileText, Users, TrendingUp, Clock, CalendarDays } from 'lucide-react'
+import { VAULT_API_URL } from '@/lib/vault-client'
 
 interface Notification {
   id: string
@@ -33,7 +34,7 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       setLoading(true)
       setError(null)
 
-      const response = await fetch('https://hartfelt-vault.vercel.app/api/notifications', {
+      const response = await fetch(`${VAULT_API_URL}/notifications`, {
         headers: {
           'X-User-ID': userId,
         },
@@ -114,7 +115,7 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       ))
 
       // Call backend to persist
-      await fetch('https://hartfelt-vault.vercel.app/api/notifications', {
+      await fetch(`${VAULT_API_URL}/notifications`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

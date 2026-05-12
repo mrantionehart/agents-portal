@@ -1,7 +1,8 @@
 import axios, { AxiosInstance } from 'axios'
 import { supabase } from './supabase'
+import { VAULT_API_URL } from './vault-client'
 
-const vaultApiUrl = process.env.NEXT_PUBLIC_VAULT_API_URL || 'https://hartfelt-vault.vercel.app/api'
+const vaultApiUrl = VAULT_API_URL
 
 class VaultAPI {
   private client: AxiosInstance

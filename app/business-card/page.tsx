@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import { supabase } from '@/lib/supabase'
 import SidebarNav from '../components/SidebarNav'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 interface ProfileData {
   id: string
@@ -22,7 +23,7 @@ interface ProfileData {
   tiktok_handle: string
 }
 
-const VAULT_URL = 'https://hartfelt-vault.vercel.app'
+const VAULT_URL = VAULT_BASE_URL
 
 export default function BusinessCardPage() {
   const { user, role, loading, signOut } = useAuth()

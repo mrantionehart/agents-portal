@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -422,7 +423,7 @@ export async function POST(request: NextRequest) {
         if (brokerEmail && sgApiKey) {
           try {
             const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agents.hartfeltrealestate.com'
-            const vaultUrl = 'https://hartfelt-vault.vercel.app'
+            const vaultUrl = VAULT_BASE_URL
             await fetch('https://api.sendgrid.com/v3/mail/send', {
               method: 'POST',
               headers: {

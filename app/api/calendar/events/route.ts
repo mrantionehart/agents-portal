@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
     <p style="color:#666;margin-top:16px;font-size:13px;">Created by ${creatorName}</p>
   </div>
   <div style="border-top:1px solid #eee;padding-top:16px;text-align:center;">
-    <a href="https://hartfelt-vault.vercel.app/calendar" style="background:#B89B5E;color:#0A0A0B;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">View Calendar</a>
+    <a href="${VAULT_BASE_URL}/calendar" style="background:#B89B5E;color:#0A0A0B;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">View Calendar</a>
   </div>
   <p style="color:#999;font-size:11px;text-align:center;margin-top:24px;">HartFelt Real Estate — Because Choices Matter.</p>
 </div>
