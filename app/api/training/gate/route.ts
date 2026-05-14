@@ -22,9 +22,10 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 // Same module lists used by /api/training/quiz
-// Vol 1 base modules (1-9) + role-specific EASE module (11=broker, 12=admin, 13=agent)
+// Vol 1 base modules (1-9) are required to unlock the app.
+// EASE role-specific modules (11=broker, 12=admin, 13=agent) are optional —
+// they don't have quizzes yet, so they can't block the gate.
 const VOL1_BASE = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-const EASE_MODULE_FOR_ROLE: Record<string, number> = { broker: 11, admin: 12, agent: 13 }
 const VOL2_REQUIRED = [8, 9, 10, 11, 12, 13, 14]
 
 async function getAuthedUser(request: NextRequest) {
@@ -97,9 +98,8 @@ export async function GET(request: NextRequest) {
 
     const role = profile?.role || 'agent'
 
-    // Build role-specific Vol 1 required list (base 1-9 + EASE module for role)
-    const easeModule = EASE_MODULE_FOR_ROLE[role] || EASE_MODULE_FOR_ROLE.agent
-    const vol1Required = [...VOL1_BASE, easeModule]
+    // Vol 1 required list: base modules 1-9 only
+    const vol1Required = [...VOL1_BASE]
 
     // Brokers & admins always pass the gate
     if (role === 'broker' || role === 'admin') {
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
     )
 
     const vol1Completed: number[] = vol1Row?.completed_modules || []
-    // Gate opens when agent has completed all base modules AND their EASE module
+    // Gate opens when agent has completed all base modules (1-9)
     const vol1Done = vol1Required.every(m => vol1Completed.includes(m))
     const vol2Completed: number[] = vol2Row?.completed_modules || []
     const vol2Done = vol2Row?.volume_completed === true
