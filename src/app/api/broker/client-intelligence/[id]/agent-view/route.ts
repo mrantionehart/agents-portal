@@ -136,6 +136,16 @@ export async function GET(
     if (timeline) cheatItems.push(`Timeline: ${timeline}`);
     if (profile.purchase_intent) cheatItems.push(`Intent: ${profile.purchase_intent.replace(/_/g, " ")}`);
     if (profile.purchase_method) cheatItems.push(`Paying: ${profile.purchase_method}`);
+
+    // STR-specific cheat sheet items
+    if (profile.str_interest) {
+      cheatItems.push("STR Interest: Yes");
+      if (profile.investment_goal) cheatItems.push(`STR Goal: ${profile.investment_goal}`);
+      if (profile.rental_frequency_needed) cheatItems.push(`Rental Freq: ${profile.rental_frequency_needed.replace(/_/g, " ")}`);
+      if (profile.daily_rental_required) cheatItems.push("Daily rental required: Yes");
+      if (profile.str_budget) cheatItems.push(`STR Budget: $${profile.str_budget.toLocaleString()}`);
+    }
+
     cheatSheet = cheatItems.length > 0 ? cheatItems.join(" | ") : null;
 
     // Objection intelligence based on profile type & pain points
@@ -211,6 +221,17 @@ export async function GET(
         representation_status: profile.representation_status,
         proof_status: profile.proof_status,
         preapproved_status: profile.preapproved_status,
+        // STR / Airbnb fields
+        str_interest: profile.str_interest || false,
+        investment_goal: profile.investment_goal || null,
+        rental_frequency_needed: profile.rental_frequency_needed || null,
+        preferred_str_areas: profile.preferred_str_areas || [],
+        condo_hotel_ok: profile.condo_hotel_ok || false,
+        hotel_program_ok: profile.hotel_program_ok || false,
+        daily_rental_required: profile.daily_rental_required || false,
+        str_budget: profile.str_budget || null,
+        str_beds: profile.str_beds || null,
+        waterfront_preference: profile.waterfront_preference || null,
       },
       coaching: {
         ai_snapshot: aiSnapshot,
