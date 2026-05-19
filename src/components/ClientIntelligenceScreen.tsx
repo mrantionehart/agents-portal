@@ -9,6 +9,7 @@ import {
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity,
 } from 'lucide-react';
+import ClientActionCenter from './ClientActionCenter';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -171,8 +172,8 @@ function AgentWorkspace({
   const [error, setError] = useState('');
   const [copiedScript, setCopiedScript] = useState(false);
   const [expandedObjection, setExpandedObjection] = useState<number | null>(null);
-  const [sendingAction, setSendingAction] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState('');
+  const [highlightedAction, setHighlightedAction] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -197,17 +198,32 @@ function AgentWorkspace({
     setTimeout(() => setCopiedScript(false), 2000);
   };
 
-  const handleSendAction = async (actionKey: string) => {
-    setSendingAction(actionKey);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setActionToast({ message, type });
+    setTimeout(() => setActionToast(null), 4000);
+  };
+
+  const reloadData = async () => {
     try {
-      const res = await fetch(`/api/broker/client-intelligence/${profileId}/claim`, {
-        method: 'POST',
-      });
-      // For now, just mark as done on the UI — actual email sending goes through Vault
-      setActionSuccess(`Action "${actionKey.replace(/_/g, ' ')}" queued`);
-      setTimeout(() => setActionSuccess(''), 3000);
+      const res = await fetch(`/api/broker/client-intelligence/${profileId}/agent-view`);
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+      }
     } catch {}
-    setSendingAction(null);
+  };
+
+  // Map next_action text to action keys for execute buttons
+  const mapActionToKey = (actionText: string): string | null => {
+    const lower = actionText.toLowerCase();
+    if (lower.includes('proof of funds') || lower.includes('pof')) return 'request_pof';
+    if (lower.includes('representation') || lower.includes('buyer rep')) return 'buyer_rep_agreement';
+    if (lower.includes('consultation') || lower.includes('strategy meeting')) return 'schedule_consultation';
+    if (lower.includes('listing') || lower.includes('properties')) return 'curated_listings';
+    if (lower.includes('follow up') || lower.includes('follow-up') || lower.includes('check in')) return 'follow_up_7day';
+    if (lower.includes('discovery') || lower.includes('call')) return 'discovery_call';
+    if (lower.includes('investment') || lower.includes('roi')) return 'investment_opportunities';
+    return null;
   };
 
   if (loading) {
@@ -379,23 +395,35 @@ function AgentWorkspace({
                 <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Next Best Actions</h2>
               </div>
               <div className="space-y-2">
-                {coaching.next_actions.map((action, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between bg-zinc-900/50 rounded-xl px-4 py-3 group hover:bg-zinc-900 transition"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getPriorityColor(action.priority)}`}>
-                        {action.priority}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{action.action}</p>
-                        <p className="text-zinc-500 text-xs truncate">{action.reason}</p>
+                {coaching.next_actions.map((action, i) => {
+                  const actionKey = mapActionToKey(action.action);
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between bg-zinc-900/50 rounded-xl px-4 py-3 group hover:bg-zinc-900 transition"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getPriorityColor(action.priority)}`}>
+                          {action.priority}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{action.action}</p>
+                          <p className="text-zinc-500 text-xs truncate">{action.reason}</p>
+                        </div>
                       </div>
+                      {actionKey ? (
+                        <button
+                          onClick={() => setHighlightedAction(actionKey)}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-[#c9a54e]/10 border border-[#c9a54e]/30 rounded-lg text-[#c9a54e] text-[11px] font-semibold hover:bg-[#c9a54e]/20 transition flex-shrink-0 ml-2"
+                        >
+                          <Send className="w-3 h-3" /> Execute
+                        </button>
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-zinc-700 group-hover:text-[#c9a54e] transition flex-shrink-0 ml-2" />
+                      )}
                     </div>
-                    <CheckCircle2 className="w-4 h-4 text-zinc-700 group-hover:text-[#c9a54e] transition flex-shrink-0 ml-2" />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -484,6 +512,35 @@ function AgentWorkspace({
 
           {/* RIGHT COLUMN — 1/3 width */}
           <div className="space-y-6">
+
+            {/* ── Client Action Center ──────────────────────────────── */}
+            <ClientActionCenter
+              profile={{
+                id: p.id,
+                full_name: p.full_name,
+                email: p.email,
+                phone: p.phone,
+                profile_type: p.profile_type,
+                temperature: p.temperature,
+                budget_min: p.budget_min,
+                budget_max: p.budget_max,
+                target_areas: p.target_areas || [],
+                property_preferences: p.property_preferences,
+                timeline: p.timeline,
+                qualification_timeline: p.timeline,
+                purchase_method: p.purchase_method,
+                purchase_intent: p.purchase_intent,
+                proof_status: p.proof_status,
+                preapproved_status: p.preapproved_status,
+                representation_status: p.representation_status,
+                readiness_score: p.readiness_score,
+                status: p.status,
+              }}
+              timeline={activityLog}
+              showToast={showToast}
+              onActionSent={reloadData}
+              highlightedAction={highlightedAction}
+            />
 
             {/* ── Win Probability Meter ──────────────────────────────── */}
             <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
@@ -604,11 +661,18 @@ function AgentWorkspace({
         </div>
       </div>
 
-      {/* ── Success toast ───────────────────────────────────────────── */}
-      {actionSuccess && (
-        <div className="fixed bottom-6 right-6 bg-emerald-900/90 border border-emerald-800 rounded-lg p-4 flex items-center gap-2 max-w-sm shadow-lg z-50">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-          <span className="text-emerald-200 text-sm">{actionSuccess}</span>
+      {/* ── Action toast ──────────────────────────────────────────── */}
+      {actionToast && (
+        <div className={`fixed bottom-6 right-6 ${
+          actionToast.type === 'error' ? 'bg-red-900/90 border-red-800' : 'bg-emerald-900/90 border-emerald-800'
+        } border rounded-lg p-4 flex items-center gap-2 max-w-sm shadow-lg z-50`}>
+          {actionToast.type === 'error'
+            ? <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            : <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          }
+          <span className={`text-sm ${actionToast.type === 'error' ? 'text-red-200' : 'text-emerald-200'}`}>
+            {actionToast.message}
+          </span>
         </div>
       )}
     </div>
