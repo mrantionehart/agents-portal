@@ -176,11 +176,16 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 function formatSendTime(d: string): string {
-  const date = new Date(d);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  return isToday ? `Today ${time}` : `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time}`;
+  try {
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return isToday ? `Today ${time}` : `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time}`;
+  } catch {
+    return '';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -207,12 +212,15 @@ export default function ClientActionCenter({
 
   const recommendations = getRecommendedActions(profile);
 
+  const [templateLoadError, setTemplateLoadError] = useState(false);
+
   // Fetch templates on mount
   useEffect(() => {
+    setTemplateLoadError(false);
     fetch(`/api/broker/client-intelligence/${profile.id}/actions`)
       .then(r => r.json())
       .then(d => { if (d.templates) setActionTemplates(d.templates); })
-      .catch(() => {});
+      .catch(() => { setTemplateLoadError(true); });
   }, [profile.id]);
 
   // Scroll to highlighted action
