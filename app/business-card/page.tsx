@@ -16,6 +16,9 @@ interface ProfileData {
   bio: string
   license_number: string
   avatar_url: string
+  business_card_url: string
+  card_slug: string
+  card_enabled: boolean
   website: string
   instagram_handle: string
   facebook_url: string
@@ -49,7 +52,7 @@ export default function BusinessCardPage() {
   const fetchProfile = async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, title, phone, bio, license_number, avatar_url, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle')
+      .select('id, full_name, email, title, phone, bio, license_number, avatar_url, business_card_url, card_slug, card_enabled, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle')
       .eq('id', user!.id)
       .single()
 
@@ -97,7 +100,11 @@ export default function BusinessCardPage() {
     setTimeout(() => setSaveMessage(''), 3000)
   }
 
-  const intakeUrl = profile ? `${VAULT_URL}/intake/${profile.id}` : ''
+  const APP_URL = typeof window !== 'undefined' ? window.location.origin : ''
+  const cardShareUrl = profile?.card_slug && profile?.card_enabled
+    ? `${APP_URL}/card/${profile.card_slug}`
+    : null
+  const intakeUrl = cardShareUrl || (profile ? `${VAULT_URL}/intake/${profile.id}` : '')
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(intakeUrl)}`
 
   const handleCopyLink = async () => {
@@ -166,6 +173,24 @@ export default function BusinessCardPage() {
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold text-white mb-2">My Business Card</h1>
           <p className="text-gray-400 mb-8">Share your digital card with clients to connect instantly</p>
+
+          {/* === CUSTOM CARD IMAGE (broker-uploaded) === */}
+          {profile?.business_card_url && (
+            <div className="flex justify-center mb-6">
+              <div className="w-[420px]">
+                <img
+                  src={profile.business_card_url}
+                  alt={`${displayName} Business Card`}
+                  className="w-full rounded-xl shadow-2xl"
+                />
+                {cardShareUrl && (
+                  <p className="text-center text-xs text-gray-400 mt-2">
+                    Public card: <a href={cardShareUrl} target="_blank" rel="noopener noreferrer" className="text-[#C9A84C] hover:underline">{cardShareUrl}</a>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* === CARD PREVIEW === */}
           <div className="flex justify-center mb-8">

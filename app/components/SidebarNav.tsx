@@ -87,6 +87,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
   const adminItems = [
     { label: 'Brokerage', href: '/brokerage', icon: Users },
     { label: 'Recruiting', href: '/recruiting', icon: Users },
+    { label: 'Manage Cards', href: '/manage-cards', icon: CreditCard },
     { label: 'Compliance', href: '/compliance', icon: FileText },
     { label: 'Settings', href: '/admin-settings', icon: Settings },
   ]
