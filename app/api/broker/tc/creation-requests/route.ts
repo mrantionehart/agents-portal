@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTCCreationRequestNotification } from '@/lib/sendgrid'
+import { sendExpoPushToUsers } from '@/lib/push-notifications'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -240,6 +241,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         read: false,
       })
       console.log('Agent notification created successfully')
+
+      // Send push notification to agent's phone
+      sendExpoPushToUsers(
+        [userId],
+        'TC Creation Request Submitted',
+        `Your request for ${tc_name} has been submitted. Your broker will review shortly.`,
+        { type: 'request_submission' }
+      ).catch(() => {});
     } catch (notificationError) {
       console.error('Failed to create agent notification:', notificationError)
       // Don't fail the request if notification fails, just log the error

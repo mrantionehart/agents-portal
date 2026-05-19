@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
+import { sendExpoPushToUsers } from '@/lib/push-notifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -339,25 +340,17 @@ export async function POST(request: NextRequest) {
     // 7. Queue push notifications
     // ------------------------------------------------------------------
     if (alerts.length > 0) {
-      const pushRows = alerts
-        .filter((a) => a.severity === 'critical' || a.severity === 'warning')
-        .map((a) => ({
-          user_id: a.agent_id,
-          title: a.title,
-          body: a.message,
-          data: JSON.stringify({ type: 'license_alert', notification_type: a.notification_type }),
-          status: 'pending',
-          created_at: now.toISOString(),
-        }));
-
-      if (pushRows.length > 0) {
-        const { error: pushErr } = await admin
-          .from('push_notification_queue')
-          .insert(pushRows);
-
-        if (pushErr) {
-          console.error('[licenses/check] Error queuing push notifications:', pushErr);
-        }
+      const criticalAlerts = alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning');
+      // Group by agent and send one push per agent
+      const alertsByAgent = new Map<string, typeof criticalAlerts>();
+      for (const a of criticalAlerts) {
+        if (!alertsByAgent.has(a.agent_id)) alertsByAgent.set(a.agent_id, []);
+        alertsByAgent.get(a.agent_id)!.push(a);
+      }
+      for (const [agentId, agentAlerts] of alertsByAgent) {
+        const pushTitle = `License Alert: ${agentAlerts.length} issue${agentAlerts.length > 1 ? 's' : ''}`;
+        const pushBody = agentAlerts.map((a) => a.title).join(', ');
+        sendExpoPushToUsers([agentId], pushTitle, pushBody, { type: 'license_alert' }).catch(() => {});
       }
     }
 

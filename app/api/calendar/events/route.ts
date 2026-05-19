@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
+import { sendExpoPushBroadcast } from '@/lib/push-notifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -181,6 +182,11 @@ export async function POST(request: NextRequest) {
           if (notifications.length > 0) {
             await admin.from('notifications').insert(notifications)
           }
+
+          // Send push notifications to agents' phones (non-blocking)
+          const pushTitle = `New Event: ${title}`
+          const pushBody = `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`
+          sendExpoPushBroadcast(pushTitle, pushBody, { type: 'event', event_id: event.id }, user.id).catch(() => {})
 
           // Send email notifications via SendGrid
           const sgKey = process.env.SENDGRID_API_KEY

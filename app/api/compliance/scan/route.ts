@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
+import { sendExpoPushToUsers } from '@/lib/push-notifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -446,26 +447,10 @@ export async function POST(request: NextRequest) {
         notificationsSent += notifRows.length;
       }
 
-      // 8b. Push notification queue
-      const pushRows = criticalIssues.map((issue) => ({
-        user_id: agent_id,
-        title: issue.title,
-        body: issue.description,
-        data: JSON.stringify({ type: 'compliance_alert' }),
-        status: 'pending',
-        created_at: now,
-      }));
-
-      const { error: pushErr } = await admin
-        .from('push_notification_queue')
-        .insert(pushRows);
-
-      if (pushErr) {
-        console.error(
-          '[compliance/scan] Error queuing push notifications:',
-          pushErr
-        );
-      }
+      // 8b. Send push notifications to agent's phone
+      const pushTitle = `Compliance Alert: ${criticalIssues.length} issue${criticalIssues.length > 1 ? 's' : ''} found`;
+      const pushBody = criticalIssues.map((i) => i.title).join(', ');
+      sendExpoPushToUsers([agent_id], pushTitle, pushBody, { type: 'compliance_alert' }).catch(() => {});
     }
 
     // ------------------------------------------------------------------

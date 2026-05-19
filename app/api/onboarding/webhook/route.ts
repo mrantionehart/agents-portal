@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { sendExpoPushToUsers } from '@/lib/push-notifications'
 
 // DocuSign Webhook Handler
 // This endpoint receives events from DocuSign when documents are signed
@@ -160,6 +161,15 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
     }
 
     console.log(`✓ Notified ${admins.length} admins/brokers about ${agentEmail}'s signed documents`);
+
+    // Send push notifications to admins/brokers
+    const adminIds = admins.map((a: any) => a.id);
+    sendExpoPushToUsers(
+      adminIds,
+      'Agent Signed Documents',
+      `${agentEmail} has completed and signed their onboarding documents.`,
+      { type: 'agent_signed_documents' }
+    ).catch(() => {});
 
     // Optional: Send email notification to admins
     await notifyAdminsViaEmail(agentEmail, admins);
