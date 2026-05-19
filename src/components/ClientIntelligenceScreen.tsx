@@ -69,6 +69,17 @@ interface AgentViewData {
     representation_status: string | null;
     proof_status: string | null;
     preapproved_status: string | null;
+    // STR intake (agent-safe)
+    str_interest: boolean;
+    investment_goal: string | null;
+    rental_frequency_needed: string | null;
+    preferred_str_areas: string[];
+    condo_hotel_ok: boolean;
+    hotel_program_ok: boolean;
+    daily_rental_required: boolean;
+    str_budget: number | null;
+    str_beds: string | null;
+    waterfront_preference: string | null;
   };
   coaching: {
     ai_snapshot: string | null;
@@ -621,6 +632,54 @@ function AgentWorkspace({
                   <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Property Prefs</h2>
                 </div>
                 <p className="text-zinc-300 text-sm leading-relaxed">{p.property_preferences}</p>
+              </div>
+            )}
+
+            {/* ── STR / Airbnb Intent ───────────────────────────────── */}
+            {p.str_interest && (
+              <div className="bg-[#1a1a1a] border border-purple-900/40 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building2 className="w-5 h-5 text-purple-400" />
+                  <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">STR / Airbnb Intent</h2>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {p.investment_goal && (
+                    <p className="text-zinc-300"><span className="text-zinc-500">Goal:</span> {p.investment_goal}</p>
+                  )}
+                  {p.rental_frequency_needed && (
+                    <p className="text-zinc-300"><span className="text-zinc-500">Frequency:</span> {p.rental_frequency_needed.replace(/_/g, ' ')}</p>
+                  )}
+                  {p.str_budget && (
+                    <p className="text-zinc-300"><span className="text-zinc-500">STR Budget:</span> ${Number(p.str_budget).toLocaleString()}</p>
+                  )}
+                  {p.str_beds && (
+                    <p className="text-zinc-300"><span className="text-zinc-500">Beds:</span> {p.str_beds}</p>
+                  )}
+                  {p.waterfront_preference && (
+                    <p className="text-zinc-300"><span className="text-zinc-500">Waterfront:</span> {p.waterfront_preference.replace(/_/g, ' ')}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {p.daily_rental_required && (
+                      <span className="px-2 py-0.5 bg-red-500/15 text-red-400 rounded-full text-[10px] font-medium">Daily Required</span>
+                    )}
+                    {p.condo_hotel_ok && (
+                      <span className="px-2 py-0.5 bg-blue-500/15 text-blue-400 rounded-full text-[10px] font-medium">Condo-Hotel OK</span>
+                    )}
+                    {p.hotel_program_ok && (
+                      <span className="px-2 py-0.5 bg-purple-500/15 text-purple-400 rounded-full text-[10px] font-medium">Hotel Program OK</span>
+                    )}
+                  </div>
+                  {p.preferred_str_areas.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-zinc-500 text-xs">Preferred STR Areas:</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {p.preferred_str_areas.map((area) => (
+                          <span key={area} className="px-2.5 py-0.5 bg-purple-500/15 text-purple-400 rounded-full text-xs">{area}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
