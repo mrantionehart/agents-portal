@@ -104,6 +104,32 @@ interface AgentViewData {
   };
 }
 
+interface STRRecommendation {
+  id: string;
+  name: string;
+  address: string;
+  neighborhood: string;
+  city: string;
+  category: string;
+  rental_restriction: string;
+  investor_notes: string | null;
+  hoa_verification: string;
+  last_verified_at: string | null;
+  is_featured: boolean;
+  match_score: number;
+  investor_score: number;
+  risk_level: 'low' | 'medium' | 'high';
+  reason_matched: string[];
+  compliance_note: string;
+}
+
+interface STRRecommendationsData {
+  recommendations: STRRecommendation[];
+  disclaimer: string;
+  total_buildings_analyzed: number;
+  mls_status: string;
+}
+
 type Tab = 'dispo' | 'mine';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -185,6 +211,10 @@ function AgentWorkspace({
   const [expandedObjection, setExpandedObjection] = useState<number | null>(null);
   const [highlightedAction, setHighlightedAction] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [strRecs, setStrRecs] = useState<STRRecommendationsData | null>(null);
+  const [strRecsLoading, setStrRecsLoading] = useState(false);
+  const [strRecsExpanded, setStrRecsExpanded] = useState(false);
+  const [copiedExplanation, setCopiedExplanation] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -202,6 +232,31 @@ function AgentWorkspace({
     }
     load();
   }, [profileId]);
+
+  // Load STR recommendations when profile has str_interest
+  useEffect(() => {
+    if (!data?.profile?.str_interest) return;
+    async function loadStrRecs() {
+      try {
+        setStrRecsLoading(true);
+        const res = await fetch(`/api/broker/client-intelligence/${profileId}/str-recommendations`);
+        if (res.ok) {
+          const json = await res.json();
+          setStrRecs(json);
+        }
+      } catch {} finally {
+        setStrRecsLoading(false);
+      }
+    }
+    loadStrRecs();
+  }, [data?.profile?.str_interest, profileId]);
+
+  const copyClientExplanation = (rec: STRRecommendation) => {
+    const text = `${rec.name} — ${rec.address}\n${rec.rental_restriction}\nMatch Score: ${rec.match_score}/100\n\n${rec.reason_matched.join('. ')}.\n\n${rec.compliance_note}`;
+    navigator.clipboard.writeText(text);
+    setCopiedExplanation(rec.id);
+    setTimeout(() => setCopiedExplanation(null), 2000);
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text.replace(/^"|"$/g, ''));
@@ -680,6 +735,136 @@ function AgentWorkspace({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ── Recommended STR Buildings ──────────────────────────── */}
+            {p.str_interest && (
+              <div className="bg-[#1a1a1a] border border-purple-900/40 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                    <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Recommended STR Buildings</h2>
+                  </div>
+                  {strRecs && strRecs.recommendations.length > 0 && (
+                    <button
+                      onClick={() => setStrRecsExpanded(!strRecsExpanded)}
+                      className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 transition"
+                    >
+                      {strRecsExpanded ? 'Show Top 5' : `Show All ${strRecs.recommendations.length}`}
+                      {strRecsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  )}
+                </div>
+
+                {strRecsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full" />
+                    <span className="text-zinc-400 text-sm ml-3">Matching buildings...</span>
+                  </div>
+                ) : !strRecs || strRecs.recommendations.length === 0 ? (
+                  <p className="text-zinc-500 text-sm text-center py-4">No matching STR-friendly buildings found for this profile.</p>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {(strRecsExpanded ? strRecs.recommendations : strRecs.recommendations.slice(0, 5)).map((rec, idx) => (
+                        <div key={rec.id} className="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-medium text-sm">{idx + 1}. {rec.name}</span>
+                                {rec.is_featured && (
+                                  <span className="px-1.5 py-0.5 bg-[#c9a54e]/15 text-[#c9a54e] rounded text-[9px] font-bold uppercase">Featured</span>
+                                )}
+                              </div>
+                              <p className="text-zinc-500 text-xs mt-0.5 truncate">{rec.address}</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="text-center">
+                                <div className={`text-lg font-bold ${rec.match_score >= 60 ? 'text-emerald-400' : rec.match_score >= 40 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                                  {rec.match_score}
+                                </div>
+                                <div className="text-[9px] text-zinc-500 uppercase">Match</div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                                rec.risk_level === 'low' ? 'bg-emerald-900/30 text-emerald-400' :
+                                rec.risk_level === 'high' ? 'bg-red-900/30 text-red-400' :
+                                'bg-amber-900/30 text-amber-400'
+                              }`}>
+                                {rec.risk_level} risk
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">
+                              {rec.category.replace(/_/g, ' ')}
+                            </span>
+                            <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-[10px]">
+                              {rec.neighborhood || rec.city}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                              rec.hoa_verification === 'verified' ? 'bg-emerald-900/20 text-emerald-400' :
+                              rec.hoa_verification === 'disputed' ? 'bg-red-900/20 text-red-400' :
+                              'bg-zinc-800 text-zinc-500'
+                            }`}>
+                              HOA: {rec.hoa_verification}
+                            </span>
+                          </div>
+
+                          <p className="text-zinc-400 text-xs leading-relaxed mb-2">
+                            {rec.rental_restriction}
+                          </p>
+
+                          {rec.reason_matched.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {rec.reason_matched.map((r, i) => (
+                                <span key={i} className="text-[10px] text-emerald-400/80 bg-emerald-900/15 px-1.5 py-0.5 rounded">
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {rec.investor_notes && (
+                            <p className="text-zinc-500 text-[11px] italic mb-2">{rec.investor_notes}</p>
+                          )}
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <button
+                              onClick={() => copyClientExplanation(rec)}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] text-zinc-300 transition"
+                            >
+                              <Copy className="w-3 h-3" />
+                              {copiedExplanation === rec.id ? 'Copied!' : 'Copy Client Explanation'}
+                            </button>
+                            <span className="text-[10px] text-zinc-600">Investor Score: {rec.investor_score}/100</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Compliance disclaimer */}
+                    <div className="mt-3 p-3 bg-amber-900/10 border border-amber-900/30 rounded-lg">
+                      <p className="text-[10px] text-amber-400/80 leading-relaxed">
+                        <AlertCircle className="w-3 h-3 inline mr-1 -mt-0.5" />
+                        {strRecs.disclaimer}
+                      </p>
+                    </div>
+
+                    {/* MLS placeholder */}
+                    <div className="mt-2 text-center">
+                      <p className="text-[10px] text-zinc-600">
+                        MLS integration not yet connected. Active listings will appear here in a future update.
+                      </p>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-600">
+                      <span>{strRecs.total_buildings_analyzed} buildings analyzed</span>
+                      <span>{strRecs.recommendations.length} matches</span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
