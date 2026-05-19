@@ -157,7 +157,7 @@ const getPriorityColor = (p: string) => {
 
 // ══════════════════════════════════════════════════════════════════════════
 // AGENT WORKSPACE — Full assigned client intelligence view
-// Design: SERHANT + Apple + AI assistant. Know what to do in < 10 seconds.
+// Design: HartFelt + Apple + AI assistant. Know what to do in < 10 seconds.
 // ══════════════════════════════════════════════════════════════════════════
 
 function AgentWorkspace({

@@ -87,9 +87,9 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Fetch role + training progress in parallel
+    // Fetch role + QA status + training progress in parallel
     const [{ data: profile }, { data: progressRows }] = await Promise.all([
-      admin.from('profiles').select('role').eq('id', user.id).single(),
+      admin.from('profiles').select('role, is_qa_user').eq('id', user.id).single(),
       admin
         .from('training_progress')
         .select('volume, completed_modules, volume_completed')
@@ -97,12 +97,13 @@ export async function GET(request: NextRequest) {
     ])
 
     const role = profile?.role || 'agent'
+    const isQaUser = profile?.is_qa_user === true
 
     // Vol 1 required list: base modules 1-9 only
     const vol1Required = [...VOL1_BASE]
 
-    // Brokers & admins always pass the gate
-    if (role === 'broker' || role === 'admin') {
+    // Brokers, admins, and QA users always pass the gate
+    if (role === 'broker' || role === 'admin' || isQaUser) {
       return NextResponse.json({
         gateOpen: true,
         role,

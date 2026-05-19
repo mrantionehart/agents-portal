@@ -84,11 +84,11 @@ const urgencyConfig: Record<Urgency, { dot: string; label: string; bg: string; t
 
 const TONES = [
   { key: 'professional', label: 'Professional', icon: '💼' },
-  { key: 'luxury', label: 'Luxury', icon: '✨' },
+  { key: 'luxury', label: 'Luxury Editorial', icon: '✨' },
   { key: 'friendly', label: 'Friendly', icon: '😊' },
   { key: 'investor', label: 'Investor', icon: '📊' },
   { key: 'direct', label: 'Direct', icon: '🎯' },
-  { key: 'serhant_energy', label: 'SERHANT Energy', icon: '🔥' },
+  { key: 'from_the_hart', label: 'From The Hart', icon: '🔥' },
 ];
 
 // ── Recommendation Engine ──────────────────────────────────────────────────

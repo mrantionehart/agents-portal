@@ -70,17 +70,17 @@ export async function middleware(request: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
 
-      // Get user role
+      // Get user role + QA status
       const { data: profile } = await admin
         .from('profiles')
-        .select('role')
+        .select('role, is_qa_user')
         .eq('id', user.id)
         .single()
 
       const role = profile?.role || 'agent'
 
-      // Only gate agents — brokers and admins always pass
-      if (role === 'agent') {
+      // Only gate agents — brokers, admins, and QA users always pass
+      if (role === 'agent' && !profile?.is_qa_user) {
         const { data: progress } = await admin
           .from('training_progress')
           .select('volume_completed')
