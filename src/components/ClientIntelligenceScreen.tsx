@@ -8,7 +8,7 @@ import {
   AlertCircle, Building2, Tag, Zap, MessageSquare,
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity, Bell,
-  Sparkles, X, Share2, Link,
+  Sparkles, X, Share2, Link, AlertTriangle, Banknote,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -238,6 +238,11 @@ function AgentWorkspace({
   const [dealRoomLoading, setDealRoomLoading] = useState(false);
   const [dealRoomUrl, setDealRoomUrl] = useState<string | null>(null);
 
+  // ── Offer Intelligence state ──
+  const [offerLoading, setOfferLoading] = useState(false);
+  const [offerData, setOfferData] = useState<any>(null);
+  const [offerExpanded, setOfferExpanded] = useState(false);
+
   const handleShareDealRoom = async (pid: string) => {
     setDealRoomLoading(true);
     setDealRoomUrl(null);
@@ -261,6 +266,31 @@ function AgentWorkspace({
       showToast('Error creating deal room');
     } finally {
       setDealRoomLoading(false);
+    }
+  };
+
+  const handleGenerateOffer = async (pid: string, buildingId?: string, listingId?: string) => {
+    setOfferLoading(true);
+    setOfferData(null);
+    try {
+      const res = await fetch('/api/broker/offer-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id: pid, building_id: buildingId || null, listing_id: listingId || null }),
+      });
+      const json = await res.json();
+      if (json.offer_id || json.suggested_offer_low) {
+        setOfferData(json);
+        setOfferExpanded(true);
+        showToast('Offer intelligence generated');
+      } else {
+        showToast('Failed to generate offer intelligence');
+      }
+    } catch (err) {
+      console.error('[Offer Intel] Error:', err);
+      showToast('Error generating offer intelligence');
+    } finally {
+      setOfferLoading(false);
     }
   };
 
@@ -726,6 +756,155 @@ function AgentWorkspace({
                       </>
                     )}
                   </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Offer Intelligence ──────────────────────────────── */}
+            {(p.profile_type === 'investor' || p.profile_type === 'buyer') && (
+              <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="w-5 h-5 text-[#c9a54e]" />
+                    <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Offer Intelligence</h2>
+                  </div>
+                  {offerData && (
+                    <button onClick={() => setOfferExpanded(!offerExpanded)} className="text-zinc-500 hover:text-white transition">
+                      {offerExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+                  AI-powered offer analysis based on market signals, client budget, building data, and engagement patterns.
+                </p>
+
+                {!offerData ? (
+                  <button
+                    onClick={() => handleGenerateOffer(p.id)}
+                    disabled={offerLoading}
+                    className="w-full py-2.5 bg-[#c9a54e] hover:bg-[#b8943e] text-black font-semibold text-sm rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {offerLoading ? (
+                      <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full" />
+                    ) : (
+                      <>
+                        <Target className="w-4 h-4" />
+                        Generate Offer Intelligence
+                      </>
+                    )}
+                  </button>
+                ) : offerExpanded ? (
+                  <div className="space-y-3">
+                    {/* Suggested Offer Range */}
+                    <div className="bg-[#111] border border-zinc-800 rounded-xl p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Suggested Offer Range</div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-emerald-400">${(offerData.suggested_offer_low || 0).toLocaleString()}</span>
+                        <span className="text-zinc-500">—</span>
+                        <span className="text-xl font-bold text-emerald-400">${(offerData.suggested_offer_high || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mt-1">List Price: ${(offerData.list_price || 0).toLocaleString()}</div>
+                    </div>
+
+                    {/* Score Grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-[#111] border border-zinc-800 rounded-lg p-2.5 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Negotiation</div>
+                        <div className={`text-lg font-bold ${(offerData.negotiation_score || 0) >= 70 ? 'text-emerald-400' : (offerData.negotiation_score || 0) >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                          {offerData.negotiation_score || 0}
+                        </div>
+                      </div>
+                      <div className="bg-[#111] border border-zinc-800 rounded-lg p-2.5 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Confidence</div>
+                        <div className={`text-lg font-bold ${(offerData.offer_confidence || 0) >= 70 ? 'text-emerald-400' : (offerData.offer_confidence || 0) >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                          {offerData.offer_confidence || 0}
+                        </div>
+                      </div>
+                      <div className="bg-[#111] border border-zinc-800 rounded-lg p-2.5 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Risk Flags</div>
+                        <div className={`text-lg font-bold ${(offerData.risk_flags?.length || 0) > 2 ? 'text-red-400' : (offerData.risk_flags?.length || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {offerData.risk_flags?.length || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cash Flow */}
+                    <div className="bg-[#111] border border-zinc-800 rounded-xl p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Estimated Monthly Cash Flow</div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex justify-between text-zinc-400">
+                          <span>STR Income</span>
+                          <span className="text-emerald-400 font-semibold">${(offerData.monthly_breakdown?.gross_rental || offerData.estimated_rental_income || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-zinc-400">
+                          <span>Mortgage</span>
+                          <span className="text-red-400 font-semibold">-${(offerData.monthly_breakdown?.mortgage || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-zinc-400">
+                          <span>HOA</span>
+                          <span className="text-red-400 font-semibold">-${(offerData.monthly_breakdown?.hoa || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-zinc-400">
+                          <span>Mgmt (20%)</span>
+                          <span className="text-red-400 font-semibold">-${(offerData.monthly_breakdown?.management_fee || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-zinc-800 flex justify-between">
+                        <span className="text-xs font-semibold text-white">Net Cash Flow</span>
+                        <span className={`text-sm font-bold ${(offerData.estimated_str_cashflow || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ${(offerData.estimated_str_cashflow || 0).toLocaleString()}/mo
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Risk Flags */}
+                    {offerData.risk_flags?.length > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500">Risk Flags</div>
+                        {offerData.risk_flags.map((flag: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 p-2 bg-red-950/20 border border-red-900/30 rounded-lg">
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                            <span className="text-[11px] text-red-300 leading-tight">{flag}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Signals Used */}
+                    {offerData.signals_used && (
+                      <div className="bg-[#111] border border-zinc-800 rounded-xl p-3">
+                        <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Signals Used</div>
+                        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                          {Object.entries(offerData.signals_used).map(([key, val]: [string, any]) => (
+                            <div key={key} className="flex justify-between text-zinc-400">
+                              <span>{key.replace(/_/g, ' ')}</span>
+                              <span className="text-zinc-300 font-medium">{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => handleGenerateOffer(p.id)}
+                      disabled={offerLoading}
+                      className="w-full py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {offerLoading ? (
+                        <div className="animate-spin w-3 h-3 border-2 border-zinc-300 border-t-transparent rounded-full" />
+                      ) : (
+                        'Refresh Analysis'
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2.5 bg-[#111] border border-zinc-800 rounded-lg cursor-pointer" onClick={() => setOfferExpanded(true)}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-emerald-400 font-bold text-sm">${(offerData.suggested_offer_low || 0).toLocaleString()} — ${(offerData.suggested_offer_high || 0).toLocaleString()}</span>
+                      <span className="text-[10px] text-zinc-500">Confidence: {offerData.offer_confidence || 0}/100</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-zinc-500" />
+                  </div>
                 )}
               </div>
             )}
