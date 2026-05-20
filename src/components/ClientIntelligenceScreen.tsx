@@ -1555,7 +1555,7 @@ function AgentWorkspace({
                           ) : (
                             <div className="mx-5 mb-3 border border-zinc-800/50 bg-zinc-900/30 rounded-lg p-2.5">
                               <div className="flex items-center justify-between">
-                                <span className="text-[11px] text-zinc-500">Live MLS feed not connected yet</span>
+                                <span className="text-[11px] text-zinc-500">Listings not connected yet</span>
                                 <button
                                   onClick={() => {
                                     trackSTREvent('listing_request', rec.id, rec.name);
@@ -1584,6 +1584,15 @@ function AgentWorkspace({
                             {rec.listing_match?.waterfront && (
                               <span className="px-2 py-0.5 bg-blue-900/20 text-blue-400 rounded text-[10px] font-medium">Waterfront</span>
                             )}
+                            {rec.idx_match_type === 'building' && (
+                              <span className="px-2 py-0.5 bg-emerald-900/20 text-emerald-400 rounded text-[10px] font-medium">IDX: Building Match</span>
+                            )}
+                            {rec.idx_match_type === 'neighborhood' && (
+                              <span className="px-2 py-0.5 bg-amber-900/20 text-amber-400 rounded text-[10px] font-medium">IDX: Neighborhood</span>
+                            )}
+                            {rec.idx_match_type === 'city' && (
+                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-500 rounded text-[10px] font-medium">IDX: City</span>
+                            )}
                           </div>
 
                           {/* Rental restriction */}
@@ -1609,16 +1618,26 @@ function AgentWorkspace({
                             <button
                               onClick={() => {
                                 trackSTREvent('listing_view', rec.id, rec.name);
-                                toggleListingCard(rec);
+                                if (rec.idx_match_type === 'none') {
+                                  trackSTREvent('building_mapping_missed', rec.id, rec.name);
+                                }
+                                if (rec.idx_search_url) {
+                                  trackSTREvent('idx_search_opened', rec.id, rec.name);
+                                  window.open(rec.idx_search_url, '_blank');
+                                } else {
+                                  toggleListingCard(rec);
+                                }
                               }}
                               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition ${
-                                expandedListing === rec.id
+                                rec.idx_search_url
                                   ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                                  : expandedListing === rec.id
+                                    ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
                               }`}
                             >
                               <Building2 className="w-3 h-3" />
-                              View Listings
+                              {rec.idx_search_url ? 'View Listings ↗' : 'View Listings'}
                             </button>
                             <button
                               onClick={() => {
@@ -1648,6 +1667,9 @@ function AgentWorkspace({
                               Ask HARTFELT
                             </button>
                           </div>
+                          <p className="text-[9px] text-zinc-600 italic mt-2 pl-5">
+                            Rental rules and availability should be independently verified through MLS remarks, HOA documents, association rules, and current regulations.
+                          </p>
 
                           {/* ── Expanded Listing Detail ── */}
                           {expandedListing === rec.id && (
@@ -1655,7 +1677,7 @@ function AgentWorkspace({
                               {(!rec.listing_match || rec.listing_match.mls_status === 'not_connected' || rec.listing_match.active_count === 0) ? (
                                 <div className="text-center py-3">
                                   <Building2 className="w-5 h-5 text-zinc-600 mx-auto mb-2" />
-                                  <span className="text-xs text-zinc-400 font-medium block mb-1">Live MLS feed not connected yet</span>
+                                  <span className="text-xs text-zinc-400 font-medium block mb-1">Listings not connected yet</span>
                                   <p className="text-[10px] text-zinc-600 mb-3 max-w-xs mx-auto">
                                     Active listings will appear here once MLS is connected. Use Request Units to get current availability.
                                   </p>
