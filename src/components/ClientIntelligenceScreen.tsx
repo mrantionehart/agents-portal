@@ -9,6 +9,7 @@ import {
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity, Bell,
   Sparkles, X, Share2, Link, AlertTriangle, Banknote, FileText, CalendarClock,
+  Briefcase,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -234,6 +235,14 @@ function AgentWorkspace({
   const [copiedBuildingName, setCopiedBuildingName] = useState<string | null>(null);
   const [strFilter, setStrFilter] = useState<string>('all');
 
+  // ── Deal Portal state ──
+  const [showDealPortalModal, setShowDealPortalModal] = useState(false);
+  const [dealPortalTitle, setDealPortalTitle] = useState('');
+  const [dealPortalNotes, setDealPortalNotes] = useState('');
+  const [dealPortalSelectedBuildings, setDealPortalSelectedBuildings] = useState<string[]>([]);
+  const [dealPortalCreating, setDealPortalCreating] = useState(false);
+  const [dealPortalResult, setDealPortalResult] = useState<{ share_url: string; access_token: string } | null>(null);
+
   // ── Deal Room share state ──
   const [dealRoomLoading, setDealRoomLoading] = useState(false);
   const [dealRoomUrl, setDealRoomUrl] = useState<string | null>(null);
@@ -450,6 +459,43 @@ function AgentWorkspace({
         }),
       });
     } catch {} // fire-and-forget
+  };
+
+  // ── Create Deal Portal ──────────────────────────────────────────
+  const createDealPortal = async () => {
+    if (!dealPortalTitle.trim() || !selectedId) return;
+    setDealPortalCreating(true);
+    try {
+      const res = await fetch('/api/broker/deal-portals/advisor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_profile_id: selectedId,
+          title: dealPortalTitle.trim(),
+          advisor_notes: dealPortalNotes.trim() || undefined,
+          building_ids: dealPortalSelectedBuildings.length > 0 ? dealPortalSelectedBuildings : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create portal');
+      setDealPortalResult({ share_url: data.portal.share_url, access_token: data.portal.access_token });
+    } catch (err) {
+      console.error('Deal portal creation error:', err);
+      alert(err instanceof Error ? err.message : 'Failed to create Deal Portal');
+    } finally {
+      setDealPortalCreating(false);
+    }
+  };
+
+  const openDealPortalModal = () => {
+    const p = agentView?.profile;
+    setDealPortalTitle(p ? `HARTFELT Investment Dashboard — ${p.full_name}` : 'HARTFELT Deal Portal');
+    setDealPortalNotes('');
+    setDealPortalSelectedBuildings(
+      strRecs?.recommendations?.slice(0, 5).map(r => r.id) || []
+    );
+    setDealPortalResult(null);
+    setShowDealPortalModal(true);
   };
 
   const toggleListingCard = (rec: STRRecommendation) => {
@@ -1415,6 +1461,24 @@ function AgentWorkspace({
               </div>
             )}
 
+            {/* ── Create Deal Portal ──────────────────────────── */}
+            <div className="bg-[#1a1a1a] border border-blue-900/40 rounded-2xl p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-blue-400" />
+                  <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">HARTFELT Deal Portal</h2>
+                </div>
+                <button
+                  onClick={openDealPortalModal}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
+                >
+                  <Briefcase className="w-4 h-4" />
+                  Create Deal Portal
+                </button>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-2">Create a branded HARTFELT investment dashboard to share with this client. Includes Airbnb Friendly building recommendations, IDX listing links, and advisor notes.</p>
+            </div>
+
             {/* ── STR Intelligence — Advisor Recommendations ──────────────────────────── */}
             {p.str_interest && (
               <div className="bg-[#1a1a1a] border border-purple-900/40 rounded-2xl p-5">
@@ -1798,6 +1862,143 @@ function AgentWorkspace({
           <span className={`text-sm ${actionToast.type === 'error' ? 'text-red-200' : 'text-emerald-200'}`}>
             {actionToast.message}
           </span>
+        </div>
+      )}
+
+      {/* ── Deal Portal Creation Modal ─────────────────────────────── */}
+      {showDealPortalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#1a1a1a] border border-zinc-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-[#1a1a1a] px-5 py-4 rounded-t-2xl">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-blue-400" />
+                {dealPortalResult ? 'Portal Created' : 'Create HARTFELT Deal Portal'}
+              </h2>
+              <button onClick={() => setShowDealPortalModal(false)} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {dealPortalResult ? (
+              <div className="px-5 py-6 space-y-4">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">Deal Portal Ready</h3>
+                  <p className="text-sm text-zinc-400 mt-1">Share this link with your client</p>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3">
+                  <p className="text-xs text-zinc-500 mb-1">Share Link</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm text-blue-400 break-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin.replace('agents.', 'vault.')}${dealPortalResult.share_url}` : dealPortalResult.share_url}
+                    </code>
+                    <button
+                      onClick={() => {
+                        const url = `https://hartfelt-vault.vercel.app${dealPortalResult.share_url}`;
+                        navigator.clipboard.writeText(url);
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" /> Copy
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDealPortalModal(false)}
+                  className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="px-5 py-5 space-y-5">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1">Portal Title</label>
+                  <input
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={dealPortalTitle}
+                    onChange={e => setDealPortalTitle(e.target.value)}
+                    placeholder="HARTFELT Investment Dashboard"
+                  />
+                </div>
+
+                {/* Advisor Notes */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1">Advisor Notes (visible to client)</label>
+                  <textarea
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none min-h-[80px] resize-y"
+                    value={dealPortalNotes}
+                    onChange={e => setDealPortalNotes(e.target.value)}
+                    placeholder="Personal note to your client about these recommendations..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Building Selection */}
+                {strRecs && strRecs.recommendations.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
+                      Airbnb Friendly Buildings ({dealPortalSelectedBuildings.length} selected)
+                    </label>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {strRecs.recommendations.map(rec => (
+                        <label key={rec.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 cursor-pointer transition">
+                          <input
+                            type="checkbox"
+                            checked={dealPortalSelectedBuildings.includes(rec.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setDealPortalSelectedBuildings(prev => [...prev, rec.id]);
+                              } else {
+                                setDealPortalSelectedBuildings(prev => prev.filter(id => id !== rec.id));
+                              }
+                            }}
+                            className="rounded border-zinc-600 text-blue-500 focus:ring-blue-500 bg-zinc-800"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-white">{rec.name}</span>
+                            <span className="text-xs text-zinc-500 ml-2">{rec.neighborhood || rec.city}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-zinc-500 uppercase">{rec.category}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Compliance Notice */}
+                <div className="bg-amber-900/10 border border-amber-800/30 rounded-lg px-3 py-2">
+                  <p className="text-[10px] text-amber-500/80 leading-relaxed">
+                    <strong>Compliance:</strong> All portals include HARTFELT branding and the standard rental verification disclaimer. Broker notes are never shared with clients.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDealPortalModal(false)}
+                    className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={createDealPortal}
+                    disabled={dealPortalCreating || !dealPortalTitle.trim()}
+                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    {dealPortalCreating ? (
+                      <><Activity className="w-4 h-4 animate-spin" /> Creating...</>
+                    ) : (
+                      <><Briefcase className="w-4 h-4" /> Create Portal</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
