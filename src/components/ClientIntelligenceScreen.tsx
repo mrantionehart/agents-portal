@@ -7,7 +7,8 @@ import {
   ChevronRight, ArrowLeft, CheckCircle2,
   AlertCircle, Building2, Tag, Zap, MessageSquare,
   Target, Shield, TrendingUp, Copy, ChevronDown,
-  ChevronUp, Send, ExternalLink, Activity,
+  ChevronUp, Send, ExternalLink, Activity, Bell,
+  Sparkles, X,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -1168,6 +1169,95 @@ export default function ClientIntelligenceScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // ── STR Match Feed state ──
+  interface MatchAlert {
+    id: string;
+    profile_id: string;
+    building_id: string;
+    agent_id: string;
+    match_score: number;
+    match_reasons: string[];
+    matched_listings_count: number;
+    price_low: number | null;
+    price_high: number | null;
+    beds_available: number[];
+    is_read: boolean;
+    created_at: string;
+    building_name: string;
+    client_name: string;
+  }
+  const [matchAlerts, setMatchAlerts] = useState<MatchAlert[]>([]);
+  const [matchUnreadCount, setMatchUnreadCount] = useState(0);
+  const [matchBannerDismissed, setMatchBannerDismissed] = useState(false);
+
+  const fetchMatches = useCallback(async () => {
+    try {
+      const res = await fetch('/api/broker/str-matches?unread=true&limit=20');
+      if (res.ok) {
+        const json = await res.json();
+        setMatchAlerts(json.matches || []);
+        setMatchUnreadCount(json.unread_count || 0);
+      }
+    } catch (err) {
+      console.error('[Match Feed] Fetch error:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchMatches(); }, [fetchMatches]);
+
+  const handleMatchClick = async (match: MatchAlert) => {
+    // Track alert_opened
+    try {
+      fetch('/api/broker/str-analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'alert_opened',
+          building_id: match.building_id,
+          profile_id: match.profile_id,
+          metadata: { match_id: match.id, match_score: match.match_score },
+        }),
+      });
+    } catch (_) {}
+
+    // Mark as read
+    try {
+      await fetch('/api/broker/str-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_ids: [match.id] }),
+      });
+      setMatchAlerts(prev => prev.filter(m => m.id !== match.id));
+      setMatchUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (_) {}
+
+    // Navigate to client
+    setSelectedProfileId(match.profile_id);
+  };
+
+  const dismissAllMatches = async () => {
+    const ids = matchAlerts.map(m => m.id);
+    if (ids.length === 0) return;
+    try {
+      await fetch('/api/broker/str-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_ids: ids }),
+      });
+      setMatchAlerts([]);
+      setMatchUnreadCount(0);
+      setMatchBannerDismissed(true);
+    } catch (_) {}
+  };
+
+  const formatMatchPrice = (low: number | null, high: number | null) => {
+    const fmt = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${(n / 1_000).toFixed(0)}K`;
+    if (low && high && low !== high) return `${fmt(low)} – ${fmt(high)}`;
+    if (low) return fmt(low);
+    if (high) return fmt(high);
+    return '';
+  };
+
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
@@ -1228,8 +1318,71 @@ export default function ClientIntelligenceScreen() {
         <div className="flex items-center gap-3">
           <Brain className="w-7 h-7 text-[#c9a54e]" />
           <h1 className="text-2xl font-bold">Client Intelligence</h1>
+          {matchUnreadCount > 0 && (
+            <span className="relative flex items-center justify-center w-6 h-6 bg-[#c9a54e] text-black text-[11px] font-bold rounded-full animate-pulse">
+              {matchUnreadCount}
+            </span>
+          )}
         </div>
       </div>
+
+      {/* STR Match Feed Alerts */}
+      {matchAlerts.length > 0 && !matchBannerDismissed && (
+        <div className="mb-6 rounded-xl border border-[#c9a54e]/30 bg-[#c9a54e]/[0.05] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#c9a54e]/20">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#c9a54e]" />
+              <span className="text-sm font-semibold text-[#c9a54e]">
+                {matchUnreadCount} New Inventor{matchUnreadCount === 1 ? 'y' : 'y'} Match{matchUnreadCount === 1 ? '' : 'es'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={dismissAllMatches}
+                className="text-[11px] text-zinc-400 hover:text-white transition px-2 py-1 rounded"
+              >
+                Mark all read
+              </button>
+              <button onClick={() => setMatchBannerDismissed(true)} className="text-zinc-500 hover:text-white transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="divide-y divide-zinc-800/50 max-h-[280px] overflow-y-auto">
+            {matchAlerts.slice(0, 8).map(match => (
+              <button
+                key={match.id}
+                onClick={() => handleMatchClick(match)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#c9a54e]/[0.08] transition text-left"
+              >
+                <div className="shrink-0 w-8 h-8 rounded-lg bg-[#c9a54e]/20 flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-[#c9a54e]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">
+                    <span className="font-semibold">{match.matched_listings_count}</span>
+                    {' '}new {match.building_name} unit{match.matched_listings_count === 1 ? '' : 's'} match{match.matched_listings_count === 1 ? 'es' : ''}
+                    {' '}<span className="text-[#c9a54e] font-semibold">{match.client_name}</span>
+                  </p>
+                  <div className="flex items-center gap-3 mt-0.5 text-[11px] text-zinc-500">
+                    {match.price_low && <span>{formatMatchPrice(match.price_low, match.price_high)}</span>}
+                    {match.beds_available?.length > 0 && (
+                      <span>{match.beds_available.join(', ')} bed{match.beds_available.length > 1 ? 's' : ''}</span>
+                    )}
+                    <span>Score: {match.match_score}</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" />
+              </button>
+            ))}
+          </div>
+          {matchAlerts.length > 8 && (
+            <div className="px-4 py-2 border-t border-zinc-800/50 text-center">
+              <span className="text-[11px] text-zinc-500">+{matchAlerts.length - 8} more matches</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[#1a1a1a] rounded-lg p-1 mb-6 w-fit">
