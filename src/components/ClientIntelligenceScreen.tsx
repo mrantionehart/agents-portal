@@ -8,7 +8,7 @@ import {
   AlertCircle, Building2, Tag, Zap, MessageSquare,
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity, Bell,
-  Sparkles, X,
+  Sparkles, X, Share2, Link,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -233,6 +233,36 @@ function AgentWorkspace({
   const [expandedListing, setExpandedListing] = useState<string | null>(null);
   const [copiedBuildingName, setCopiedBuildingName] = useState<string | null>(null);
   const [strFilter, setStrFilter] = useState<string>('all');
+
+  // ── Deal Room share state ──
+  const [dealRoomLoading, setDealRoomLoading] = useState(false);
+  const [dealRoomUrl, setDealRoomUrl] = useState<string | null>(null);
+
+  const handleShareDealRoom = async (pid: string) => {
+    setDealRoomLoading(true);
+    setDealRoomUrl(null);
+    try {
+      const res = await fetch('/api/broker/investor-rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id: pid }),
+      });
+      const json = await res.json();
+      if (json.room?.token || json.url) {
+        const url = `https://hartfelt-vault.vercel.app${json.url || `/investor-room/${json.room.token}`}`;
+        setDealRoomUrl(url);
+        await navigator.clipboard.writeText(url);
+        showToast('Deal room link copied to clipboard!');
+      } else {
+        showToast('Failed to create deal room');
+      }
+    } catch (err) {
+      console.error('[Deal Room] Share error:', err);
+      showToast('Error creating deal room');
+    } finally {
+      setDealRoomLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -657,6 +687,48 @@ function AgentWorkspace({
               onActionSent={reloadData}
               highlightedAction={highlightedAction}
             />
+
+            {/* ── Share Deal Room ──────────────────────────────── */}
+            {(p.profile_type === 'investor' || p.profile_type === 'buyer') && (
+              <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Share2 className="w-5 h-5 text-[#c9a54e]" />
+                  <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Investor Deal Room</h2>
+                </div>
+                <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+                  Share a personalized deal room with {p.full_name.split(' ')[0]} — curated STR recommendations, available units, and your advisor notes.
+                </p>
+                {dealRoomUrl ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2.5 bg-emerald-900/20 border border-emerald-800/40 rounded-lg">
+                      <Link className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span className="text-xs text-emerald-300 truncate flex-1">{dealRoomUrl}</span>
+                    </div>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(dealRoomUrl); showToast('Link copied!'); }}
+                      className="w-full py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition"
+                    >
+                      Copy Link Again
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleShareDealRoom(p.id)}
+                    disabled={dealRoomLoading}
+                    className="w-full py-2.5 bg-[#c9a54e] hover:bg-[#b8943e] text-black font-semibold text-sm rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {dealRoomLoading ? (
+                      <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full" />
+                    ) : (
+                      <>
+                        <Share2 className="w-4 h-4" />
+                        Create & Share Deal Room
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* ── Win Probability Meter ──────────────────────────────── */}
             <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
