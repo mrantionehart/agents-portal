@@ -231,6 +231,7 @@ function AgentWorkspace({
   const [copiedExplanation, setCopiedExplanation] = useState<string | null>(null);
   const [expandedListing, setExpandedListing] = useState<string | null>(null);
   const [copiedBuildingName, setCopiedBuildingName] = useState<string | null>(null);
+  const [strFilter, setStrFilter] = useState<string>('all');
 
   useEffect(() => {
     async function load() {
@@ -786,72 +787,103 @@ function AgentWorkspace({
               </div>
             )}
 
-            {/* ── Recommended STR Buildings ──────────────────────────── */}
+            {/* ── STR Intelligence — Advisor Recommendations ──────────────────────────── */}
             {p.str_interest && (
               <div className="bg-[#1a1a1a] border border-purple-900/40 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-purple-400" />
-                    <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Recommended STR Buildings</h2>
+                    <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">STR Intelligence</h2>
                   </div>
                   {strRecs && strRecs.recommendations.length > 0 && (
                     <button
                       onClick={() => setStrRecsExpanded(!strRecsExpanded)}
                       className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 transition"
                     >
-                      {strRecsExpanded ? 'Show Top 5' : `Show All ${strRecs.recommendations.length}`}
+                      {strRecsExpanded ? 'Top 5' : `All ${strRecs.recommendations.length}`}
                       {strRecsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
                   )}
                 </div>
+                <p className="text-[11px] text-zinc-500 mb-4">Buildings matched to your client&apos;s investment profile. Advisor tools below each recommendation.</p>
+
+                {/* Fast Filters */}
+                {strRecs && strRecs.recommendations.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {['all', 'daily', 'no_restrictions', 'monthly_seasonal', 'hotel_program'].map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setStrFilter && setStrFilter(f)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition ${
+                          (strFilter || 'all') === f
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            : 'bg-zinc-800/60 text-zinc-500 hover:text-zinc-300'
+                        }`}
+                      >
+                        {f === 'all' ? 'All' : f === 'no_restrictions' ? 'No Restrictions' : f === 'monthly_seasonal' ? 'Monthly' : f === 'hotel_program' ? 'Hotel Program' : f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {strRecsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full" />
-                    <span className="text-zinc-400 text-sm ml-3">Matching buildings...</span>
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="animate-spin w-7 h-7 border-2 border-purple-400 border-t-transparent rounded-full mb-3" />
+                    <span className="text-zinc-400 text-sm">Analyzing {p.full_name?.split(' ')[0] || 'client'}&apos;s investment profile...</span>
+                    <span className="text-zinc-600 text-[10px] mt-1">Scoring {strRecs?.total_buildings_analyzed || '70+'} buildings</span>
                   </div>
                 ) : !strRecs || strRecs.recommendations.length === 0 ? (
-                  <p className="text-zinc-500 text-sm text-center py-4">No matching STR-friendly buildings found for this profile.</p>
+                  <div className="text-center py-8">
+                    <Building2 className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+                    <p className="text-zinc-400 text-sm font-medium mb-1">No Matching Buildings Found</p>
+                    <p className="text-zinc-600 text-xs max-w-xs mx-auto">Update this client&apos;s STR preferences (areas, rental frequency, budget) to generate personalized recommendations.</p>
+                  </div>
                 ) : (
                   <>
                     <div className="space-y-3">
-                      {(strRecsExpanded ? strRecs.recommendations : strRecs.recommendations.slice(0, 5)).map((rec, idx) => (
-                        <div key={rec.id} className="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-4">
+                      {(strRecsExpanded ? strRecs.recommendations : strRecs.recommendations.slice(0, 5))
+                        .filter(rec => !strFilter || strFilter === 'all' || rec.category === strFilter)
+                        .map((rec, idx) => (
+                        <div key={rec.id} className="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition">
+                          {/* Header row: Building + Score + Risk */}
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-white font-medium text-sm">{idx + 1}. {rec.name}</span>
+                                <Building2 className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+                                <span className="text-white font-semibold text-sm">{rec.name}</span>
                                 {rec.is_featured && (
-                                  <span className="px-1.5 py-0.5 bg-[#c9a54e]/15 text-[#c9a54e] rounded text-[9px] font-bold uppercase">Featured</span>
+                                  <span className="px-1.5 py-0.5 bg-[#c9a54e]/15 text-[#c9a54e] rounded text-[9px] font-bold">FEATURED</span>
                                 )}
                               </div>
-                              <p className="text-zinc-500 text-xs mt-0.5 truncate">{rec.address}</p>
+                              <p className="text-zinc-500 text-xs mt-0.5 truncate pl-5">{rec.neighborhood || rec.city} · {rec.address}</p>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <div className="text-center">
-                                <div className={`text-lg font-bold ${rec.match_score >= 60 ? 'text-emerald-400' : rec.match_score >= 40 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                              <div className="text-center px-2 py-1 bg-zinc-900 rounded-lg">
+                                <div className={`text-base font-bold leading-none ${rec.match_score >= 60 ? 'text-emerald-400' : rec.match_score >= 40 ? 'text-amber-400' : 'text-zinc-400'}`}>
                                   {rec.match_score}
                                 </div>
-                                <div className="text-[9px] text-zinc-500 uppercase">Match</div>
+                                <div className="text-[8px] text-zinc-600 uppercase mt-0.5">Match</div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                              <div className="text-center px-2 py-1 bg-zinc-900 rounded-lg">
+                                <div className="text-base font-bold leading-none text-purple-400">{rec.investor_score}</div>
+                                <div className="text-[8px] text-zinc-600 uppercase mt-0.5">Investor</div>
+                              </div>
+                              <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
                                 rec.risk_level === 'low' ? 'bg-emerald-900/30 text-emerald-400' :
                                 rec.risk_level === 'high' ? 'bg-red-900/30 text-red-400' :
                                 'bg-amber-900/30 text-amber-400'
                               }`}>
-                                {rec.risk_level} risk
+                                {rec.risk_level}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">
-                              {rec.category.replace(/_/g, ' ')}
+                          {/* Tags row: category + area + HOA */}
+                          <div className="flex flex-wrap gap-1.5 mb-2 pl-5">
+                            <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-[10px] font-medium">
+                              {rec.category === 'no_restrictions' ? 'No Restrictions' : rec.category === 'monthly_seasonal' ? 'Monthly / Seasonal' : rec.category === 'hotel_program' ? 'Hotel Program' : rec.category.charAt(0).toUpperCase() + rec.category.slice(1)}
                             </span>
-                            <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-[10px]">
-                              {rec.neighborhood || rec.city}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                               rec.hoa_verification === 'verified' ? 'bg-emerald-900/20 text-emerald-400' :
                               rec.hoa_verification === 'disputed' ? 'bg-red-900/20 text-red-400' :
                               'bg-zinc-800 text-zinc-500'
@@ -860,12 +892,12 @@ function AgentWorkspace({
                             </span>
                           </div>
 
-                          <p className="text-zinc-400 text-xs leading-relaxed mb-2">
-                            {rec.rental_restriction}
-                          </p>
+                          {/* Rental restriction */}
+                          <p className="text-zinc-400 text-xs leading-relaxed mb-2 pl-5">{rec.rental_restriction}</p>
 
+                          {/* Reason matched */}
                           {rec.reason_matched.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
+                            <div className="flex flex-wrap gap-1 mb-2 pl-5">
                               {rec.reason_matched.map((r, i) => (
                                 <span key={i} className="text-[10px] text-emerald-400/80 bg-emerald-900/15 px-1.5 py-0.5 rounded">
                                   {r}
@@ -875,20 +907,14 @@ function AgentWorkspace({
                           )}
 
                           {rec.investor_notes && (
-                            <p className="text-zinc-500 text-[11px] italic mb-2">{rec.investor_notes}</p>
+                            <p className="text-zinc-500 text-[11px] italic mb-2 pl-5">{rec.investor_notes}</p>
                           )}
 
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <button
-                              onClick={() => copyClientExplanation(rec)}
-                              className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] text-zinc-300 transition"
-                            >
-                              <Copy className="w-3 h-3" />
-                              {copiedExplanation === rec.id ? 'Copied!' : 'Copy Client Explanation'}
-                            </button>
+                          {/* Advisor Actions */}
+                          <div className="flex items-center gap-2 mt-3 flex-wrap pl-5">
                             <button
                               onClick={() => toggleListingCard(rec)}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] transition ${
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition ${
                                 expandedListing === rec.id
                                   ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
                                   : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
@@ -902,12 +928,28 @@ function AgentWorkspace({
                                 trackSTREvent('listing_request', rec.id, rec.name);
                                 copyBuildingForMLS(rec);
                               }}
-                              className="flex items-center gap-1 px-2.5 py-1 bg-amber-900/20 hover:bg-amber-900/30 border border-amber-700/30 rounded text-[11px] text-amber-400 transition"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-900/20 hover:bg-amber-900/30 border border-amber-700/30 rounded-lg text-[11px] font-medium text-amber-400 transition"
                             >
                               <ExternalLink className="w-3 h-3" />
-                              Request Current Units
+                              Request Units
                             </button>
-                            <span className="text-[10px] text-zinc-600">Investor Score: {rec.investor_score}/100</span>
+                            <button
+                              onClick={() => copyClientExplanation(rec)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-[11px] font-medium text-zinc-300 transition"
+                            >
+                              <Copy className="w-3 h-3" />
+                              {copiedExplanation === rec.id ? 'Copied!' : 'Copy Explanation'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                trackSTREvent('conversion', rec.id, rec.name);
+                                window.open(`mailto:info@hartfeltrealestate.com?subject=STR Inquiry: ${encodeURIComponent(rec.name)}&body=${encodeURIComponent(`Advisor inquiry about ${rec.name} for client ${p.full_name || ''}.\n\nBuilding: ${rec.name}\nArea: ${rec.neighborhood || rec.city}\nCategory: ${rec.category}\nMatch Score: ${rec.match_score}/100`)}`, '_blank');
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#c9a54e]/10 hover:bg-[#c9a54e]/20 border border-[#c9a54e]/20 rounded-lg text-[11px] font-medium text-[#c9a54e] transition"
+                            >
+                              <MessageSquare className="w-3 h-3" />
+                              Ask HARTFELT
+                            </button>
                           </div>
 
                           {/* ── Listing Match Inline Card ── */}
