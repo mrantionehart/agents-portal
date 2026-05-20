@@ -878,7 +878,7 @@ function AgentWorkspace({
                             <p className="text-zinc-500 text-[11px] italic mb-2">{rec.investor_notes}</p>
                           )}
 
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <button
                               onClick={() => copyClientExplanation(rec)}
                               className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] text-zinc-300 transition"
@@ -896,6 +896,16 @@ function AgentWorkspace({
                             >
                               <Building2 className="w-3 h-3" />
                               {expandedListing === rec.id ? 'Hide Listings' : 'View Listings'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                trackSTREvent('listing_request', rec.id, rec.name);
+                                copyBuildingForMLS(rec);
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-amber-900/20 hover:bg-amber-900/30 border border-amber-700/30 rounded text-[11px] text-amber-400 transition"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Request Current Units
                             </button>
                             <span className="text-[10px] text-zinc-600">Investor Score: {rec.investor_score}/100</span>
                           </div>
