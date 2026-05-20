@@ -139,10 +139,10 @@ export const STRDirectoryScreen: React.FC = () => {
         }}
       >
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a2e', margin: 0 }}>
-          🏢 STR Intelligence
+          🏢 Airbnb Friendly Intelligence
         </h1>
         <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-          Airbnb &amp; short-term rental friendly condos — {total} buildings in South Florida
+          Airbnb-friendly condos — {total} buildings in South Florida
         </p>
       </div>
 

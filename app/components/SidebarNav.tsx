@@ -71,7 +71,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Ask MLS', href: '/mls-ask', icon: Search },
     { label: 'Vendor Marketplace', href: '/vendors', icon: Store },
     { label: 'Development Radar', href: '/development-radar', icon: Radar },
-    { label: 'STR Intelligence', href: '/str-directory', icon: Building2 },
+    { label: 'Airbnb Friendly Intelligence', href: '/str-directory', icon: Building2 },
     { label: 'Referrals', href: '/recruiting', icon: Users },
   ]
 

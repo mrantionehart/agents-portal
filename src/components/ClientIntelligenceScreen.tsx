@@ -826,7 +826,7 @@ function AgentWorkspace({
                   <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Investor Deal Room</h2>
                 </div>
                 <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
-                  Share a personalized deal room with {p.full_name.split(' ')[0]} — curated STR recommendations, available units, and your advisor notes.
+                  Share a personalized deal room with {p.full_name.split(' ')[0]} — curated Airbnb-friendly matches, available units, and your advisor notes.
                 </p>
                 {dealRoomUrl ? (
                   <div className="space-y-2">
@@ -933,7 +933,7 @@ function AgentWorkspace({
                       <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Estimated Monthly Cash Flow</div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex justify-between text-zinc-400">
-                          <span>STR Income</span>
+                          <span>Airbnb Income</span>
                           <span className="text-emerald-400 font-semibold">${(offerData.monthly_breakdown?.gross_rental || offerData.estimated_rental_income || 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-zinc-400">
@@ -1367,12 +1367,12 @@ function AgentWorkspace({
               </div>
             )}
 
-            {/* ── STR / Airbnb Intent ───────────────────────────────── */}
+            {/* ── Airbnb Goals ───────────────────────────────── */}
             {p.str_interest && (
               <div className="bg-[#1a1a1a] border border-purple-900/40 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 className="w-5 h-5 text-purple-400" />
-                  <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">STR / Airbnb Intent</h2>
+                  <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Airbnb Goals</h2>
                 </div>
                 <div className="space-y-2 text-sm">
                   {p.investment_goal && (
@@ -1382,7 +1382,7 @@ function AgentWorkspace({
                     <p className="text-zinc-300"><span className="text-zinc-500">Frequency:</span> {p.rental_frequency_needed.replace(/_/g, ' ')}</p>
                   )}
                   {p.str_budget && (
-                    <p className="text-zinc-300"><span className="text-zinc-500">STR Budget:</span> ${Number(p.str_budget).toLocaleString()}</p>
+                    <p className="text-zinc-300"><span className="text-zinc-500">Airbnb Budget:</span> ${Number(p.str_budget).toLocaleString()}</p>
                   )}
                   {p.str_beds && (
                     <p className="text-zinc-300"><span className="text-zinc-500">Beds:</span> {p.str_beds}</p>
@@ -1403,7 +1403,7 @@ function AgentWorkspace({
                   </div>
                   {p.preferred_str_areas.length > 0 && (
                     <div className="mt-2">
-                      <span className="text-zinc-500 text-xs">Preferred STR Areas:</span>
+                      <span className="text-zinc-500 text-xs">Preferred Airbnb Areas:</span>
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {p.preferred_str_areas.map((area) => (
                           <span key={area} className="px-2.5 py-0.5 bg-purple-500/15 text-purple-400 rounded-full text-xs">{area}</span>
@@ -1421,7 +1421,7 @@ function AgentWorkspace({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-purple-400" />
-                    <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">STR Intelligence</h2>
+                    <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Airbnb Friendly Intelligence</h2>
                   </div>
                   {strRecs && strRecs.recommendations.length > 0 && (
                     <button
@@ -1433,7 +1433,7 @@ function AgentWorkspace({
                     </button>
                   )}
                 </div>
-                <p className="text-[11px] text-zinc-500 mb-4">Buildings matched to your client&apos;s investment profile. Advisor tools below each recommendation.</p>
+                <p className="text-[11px] text-zinc-500 mb-4">Buildings matched to your client&apos;s investment profile. Advisor tools below each match.</p>
 
                 {/* Fast Filters */}
                 {strRecs && strRecs.recommendations.length > 0 && (
@@ -1464,7 +1464,7 @@ function AgentWorkspace({
                   <div className="text-center py-8">
                     <Building2 className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
                     <p className="text-zinc-400 text-sm font-medium mb-1">No Matching Buildings Found</p>
-                    <p className="text-zinc-600 text-xs max-w-xs mx-auto">Update this client&apos;s STR preferences (areas, rental frequency, budget) to generate personalized recommendations.</p>
+                    <p className="text-zinc-600 text-xs max-w-xs mx-auto">Update this client&apos;s Airbnb preferences (areas, rental frequency, budget) to generate personalized recommendations.</p>
                   </div>
                 ) : (
                   <>
@@ -1640,7 +1640,7 @@ function AgentWorkspace({
                             <button
                               onClick={() => {
                                 trackSTREvent('conversion', rec.id, rec.name);
-                                window.open(`mailto:info@hartfeltrealestate.com?subject=STR Inquiry: ${encodeURIComponent(rec.name)}&body=${encodeURIComponent(`Advisor inquiry about ${rec.name} for client ${p.full_name || ''}.\n\nBuilding: ${rec.name}\nArea: ${rec.neighborhood || rec.city}\nCategory: ${rec.category}\nMatch Score: ${rec.match_score}/100`)}`, '_blank');
+                                window.open(`mailto:info@hartfeltrealestate.com?subject=Airbnb Friendly Inquiry: ${encodeURIComponent(rec.name)}&body=${encodeURIComponent(`Advisor inquiry about ${rec.name} for client ${p.full_name || ''}.\n\nBuilding: ${rec.name}\nArea: ${rec.neighborhood || rec.city}\nCategory: ${rec.category}\nMatch Score: ${rec.match_score}/100`)}`, '_blank');
                               }}
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#c9a54e]/10 hover:bg-[#c9a54e]/20 border border-[#c9a54e]/20 rounded-lg text-[11px] font-medium text-[#c9a54e] transition"
                             >
