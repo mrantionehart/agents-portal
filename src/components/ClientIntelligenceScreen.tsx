@@ -241,7 +241,21 @@ function AgentWorkspace({
   const [dealPortalNotes, setDealPortalNotes] = useState('');
   const [dealPortalSelectedBuildings, setDealPortalSelectedBuildings] = useState<string[]>([]);
   const [dealPortalCreating, setDealPortalCreating] = useState(false);
-  const [dealPortalResult, setDealPortalResult] = useState<{ share_url: string; access_token: string } | null>(null);
+  const [dealPortalResult, setDealPortalResult] = useState<{ share_url: string; access_token: string; portal_id?: string } | null>(null);
+
+  // ── Client Portal Activity state ──
+  interface ClientPortalEntry {
+    id: string;
+    title: string;
+    status: string;
+    access_token: string;
+    view_count: number;
+    last_viewed_at: string | null;
+    created_at: string;
+    client_name: string | null;
+  }
+  const [clientPortals, setClientPortals] = useState<ClientPortalEntry[]>([]);
+  const [clientPortalsLoading, setClientPortalsLoading] = useState(false);
 
   // ── Deal Room share state ──
   const [dealRoomLoading, setDealRoomLoading] = useState(false);
@@ -425,6 +439,20 @@ function AgentWorkspace({
           secondaryFetches.push(loadTransaction(profileId));
         }
 
+        // Fetch client portals
+        secondaryFetches.push((async () => {
+          try {
+            setClientPortalsLoading(true);
+            const res = await fetch(`/api/broker/deal-portals/advisor?client_profile_id=${profileId}`);
+            if (!cancelled && res.ok) {
+              const json = await res.json();
+              setClientPortals(json.portals || []);
+            }
+          } catch {} finally {
+            if (!cancelled) setClientPortalsLoading(false);
+          }
+        })());
+
         if (secondaryFetches.length > 0) {
           await Promise.all(secondaryFetches);
         }
@@ -463,33 +491,41 @@ function AgentWorkspace({
 
   // ── Create Deal Portal ──────────────────────────────────────────
   const createDealPortal = async () => {
-    if (!dealPortalTitle.trim() || !selectedId) return;
+    if (!dealPortalTitle.trim() || !profileId) return;
     setDealPortalCreating(true);
     try {
       const res = await fetch('/api/broker/deal-portals/advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_profile_id: selectedId,
+          client_profile_id: profileId,
           title: dealPortalTitle.trim(),
           advisor_notes: dealPortalNotes.trim() || undefined,
           building_ids: dealPortalSelectedBuildings.length > 0 ? dealPortalSelectedBuildings : undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create portal');
-      setDealPortalResult({ share_url: data.portal.share_url, access_token: data.portal.access_token });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to create portal');
+      setDealPortalResult({ share_url: result.portal.share_url, access_token: result.portal.access_token, portal_id: result.portal.id });
+      // Refresh portal list for activity card
+      try {
+        const refreshRes = await fetch(`/api/broker/deal-portals/advisor?client_profile_id=${profileId}`);
+        if (refreshRes.ok) {
+          const rj = await refreshRes.json();
+          setClientPortals(rj.portals || []);
+        }
+      } catch {}
     } catch (err) {
       console.error('Deal portal creation error:', err);
-      alert(err instanceof Error ? err.message : 'Failed to create Deal Portal');
+      alert(err instanceof Error ? err.message : 'Failed to create Client Portal');
     } finally {
       setDealPortalCreating(false);
     }
   };
 
   const openDealPortalModal = () => {
-    const p = agentView?.profile;
-    setDealPortalTitle(p ? `HARTFELT Investment Dashboard — ${p.full_name}` : 'HARTFELT Deal Portal');
+    const p = data?.profile;
+    setDealPortalTitle(p ? `HARTFELT Investment Dashboard — ${p.full_name}` : 'HARTFELT Investment Dashboard');
     setDealPortalNotes('');
     setDealPortalSelectedBuildings(
       strRecs?.recommendations?.slice(0, 5).map(r => r.id) || []
@@ -1461,23 +1497,80 @@ function AgentWorkspace({
               </div>
             )}
 
-            {/* ── Create Deal Portal ──────────────────────────── */}
-            <div className="bg-[#1a1a1a] border border-blue-900/40 rounded-2xl p-5">
+            {/* ── Create Client Portal ──────────────────────────── */}
+            <div className="bg-[#1a1a1a] border border-[#c9a54e]/30 rounded-2xl p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-blue-400" />
-                  <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">HARTFELT Deal Portal</h2>
+                  <Briefcase className="w-5 h-5 text-[#c9a54e]" />
+                  <h2 className="text-sm font-semibold text-[#c9a54e] uppercase tracking-wider">Client Portal</h2>
                 </div>
                 <button
                   onClick={openDealPortalModal}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
+                  className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#c9a54e] text-[#c9a54e] text-sm font-medium rounded-lg transition flex items-center gap-2"
                 >
                   <Briefcase className="w-4 h-4" />
-                  Create Deal Portal
+                  Create Client Portal
                 </button>
               </div>
-              <p className="text-[11px] text-zinc-500 mt-2">Create a branded HARTFELT investment dashboard to share with this client. Includes Airbnb Friendly building recommendations, IDX listing links, and advisor notes.</p>
+              <p className="text-[11px] text-zinc-500 mt-2">Create a branded HARTFELT Investment Dashboard to share with this client. Includes Airbnb Friendly building recommendations, IDX listing links, and advisor notes.</p>
             </div>
+
+            {/* ── Client Portal Activity ──────────────────────────── */}
+            {clientPortals.length > 0 && (
+              <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="w-5 h-5 text-[#c9a54e]" />
+                  <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Client Portal Activity</h2>
+                </div>
+                <div className="space-y-3">
+                  {clientPortals.map((portal) => (
+                    <div key={portal.id} className="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white truncate">{portal.title}</p>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-[10px] text-zinc-500">Created {formatRelativeDate(portal.created_at)}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                              portal.status === 'active' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
+                            }`}>{portal.status}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-white">{portal.view_count || 0}</div>
+                            <div className="text-[8px] text-zinc-500 uppercase">Views</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        {portal.last_viewed_at && (
+                          <span className="text-[10px] text-emerald-400/70">Last opened {formatRelativeDate(portal.last_viewed_at)}</span>
+                        )}
+                        <div className="flex-1" />
+                        <button
+                          onClick={() => {
+                            const url = `https://hartfelt-vault.vercel.app/portal/${portal.access_token}`;
+                            navigator.clipboard.writeText(url);
+                            showToast('Portal link copied!');
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-medium text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Copy Link
+                        </button>
+                        <a
+                          href={`https://hartfelt-vault.vercel.app/portal/${portal.access_token}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 text-[10px] font-medium text-[#c9a54e] hover:text-white bg-[#c9a54e]/10 hover:bg-[#c9a54e]/20 rounded-lg transition flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Open
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ── STR Intelligence — Advisor Recommendations ──────────────────────────── */}
             {p.str_interest && (
@@ -1823,26 +1916,38 @@ function AgentWorkspace({
                 <p className="text-zinc-500 text-sm text-center py-4">No activity yet</p>
               ) : (
                 <div className="space-y-3">
-                  {activityLog.slice(0, 8).map((entry) => (
-                    <div key={entry.id} className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-[#c9a54e] mt-1.5 flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-zinc-300 capitalize truncate">{entry.action}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-zinc-500">{formatRelativeDate(entry.date)}</span>
-                          <span className={`text-[10px] uppercase font-semibold ${
-                            entry.status === 'sent' ? 'text-blue-400' :
-                            entry.status === 'opened' ? 'text-emerald-400' :
-                            entry.status === 'replied' ? 'text-[#c9a54e]' :
-                            entry.status === 'failed' ? 'text-red-400' :
-                            'text-zinc-500'
-                          }`}>
-                            {entry.status}
-                          </span>
+                  {activityLog.slice(0, 12).map((entry) => {
+                    const isPortalEvent = entry.action.includes('deal portal') || entry.channel === 'portal';
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${isPortalEvent ? 'bg-blue-400' : 'bg-[#c9a54e]'}`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-zinc-300 capitalize truncate">
+                            {isPortalEvent ? entry.action.replace('deal portal', 'client portal') : entry.action}
+                          </p>
+                          {entry.subject && isPortalEvent && (
+                            <p className="text-[11px] text-zinc-500 truncate mt-0.5">{entry.subject}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-zinc-500">{formatRelativeDate(entry.date)}</span>
+                            {isPortalEvent ? (
+                              <span className="text-[10px] uppercase font-semibold text-blue-400">{entry.channel}</span>
+                            ) : (
+                              <span className={`text-[10px] uppercase font-semibold ${
+                                entry.status === 'sent' ? 'text-blue-400' :
+                                entry.status === 'opened' ? 'text-emerald-400' :
+                                entry.status === 'replied' ? 'text-[#c9a54e]' :
+                                entry.status === 'failed' ? 'text-red-400' :
+                                'text-zinc-500'
+                              }`}>
+                                {entry.status}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1871,8 +1976,8 @@ function AgentWorkspace({
           <div className="bg-[#1a1a1a] border border-zinc-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-[#1a1a1a] px-5 py-4 rounded-t-2xl">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-blue-400" />
-                {dealPortalResult ? 'Portal Created' : 'Create HARTFELT Deal Portal'}
+                <Briefcase className="w-5 h-5 text-[#c9a54e]" />
+                {dealPortalResult ? 'Client Portal Created' : 'Create Client Portal'}
               </h2>
               <button onClick={() => setShowDealPortalModal(false)} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition">
                 <X className="w-5 h-5" />
@@ -1885,29 +1990,49 @@ function AgentWorkspace({
                   <div className="w-12 h-12 bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                     <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white">Deal Portal Ready</h3>
-                  <p className="text-sm text-zinc-400 mt-1">Share this link with your client</p>
+                  <h3 className="text-lg font-semibold text-white">Client Portal Ready</h3>
+                  <p className="text-sm text-zinc-400 mt-1">Share this HARTFELT Investment Dashboard with your client</p>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3">
                   <p className="text-xs text-zinc-500 mb-1">Share Link</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 text-sm text-blue-400 break-all">
-                      {typeof window !== 'undefined' ? `${window.location.origin.replace('agents.', 'vault.')}${dealPortalResult.share_url}` : dealPortalResult.share_url}
+                    <code className="flex-1 text-sm text-[#c9a54e] break-all">
+                      {`https://hartfelt-vault.vercel.app${dealPortalResult.share_url}`}
                     </code>
                     <button
                       onClick={() => {
                         const url = `https://hartfelt-vault.vercel.app${dealPortalResult.share_url}`;
                         navigator.clipboard.writeText(url);
+                        showToast('Portal link copied!');
                       }}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition flex items-center gap-1"
+                      className="px-3 py-1.5 bg-[#c9a54e] hover:bg-[#b8943e] text-black text-xs font-medium rounded-lg transition flex items-center gap-1"
                     >
-                      <Copy className="w-3 h-3" /> Copy
+                      <Copy className="w-3 h-3" /> Copy Link
                     </button>
                   </div>
                 </div>
+                <div className="flex gap-3">
+                  <a
+                    href={`https://hartfelt-vault.vercel.app${dealPortalResult.share_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Open Portal
+                  </a>
+                  <button
+                    onClick={() => {
+                      setDealPortalResult(null);
+                      openDealPortalModal();
+                    }}
+                    className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" /> Send Again
+                  </button>
+                </div>
                 <button
                   onClick={() => setShowDealPortalModal(false)}
-                  className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition"
+                  className="w-full py-2 text-zinc-400 hover:text-white text-sm transition"
                 >
                   Done
                 </button>
@@ -1921,7 +2046,7 @@ function AgentWorkspace({
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={dealPortalTitle}
                     onChange={e => setDealPortalTitle(e.target.value)}
-                    placeholder="HARTFELT Investment Dashboard"
+                    placeholder="HARTFELT Investment Dashboard — Client Name"
                   />
                 </div>
 
@@ -1969,6 +2094,35 @@ function AgentWorkspace({
                   </div>
                 )}
 
+                {/* Portal Preview Card */}
+                <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2 font-semibold">Portal Preview</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-400">Client</span>
+                      <span className="text-xs text-white font-medium">{data?.profile?.full_name || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-400">Buildings</span>
+                      <span className="text-xs text-white font-medium">{dealPortalSelectedBuildings.length}</span>
+                    </div>
+                    {dealPortalSelectedBuildings.length > 0 && strRecs && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400">IDX Links</span>
+                        <span className="text-xs text-white font-medium">
+                          {strRecs.recommendations.filter(r => dealPortalSelectedBuildings.includes(r.id) && r.listing_match?.mls_status === 'cached').length}
+                        </span>
+                      </div>
+                    )}
+                    {dealPortalNotes.trim() && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400">Advisor Note</span>
+                        <span className="text-xs text-emerald-400 font-medium">Included</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Compliance Notice */}
                 <div className="bg-amber-900/10 border border-amber-800/30 rounded-lg px-3 py-2">
                   <p className="text-[10px] text-amber-500/80 leading-relaxed">
@@ -1987,12 +2141,12 @@ function AgentWorkspace({
                   <button
                     onClick={createDealPortal}
                     disabled={dealPortalCreating || !dealPortalTitle.trim()}
-                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 bg-[#c9a54e] hover:bg-[#b8943e] disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-bold rounded-lg transition flex items-center justify-center gap-2"
                   >
                     {dealPortalCreating ? (
                       <><Activity className="w-4 h-4 animate-spin" /> Creating...</>
                     ) : (
-                      <><Briefcase className="w-4 h-4" /> Create Portal</>
+                      <><Briefcase className="w-4 h-4" /> Create Client Portal</>
                     )}
                   </button>
                 </div>
