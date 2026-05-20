@@ -122,7 +122,7 @@ interface STRRecommendation {
   reason_matched: string[];
   compliance_note: string;
   listing_match?: {
-    mls_status: 'connected' | 'not_connected' | 'coming_soon';
+    mls_status: 'connected' | 'not_connected' | 'coming_soon' | 'cached';
     active_count: number;
     price_low: number | null;
     price_high: number | null;
@@ -133,6 +133,7 @@ interface STRRecommendation {
     has_new_listing: boolean;
     listings: any[];
     last_synced: string | null;
+    attribution?: string;
   };
 }
 
@@ -906,10 +907,10 @@ function AgentWorkspace({
                                 <div className="text-center py-3">
                                   <div className="flex items-center justify-center gap-2 mb-2">
                                     <Building2 className="w-4 h-4 text-zinc-500" />
-                                    <span className="text-xs text-zinc-400 font-medium">MLS Inventory Integration Coming Soon</span>
+                                    <span className="text-xs text-zinc-400 font-medium">No Listing Data Available</span>
                                   </div>
                                   <p className="text-[10px] text-zinc-600 mb-3 max-w-xs mx-auto">
-                                    Active listings, pricing, and availability for this building will appear here once MLS is connected.
+                                    Search this building manually in your MLS to find active listings.
                                   </p>
                                   <div className="bg-zinc-800/50 rounded-lg p-3 mb-3">
                                     <p className="text-[10px] text-zinc-500 mb-1">Search this building in your MLS:</p>
@@ -944,9 +945,21 @@ function AgentWorkspace({
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-center py-2">
-                                  <p className="text-xs text-emerald-400">MLS Connected — {rec.listing_match.active_count} active listings</p>
-                                  <div className="grid grid-cols-4 gap-2 mt-2 text-center">
+                                <div className="py-2">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs text-emerald-400 font-medium">
+                                      {rec.listing_match.active_count} Active Listing{rec.listing_match.active_count !== 1 ? 's' : ''}
+                                      {rec.listing_match.has_new_listing && (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[9px] rounded-full font-bold">NEW</span>
+                                      )}
+                                    </p>
+                                    {rec.listing_match.last_synced && (
+                                      <span className="text-[9px] text-zinc-600">
+                                        Synced {new Date(rec.listing_match.last_synced).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-2 text-center">
                                     <div className="bg-zinc-800/30 rounded p-2">
                                       <div className="text-[10px] text-zinc-600">Active</div>
                                       <div className="text-sm text-white font-medium">{rec.listing_match.active_count}</div>
@@ -966,6 +979,9 @@ function AgentWorkspace({
                                       <div className="text-sm text-white font-medium">{rec.listing_match.waterfront ? 'Yes' : 'No'}</div>
                                     </div>
                                   </div>
+                                  {rec.listing_match.attribution && (
+                                    <p className="text-[9px] text-zinc-600 mt-2 text-center">{rec.listing_match.attribution}</p>
+                                  )}
                                 </div>
                               )}
                             </div>
