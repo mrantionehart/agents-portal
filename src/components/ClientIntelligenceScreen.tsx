@@ -251,6 +251,9 @@ function AgentWorkspace({
   const [txnAddress, setTxnAddress] = useState('');
   const [txnPrice, setTxnPrice] = useState('');
 
+  // ── Advisor Performance ──
+  const [perfData, setPerfData] = useState<any>(null);
+
   const handleShareDealRoom = async (pid: string) => {
     setDealRoomLoading(true);
     setDealRoomUrl(null);
@@ -397,6 +400,20 @@ function AgentWorkspace({
     }
     loadStrRecs();
   }, [data?.profile?.str_interest, profileId]);
+
+  // Load advisor performance data
+  useEffect(() => {
+    async function loadPerf() {
+      try {
+        const res = await fetch('/api/broker/brokerage-intelligence?scope=agent&period=30');
+        if (res.ok) {
+          const json = await res.json();
+          setPerfData(json);
+        }
+      } catch {}
+    }
+    loadPerf();
+  }, [profileId]);
 
   // Load existing transactions for buyer/investor profiles
   useEffect(() => {
@@ -1280,6 +1297,55 @@ function AgentWorkspace({
                     <span key={i} className="px-2.5 py-1 bg-emerald-900/20 text-emerald-400 border border-emerald-800/30 rounded-md text-xs font-medium">
                       {item}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Advisor Performance Snapshot ──────────────────────── */}
+            {perfData?.agent_rank && (
+              <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-5 h-5 text-[#c9a54e]" />
+                  <h2 className="text-sm font-semibold text-white uppercase tracking-wider">My Performance</h2>
+                </div>
+                {/* Rank badge */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="relative">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 ${
+                      perfData.agent_rank.rank === 1 ? 'border-yellow-400 bg-yellow-400/10' :
+                      perfData.agent_rank.rank <= 3 ? 'border-[#c9a54e] bg-[#c9a54e]/10' :
+                      'border-zinc-700 bg-zinc-800'
+                    }`}>
+                      <span className="text-xl font-bold text-white">#{perfData.agent_rank.rank}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 text-center mt-1">of {perfData.agent_rank.total_agents}</p>
+                  </div>
+                </div>
+                {/* Stats grid */}
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {[
+                    { label: 'Clients', value: perfData.agent_rank.total_clients, color: 'text-white' },
+                    { label: 'Conv Rate', value: `${perfData.agent_rank.conversion_rate}%`, color: perfData.agent_rank.conversion_rate >= 50 ? 'text-emerald-400' : 'text-amber-400' },
+                    { label: 'Closed', value: perfData.agent_rank.closed_transactions, color: 'text-emerald-400' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-[#111] rounded-lg p-2 text-center">
+                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">{s.label}</p>
+                      <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Active Deals', value: perfData.agent_rank.active_transactions },
+                    { label: 'Offers Made', value: perfData.agent_rank.offers_generated },
+                    { label: 'Action Rate', value: `${perfData.agent_rank.action_completion_rate}%` },
+                    { label: 'Score', value: perfData.agent_rank.composite_score },
+                  ].map(s => (
+                    <div key={s.label} className="flex justify-between text-xs text-zinc-400 px-1">
+                      <span>{s.label}</span>
+                      <span className="text-white font-semibold">{s.value}</span>
+                    </div>
                   ))}
                 </div>
               </div>
