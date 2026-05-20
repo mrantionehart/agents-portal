@@ -8,7 +8,7 @@ import {
   AlertCircle, Building2, Tag, Zap, MessageSquare,
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity, Bell,
-  Sparkles, X, Share2, Link, AlertTriangle, Banknote,
+  Sparkles, X, Share2, Link, AlertTriangle, Banknote, FileText, CalendarClock,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -243,6 +243,14 @@ function AgentWorkspace({
   const [offerData, setOfferData] = useState<any>(null);
   const [offerExpanded, setOfferExpanded] = useState(false);
 
+  // ── Transaction Intelligence state ──
+  const [txnLoading, setTxnLoading] = useState(false);
+  const [txnData, setTxnData] = useState<any>(null);
+  const [txnExpanded, setTxnExpanded] = useState(false);
+  const [txnCreateMode, setTxnCreateMode] = useState(false);
+  const [txnAddress, setTxnAddress] = useState('');
+  const [txnPrice, setTxnPrice] = useState('');
+
   const handleShareDealRoom = async (pid: string) => {
     setDealRoomLoading(true);
     setDealRoomUrl(null);
@@ -294,6 +302,67 @@ function AgentWorkspace({
     }
   };
 
+  const loadTransaction = async (pid: string) => {
+    try {
+      const res = await fetch(`/api/broker/transaction-intelligence?profile_id=${pid}`);
+      const json = await res.json();
+      if (json.transactions?.length > 0) {
+        const txnId = json.transactions[0].id;
+        const detail = await fetch(`/api/broker/transaction-intelligence?transaction_id=${txnId}`);
+        const dJson = await detail.json();
+        setTxnData(dJson);
+        setTxnExpanded(true);
+      }
+    } catch (err) {
+      console.error('[Txn Intel] Load error:', err);
+    }
+  };
+
+  const handleCreateTransaction = async (pid: string) => {
+    if (!txnAddress.trim()) { showToast('Property address required'); return; }
+    setTxnLoading(true);
+    try {
+      const res = await fetch('/api/broker/transaction-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id: pid,
+          property_address: txnAddress.trim(),
+          contract_price: txnPrice ? parseFloat(txnPrice) : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.transaction_id) {
+        showToast(`Transaction created with ${json.milestones_created} milestones`);
+        setTxnCreateMode(false);
+        setTxnAddress('');
+        setTxnPrice('');
+        await loadTransaction(pid);
+      } else {
+        showToast('Failed to create transaction');
+      }
+    } catch (err) {
+      console.error('[Txn Intel] Create error:', err);
+      showToast('Error creating transaction');
+    } finally {
+      setTxnLoading(false);
+    }
+  };
+
+  const handleCompleteMilestone = async (milestoneId: string, txnId: string, pid: string) => {
+    try {
+      await fetch('/api/broker/transaction-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete_milestone', milestone_id: milestoneId, transaction_id: txnId, profile_id: pid }),
+      });
+      showToast('Milestone completed');
+      await loadTransaction(pid);
+    } catch (err) {
+      console.error('[Txn Intel] Complete error:', err);
+    }
+  };
+
   useEffect(() => {
     async function load() {
       try {
@@ -328,6 +397,15 @@ function AgentWorkspace({
     }
     loadStrRecs();
   }, [data?.profile?.str_interest, profileId]);
+
+  // Load existing transactions for buyer/investor profiles
+  useEffect(() => {
+    if (!data?.profile) return;
+    const pt = data.profile.profile_type;
+    if (pt === 'buyer' || pt === 'investor') {
+      loadTransaction(profileId);
+    }
+  }, [data?.profile?.profile_type, profileId]);
 
   const copyClientExplanation = (rec: STRRecommendation) => {
     const text = `${rec.name} — ${rec.address}\n${rec.rental_restriction}\nMatch Score: ${rec.match_score}/100\n\n${rec.reason_matched.join('. ')}.\n\n${rec.compliance_note}`;
@@ -902,6 +980,233 @@ function AgentWorkspace({
                     <div className="flex items-center gap-3">
                       <span className="text-emerald-400 font-bold text-sm">${(offerData.suggested_offer_low || 0).toLocaleString()} — ${(offerData.suggested_offer_high || 0).toLocaleString()}</span>
                       <span className="text-[10px] text-zinc-500">Confidence: {offerData.offer_confidence || 0}/100</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-zinc-500" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Transaction Intelligence ──────────────────────────── */}
+            {(p.profile_type === 'buyer' || p.profile_type === 'investor') && (
+              <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="w-5 h-5 text-[#c9a54e]" />
+                    <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Transaction Intelligence</h2>
+                  </div>
+                  {txnData && (
+                    <button onClick={() => setTxnExpanded(!txnExpanded)} className="text-zinc-500 hover:text-white transition">
+                      {txnExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* No transaction yet — show create form */}
+                {!txnData && !txnCreateMode && (
+                  <div className="text-center py-4">
+                    <p className="text-zinc-500 text-xs mb-3">No active transaction for this client</p>
+                    <button
+                      onClick={() => setTxnCreateMode(true)}
+                      className="px-4 py-2 bg-[#c9a54e]/20 text-[#c9a54e] border border-[#c9a54e]/30 rounded-lg text-xs font-semibold hover:bg-[#c9a54e]/30 transition"
+                    >
+                      <FileText className="w-3.5 h-3.5 inline mr-1.5" /> Start Transaction
+                    </button>
+                  </div>
+                )}
+
+                {/* Create transaction form */}
+                {txnCreateMode && !txnData && (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Property address"
+                      value={txnAddress}
+                      onChange={(e) => setTxnAddress(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#111] border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#c9a54e]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Contract price (optional)"
+                      value={txnPrice}
+                      onChange={(e) => setTxnPrice(e.target.value)}
+                      className="w-full px-3 py-2 bg-[#111] border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#c9a54e]"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCreateTransaction(profileId)}
+                        disabled={txnLoading}
+                        className="flex-1 py-2 bg-[#c9a54e] text-black rounded-lg text-xs font-bold hover:bg-[#d4b05c] transition disabled:opacity-50"
+                      >
+                        {txnLoading ? 'Creating...' : 'Create Transaction'}
+                      </button>
+                      <button
+                        onClick={() => { setTxnCreateMode(false); setTxnAddress(''); setTxnPrice(''); }}
+                        className="px-3 py-2 bg-zinc-800 text-zinc-400 rounded-lg text-xs hover:text-white transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transaction detail view */}
+                {txnData && txnExpanded && (
+                  <div className="space-y-4">
+                    {/* Header with completion % */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white text-sm font-semibold">{txnData.transaction?.property_address || 'Transaction'}</p>
+                        <p className="text-zinc-500 text-[10px] uppercase tracking-wider mt-0.5">
+                          {txnData.transaction?.status === 'active' ? 'Active' : txnData.transaction?.status}
+                          {txnData.transaction?.contract_price ? ` · $${Number(txnData.transaction.contract_price).toLocaleString()}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xl font-bold ${(txnData.intelligence?.completion_pct || 0) >= 75 ? 'text-emerald-400' : (txnData.intelligence?.completion_pct || 0) >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                          {txnData.intelligence?.completion_pct || 0}%
+                        </span>
+                        <p className="text-[10px] text-zinc-500 uppercase">Complete</p>
+                      </div>
+                    </div>
+
+                    {/* Completion progress bar */}
+                    <div className="w-full bg-zinc-800 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${(txnData.intelligence?.completion_pct || 0) >= 75 ? 'bg-emerald-500' : (txnData.intelligence?.completion_pct || 0) >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${txnData.intelligence?.completion_pct || 0}%` }}
+                      />
+                    </div>
+
+                    {/* Risk Level */}
+                    {txnData.intelligence?.risk_level && txnData.intelligence.risk_level !== 'low' && (
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${
+                        txnData.intelligence.risk_level === 'critical' ? 'bg-red-900/30 border-red-800/50 text-red-400' :
+                        txnData.intelligence.risk_level === 'high' ? 'bg-orange-900/30 border-orange-800/50 text-orange-400' :
+                        'bg-amber-900/30 border-amber-800/50 text-amber-400'
+                      }`}>
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span className="uppercase">{txnData.intelligence.risk_level} Risk</span>
+                      </div>
+                    )}
+
+                    {/* Critical Dates */}
+                    {txnData.intelligence?.critical_dates?.length > 0 && (
+                      <div>
+                        <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Critical Dates</h3>
+                        <div className="space-y-1.5">
+                          {txnData.intelligence.critical_dates.map((cd: any, i: number) => (
+                            <div key={i} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs ${
+                              cd.overdue ? 'bg-red-900/20 border border-red-800/30' : 'bg-[#111] border border-zinc-800'
+                            }`}>
+                              <span className={cd.overdue ? 'text-red-400' : 'text-zinc-300'}>{cd.name}</span>
+                              <span className={`font-mono text-[10px] ${cd.overdue ? 'text-red-400 font-bold' : 'text-zinc-500'}`}>
+                                {cd.due_date ? new Date(cd.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                                {cd.days_until !== undefined && (
+                                  <span className="ml-1">({cd.days_until < 0 ? `${Math.abs(cd.days_until)}d overdue` : `${cd.days_until}d`})</span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Actions */}
+                    {txnData.intelligence?.next_actions?.length > 0 && (
+                      <div>
+                        <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Next Actions</h3>
+                        <div className="space-y-1.5">
+                          {txnData.intelligence.next_actions.map((na: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] border border-zinc-800 rounded-lg text-xs">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                na.urgency === 'critical' ? 'bg-red-900/40 text-red-400' :
+                                na.urgency === 'high' ? 'bg-orange-900/40 text-orange-400' :
+                                'bg-zinc-800 text-zinc-400'
+                              }`}>{na.urgency}</span>
+                              <span className="text-zinc-300 flex-1">{na.action}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Risk Flags */}
+                    {txnData.intelligence?.risk_flags?.length > 0 && (
+                      <div>
+                        <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Risk Flags</h3>
+                        <div className="space-y-1">
+                          {txnData.intelligence.risk_flags.map((flag: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2 text-xs text-amber-400">
+                              <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                              <span>{flag}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Missing Documents */}
+                    {txnData.intelligence?.missing_documents?.length > 0 && (
+                      <div>
+                        <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Missing Documents</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {txnData.intelligence.missing_documents.map((doc: string, i: number) => (
+                            <span key={i} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded text-[10px]">
+                              {doc}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Milestone Checklist */}
+                    <div>
+                      <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Deal Timeline</h3>
+                      <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                        {(txnData.milestones || []).map((ms: any) => (
+                          <div key={ms.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${
+                            ms.status === 'completed' ? 'bg-emerald-900/10 border border-emerald-800/20' :
+                            ms.status === 'overdue' ? 'bg-red-900/10 border border-red-800/20' :
+                            'bg-[#111] border border-zinc-800'
+                          }`}>
+                            <button
+                              onClick={() => ms.status !== 'completed' && handleCompleteMilestone(ms.id, txnData.transaction.id, profileId)}
+                              className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center transition ${
+                                ms.status === 'completed' ? 'bg-emerald-500 border-emerald-500' :
+                                ms.status === 'overdue' ? 'border-red-500 hover:bg-red-500/20' :
+                                'border-zinc-600 hover:border-[#c9a54e]'
+                              }`}
+                              disabled={ms.status === 'completed'}
+                            >
+                              {ms.status === 'completed' && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            </button>
+                            <span className={`flex-1 ${
+                              ms.status === 'completed' ? 'text-zinc-500 line-through' :
+                              ms.status === 'overdue' ? 'text-red-400' : 'text-zinc-300'
+                            }`}>{ms.name}</span>
+                            <span className={`font-mono text-[9px] ${
+                              ms.status === 'completed' ? 'text-emerald-500' :
+                              ms.status === 'overdue' ? 'text-red-400' : 'text-zinc-600'
+                            }`}>
+                              {ms.due_date ? new Date(ms.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Collapsed summary */}
+                {txnData && !txnExpanded && (
+                  <div className="flex items-center justify-between p-2.5 bg-[#111] border border-zinc-800 rounded-lg cursor-pointer" onClick={() => setTxnExpanded(true)}>
+                    <div className="flex items-center gap-3">
+                      <span className={`font-bold text-sm ${
+                        (txnData.intelligence?.completion_pct || 0) >= 75 ? 'text-emerald-400' :
+                        (txnData.intelligence?.completion_pct || 0) >= 40 ? 'text-amber-400' : 'text-red-400'
+                      }`}>{txnData.intelligence?.completion_pct || 0}% Complete</span>
+                      <span className="text-[10px] text-zinc-500">{txnData.transaction?.property_address || ''}</span>
                     </div>
                     <ChevronDown className="w-4 h-4 text-zinc-500" />
                   </div>
