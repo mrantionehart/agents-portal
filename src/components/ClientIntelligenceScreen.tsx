@@ -1277,6 +1277,58 @@ export default function ClientIntelligenceScreen() {
     }
   };
 
+  // ── Conversion Intelligence state ──
+  interface ConversionScore {
+    id: string;
+    profile_id: string;
+    conversion_score: number;
+    buying_probability: number;
+    dropoff_risk: number;
+    urgency_score: number;
+    reengagement_score: number;
+    signal_summary: string;
+    client_name: string;
+    temperature: string;
+  }
+  const [conversionScores, setConversionScores] = useState<ConversionScore[]>([]);
+
+  const fetchConversions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/broker/conversion-intelligence?sort=conversion_score&limit=8');
+      if (res.ok) {
+        const json = await res.json();
+        setConversionScores(json.conversions || []);
+      }
+    } catch (err) {
+      console.error('[Conversion Intelligence] Fetch error:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchConversions(); }, [fetchConversions]);
+
+  const handleConversionClick = async (conv: ConversionScore) => {
+    try {
+      fetch('/api/broker/conversion-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversion_id: conv.id, status: 'opened' }),
+      });
+    } catch (_) {}
+    setSelectedProfileId(conv.profile_id);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return 'text-emerald-400';
+    if (score >= 40) return 'text-amber-400';
+    return 'text-zinc-400';
+  };
+
+  const getRiskColor = (risk: number) => {
+    if (risk >= 60) return 'text-red-400 bg-red-900/30';
+    if (risk >= 30) return 'text-amber-400 bg-amber-900/30';
+    return 'text-emerald-400 bg-emerald-900/30';
+  };
+
   const getActionPriorityColor = (priority: number) => {
     if (priority >= 70) return 'text-red-400 bg-red-900/30 border-red-800/50';
     if (priority >= 50) return 'text-amber-400 bg-amber-900/30 border-amber-800/50';
@@ -1537,6 +1589,74 @@ export default function ClientIntelligenceScreen() {
           {advisorActions.length > 6 && (
             <div className="px-4 py-2 border-t border-zinc-800/50 text-center">
               <span className="text-[11px] text-zinc-500">+{advisorActions.length - 6} more actions</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Conversion Intelligence Card ── */}
+      {conversionScores.length > 0 && (
+        <div className="mb-6 bg-gradient-to-br from-[#1a1a2e] to-[#16162a] border border-indigo-900/40 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-indigo-900/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Conversion Intelligence</h3>
+                <p className="text-[11px] text-zinc-500">Clients most likely to transact</p>
+              </div>
+            </div>
+            <span className="text-[11px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+              {conversionScores.length} scored
+            </span>
+          </div>
+          <div className="divide-y divide-indigo-900/20">
+            {conversionScores.slice(0, 5).map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => handleConversionClick(conv)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-500/[0.08] transition text-left group"
+              >
+                {/* Score circle */}
+                <div className="shrink-0 relative">
+                  <div className={`w-11 h-11 rounded-full border-2 flex items-center justify-center font-bold text-lg ${
+                    conv.conversion_score >= 70 ? 'border-emerald-500 text-emerald-400' :
+                    conv.conversion_score >= 40 ? 'border-amber-500 text-amber-400' :
+                    'border-zinc-600 text-zinc-400'
+                  }`}>
+                    {conv.conversion_score}
+                  </div>
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-white font-medium truncate">{conv.client_name}</p>
+                    {conv.dropoff_risk >= 50 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full text-red-400 bg-red-900/30 border border-red-800/50 flex items-center gap-0.5">
+                        <AlertCircle className="w-2.5 h-2.5" /> at-risk
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className={`text-[11px] font-medium ${getScoreColor(conv.buying_probability)}`}>
+                      {conv.buying_probability}% likely to buy
+                    </span>
+                    {conv.urgency_score >= 60 && (
+                      <span className="text-[10px] text-amber-400 flex items-center gap-0.5">
+                        <Zap className="w-2.5 h-2.5" /> urgent
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 truncate">{conv.signal_summary}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" />
+              </button>
+            ))}
+          </div>
+          {conversionScores.length > 5 && (
+            <div className="px-4 py-2 border-t border-indigo-900/30 text-center">
+              <span className="text-[11px] text-zinc-500">+{conversionScores.length - 5} more scored clients</span>
             </div>
           )}
         </div>
