@@ -121,6 +121,19 @@ interface STRRecommendation {
   risk_level: 'low' | 'medium' | 'high';
   reason_matched: string[];
   compliance_note: string;
+  listing_match?: {
+    mls_status: 'connected' | 'not_connected' | 'coming_soon';
+    active_count: number;
+    price_low: number | null;
+    price_high: number | null;
+    price_avg: number | null;
+    beds_available: number[];
+    avg_dom: number | null;
+    waterfront: boolean;
+    has_new_listing: boolean;
+    listings: any[];
+    last_synced: string | null;
+  };
 }
 
 interface STRRecommendationsData {
@@ -215,6 +228,8 @@ function AgentWorkspace({
   const [strRecsLoading, setStrRecsLoading] = useState(false);
   const [strRecsExpanded, setStrRecsExpanded] = useState(false);
   const [copiedExplanation, setCopiedExplanation] = useState<string | null>(null);
+  const [expandedListing, setExpandedListing] = useState<string | null>(null);
+  const [copiedBuildingName, setCopiedBuildingName] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -256,6 +271,38 @@ function AgentWorkspace({
     navigator.clipboard.writeText(text);
     setCopiedExplanation(rec.id);
     setTimeout(() => setCopiedExplanation(null), 2000);
+    trackSTREvent('copy_explanation', rec.id, rec.name);
+  };
+
+  const trackSTREvent = async (event_type: string, building_id?: string, building_name?: string) => {
+    try {
+      await fetch('/api/broker/str-analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type,
+          building_id: building_id || null,
+          profile_id: profileId,
+          metadata: { building_name: building_name || null },
+        }),
+      });
+    } catch {} // fire-and-forget
+  };
+
+  const toggleListingCard = (rec: STRRecommendation) => {
+    if (expandedListing === rec.id) {
+      setExpandedListing(null);
+    } else {
+      setExpandedListing(rec.id);
+      trackSTREvent('listing_view', rec.id, rec.name);
+    }
+  };
+
+  const copyBuildingForMLS = (rec: STRRecommendation) => {
+    navigator.clipboard.writeText(rec.name);
+    setCopiedBuildingName(rec.id);
+    setTimeout(() => setCopiedBuildingName(null), 2000);
+    trackSTREvent('listing_request', rec.id, rec.name);
   };
 
   const copyToClipboard = (text: string) => {
@@ -838,8 +885,91 @@ function AgentWorkspace({
                               <Copy className="w-3 h-3" />
                               {copiedExplanation === rec.id ? 'Copied!' : 'Copy Client Explanation'}
                             </button>
+                            <button
+                              onClick={() => toggleListingCard(rec)}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] transition ${
+                                expandedListing === rec.id
+                                  ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                              }`}
+                            >
+                              <Building2 className="w-3 h-3" />
+                              {expandedListing === rec.id ? 'Hide Listings' : 'View Listings'}
+                            </button>
                             <span className="text-[10px] text-zinc-600">Investor Score: {rec.investor_score}/100</span>
                           </div>
+
+                          {/* ── Listing Match Inline Card ── */}
+                          {expandedListing === rec.id && (
+                            <div className="mt-3 border border-zinc-700/50 rounded-lg bg-[#151515] p-3">
+                              {(!rec.listing_match || rec.listing_match.mls_status === 'not_connected') ? (
+                                <div className="text-center py-3">
+                                  <div className="flex items-center justify-center gap-2 mb-2">
+                                    <Building2 className="w-4 h-4 text-zinc-500" />
+                                    <span className="text-xs text-zinc-400 font-medium">MLS Inventory Integration Coming Soon</span>
+                                  </div>
+                                  <p className="text-[10px] text-zinc-600 mb-3 max-w-xs mx-auto">
+                                    Active listings, pricing, and availability for this building will appear here once MLS is connected.
+                                  </p>
+                                  <div className="bg-zinc-800/50 rounded-lg p-3 mb-3">
+                                    <p className="text-[10px] text-zinc-500 mb-1">Search this building in your MLS:</p>
+                                    <div className="flex items-center gap-2 justify-center">
+                                      <code className="text-xs text-purple-400 bg-purple-900/15 px-2 py-1 rounded">{rec.name}</code>
+                                      <button
+                                        onClick={() => copyBuildingForMLS(rec)}
+                                        className="flex items-center gap-1 px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-[10px] text-zinc-300 transition"
+                                      >
+                                        <Copy className="w-2.5 h-2.5" />
+                                        {copiedBuildingName === rec.id ? 'Copied!' : 'Copy'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Active</div>
+                                      <div className="text-sm text-zinc-500">--</div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Price Range</div>
+                                      <div className="text-sm text-zinc-500">--</div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Avg DOM</div>
+                                      <div className="text-sm text-zinc-500">--</div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Waterfront</div>
+                                      <div className="text-sm text-zinc-500">{rec.listing_match?.waterfront ? 'Yes' : '--'}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-2">
+                                  <p className="text-xs text-emerald-400">MLS Connected — {rec.listing_match.active_count} active listings</p>
+                                  <div className="grid grid-cols-4 gap-2 mt-2 text-center">
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Active</div>
+                                      <div className="text-sm text-white font-medium">{rec.listing_match.active_count}</div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Price Range</div>
+                                      <div className="text-sm text-white font-medium">
+                                        {rec.listing_match.price_low ? `$${(rec.listing_match.price_low / 1000).toFixed(0)}K` : '--'} - {rec.listing_match.price_high ? `$${(rec.listing_match.price_high / 1000).toFixed(0)}K` : '--'}
+                                      </div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Avg DOM</div>
+                                      <div className="text-sm text-white font-medium">{rec.listing_match.avg_dom ?? '--'}</div>
+                                    </div>
+                                    <div className="bg-zinc-800/30 rounded p-2">
+                                      <div className="text-[10px] text-zinc-600">Waterfront</div>
+                                      <div className="text-sm text-white font-medium">{rec.listing_match.waterfront ? 'Yes' : 'No'}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
