@@ -1190,6 +1190,99 @@ export default function ClientIntelligenceScreen() {
   const [matchUnreadCount, setMatchUnreadCount] = useState(0);
   const [matchBannerDismissed, setMatchBannerDismissed] = useState(false);
 
+  // ── Advisor Actions state ──
+  interface AdvisorAction {
+    id: string;
+    match_id: string;
+    profile_id: string;
+    building_id: string;
+    agent_id: string | null;
+    action_type: string;
+    action_label: string;
+    action_description: string;
+    priority: number;
+    priority_reason: string;
+    status: string;
+    metadata: any;
+    created_at: string;
+    building_name: string;
+    client_name: string;
+  }
+  const [advisorActions, setAdvisorActions] = useState<AdvisorAction[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+
+  const fetchAdvisorActions = useCallback(async () => {
+    try {
+      setActionsLoading(true);
+      const res = await fetch('/api/broker/advisor-actions?status=pending&limit=10');
+      if (res.ok) {
+        const json = await res.json();
+        setAdvisorActions(json.actions || []);
+      }
+    } catch (err) {
+      console.error('[Advisor Actions] Fetch error:', err);
+    } finally {
+      setActionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAdvisorActions(); }, [fetchAdvisorActions]);
+
+  const handleActionClick = async (action: AdvisorAction) => {
+    // Mark as opened
+    try {
+      await fetch('/api/broker/advisor-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_id: action.id, status: 'opened' }),
+      });
+    } catch (_) {}
+    // Navigate to client
+    setSelectedProfileId(action.profile_id);
+  };
+
+  const handleActionComplete = async (e: React.MouseEvent, action: AdvisorAction) => {
+    e.stopPropagation();
+    try {
+      await fetch('/api/broker/advisor-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_id: action.id, status: 'completed' }),
+      });
+      setAdvisorActions(prev => prev.filter(a => a.id !== action.id));
+    } catch (_) {}
+  };
+
+  const handleActionIgnore = async (e: React.MouseEvent, action: AdvisorAction) => {
+    e.stopPropagation();
+    try {
+      await fetch('/api/broker/advisor-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_id: action.id, status: 'ignored' }),
+      });
+      setAdvisorActions(prev => prev.filter(a => a.id !== action.id));
+    } catch (_) {}
+  };
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case 'call_client': return <Phone className="w-4 h-4" />;
+      case 'send_inventory_update': return <Send className="w-4 h-4" />;
+      case 'schedule_consultation': return <Clock className="w-4 h-4" />;
+      case 'generate_explanation': return <MessageSquare className="w-4 h-4" />;
+      case 'request_units': return <Building2 className="w-4 h-4" />;
+      case 'share_top_matches': return <Target className="w-4 h-4" />;
+      default: return <Zap className="w-4 h-4" />;
+    }
+  };
+
+  const getActionPriorityColor = (priority: number) => {
+    if (priority >= 70) return 'text-red-400 bg-red-900/30 border-red-800/50';
+    if (priority >= 50) return 'text-amber-400 bg-amber-900/30 border-amber-800/50';
+    return 'text-blue-400 bg-blue-900/30 border-blue-800/50';
+  };
+
   const fetchMatches = useCallback(async () => {
     try {
       const res = await fetch('/api/broker/str-matches?unread=true&limit=20');
@@ -1379,6 +1472,71 @@ export default function ClientIntelligenceScreen() {
           {matchAlerts.length > 8 && (
             <div className="px-4 py-2 border-t border-zinc-800/50 text-center">
               <span className="text-[11px] text-zinc-500">+{matchAlerts.length - 8} more matches</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Next Best Action Card */}
+      {advisorActions.length > 0 && (
+        <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-500/20">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-semibold text-emerald-400">
+                Next Best Actions
+              </span>
+              <span className="text-[11px] text-zinc-500">
+                ({advisorActions.length} pending)
+              </span>
+            </div>
+          </div>
+          <div className="divide-y divide-zinc-800/50 max-h-[320px] overflow-y-auto">
+            {advisorActions.slice(0, 6).map(action => (
+              <button
+                key={action.id}
+                onClick={() => handleActionClick(action)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-500/[0.08] transition text-left group"
+              >
+                <div className="shrink-0 w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  {getActionIcon(action.action_type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-white font-medium truncate">{action.action_label}</p>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${getActionPriorityColor(action.priority)}`}>
+                      {action.priority}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-zinc-400 truncate mt-0.5">
+                    <span className="text-[#c9a54e] font-medium">{action.client_name}</span>
+                    {' · '}{action.building_name}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">{action.priority_reason}</p>
+                </div>
+                <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    onClick={(e) => handleActionComplete(e, action)}
+                    className="p-1.5 rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition"
+                    title="Mark completed"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => handleActionIgnore(e, action)}
+                    className="p-1.5 rounded-lg bg-zinc-800/60 text-zinc-400 hover:bg-zinc-700/60 transition"
+                    title="Dismiss"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" />
+              </button>
+            ))}
+          </div>
+          {advisorActions.length > 6 && (
+            <div className="px-4 py-2 border-t border-zinc-800/50 text-center">
+              <span className="text-[11px] text-zinc-500">+{advisorActions.length - 6} more actions</span>
             </div>
           )}
         </div>
