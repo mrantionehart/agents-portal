@@ -878,6 +878,69 @@ function AgentWorkspace({
                             </div>
                           </div>
 
+                          {/* ── Available Units Today — always visible ── */}
+                          {rec.listing_match && rec.listing_match.mls_status === 'cached' && rec.listing_match.active_count > 0 ? (
+                            <div className="mx-5 mb-3 border border-emerald-800/30 bg-emerald-900/10 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-emerald-400 text-xs font-semibold">Available: {rec.listing_match.active_count} unit{rec.listing_match.active_count !== 1 ? 's' : ''}</span>
+                                  {rec.listing_match.has_new_listing && (
+                                    <span className="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[9px] rounded-full font-bold animate-pulse">NEW</span>
+                                  )}
+                                </div>
+                                {rec.listing_match.last_synced && (
+                                  <span className="text-[9px] text-zinc-600">
+                                    Updated: {(() => {
+                                      const diff = Date.now() - new Date(rec.listing_match.last_synced).getTime();
+                                      const hrs = Math.floor(diff / 3600000);
+                                      if (hrs < 1) return 'just now';
+                                      if (hrs < 24) return `${hrs}h ago`;
+                                      return `${Math.floor(hrs / 24)}d ago`;
+                                    })()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="bg-[#0a0a0a] rounded-lg p-2 text-center">
+                                  <div className="text-white font-bold text-sm">
+                                    {rec.listing_match.price_low ? `$${(rec.listing_match.price_low / 1000).toFixed(0)}K` : '--'}
+                                    {rec.listing_match.price_high && rec.listing_match.price_high !== rec.listing_match.price_low
+                                      ? `–$${(rec.listing_match.price_high / 1000).toFixed(0)}K`
+                                      : ''}
+                                  </div>
+                                  <div className="text-[8px] text-zinc-500 uppercase mt-0.5">Price Range</div>
+                                </div>
+                                <div className="bg-[#0a0a0a] rounded-lg p-2 text-center">
+                                  <div className="text-white font-bold text-sm">
+                                    {rec.listing_match.beds_available && rec.listing_match.beds_available.length > 0
+                                      ? [...new Set(rec.listing_match.beds_available)].sort().map(b => `${b}BR`).join(' · ')
+                                      : '--'}
+                                  </div>
+                                  <div className="text-[8px] text-zinc-500 uppercase mt-0.5">Bedrooms</div>
+                                </div>
+                                <div className="bg-[#0a0a0a] rounded-lg p-2 text-center">
+                                  <div className="text-white font-bold text-sm">{rec.listing_match.avg_dom ?? '--'}<span className="text-zinc-500 text-[10px] ml-0.5">days</span></div>
+                                  <div className="text-[8px] text-zinc-500 uppercase mt-0.5">Avg DOM</div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mx-5 mb-3 border border-zinc-800/50 bg-zinc-900/30 rounded-lg p-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-zinc-500">Live MLS feed not connected yet</span>
+                                <button
+                                  onClick={() => {
+                                    trackSTREvent('listing_request', rec.id, rec.name);
+                                    copyBuildingForMLS(rec);
+                                  }}
+                                  className="text-[10px] text-amber-400 hover:text-amber-300 font-medium transition"
+                                >
+                                  Request Current Units
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Tags row: category + area + HOA */}
                           <div className="flex flex-wrap gap-1.5 mb-2 pl-5">
                             <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-[10px] font-medium">
@@ -890,6 +953,9 @@ function AgentWorkspace({
                             }`}>
                               HOA: {rec.hoa_verification}
                             </span>
+                            {rec.listing_match?.waterfront && (
+                              <span className="px-2 py-0.5 bg-blue-900/20 text-blue-400 rounded text-[10px] font-medium">Waterfront</span>
+                            )}
                           </div>
 
                           {/* Rental restriction */}
@@ -913,7 +979,10 @@ function AgentWorkspace({
                           {/* Advisor Actions */}
                           <div className="flex items-center gap-2 mt-3 flex-wrap pl-5">
                             <button
-                              onClick={() => toggleListingCard(rec)}
+                              onClick={() => {
+                                trackSTREvent('listing_view', rec.id, rec.name);
+                                toggleListingCard(rec);
+                              }}
                               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition ${
                                 expandedListing === rec.id
                                   ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
@@ -921,7 +990,7 @@ function AgentWorkspace({
                               }`}
                             >
                               <Building2 className="w-3 h-3" />
-                              {expandedListing === rec.id ? 'Hide Listings' : 'View Listings'}
+                              View Listings
                             </button>
                             <button
                               onClick={() => {
@@ -952,63 +1021,30 @@ function AgentWorkspace({
                             </button>
                           </div>
 
-                          {/* ── Listing Match Inline Card ── */}
+                          {/* ── Expanded Listing Detail ── */}
                           {expandedListing === rec.id && (
                             <div className="mt-3 border border-zinc-700/50 rounded-lg bg-[#151515] p-3">
-                              {(!rec.listing_match || rec.listing_match.mls_status === 'not_connected') ? (
+                              {(!rec.listing_match || rec.listing_match.mls_status === 'not_connected' || rec.listing_match.active_count === 0) ? (
                                 <div className="text-center py-3">
-                                  <div className="flex items-center justify-center gap-2 mb-2">
-                                    <Building2 className="w-4 h-4 text-zinc-500" />
-                                    <span className="text-xs text-zinc-400 font-medium">No Listing Data Available</span>
-                                  </div>
+                                  <Building2 className="w-5 h-5 text-zinc-600 mx-auto mb-2" />
+                                  <span className="text-xs text-zinc-400 font-medium block mb-1">Live MLS feed not connected yet</span>
                                   <p className="text-[10px] text-zinc-600 mb-3 max-w-xs mx-auto">
-                                    Search this building manually in your MLS to find active listings.
+                                    Active listings will appear here once MLS is connected. Use Request Units to get current availability.
                                   </p>
-                                  <div className="bg-zinc-800/50 rounded-lg p-3 mb-3">
-                                    <p className="text-[10px] text-zinc-500 mb-1">Search this building in your MLS:</p>
-                                    <div className="flex items-center gap-2 justify-center">
-                                      <code className="text-xs text-purple-400 bg-purple-900/15 px-2 py-1 rounded">{rec.name}</code>
-                                      <button
-                                        onClick={() => copyBuildingForMLS(rec)}
-                                        className="flex items-center gap-1 px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-[10px] text-zinc-300 transition"
-                                      >
-                                        <Copy className="w-2.5 h-2.5" />
-                                        {copiedBuildingName === rec.id ? 'Copied!' : 'Copy'}
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-4 gap-2 text-center">
-                                    <div className="bg-zinc-800/30 rounded p-2">
-                                      <div className="text-[10px] text-zinc-600">Active</div>
-                                      <div className="text-sm text-zinc-500">--</div>
-                                    </div>
-                                    <div className="bg-zinc-800/30 rounded p-2">
-                                      <div className="text-[10px] text-zinc-600">Price Range</div>
-                                      <div className="text-sm text-zinc-500">--</div>
-                                    </div>
-                                    <div className="bg-zinc-800/30 rounded p-2">
-                                      <div className="text-[10px] text-zinc-600">Avg DOM</div>
-                                      <div className="text-sm text-zinc-500">--</div>
-                                    </div>
-                                    <div className="bg-zinc-800/30 rounded p-2">
-                                      <div className="text-[10px] text-zinc-600">Waterfront</div>
-                                      <div className="text-sm text-zinc-500">{rec.listing_match?.waterfront ? 'Yes' : '--'}</div>
-                                    </div>
-                                  </div>
+                                  {rec.listing_match && rec.listing_match.mls_status === 'cached' && (
+                                    <p className="text-[9px] text-zinc-600">
+                                      Last import: {rec.listing_match.last_synced ? new Date(rec.listing_match.last_synced).toLocaleDateString() : 'never'} · {rec.listing_match.active_count} cached listing{rec.listing_match.active_count !== 1 ? 's' : ''}
+                                    </p>
+                                  )}
                                 </div>
                               ) : (
-                                <div className="py-2">
+                                <div className="py-1">
                                   <div className="flex items-center justify-between mb-2">
                                     <p className="text-xs text-emerald-400 font-medium">
                                       {rec.listing_match.active_count} Active Listing{rec.listing_match.active_count !== 1 ? 's' : ''}
-                                      {rec.listing_match.has_new_listing && (
-                                        <span className="ml-2 px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[9px] rounded-full font-bold">NEW</span>
-                                      )}
                                     </p>
-                                    {rec.listing_match.last_synced && (
-                                      <span className="text-[9px] text-zinc-600">
-                                        Synced {new Date(rec.listing_match.last_synced).toLocaleDateString()}
-                                      </span>
+                                    {rec.listing_match.attribution && (
+                                      <span className="text-[9px] text-zinc-600">{rec.listing_match.attribution}</span>
                                     )}
                                   </div>
                                   <div className="grid grid-cols-4 gap-2 text-center">
@@ -1031,9 +1067,6 @@ function AgentWorkspace({
                                       <div className="text-sm text-white font-medium">{rec.listing_match.waterfront ? 'Yes' : 'No'}</div>
                                     </div>
                                   </div>
-                                  {rec.listing_match.attribution && (
-                                    <p className="text-[9px] text-zinc-600 mt-2 text-center">{rec.listing_match.attribution}</p>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -1050,10 +1083,10 @@ function AgentWorkspace({
                       </p>
                     </div>
 
-                    {/* MLS placeholder */}
+                    {/* Inventory summary */}
                     <div className="mt-2 text-center">
                       <p className="text-[10px] text-zinc-600">
-                        MLS integration not yet connected. Active listings will appear here in a future update.
+                        Inventory data from HARTFELT listing cache. Live MLS feed coming in a future update.
                       </p>
                     </div>
 
