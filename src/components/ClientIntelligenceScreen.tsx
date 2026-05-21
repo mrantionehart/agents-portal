@@ -1772,30 +1772,19 @@ function AgentWorkspace({
 
                           {/* Advisor Actions */}
                           <div className="flex items-center gap-2 mt-3 flex-wrap pl-5">
+                            {rec.idx_search_url && !rec.idx_needs_review ? (
                             <button
                               onClick={() => {
                                 trackSTREvent('listing_view', rec.id, rec.name);
-                                if (rec.idx_match_type === 'none') {
-                                  trackSTREvent('building_mapping_missed', rec.id, rec.name);
-                                }
-                                if (rec.idx_search_url) {
-                                  trackSTREvent('idx_search_opened', rec.id, rec.name);
-                                  window.open(rec.idx_search_url, '_blank');
-                                } else {
-                                  toggleListingCard(rec);
-                                }
+                                trackSTREvent('idx_search_opened', rec.id, rec.name);
+                                window.open(rec.idx_search_url, '_blank');
                               }}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition ${
-                                rec.idx_search_url
-                                  ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                                  : expandedListing === rec.id
-                                    ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-                              }`}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-600/20 text-purple-400 border border-purple-600/30 rounded-lg text-[11px] font-medium transition"
                             >
                               <Building2 className="w-3 h-3" />
-                              {rec.idx_search_url ? 'View Listings ↗' : 'View Listings'}
+                              View Listings ↗
                             </button>
+                            ) : (
                             <button
                               onClick={() => {
                                 trackSTREvent('listing_request', rec.id, rec.name);
@@ -1804,8 +1793,9 @@ function AgentWorkspace({
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-900/20 hover:bg-amber-900/30 border border-amber-700/30 rounded-lg text-[11px] font-medium text-amber-400 transition"
                             >
                               <ExternalLink className="w-3 h-3" />
-                              Request Units
+                              Request Current Units
                             </button>
+                            )}
                             <button
                               onClick={() => copyClientExplanation(rec)}
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-[11px] font-medium text-zinc-300 transition"
