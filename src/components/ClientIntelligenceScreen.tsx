@@ -123,6 +123,9 @@ interface STRRecommendation {
   risk_level: 'low' | 'medium' | 'high';
   reason_matched: string[];
   compliance_note: string;
+  idx_match_type?: 'building' | 'neighborhood' | 'city' | null;
+  idx_search_url?: string | null;
+  idx_needs_review?: boolean;
   listing_match?: {
     mls_status: 'connected' | 'not_connected' | 'coming_soon' | 'cached';
     active_count: number;
@@ -276,6 +279,15 @@ function AgentWorkspace({
 
   // ── Advisor Performance ──
   const [perfData, setPerfData] = useState<any>(null);
+
+  // ── AI Building Intelligence ──
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [aiDrawerBuilding, setAiDrawerBuilding] = useState<STRRecommendation | null>(null);
+  const [aiDrawerLoading, setAiDrawerLoading] = useState(false);
+  const [aiDrawerResult, setAiDrawerResult] = useState<{ text: string; parsed: Record<string, string> | null } | null>(null);
+  const [aiDrawerMessages, setAiDrawerMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [aiDrawerInput, setAiDrawerInput] = useState('');
+  const [aiDrawerFollowupLoading, setAiDrawerFollowupLoading] = useState(false);
 
   const handleShareDealRoom = async (pid: string) => {
     setDealRoomLoading(true);
@@ -487,6 +499,101 @@ function AgentWorkspace({
         }),
       });
     } catch {} // fire-and-forget
+  };
+
+  // ── AI Building Intelligence ───────────────────────────────────
+  const openAiDrawer = async (rec: STRRecommendation) => {
+    setAiDrawerBuilding(rec);
+    setAiDrawerOpen(true);
+    setAiDrawerResult(null);
+    setAiDrawerMessages([]);
+    setAiDrawerInput('');
+    setAiDrawerLoading(true);
+    trackSTREvent('ask_hartfelt_opened', rec.id, rec.name);
+
+    try {
+      const res = await fetch('/api/broker/ai-building-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building: {
+            name: rec.name,
+            address: rec.address,
+            neighborhood: rec.neighborhood,
+            city: rec.city,
+            category: rec.category,
+            rental_restriction: rec.rental_restriction,
+            investor_notes: rec.investor_notes,
+            hoa_verification: rec.hoa_verification,
+            match_score: rec.match_score,
+            investor_score: rec.investor_score,
+            risk_level: rec.risk_level,
+            reason_matched: rec.reason_matched,
+            listing_match: rec.listing_match,
+          },
+          client_id: profileId,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setAiDrawerResult(json);
+        setAiDrawerMessages([{ role: 'assistant', content: json.text }]);
+      } else {
+        setAiDrawerResult({ text: json.error || 'Failed to generate intelligence.', parsed: null });
+      }
+    } catch {
+      setAiDrawerResult({ text: 'Network error. Please try again.', parsed: null });
+    } finally {
+      setAiDrawerLoading(false);
+    }
+  };
+
+  const sendAiFollowup = async () => {
+    if (!aiDrawerInput.trim() || !aiDrawerBuilding || aiDrawerFollowupLoading) return;
+    const userMsg = aiDrawerInput.trim();
+    setAiDrawerInput('');
+    setAiDrawerFollowupLoading(true);
+
+    const updatedMessages = [...aiDrawerMessages, { role: 'user' as const, content: userMsg }];
+    setAiDrawerMessages(updatedMessages);
+
+    trackSTREvent('ask_hartfelt_followup', aiDrawerBuilding.id, aiDrawerBuilding.name);
+
+    try {
+      const res = await fetch('/api/broker/ai-building-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building: {
+            name: aiDrawerBuilding.name,
+            address: aiDrawerBuilding.address,
+            neighborhood: aiDrawerBuilding.neighborhood,
+            city: aiDrawerBuilding.city,
+            category: aiDrawerBuilding.category,
+            rental_restriction: aiDrawerBuilding.rental_restriction,
+            investor_notes: aiDrawerBuilding.investor_notes,
+            hoa_verification: aiDrawerBuilding.hoa_verification,
+            match_score: aiDrawerBuilding.match_score,
+            investor_score: aiDrawerBuilding.investor_score,
+            risk_level: aiDrawerBuilding.risk_level,
+            reason_matched: aiDrawerBuilding.reason_matched,
+            listing_match: aiDrawerBuilding.listing_match,
+          },
+          client_id: profileId,
+          messages: updatedMessages,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setAiDrawerMessages([...updatedMessages, { role: 'assistant', content: json.text }]);
+      } else {
+        setAiDrawerMessages([...updatedMessages, { role: 'assistant', content: json.error || 'Failed to respond.' }]);
+      }
+    } catch {
+      setAiDrawerMessages([...updatedMessages, { role: 'assistant', content: 'Network error. Please try again.' }]);
+    } finally {
+      setAiDrawerFollowupLoading(false);
+    }
   };
 
   // ── Create Deal Portal ──────────────────────────────────────────
@@ -1804,10 +1911,7 @@ function AgentWorkspace({
                               {copiedExplanation === rec.id ? 'Copied!' : 'Copy Explanation'}
                             </button>
                             <button
-                              onClick={() => {
-                                trackSTREvent('conversion', rec.id, rec.name);
-                                window.open(`mailto:info@hartfeltrealestate.com?subject=Airbnb Friendly Inquiry: ${encodeURIComponent(rec.name)}&body=${encodeURIComponent(`Advisor inquiry about ${rec.name} for client ${p.full_name || ''}.\n\nBuilding: ${rec.name}\nArea: ${rec.neighborhood || rec.city}\nCategory: ${rec.category}\nMatch Score: ${rec.match_score}/100`)}`, '_blank');
-                              }}
+                              onClick={() => openAiDrawer(rec)}
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#c9a54e]/10 hover:bg-[#c9a54e]/20 border border-[#c9a54e]/20 rounded-lg text-[11px] font-medium text-[#c9a54e] transition"
                             >
                               <MessageSquare className="w-3 h-3" />
@@ -2140,6 +2244,132 @@ function AgentWorkspace({
                     )}
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Building Intelligence Drawer ──────────────────────────── */}
+      {aiDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setAiDrawerOpen(false)} />
+          <div className="relative w-full max-w-lg bg-[#111] border-l border-zinc-800 flex flex-col h-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#c9a54e]" />
+                <div>
+                  <h3 className="text-white font-semibold text-sm">AI Building Intelligence</h3>
+                  {aiDrawerBuilding && (
+                    <p className="text-zinc-500 text-xs">{aiDrawerBuilding.name} · {aiDrawerBuilding.neighborhood}</p>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setAiDrawerOpen(false)} className="text-zinc-500 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {aiDrawerLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="animate-spin w-8 h-8 border-2 border-[#c9a54e] border-t-transparent rounded-full mb-3" />
+                  <span className="text-zinc-400 text-sm">Analyzing {aiDrawerBuilding?.name}...</span>
+                  <span className="text-zinc-600 text-[10px] mt-1">Generating rental rules, income estimates, comps...</span>
+                </div>
+              ) : aiDrawerResult?.parsed ? (
+                <>
+                  {[
+                    { key: 'rental_rules', label: 'Rental Rules', icon: '📋' },
+                    { key: 'recent_sales_summary', label: 'Recent Sales Summary', icon: '📊' },
+                    { key: 'airbnb_income_estimate', label: 'Airbnb Income Estimate', icon: '💰' },
+                    { key: 'comparable_buildings', label: 'Comparable Buildings', icon: '🏢' },
+                    { key: 'investor_pros___cons', label: 'Investor Pros & Cons', icon: '⚖️' },
+                    { key: 'client_fit', label: 'Client Fit', icon: '🎯' },
+                  ].map(section => (
+                    aiDrawerResult.parsed?.[section.key] ? (
+                      <div key={section.key} className="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-4">
+                        <h4 className="text-[#c9a54e] text-xs font-semibold uppercase tracking-wider mb-2">{section.label}</h4>
+                        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{aiDrawerResult.parsed[section.key]}</p>
+                      </div>
+                    ) : null
+                  ))}
+                </>
+              ) : (
+                /* Conversation mode — show messages */
+                aiDrawerMessages.map((msg, i) => (
+                  <div key={i} className={`${msg.role === 'user' ? 'ml-8' : 'mr-4'}`}>
+                    <div className={`rounded-xl p-4 ${
+                      msg.role === 'user'
+                        ? 'bg-[#c9a54e]/10 border border-[#c9a54e]/20'
+                        : 'bg-[#0f0f0f] border border-zinc-800'
+                    }`}>
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sparkles className="w-3 h-3 text-[#c9a54e]" />
+                          <span className="text-[#c9a54e] text-[10px] font-semibold uppercase">HARTFELT AI</span>
+                        </div>
+                      )}
+                      <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Show conversation messages after initial parsed view */}
+              {aiDrawerResult?.parsed && aiDrawerMessages.length > 1 && (
+                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                  {aiDrawerMessages.slice(1).map((msg, i) => (
+                    <div key={i} className={`${msg.role === 'user' ? 'ml-8' : 'mr-4'}`}>
+                      <div className={`rounded-xl p-4 ${
+                        msg.role === 'user'
+                          ? 'bg-[#c9a54e]/10 border border-[#c9a54e]/20'
+                          : 'bg-[#0f0f0f] border border-zinc-800'
+                      }`}>
+                        {msg.role === 'assistant' && (
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Sparkles className="w-3 h-3 text-[#c9a54e]" />
+                            <span className="text-[#c9a54e] text-[10px] font-semibold uppercase">HARTFELT AI</span>
+                          </div>
+                        )}
+                        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {aiDrawerFollowupLoading && (
+                <div className="flex items-center gap-2 ml-4">
+                  <div className="animate-spin w-4 h-4 border-2 border-[#c9a54e] border-t-transparent rounded-full" />
+                  <span className="text-zinc-500 text-xs">Thinking...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Follow-up input */}
+            {!aiDrawerLoading && (
+              <div className="border-t border-zinc-800 px-5 py-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={aiDrawerInput}
+                    onChange={(e) => setAiDrawerInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendAiFollowup()}
+                    placeholder="Ask a follow-up question..."
+                    className="flex-1 bg-[#0f0f0f] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#c9a54e]/50"
+                  />
+                  <button
+                    onClick={sendAiFollowup}
+                    disabled={!aiDrawerInput.trim() || aiDrawerFollowupLoading}
+                    className="px-3 py-2 bg-[#c9a54e]/20 text-[#c9a54e] rounded-lg text-sm font-medium hover:bg-[#c9a54e]/30 disabled:opacity-40 transition"
+                  >
+                    Send
+                  </button>
+                </div>
+                <p className="text-[9px] text-zinc-600 mt-2">AI-generated analysis. Rental rules must be independently verified with HOA, condo association, and current regulations.</p>
               </div>
             )}
           </div>
