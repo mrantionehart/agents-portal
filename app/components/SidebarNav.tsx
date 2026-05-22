@@ -35,6 +35,7 @@ import {
   Radar,
   Search,
   Building2,
+  Newspaper,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -72,6 +73,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Vendor Marketplace', href: '/vendors', icon: Store },
     { label: 'Development Radar', href: '/development-radar', icon: Radar },
     { label: 'Airbnb Friendly Intelligence', href: '/str-directory', icon: Building2 },
+    { label: 'Market News', href: '/news', icon: Newspaper },
     { label: 'Referrals', href: '/recruiting', icon: Users },
   ]
 

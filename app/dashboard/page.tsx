@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus, Store } from 'lucide-react'
+import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
 import VaultDashboard from './vault-dashboard'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [supportModalOpen, setSupportModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'agent' | 'broker'>('agent')
   const [vol2BannerDismissed, setVol2BannerDismissed] = useState(false)
+  const [newsArticles, setNewsArticles] = useState<{ title: string; link: string; pubDate: string; source: string }[]>([])
 
   // Auth check handled by middleware - remove to prevent flashing
   // useEffect(() => {
@@ -68,6 +69,14 @@ export default function DashboardPage() {
       setCheckingPolicy(false)
     }
   }, [user, role, loading])
+
+  // Fetch news headlines on mount
+  useEffect(() => {
+    fetch('/api/news?limit=5')
+      .then(r => r.json())
+      .then(d => setNewsArticles(d.articles || []))
+      .catch(() => {})
+  }, [])
 
   const checkPolicyAcceptance = async () => {
     try {
@@ -494,6 +503,29 @@ export default function DashboardPage() {
                 Contact Support
               </button>
             </div>
+
+            {/* Market News Widget */}
+            {newsArticles.length > 0 && (
+              <div className="bg-[#0a0a0f] rounded-lg shadow p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                    <Newspaper className="w-4 h-4 text-[#C9A84C]" /> Market News
+                  </h3>
+                  <Link href="/news" className="text-[10px] text-[#C9A84C] hover:underline">View all</Link>
+                </div>
+                <div className="space-y-2.5">
+                  {newsArticles.slice(0, 5).map((a, i) => (
+                    <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" className="block group">
+                      <p className="text-xs text-gray-300 leading-snug group-hover:text-[#C9A84C] transition line-clamp-2">{a.title}</p>
+                      <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {a.pubDate ? (() => { const d = new Date(a.pubDate); const h = Math.floor((Date.now() - d.getTime()) / 3600000); return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; })() : ''}
+                      </p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         </main>
