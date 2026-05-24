@@ -242,6 +242,7 @@ function AgentWorkspace({
   const [showDealPortalModal, setShowDealPortalModal] = useState(false);
   const [dealPortalTitle, setDealPortalTitle] = useState('');
   const [dealPortalNotes, setDealPortalNotes] = useState('');
+  const [dealPortalPanoramaUrl, setDealPortalPanoramaUrl] = useState('');
   const [dealPortalSelectedBuildings, setDealPortalSelectedBuildings] = useState<string[]>([]);
   const [dealPortalCreating, setDealPortalCreating] = useState(false);
   const [dealPortalResult, setDealPortalResult] = useState<{ share_url: string; access_token: string; portal_id?: string } | null>(null);
@@ -608,6 +609,7 @@ function AgentWorkspace({
           client_profile_id: profileId,
           title: dealPortalTitle.trim(),
           advisor_notes: dealPortalNotes.trim() || undefined,
+          panorama_url: dealPortalPanoramaUrl.trim() || undefined,
           building_ids: dealPortalSelectedBuildings.length > 0 ? dealPortalSelectedBuildings : undefined,
         }),
       });
@@ -634,6 +636,7 @@ function AgentWorkspace({
     const p = data?.profile;
     setDealPortalTitle(p ? `HARTFELT Investment Dashboard — ${p.full_name}` : 'HARTFELT Investment Dashboard');
     setDealPortalNotes('');
+    setDealPortalPanoramaUrl('');
     setDealPortalSelectedBuildings(
       strRecs?.recommendations?.slice(0, 5).map(r => r.id) || []
     );
@@ -2154,6 +2157,18 @@ function AgentWorkspace({
                     placeholder="Personal note to your client about these recommendations..."
                     rows={3}
                   />
+                </div>
+
+                {/* Property Panorama URL */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1">Property Panorama URL <span className="text-zinc-600 normal-case font-normal">(optional)</span></label>
+                  <input
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={dealPortalPanoramaUrl}
+                    onChange={e => setDealPortalPanoramaUrl(e.target.value)}
+                    placeholder="https://www.propertypanorama.com/instaview/..."
+                  />
+                  <p className="text-[10px] text-zinc-600 mt-1">Embeds virtual tour, schools, mortgage calc & more on the portal</p>
                 </div>
 
                 {/* Building Selection */}
