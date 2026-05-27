@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
         name: docLabel,
         description: `${folder || 'general'} - ${docLabel}`,
         file_path: storagePath,
+        original_filename: file.name,
         file_size: file.size,
         mime_type: file.type,
         status: 'pending',
