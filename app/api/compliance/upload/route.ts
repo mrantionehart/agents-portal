@@ -49,14 +49,14 @@ function inferDocType(label: string): string {
   if (lower.includes('appraisal'))
     return 'appraisal'
   if (lower.includes('title') || lower.includes('commitment'))
-    return 'title'
+    return 'general'
   if (lower.includes('insurance') || lower.includes('warranty'))
-    return 'insurance'
+    return 'general'
   if (lower.includes('closing') || lower.includes('earnest'))
-    return 'financial'
+    return 'closing_doc'
   if (lower.includes('form') || lower.includes('checklist') || lower.includes('authorization'))
-    return 'form'
-  return 'other'
+    return 'general'
+  return 'general'
 }
 
 // POST — upload a compliance document
