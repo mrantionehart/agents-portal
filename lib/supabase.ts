@@ -68,15 +68,28 @@ export async function signOut() {
  * Use this instead of raw fetch() for all API routes that need auth.
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  // Timeout after 8 seconds to prevent infinite hang
+  // Timeout covers the ENTIRE operation (getSession + fetch) to prevent infinite hang
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
 
   try {
-    const { data: { session } } = await supabase.auth.getSession()
+    // Wrap getSession in its own timeout — this is the most common hang point
+    let accessToken: string | undefined
+    try {
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getSession timeout')), 5000)
+        ),
+      ])
+      accessToken = sessionResult.data?.session?.access_token
+    } catch (sessionErr) {
+      console.warn('authFetch: getSession failed/timed out, proceeding without token:', sessionErr)
+    }
+
     const headers = new Headers(options.headers || {})
-    if (session?.access_token) {
-      headers.set('Authorization', `Bearer ${session.access_token}`)
+    if (accessToken) {
+      headers.set('Authorization', `Bearer ${accessToken}`)
     }
     return await fetch(url, { ...options, headers, signal: controller.signal })
   } finally {

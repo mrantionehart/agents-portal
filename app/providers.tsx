@@ -61,19 +61,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Get user from server-side session (reads from cookies)
-        const response = await authFetch('/api/auth/me')
-        if (!response.ok) {
-          setUser(null)
-          setRole(null)
-          return
-        }
-        const { user: userData, role: userRole } = await response.json()
+        // Use plain fetch instead of authFetch to avoid getSession() deadlock.
+        // The /api/auth/me route reads cookies server-side — no Bearer token needed.
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 8000)
 
-        if (userData) {
-          setUser({ id: userData.id, email: userData.email } as any)
-          setRole(userRole)
-        } else {
+        try {
+          const response = await fetch('/api/auth/me', { signal: controller.signal })
+          clearTimeout(timeout)
+
+          if (!response.ok) {
+            setUser(null)
+            setRole(null)
+            return
+          }
+          const { user: userData, role: userRole } = await response.json()
+
+          if (userData) {
+            setUser({ id: userData.id, email: userData.email } as any)
+            setRole(userRole)
+          } else {
+            setUser(null)
+            setRole(null)
+          }
+        } catch (fetchErr) {
+          clearTimeout(timeout)
+          console.warn('Auth init fetch failed:', fetchErr)
           setUser(null)
           setRole(null)
         }
