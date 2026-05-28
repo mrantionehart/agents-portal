@@ -98,3 +98,52 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+/**
+ * PATCH /api/my-card
+ * Updates the authenticated agent's profile/card fields
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getAuthedUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const allowedFields = [
+      'title', 'phone', 'bio', 'website',
+      'instagram_handle', 'facebook_url', 'linkedin_url', 'tiktok_handle',
+    ]
+
+    // Only allow whitelisted fields
+    const updates: Record<string, any> = {}
+    for (const key of allowedFields) {
+      if (key in body) updates[key] = body[key]
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { error } = await admin
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Profile update error:', error)
+      return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('My card PATCH error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

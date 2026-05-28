@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
-import { supabase } from '@/lib/supabase'
+import { supabase, authFetch } from '@/lib/supabase'
 import SidebarNav from '../components/SidebarNav'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
 
@@ -50,24 +50,47 @@ export default function BusinessCardPage() {
   }, [user])
 
   const fetchProfile = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, title, phone, bio, license_number, avatar_url, business_card_url, card_slug, card_enabled, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle')
-      .eq('id', user!.id)
-      .single()
+    try {
+      // Use API route instead of direct Supabase query to avoid browser client session issues
+      const resp = await fetch('/api/my-card')
+      if (!resp.ok) return
 
-    if (data) {
-      setProfile(data as ProfileData)
+      const result = await resp.json()
+      if (!result.success || !result.data) return
+
+      const d = result.data
+      // Map API response back to ProfileData shape
+      const profileData: ProfileData = {
+        id: user!.id,
+        full_name: d.name || '',
+        email: d.email || '',
+        title: d.title || '',
+        phone: d.phone || '',
+        bio: d.bio || '',
+        license_number: '',
+        avatar_url: d.avatar_url || '',
+        business_card_url: d.card_image_url || '',
+        card_slug: d.slug || '',
+        card_enabled: d.card_enabled ?? true,
+        website: d.social?.website || '',
+        instagram_handle: d.social?.instagram || '',
+        facebook_url: d.social?.facebook || '',
+        linkedin_url: d.social?.linkedin || '',
+        tiktok_handle: d.social?.tiktok || '',
+      }
+      setProfile(profileData)
       setFormData({
-        title: data.title || '',
-        phone: data.phone || '',
-        bio: data.bio || '',
-        website: data.website || '',
-        instagram_handle: data.instagram_handle || '',
-        facebook_url: data.facebook_url || '',
-        linkedin_url: data.linkedin_url || '',
-        tiktok_handle: data.tiktok_handle || '',
+        title: profileData.title,
+        phone: profileData.phone,
+        bio: profileData.bio,
+        website: profileData.website,
+        instagram_handle: profileData.instagram_handle,
+        facebook_url: profileData.facebook_url,
+        linkedin_url: profileData.linkedin_url,
+        tiktok_handle: profileData.tiktok_handle,
       })
+    } catch (err) {
+      console.error('Error fetching profile:', err)
     }
   }
 
@@ -76,25 +99,30 @@ export default function BusinessCardPage() {
     setSaving(true)
     setSaveMessage('')
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        title: formData.title,
-        phone: formData.phone,
-        bio: formData.bio,
-        website: formData.website,
-        instagram_handle: formData.instagram_handle,
-        facebook_url: formData.facebook_url,
-        linkedin_url: formData.linkedin_url,
-        tiktok_handle: formData.tiktok_handle,
+    try {
+      const resp = await authFetch('/api/my-card', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          phone: formData.phone,
+          bio: formData.bio,
+          website: formData.website,
+          instagram_handle: formData.instagram_handle,
+          facebook_url: formData.facebook_url,
+          linkedin_url: formData.linkedin_url,
+          tiktok_handle: formData.tiktok_handle,
+        }),
       })
-      .eq('id', user.id)
 
-    if (error) {
+      if (!resp.ok) {
+        setSaveMessage('Error saving profile. Please try again.')
+      } else {
+        setSaveMessage('Profile updated successfully!')
+        fetchProfile()
+      }
+    } catch {
       setSaveMessage('Error saving profile. Please try again.')
-    } else {
-      setSaveMessage('Profile updated successfully!')
-      fetchProfile()
     }
     setSaving(false)
     setTimeout(() => setSaveMessage(''), 3000)

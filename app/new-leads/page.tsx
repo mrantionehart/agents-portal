@@ -44,20 +44,11 @@ export default function NewLeadsPage() {
   const fetchLeads = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('new_leads')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (filter === 'available') {
-        query = query.is('claimed_by', null)
-      } else if (filter === 'mine') {
-        query = query.eq('claimed_by', user!.id)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-      setLeads(data || [])
+      // Use API route instead of direct Supabase query to avoid browser client session issues
+      const resp = await fetch(`/api/new-leads?filter=${filter}`)
+      if (!resp.ok) throw new Error('Failed to fetch leads')
+      const data = await resp.json()
+      setLeads(data.leads || [])
     } catch (e) {
       console.error('Error fetching leads:', e)
     }
@@ -69,38 +60,20 @@ export default function NewLeadsPage() {
 
     setClaiming(lead.id)
     try {
-      // Check if still available
-      const { data: check } = await supabase
-        .from('new_leads')
-        .select('claimed_by')
-        .eq('id', lead.id)
-        .single()
+      const resp = await fetch('/api/new-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'claim', leadId: lead.id }),
+      })
 
-      if (check?.claimed_by) {
+      if (resp.status === 409) {
         alert('Another agent already claimed this lead.')
         fetchLeads()
         setClaiming(null)
         return
       }
 
-      // Get agent name
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user!.id)
-        .single()
-
-      const { error } = await supabase
-        .from('new_leads')
-        .update({
-          claimed_by: user!.id,
-          claimed_by_name: profile?.full_name || user!.email,
-          claimed_at: new Date().toISOString(),
-          status: 'claimed',
-        })
-        .eq('id', lead.id)
-
-      if (error) throw error
+      if (!resp.ok) throw new Error('Claim failed')
 
       alert(`Lead claimed! ${lead.name} is now yours.`)
       fetchLeads()
