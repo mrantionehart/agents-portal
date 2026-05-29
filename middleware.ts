@@ -94,8 +94,15 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch (err) {
-      // Fail open — if the check fails, let them through
+      // Fail CLOSED — if the gate's DB lookup errors, redirect to /training
+      // rather than silently letting agents through. Brokers/admins hitting
+      // a transient DB error get a brief detour to the (universally-allowed)
+      // training page; on the next request after recovery they pass through
+      // normally. Matches Vault's hardened posture (Op Hardening Item 1,
+      // vault commit e568879). No redirect loop possible: /training is in
+      // TRAINING_GATE_ALLOWED above so middleware skips the gate check on it.
       console.error('Training gate middleware error:', err)
+      return NextResponse.redirect(new URL('/training', request.url))
     }
   }
 
