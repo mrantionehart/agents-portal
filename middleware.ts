@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
       // normally. Matches Vault's hardened posture (Op Hardening Item 1,
       // vault commit e568879). No redirect loop possible: /training is in
       // TRAINING_GATE_ALLOWED above so middleware skips the gate check on it.
-      console.error('Training gate middleware error:', err)
+      console.warn("[hardening:item-6] training gate fail-closed", { pathname: request.nextUrl.pathname, error: err instanceof Error ? err.message : String(err) });
       return NextResponse.redirect(new URL('/training', request.url))
     }
   }
