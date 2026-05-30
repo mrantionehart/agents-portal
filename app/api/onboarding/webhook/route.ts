@@ -16,7 +16,10 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
  */
 function verifyDocuSignSignature(body: string, signature: string | null): boolean {
   if (!signature || !DOCUSIGN_WEBHOOK_SECRET) {
-    console.error('Webhook verification failed: missing signature or secret');
+    console.error('[hardening:phase-a] webhook verification failed: missing signature or secret', {
+      hasSignature: !!signature,
+      hasSecret: !!DOCUSIGN_WEBHOOK_SECRET,
+    });
     return false;
   }
 

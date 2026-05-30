@@ -5,6 +5,7 @@ import { sendWelcomeEmail } from '@/lib/sendgrid';
 import { sendAgentOnboardingSMS } from '@/lib/twilio';
 import { generateTemporaryPassword } from '@/lib/google-workspace';
 import { CreateAgentRequest, Agent, AgentResponse } from '@/lib/types';
+import { requireAdminRole } from '@/lib/server-auth';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -17,8 +18,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  * List all agents with their status
  */
 export async function GET(req: NextRequest): Promise<NextResponse<any>> {
+  const auth = await requireAdminRole();
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    // Verify admin access (you would add proper auth check here)
     const { data: agents, error } = await supabase
       .from('agents')
       .select('*')
@@ -49,6 +52,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<any>> {
  * Create new agent and trigger provisioning
  */
 export async function POST(req: NextRequest): Promise<NextResponse<AgentResponse>> {
+  const auth = await requireAdminRole();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body: CreateAgentRequest = await req.json();
     const { first_name, last_name, email, phone } = body;

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendApprovalEmail, sendRejectionEmail } from '@/lib/sendgrid';
 import { suspendGoogleWorkspaceUser } from '@/lib/google-workspace';
 import { Agent, AgentResponse } from '@/lib/types';
+import { requireAdminRole } from '@/lib/server-auth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,6 +17,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<AgentResponse>> {
+  const auth = await requireAdminRole();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { data: agent, error } = await supabase
       .from('agents')
@@ -51,6 +55,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<AgentResponse>> {
+  const auth = await requireAdminRole();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const { action, reason, first_name, last_name, email, phone } = body;
@@ -258,6 +265,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<AgentResponse>> {
+  const auth = await requireAdminRole();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { data: agent, error: fetchError } = await supabase
       .from('agents')
