@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { AlertCircle, CheckCircle, Clock, FileText, Flag, Eye } from 'lucide-react'
 import { VAULT_API_URL } from '@/lib/vault-client'
+import { supabase } from '@/lib/supabase'
 
 interface ComplianceAlert {
   id: string
@@ -38,10 +39,18 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
       setLoading(true)
       setError(null)
 
+      // D-3.5 Phase B.1 D2: bearer-JWT instead of legacy X-User-ID/X-User-Role.
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+      if (!accessToken) {
+        setError('Session expired — please sign in again')
+        setLoading(false)
+        return
+      }
+
       const response = await fetch(`${VAULT_API_URL}/compliance/alerts`, {
         headers: {
-          'X-User-ID': userId,
-          'X-User-Role': role,
+          'Authorization': `Bearer ${accessToken}`,
         },
       })
 
@@ -50,6 +59,8 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
         setAlerts(data.alerts || [])
       } else if (response.status === 403) {
         setError('You do not have permission to view compliance alerts')
+      } else if (response.status === 401) {
+        setError('Session expired — please sign in again')
       } else {
         setAlerts([])
       }
@@ -70,13 +81,21 @@ export default function ComplianceDashboard({ userId, role }: ComplianceDashboar
           : a
       ))
 
+      // D-3.5 Phase B.1 D2: bearer-JWT instead of legacy X-User-ID/X-User-Role.
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+      if (!accessToken) {
+        // Session expired — revert optimistic update and surface the error via reload.
+        fetchComplianceAlerts()
+        return
+      }
+
       // Persist to backend
       await fetch(`${VAULT_API_URL}/compliance/alerts`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-User-ID': userId,
-          'X-User-Role': role,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           alertId,
