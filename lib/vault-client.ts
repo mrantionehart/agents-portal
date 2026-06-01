@@ -200,30 +200,11 @@ export const vaultAPI = {
         userRole,
       }),
 
-    // Broker Review Workflow
-    submitForReview: (transactionId: string, brokerAssignedId: string, slaHours: number = 48, userId: string, userRole?: string | null) =>
-      vaultRequest(`/transactions/${transactionId}/submit-review`, {
-        method: 'POST',
-        body: { broker_assigned_id: brokerAssignedId, sla_hours: slaHours },
-        userId,
-        userRole,
-      }),
-
-    approveReview: (transactionId: string, approvalNotes?: string, userId?: string, userRole?: string | null) =>
-      vaultRequest(`/transactions/${transactionId}/approve-review`, {
-        method: 'PUT',
-        body: { approval_notes: approvalNotes },
-        userId,
-        userRole,
-      }),
-
-    requestRevisions: (transactionId: string, revisionNotes: string, revisionDeadlineDays?: number, userId?: string, userRole?: string | null) =>
-      vaultRequest(`/transactions/${transactionId}/request-revisions`, {
-        method: 'PUT',
-        body: { revision_notes: revisionNotes, revision_deadline_days: revisionDeadlineDays },
-        userId,
-        userRole,
-      }),
+    // B1-C DELETE 2026-06-01: submitForReview / approveReview / requestRevisions
+    // wrappers removed. Backing Vault routes /api/transactions/[id]/{submit,approve,request}-review
+    // were deleted in the same tranche after 3 days of zero live caller traffic
+    // (only operator curl probes appeared in logs). See vault repo
+    // docs/operational-research/D35_PHASE_B1_LOG_PULL_DECISION.md.
   },
 
   // ============ TASKS ============
