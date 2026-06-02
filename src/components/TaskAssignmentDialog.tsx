@@ -55,11 +55,9 @@ const TaskAssignmentDialog: React.FC<TaskAssignmentDialogProps> = ({
   const [success, setSuccess] = useState(false)
 
   // Fetch users on mount.
-  // Note: the prior `fetchTransactions()` call against `/api/broker/tc/transactions`
-  // was removed in the B.2 Group 3 TC surface cleanup — the underlying Vault route
-  // never existed at that response shape (the route returned TC stats, not a
-  // transaction list). Transactions dropdown will render with no options until a
-  // replacement endpoint is wired up.
+  // The Transactions dropdown is intentionally unsourced: the previous
+  // backend endpoint was removed in the B.2 Group 3 + F-1.B TC cleanups.
+  // Wire a replacement /api/transactions list endpoint here if/when needed.
   useEffect(() => {
     fetchUsers()
   }, [])
