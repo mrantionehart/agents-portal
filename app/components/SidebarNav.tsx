@@ -13,7 +13,6 @@ import {
   BookOpen,
   Sparkles,
   Wrench,
-  Settings,
   ChevronDown,
   LogOut,
   Shield,
@@ -83,12 +82,8 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Commission Calc', href: '/commission-calculator', icon: DollarSign },
   ]
 
-  const adminItems = [
-    { label: 'Brokerage', href: '/brokerage', icon: Users },
-    { label: 'Recruiting', href: '/recruiting', icon: Users },
-    { label: 'Compliance', href: '/compliance', icon: FileText },
-    { label: 'Settings', href: '/admin-settings', icon: Settings },
-  ]
+  // Phase 2 retirement: broker/admin nav section removed.
+  // Brokers and admins operate in Vault; this sidebar serves agents only.
 
   const navItemClass = (active: boolean) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium ${
@@ -174,28 +169,6 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
           )}
         </div>
 
-        {/* Admin Section - Only for brokers/admins */}
-        {(role === 'broker' || role === 'admin') && (
-          <div className="pt-4 border-t border-[#1a1a2e] mt-4">
-            <p className="px-4 text-xs uppercase text-gray-600 font-semibold tracking-wider mb-2">Admin</p>
-            <div className="space-y-1">
-              {adminItems.map((item) => {
-                const Icon = item.icon
-                const active = isActive(item.href)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={subNavItemClass(active)}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* Profile + Sign Out */}

@@ -4,15 +4,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
-import VaultDashboard from './vault-dashboard'
+import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
 import PolicyAcceptanceModal from '../policy-acceptance/modal'
 import ComplianceNotifications from '../components/compliance-notifications'
 import SupportModal from '@/components/SupportModal'
 import SidebarNav from '../components/SidebarNav'
-import BrokerViewToggle from '../components/BrokerViewToggle'
 import NotificationsPanel from '../components/NotificationsPanel'
 import TrainingGate from '../components/TrainingGate'
 
@@ -26,7 +24,6 @@ export default function DashboardPage() {
   const [policyAccepted, setPolicyAccepted] = useState(true)
   const [checkingPolicy, setCheckingPolicy] = useState(true)
   const [supportModalOpen, setSupportModalOpen] = useState(false)
-  const [viewMode, setViewMode] = useState<'agent' | 'broker'>('agent')
   const [vol2BannerDismissed, setVol2BannerDismissed] = useState(false)
   const [newsArticles, setNewsArticles] = useState<{ title: string; link: string; pubDate: string; source: string }[]>([])
 
@@ -36,12 +33,6 @@ export default function DashboardPage() {
   //     router.push('/login')
   //   }
   // }, [user, loading, router])
-
-  useEffect(() => {
-    if (role === 'broker' || role === 'admin') {
-      setViewMode('broker')
-    }
-  }, [role])
 
   useEffect(() => {
     if (user && role) {
@@ -168,15 +159,8 @@ export default function DashboardPage() {
   const totalGrossCommission = commissions.reduce((sum, c) => sum + (c.gross_commission || 0), 0)
   const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
 
-  // Vault dashboard for broker/admin view
-  if ((role === 'broker' || role === 'admin') && viewMode === 'broker') {
-    return (
-      <div className="min-h-screen flex vault-theme">
-        <SidebarNav onSignOut={handleSignOut} userName={user?.user_metadata?.full_name || user?.email?.split('@')[0]} role={role} />
-        <VaultDashboard user={user} role={role} viewMode={viewMode} />
-      </div>
-    )
-  }
+  // Phase 2 retirement: broker/admin view branch removed.
+  // Brokers and admins operate in Vault; this dashboard serves agents only.
 
   return (
     <div className="min-h-screen bg-[#050507] flex">
@@ -197,9 +181,6 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-400">Welcome back to your workspace</p>
             </div>
             <div className="flex items-center gap-6">
-              {(role === 'broker' || role === 'admin') && (
-                <BrokerViewToggle role={role} currentView={viewMode} onViewChange={setViewMode} />
-              )}
               <NotificationsPanel userId={user?.id} role={role} />
               <button
                 onClick={() => setSupportModalOpen(true)}
@@ -366,57 +347,6 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 mt-2">After splits & fees</p>
           </div>
         </div>
-
-        {/* Admin Section - Only visible to brokers/admins */}
-        {(role === 'broker' || role === 'admin') && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <SettingsIcon className="w-6 h-6 text-gray-200" />
-              Admin Tools
-            </h2>
-            <div className="grid grid-cols-5 gap-4">
-              <Link href="/brokerage" className="group">
-                <div className="bg-[#0a0a0f] p-6 rounded-lg shadow hover:shadow-lg shadow-black/20 transition cursor-pointer group-hover:bg-cyan-50 border-l-4 border-cyan-600">
-                  <Users className="w-8 h-8 text-cyan-600 mb-3" />
-                  <h3 className="font-semibold text-white mb-1">Brokerage</h3>
-                  <p className="text-sm text-gray-400">All agents & deals</p>
-                </div>
-              </Link>
-
-              <Link href="/recruiting" className="group">
-                <div className="bg-[#0a0a0f] p-6 rounded-lg shadow hover:shadow-lg shadow-black/20 transition cursor-pointer group-hover:bg-purple-500/10 border-l-4 border-purple-600">
-                  <Sparkles className="w-8 h-8 text-purple-600 mb-3" />
-                  <h3 className="font-semibold text-white mb-1">Recruiting</h3>
-                  <p className="text-sm text-gray-400">Build team</p>
-                </div>
-              </Link>
-
-              <Link href="/admin/onboarding" className="group">
-                <div className="bg-[#0a0a0f] p-6 rounded-lg shadow hover:shadow-lg shadow-black/20 transition cursor-pointer group-hover:bg-blue-500/10 border-l-4 border-blue-600">
-                  <ClipboardList className="w-8 h-8 text-blue-600 mb-3" />
-                  <h3 className="font-semibold text-white mb-1">Onboarding</h3>
-                  <p className="text-sm text-gray-400">New agents</p>
-                </div>
-              </Link>
-
-              <Link href="/admin-settings" className="group">
-                <div className="bg-[#0a0a0f] p-6 rounded-lg shadow hover:shadow-lg shadow-black/20 transition cursor-pointer group-hover:bg-indigo-500/10 border-l-4 border-indigo-600">
-                  <SettingsIcon className="w-8 h-8 text-indigo-600 mb-3" />
-                  <h3 className="font-semibold text-white mb-1">Settings</h3>
-                  <p className="text-sm text-gray-400">Config</p>
-                </div>
-              </Link>
-
-              <Link href="/compliance" className="group">
-                <div className="bg-[#0a0a0f] p-6 rounded-lg shadow hover:shadow-lg shadow-black/20 transition cursor-pointer group-hover:bg-yellow-500/10 border-l-4 border-yellow-600">
-                  <FileText className="w-8 h-8 text-yellow-600 mb-3" />
-                  <h3 className="font-semibold text-white mb-1">Compliance</h3>
-                  <p className="text-sm text-gray-400">Review</p>
-                </div>
-              </Link>
-            </div>
-          </div>
-        )}
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-3 gap-6 mb-12">
