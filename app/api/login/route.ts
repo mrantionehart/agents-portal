@@ -46,8 +46,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     const role = profile?.role || 'agent'
+    // Phase 4: brokers/admins operate in Vault, not the Agent Portal.
     const dashboardPath =
-      role === 'admin' || role === 'broker' ? '/admin/dashboard' : '/dashboard'
+      role === 'admin' || role === 'broker'
+        ? 'https://vault.hartfeltrealestate.com/dashboard'
+        : '/dashboard'
 
     console.log(`✓ Login: ${email} (${role}) → ${dashboardPath}`)
 

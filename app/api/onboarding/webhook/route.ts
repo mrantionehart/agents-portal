@@ -225,7 +225,7 @@ async function notifyAdminsViaEmail(agentEmail: string, admins: any[]) {
               </ol>
 
               <p>
-                <a href="https://portal.hartfelt.com/admin/agents"
+                <a href="https://vault.hartfeltrealestate.com/agents"
                    style="background-color: #2EC4D6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                   Review Documents
                 </a>

@@ -27,7 +27,8 @@ export default function HomePage() {
 
     if (user) {
       if (role === 'admin' || role === 'broker') {
-        window.location.href = '/admin/dashboard'
+        // Phase 4: brokers/admins operate in Vault, not the Agent Portal.
+        window.location.href = 'https://vault.hartfeltrealestate.com/dashboard'
       } else {
         window.location.href = '/dashboard'
       }
