@@ -94,15 +94,6 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       read: true,
       actionUrl: '/documents',
     },
-    {
-      id: '4',
-      type: 'tc_assigned' as const,
-      title: 'TC Assigned',
-      description: 'Sarah Johnson assigned as TC for your deal at 321 Elm Ave',
-      timestamp: new Date(Date.now() - 5 * 3600000),
-      read: true,
-      actionUrl: '/transaction-coordinator',
-    },
   ]
 
   const unreadCount = notifications.filter(n => !n.read).length

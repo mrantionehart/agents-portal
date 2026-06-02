@@ -4,16 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { ArrowLeft, BarChart3, Users, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, BarChart3, Users, AlertCircle } from 'lucide-react'
 import BrokerPerformanceDashboard from '../components/BrokerPerformanceDashboard'
-import TCDashboard from '@/components/tc/TCDashboard'
 import ComplianceDashboard from '../components/ComplianceDashboard'
 import SidebarNav from '../components/SidebarNav'
 
 export default function BrokerDashboardPage() {
   const { user, role, loading, signOut } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'broker' | 'tc' | 'compliance'>('broker')
+  const [activeTab, setActiveTab] = useState<'broker' | 'compliance'>('broker')
 
   const handleSignOut = async () => {
     await signOut()
@@ -95,19 +94,6 @@ export default function BrokerDashboardPage() {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('tc')}
-              className={`py-4 px-2 font-medium border-b-2 transition ${
-                activeTab === 'tc'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                TC View
-              </div>
-            </button>
-            <button
               onClick={() => setActiveTab('compliance')}
               className={`py-4 px-2 font-medium border-b-2 transition ${
                 activeTab === 'compliance'
@@ -126,7 +112,6 @@ export default function BrokerDashboardPage() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto px-8 py-8">
           {activeTab === 'broker' && <BrokerPerformanceDashboard userId={user.id} role={role} />}
-          {activeTab === 'tc' && <TCDashboard userId={user.id} userRole={role} />}
           {activeTab === 'compliance' && <ComplianceDashboard userId={user.id} role={role} />}
         </main>
       </div>

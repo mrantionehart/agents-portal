@@ -16,7 +16,6 @@ import {
   Settings,
   ChevronDown,
   LogOut,
-  CheckSquare,
   Shield,
   Gift,
   Megaphone,
@@ -75,10 +74,6 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'Airbnb Friendly Intelligence', href: '/str-directory', icon: Building2 },
     { label: 'Market News', href: '/news', icon: Newspaper },
     { label: 'Referrals', href: '/recruiting', icon: Users },
-  ]
-
-  const operationsItems = [
-    { label: 'Transaction Coordinator', href: '/transaction-coordinator', icon: CheckSquare },
   ]
 
   const toolsItems = [
@@ -145,27 +140,6 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
             </Link>
           )
         })}
-
-        {/* Operations Section */}
-        <div className="pt-4 border-t border-[#1a1a2e] mt-4">
-          <p className="px-4 text-xs uppercase text-gray-600 font-semibold tracking-wider mb-2">Operations</p>
-          <div className="space-y-1">
-            {operationsItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={navItemClass(active)}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              )
-            })}
-          </div>
-        </div>
 
         {/* Tools Section */}
         <div className="pt-4 border-t border-[#1a1a2e] mt-4">

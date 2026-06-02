@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
-import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, CheckSquare, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
+import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Settings as SettingsIcon, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, ClipboardList, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
 import VaultDashboard from './vault-dashboard'
 import { vaultAPI } from '@/lib/vault-client'
 import { createClient } from '@supabase/supabase-js'
@@ -289,10 +289,6 @@ export default function DashboardPage() {
             <Link href="/documents" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-orange-500/10 transition text-sm text-gray-200 hover:text-orange-700">
               <FileText className="w-4 h-4" />
               Upload Doc
-            </Link>
-            <Link href="/transaction-coordinator" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-50 transition text-sm text-gray-200 hover:text-emerald-700">
-              <CheckSquare className="w-4 h-4" />
-              Request TC
             </Link>
             <Link href="/ai-chat" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-500/10 transition text-sm text-gray-200 hover:text-indigo-700">
               <Sparkles className="w-4 h-4" />
