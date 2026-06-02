@@ -54,33 +54,15 @@ const TaskAssignmentDialog: React.FC<TaskAssignmentDialogProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Fetch transactions on mount
+  // Fetch users on mount.
+  // Note: the prior `fetchTransactions()` call against `/api/broker/tc/transactions`
+  // was removed in the B.2 Group 3 TC surface cleanup — the underlying Vault route
+  // never existed at that response shape (the route returned TC stats, not a
+  // transaction list). Transactions dropdown will render with no options until a
+  // replacement endpoint is wired up.
   useEffect(() => {
-    fetchTransactions()
     fetchUsers()
   }, [])
-
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/broker/tc/transactions', {
-        headers: {
-          'X-User-ID': userId,
-          'X-User-Role': userRole
-        }
-      })
-
-      if (response.ok) {
-        const { data } = await response.json()
-        setTransactions(data || [])
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error)
-      setError('Failed to load transactions')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchUsers = async () => {
     try {
