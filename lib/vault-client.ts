@@ -364,12 +364,6 @@ export const vaultAPI = {
       }),
   },
 
-  // ============ BROKER TASK DASHBOARD ============
-  brokerDashboard: {
-    getTaskMetrics: (userId?: string, userRole?: string | null) =>
-      vaultRequest('/broker/task-dashboard', { userId, userRole }),
-  },
-
   // ============ SMART DEADLINES / TIMELINE ============
   timeline: {
     // Extract dates from contract document
