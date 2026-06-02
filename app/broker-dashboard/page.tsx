@@ -19,8 +19,24 @@ export default function BrokerDashboardPage() {
     router.push('/login')
   }
 
-  // Only allow brokers and admins
-  if (!loading && role !== 'broker' && role !== 'admin') {
+  // Guard order matters. Previously the role check fired BEFORE the !user check,
+  // which meant a stale/expired Supabase session (where /api/auth/me returns 401
+  // and the provider sets user=null + role=null) resolved as "wrong role" and
+  // rendered Access Denied. Now: loading → no-session-redirect → role check.
+
+  // 1. Still resolving the session — show loading.
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+
+  // 2. Resolved, but no authenticated user — send them to login (NOT Access Denied).
+  if (!user) {
+    router.push('/login?next=/broker-dashboard')
+    return null
+  }
+
+  // 3. Authenticated but not a broker/admin — show Access Denied.
+  if (role !== 'broker' && role !== 'admin') {
     return (
       <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <div className="bg-[#0a0a0f] rounded-lg shadow p-8 text-center max-w-md">
@@ -32,14 +48,6 @@ export default function BrokerDashboardPage() {
         </div>
       </div>
     )
-  }
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-  }
-
-  if (!user) {
-    return null
   }
 
   return (
