@@ -2,10 +2,14 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, clientIp, normalizeEmail } from '@/lib/ratelimit'
 
-const TOO_MANY = NextResponse.json(
-  { error: 'Too many attempts. Please try again later.' },
-  { status: 429 }
-)
+// Build a fresh NextResponse on every call — a shared module-level instance
+// would have its body stream consumed after the first return and send empty
+// bodies on subsequent requests.
+const tooMany = () =>
+  NextResponse.json(
+    { error: 'Too many attempts. Please try again later.' },
+    { status: 429 }
+  )
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,12 +23,12 @@ export async function POST(request: NextRequest) {
     // signInWithPassword paths below.
     const ip = clientIp(request.headers)
     const ipCheck = await checkRateLimit('login-ip', ip, 5, '1 m')
-    if (!ipCheck.ok) return TOO_MANY
+    if (!ipCheck.ok) return tooMany()
 
     const emailKey = normalizeEmail(email)
     if (emailKey) {
       const emailCheck = await checkRateLimit('login-email', emailKey, 10, '1 h')
-      if (!emailCheck.ok) return TOO_MANY
+      if (!emailCheck.ok) return tooMany()
     }
     // -----------------------------------
 

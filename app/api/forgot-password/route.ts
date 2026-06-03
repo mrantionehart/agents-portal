@@ -12,7 +12,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, clientIp, normalizeEmail } from '@/lib/ratelimit'
 
-const ALWAYS_SUCCESS = NextResponse.json({ success: true }, { status: 200 })
+// Build a fresh NextResponse on every call — a shared module-level instance
+// would have its body stream consumed after the first return and send empty
+// bodies on subsequent requests.
+const alwaysSuccess = () =>
+  NextResponse.json({ success: true }, { status: 200 })
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
     } catch {
       // Malformed JSON — still return success (no enumeration)
       console.warn('[security:forgot-password] malformed body')
-      return ALWAYS_SUCCESS
+      return alwaysSuccess()
     }
 
     const ip = clientIp(request.headers)
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
         '[security:forgot-password] ip limit hit',
         { reset: ipCheck.reset }
       )
-      return ALWAYS_SUCCESS
+      return alwaysSuccess()
     }
 
     if (emailKey) {
@@ -46,11 +50,11 @@ export async function POST(request: NextRequest) {
           '[security:forgot-password] email limit hit',
           { reset: emailCheck.reset }
         )
-        return ALWAYS_SUCCESS
+        return alwaysSuccess()
       }
     } else {
       // No email provided — nothing to do, but don't leak that.
-      return ALWAYS_SUCCESS
+      return alwaysSuccess()
     }
 
     // ---- Initiate reset ----
@@ -82,13 +86,13 @@ export async function POST(request: NextRequest) {
       console.log('[security:forgot-password] reset initiated')
     }
 
-    return ALWAYS_SUCCESS
+    return alwaysSuccess()
   } catch (err: any) {
     // Never leak internals; always return success.
     console.error(
       '[security:forgot-password] handler error',
       err?.message || String(err)
     )
-    return ALWAYS_SUCCESS
+    return alwaysSuccess()
   }
 }
