@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Build a fresh NextResponse on every call — a shared module-level instance
+// would have its body stream consumed after the first return and send empty
+// bodies on subsequent requests (Sprint 5A regression learned the hard way).
+const tooManyUploads = () =>
+  NextResponse.json(
+    { error: 'Too many uploads. Please try again shortly.' },
+    { status: 429 }
+  )
 
 async function getAuthedUser(request: NextRequest) {
   const auth = request.headers.get('authorization') || ''
@@ -65,6 +75,20 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
+    // ---- Rate limit: per-user (Sprint 5B: H3) ----
+    // Caps any single account at 20 uploads/min regardless of which
+    // transaction. Runs BEFORE formData parsing so a flood of large
+    // payloads can't burn bandwidth past this gate. KV-backed; fails
+    // open with telemetry if KV is unavailable.
+    const userCheck = await checkRateLimit(
+      'compliance-upload-user',
+      user.id,
+      20,
+      '1 m'
+    )
+    if (!userCheck.ok) return tooManyUploads()
+    // ----------------------------------------------
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const transactionId = formData.get('transaction_id') as string
@@ -77,6 +101,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // ---- Rate limit: per-transaction (Sprint 5B: H3) ----
+    // Caps any single transaction at 5 uploads/min regardless of which
+    // user. Multi-agent collaboration on one transaction stays below
+    // this in normal use; protects against runaway scripts targeting
+    // a single transaction_id. Runs after we know transactionId but
+    // BEFORE the storage write so blocked attempts mutate nothing.
+    const txCheck = await checkRateLimit(
+      'compliance-upload-transaction',
+      transactionId,
+      5,
+      '1 m'
+    )
+    if (!txCheck.ok) return tooManyUploads()
+    // -----------------------------------------------------
 
     // Validate file type
     const allowedTypes = [
@@ -203,7 +242,45 @@ export async function POST(request: NextRequest) {
 
       const uploaderName = uploaderProfile?.full_name || user.email?.split('@')[0] || 'An agent'
 
+      // ── 5-min notification debounce (Sprint 5B: M2) ────────────
+      // Code-only check (no migration). For each broker, look back
+      // 5 minutes for a doc_uploaded notification on this same
+      // (recipient_id, transaction_id, doc_label) triple. If one
+      // exists, skip the insert AND the SendGrid send so repeated
+      // saves of the same document don't multiply broker emails.
+      // We compute the cutoff once, outside the loop.
+      const debounceCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+
       for (const broker of brokers || []) {
+        // Debounce probe — query by columns + metadata->>doc_label so we
+        // catch the same logical document under the same recipient even
+        // if title/message text drifts.
+        const { data: recent } = await admin
+          .from('compliance_notifications')
+          .select('id')
+          .eq('recipient_id', broker.id)
+          .eq('transaction_id', transactionId)
+          .eq('notification_type', 'doc_uploaded')
+          .eq('metadata->>doc_label', docLabel)
+          .gte('created_at', debounceCutoff)
+          .limit(1)
+          .maybeSingle()
+
+        if (recent) {
+          // Identifier-bearing fields (broker email, doc body) stay out
+          // of the log; we only emit IDs needed for ops correlation.
+          console.log(
+            '[security:compliance-upload] notification debounced',
+            {
+              recipient_id: broker.id,
+              transaction_id: transactionId,
+              notification_type: 'doc_uploaded',
+              window_minutes: 5,
+            }
+          )
+          continue
+        }
+
         // In-app notification
         await admin.from('compliance_notifications').insert({
           recipient_id: broker.id,
