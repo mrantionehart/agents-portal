@@ -15,6 +15,7 @@ export {
   type AuthedUser,
   getAuthedUser,
   requireAuth,
+  userClient,
   withAuth,
 } from './withAuth'
 

@@ -1,0 +1,19 @@
+# ============================================================================
+# Vercel deploy ignore list (Security Sprint 8B Phase 1)
+# ============================================================================
+# These files are operator CLI utilities that should not be shipped to the
+# Vercel runtime. They are not referenced by package.json scripts, vercel.json,
+# .github/workflows, or any other runtime code. They contain hard-coded
+# SUPABASE_SERVICE_ROLE_KEY usage and have no business in the deployed bundle.
+#
+# The scripts remain in the repository for operator use via local CLI.
+# Do not delete them without checking with the operator first — some may
+# still be referenced by historical runbooks.
+# ============================================================================
+
+delete-all-agents.js
+migrate.js
+run-migration.js
+run_migration_019.js
+run_migration_020.js
+run_migration_020 2.js

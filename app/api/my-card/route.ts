@@ -1,40 +1,16 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
+// Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B-P0.1:
+//   profiles / profiles_select       / SELECT / {public} / true
+//   profiles / profiles_update_own   / UPDATE / {public} / (id = auth.uid())
+// The PATCH path now goes through RLS under the user JWT — the policy's
+// (id = auth.uid()) predicate is the actual security boundary; the
+// `.eq('id', user.id)` filter in the query body remains as a query-plan
+// hint and a redundant guard.
 
 /**
  * GET /api/my-card
@@ -42,17 +18,13 @@ async function getAuthedUser(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
-    const { data: profile, error } = await admin
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select(
         'id, full_name, email, phone, title, role, avatar_url, business_card_url, card_slug, card_enabled, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle, bio'
@@ -105,10 +77,9 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const body = await request.json()
     const allowedFields = [
@@ -126,12 +97,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
-    const { error } = await admin
+    const { error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id)

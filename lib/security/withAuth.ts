@@ -29,7 +29,7 @@
 // Returns 401 with `{ error: 'Unauthorized' }` on missing/invalid session.
 // ============================================================================
 
-import { createClient, User } from '@supabase/supabase-js'
+import { createClient, User, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -112,6 +112,51 @@ export async function requireAuth(
   const user = await getAuthedUser(request)
   if (!user) return { response: unauthorized() }
   return { user }
+}
+
+/**
+ * Build a per-request Supabase client bound to the calling user's JWT.
+ * Sprint 8B Phase 1 helper — used by routes that previously created an
+ * admin (service-role) client out of habit. With this client, every query
+ * runs under the user's session and is gated by RLS policies — no service
+ * role needed.
+ *
+ * Mirrors the auth-mode logic in getAuthedUser():
+ *   * Authorization: Bearer <jwt>  → anon-key client with Bearer header set
+ *   * Supabase session cookie      → anon-key SSR client reading cookies
+ *
+ * The cookie-mode setter/remover are no-ops; routes that need to set new
+ * session cookies (login, /api/auth/me) should use their own SSR client
+ * with a non-stub response object instead of this helper.
+ */
+export function userClient(request: NextRequest): SupabaseClient {
+  const auth = request.headers.get('authorization') || ''
+  if (auth.toLowerCase().startsWith('bearer ')) {
+    const token = auth.slice(7).trim()
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      }
+    )
+  }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        // No-op setters — caller doesn't write to session. If a route needs
+        // to mutate cookies, build its own SSR client with a real response.
+        set(_n: string, _v: string, _o: CookieOptions) {},
+        remove(_n: string, _o: CookieOptions) {},
+      },
+    }
+  )
 }
 
 /**

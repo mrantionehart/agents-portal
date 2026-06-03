@@ -2,9 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientIp, withRateLimit } from '@/lib/security'
 
+// Sprint 8B Phase 1: service role removed. Anon key + RLS now serve this
+// route. Policy anchor verified in Sprint 8B-P0.1:
+//   profiles / profiles_select / SELECT / {public} / qual = true
+//   anon grant on profiles.SELECT present
+// The route's own .eq('card_enabled', true) filter remains the user-facing
+// gate. Behavior unchanged for any caller that sees the response shape.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 // Intentionally-public endpoint — anyone with a card slug can view it.

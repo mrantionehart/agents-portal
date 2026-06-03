@@ -1,62 +1,37 @@
+// ---------------------------------------------------------------------------
+// GET /api/training/catalog
+//
+// Returns the full training catalog + the caller's own video progress.
+//
+// Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B-P0.1:
+//   training_modules        / training_modules_select / SELECT / {authenticated} / true
+//   training_videos         / training_videos_select  / SELECT / {authenticated} / true
+//   training_video_progress / tvp_select_own          / SELECT / {authenticated} /
+//                             (auth.uid() = user_id)
+// The own-row RLS on training_video_progress replaces the previous
+// `.eq('user_id', user.id)` filter as the security boundary — the route's
+// explicit filter is kept anyway for query-plan clarity.
+// ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-// Authenticate via cookie (portal) or Bearer token (mobile)
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    // Use service role to bypass RLS for catalog reads
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     const [{ data: modules }, { data: videos }, { data: progress }] = await Promise.all([
-      admin.from('training_modules').select('*').order('sort_order'),
-      admin.from('training_videos').select('*').order('sort_order'),
-      admin
+      supabase.from('training_modules').select('*').order('sort_order'),
+      supabase.from('training_videos').select('*').order('sort_order'),
+      supabase
         .from('training_video_progress')
         .select('video_id, watched_seconds, completed')
         .eq('user_id', user.id),

@@ -1,75 +1,38 @@
+// ---------------------------------------------------------------------------
+// GET /api/training/progress
+//
+// Returns the caller's own training_progress rows and quiz history.
+//
+// Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B-P0.1:
+//   training_progress     / Users can view own training progress / SELECT / {public} /
+//                          (auth.uid() = user_id)
+//   training_quiz_results / Users can view own quiz results      / SELECT / {public} /
+//                          (auth.uid() = user_id)
+// The own-row RLS replaces the previous service-role bypass; `.eq('user_id',
+// user.id)` filters remain as belt-and-braces alongside RLS.
+// ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-// Shared auth helper — same pattern as /api/training/catalog/route.ts
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch {
-      return null
-    }
-  }
-
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name)
-          },
-        },
-      }
-    )
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    return user
-  } catch {
-    return null
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     const [{ data: trainingProgress }, { data: quizResults }] = await Promise.all([
-      admin
+      supabase
         .from('training_progress')
         .select('*')
         .eq('user_id', user.id),
-      admin
+      supabase
         .from('training_quiz_results')
         .select('*')
         .eq('user_id', user.id)

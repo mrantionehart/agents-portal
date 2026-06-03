@@ -14,12 +14,21 @@
 // }
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
+
+// Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B-P0.1:
+//   profiles          / profiles_select                       / SELECT / {public}        / true
+//   training_progress / Users can view own training progress  / SELECT / {public}        /
+//                       (auth.uid() = user_id)
+// The profiles read is still own-row by id = user.id in the query body.
+// The training_progress own-row policy replaces the previous service-role
+// bypass; the query's `.eq('user_id', user.id)` filter remains as a
+// belt-and-braces guard alongside RLS.
 
 // Same module lists used by /api/training/quiz
 // Vol 1 base modules (1-9) are required to unlock the app.
@@ -28,69 +37,18 @@ export const fetchCache = 'force-no-store'
 const VOL1_BASE = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 const VOL2_REQUIRED = [8, 9, 10, 11, 12, 13, 14]
 
-async function getAuthedUser(request: NextRequest) {
-  // Bearer token (EASE mobile)
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch {
-      return null
-    }
-  }
-
-  // SSR cookie (portal)
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name)
-          },
-        },
-      }
-    )
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    return user
-  } catch {
-    return null
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     // Fetch role + QA status + training progress in parallel
     const [{ data: profile }, { data: progressRows }] = await Promise.all([
-      admin.from('profiles').select('role, is_qa_user').eq('id', user.id).single(),
-      admin
+      supabase.from('profiles').select('role, is_qa_user').eq('id', user.id).single(),
+      supabase
         .from('training_progress')
         .select('volume, completed_modules, volume_completed')
         .eq('user_id', user.id),

@@ -1,50 +1,27 @@
 // ---------------------------------------------------------------------------
 // CloseIQ Template Fields — /api/closeiq/templates/fields
 // Extract form fields from an existing template, or preview fields from upload
+//
+// Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
+// Policy anchor verified in Sprint 8B-P0.1:
+//   contract_templates / Authenticated users can read active templates /
+//                        SELECT / {authenticated} / (is_active = true)
+//
+// Behavioral note: post-conversion, inactive templates (is_active = false)
+// are invisible to this route's GET path. Pre-conversion (service role)
+// returned them. Sprint 8B-P0.1 verified there are no UI callers fetching
+// inactive templates through this route, so the behavior change is moot.
+// POST is pure PDF parsing — no DB access — fully unaffected.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
+import { requireAuth, userClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
-
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-}
 
 // ---------------------------------------------------------------------------
 // GET /api/closeiq/templates/fields?template_id=...
@@ -52,14 +29,14 @@ function adminClient() {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
 
-    const db = adminClient()
+    const supabase = userClient(request)
     const templateId = request.nextUrl.searchParams.get('template_id')
     if (!templateId) return NextResponse.json({ error: 'template_id required' }, { status: 400 })
 
-    const { data: template, error } = await db
+    const { data: template, error } = await supabase
       .from('contract_templates')
       .select('id, name, slug, form_fields, field_mapping, mapping_verified')
       .eq('id', templateId)
@@ -218,8 +195,8 @@ async function extractXfaFields(pdfBytes: Buffer | Uint8Array): Promise<
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
