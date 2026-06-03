@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -37,16 +38,12 @@ async function getAuthedUser(request: NextRequest) {
   } catch { return null }
 }
 
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-}
-
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
     const { searchParams } = new URL(req.url)
     const period = searchParams.get('period') || 'month'
 
@@ -76,7 +73,7 @@ export async function POST(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Only brokers/admins can add wins' }, { status: 403 })
@@ -111,7 +108,7 @@ export async function PATCH(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
@@ -134,7 +131,7 @@ export async function DELETE(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })

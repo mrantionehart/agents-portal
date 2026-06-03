@@ -1,12 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { DocuSignWebhookPayload } from '@/lib/types';
-import { withWebhookSignature } from '@/lib/security';
+import { adminClient, withWebhookSignature } from '@/lib/security';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+// Sprint 8B Phase 3: module-level service-role client moved into the
+// handler and re-built per request through adminClient('webhook-docusign-
+// envelope'), so every privileged DB client construction emits a
+// [security:service-role] log line.
+//
 // Sprint 5D: per-route verifyDocuSignSignature() removed; signature
 // verification (HMAC-SHA256 + base64 + timing-safe + length-check) is now
 // handled by withWebhookSignature() before the handler runs. The handler
@@ -33,6 +33,9 @@ export const POST = withWebhookSignature(
   },
   async (_req: NextRequest, { rawBody }): Promise<NextResponse> => {
     try {
+      const supabase = adminClient('webhook-docusign-envelope', {
+        context: 'POST /api/docusign/webhook',
+      });
       const body: DocuSignWebhookPayload = JSON.parse(rawBody);
 
     // Log webhook for debugging

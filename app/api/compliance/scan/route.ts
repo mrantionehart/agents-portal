@@ -13,6 +13,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
 import { sendExpoPushToUsers } from '@/lib/push-notifications';
+import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,11 +25,8 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 // Service-role client — bypasses RLS
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+function getAdminClient(userId?: string) {
+  return adminClient('compliance-scan-broker-action', { userId, context: 'POST /api/compliance/scan' });
 }
 
 async function getAuthedUser(
@@ -117,7 +115,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = getAdminClient();
+    const admin = getAdminClient(caller.userId);
 
     // ---- Cross-user authorization (Sprint 1: H2) ----
     // Caller may scan their own agent_id. Cross-user scans require

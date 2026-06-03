@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { adminClient } from '@/lib/security'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -20,10 +21,7 @@ export async function sendExpoPushToUsers(
   excludeUserId?: string
 ) {
   try {
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const admin = adminClient('push-token-lookup', { context: 'lib/push-notifications' });
 
     let query = admin
       .from('push_notification_tokens')
@@ -68,10 +66,7 @@ export async function sendExpoPushBroadcast(
   excludeUserId?: string
 ) {
   try {
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const admin = adminClient('push-token-lookup', { context: 'lib/push-notifications' });
 
     let query = admin
       .from('push_notification_tokens')

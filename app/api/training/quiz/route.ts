@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { getQuizForModule, gradeQuiz } from '@/app/data/quizzes'
-import { requireAuth, userClient } from '@/lib/security'
+import { requireAuth, userClient, adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -157,10 +156,7 @@ export async function POST(request: NextRequest) {
         try {
           // [service-role: broker-fan-out] — service-role client scoped
           // narrowly to this notification block.
-          const admin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-          )
+          const admin = adminClient('broker-fan-out', { userId: user.id, context: 'POST /api/training/quiz volume-completion' })
 
           // Get agent profile info
           const { data: agentProfile } = await admin

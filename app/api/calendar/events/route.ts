@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
 import { sendExpoPushBroadcast } from '@/lib/push-notifications'
+import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -46,10 +47,7 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 
     // Get user role
     const { data: profile } = await admin
@@ -98,10 +96,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 
     const body = await request.json()
     const {
@@ -251,10 +246,7 @@ export async function DELETE(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('id')

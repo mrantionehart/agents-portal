@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
+import { adminClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
@@ -44,10 +45,6 @@ async function getAuthedUser(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     return user
   } catch { return null }
-}
-
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
 // ---------------------------------------------------------------------------
@@ -279,7 +276,7 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
 
     // Check if user is broker
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
@@ -313,7 +310,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
 
     // Verify broker role
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
@@ -433,7 +430,7 @@ export async function PATCH(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
 
     // Verify broker role
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()

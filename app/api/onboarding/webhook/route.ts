@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { sendExpoPushToUsers } from '@/lib/push-notifications'
-import { withWebhookSignature } from '@/lib/security'
+import { adminClient, withWebhookSignature } from '@/lib/security'
 
 // Onboarding Webhook Handler (DocuSign)
 // This endpoint receives events from DocuSign when onboarding documents
 // are signed. Distinct from /api/docusign/webhook which handles transaction
 // envelopes — both use the same DOCUSIGN_WEBHOOK_SECRET.
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+//
+// Sprint 8B Phase 3: module-level SUPABASE_URL/SUPABASE_SERVICE_KEY pair
+// removed. Each privileged DB client is now built per-call through
+// adminClient('webhook-onboarding-idempotency'), which emits a
+// [security:service-role] log line.
 
 // Sprint 5D: per-route verifyDocuSignSignature() removed; this route
 // previously omitted the explicit length check before timingSafeEqual
@@ -48,7 +49,7 @@ export const POST = withWebhookSignature(
       event?.signingTime || event?.completedDateTime || null
 
     if (envelopeId && eventType) {
-      const idem = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+      const idem = adminClient('webhook-onboarding-idempotency', { context: 'POST /api/onboarding/webhook' })
       const { data: inserted, error: idemErr } = await idem
         .from('onboarding_webhook_events')
         .insert({
@@ -137,7 +138,7 @@ async function handleEnvelopeSigned(event: any) {
   const { envelopeId, signingTime, recipientEmail } = event
 
   try {
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+    const supabase = adminClient('webhook-onboarding-idempotency', { context: 'POST /api/onboarding/webhook' })
 
     // Update the onboarding record in database
     const { error } = await supabase
@@ -179,7 +180,7 @@ async function handleEnvelopeCompleted(event: any) {
 }
 
 async function notifyAdminsOfSignedDocuments(agentEmail: string) {
-  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+  const supabase = adminClient('webhook-onboarding-idempotency', { context: 'POST /api/onboarding/webhook' })
 
   try {
     // Get all admin and broker users

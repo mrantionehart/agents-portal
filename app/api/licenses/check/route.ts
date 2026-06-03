@@ -17,6 +17,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
 import { sendExpoPushToUsers } from '@/lib/push-notifications';
+import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,11 +28,8 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+function getAdminClient(userId?: string) {
+  return adminClient('license-check-system-scan', { userId, context: 'POST /api/licenses/check' });
 }
 
 async function getAuthedUser(

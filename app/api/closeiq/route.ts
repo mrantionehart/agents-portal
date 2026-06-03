@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
+import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,10 +42,6 @@ async function getAuthedUser(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     return user
   } catch { return null }
-}
-
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +185,7 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
     const { searchParams } = new URL(request.url)
     const entity = searchParams.get('entity') || 'offers'
     const id = searchParams.get('id')
@@ -267,7 +264,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
     const body = await request.json()
     const entity = body.entity
 
@@ -595,7 +592,7 @@ export async function PATCH(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient()
+    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
     const body = await request.json()
     const entity = body.entity
 

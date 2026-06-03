@@ -4,7 +4,7 @@
 // Phase 1: token-gated, no login required. The Portal reads the session row
 // directly via service role and writes back through Vault's shared endpoint.
 
-import { createClient } from '@supabase/supabase-js'
+import { adminClient } from '@/lib/security'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { verifyClientToken, type StructuredDealLite } from '@/lib/dealCopilotToken'
@@ -37,10 +37,7 @@ export default async function ClientDealPage({ params }: PageProps) {
     )
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const admin = adminClient('token-gated-deal-session', { context: 'SSR /client/deal/[token]' })
   const { data: session, error } = await admin
     .from('deal_intake_sessions')
     .select('id, status, structured_fields, client_token')

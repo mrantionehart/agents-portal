@@ -13,8 +13,7 @@
 // option until Phase 4 audits storage policies.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { requireAuth, userClient } from '@/lib/security'
+import { requireAuth, userClient, adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,10 +22,6 @@ export const maxDuration = 60
 // [service-role: closeiq-doc-insert]
 // Used ONLY for the final bundle storage upload + offer_documents insert.
 // All read paths above the write block use userClient(request) instead.
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-}
-
 // ---------------------------------------------------------------------------
 // Build a cover letter page as a simple PDF
 // Uses pdf-lib to create a single page with the letter text
@@ -254,7 +249,7 @@ export async function POST(request: NextRequest) {
     // Storage bucket "documents" RLS policies were not verified in Sprint
     // 8B Phase 2A. The bundle storage write + offer_documents INSERT below
     // stay under service role until Phase 4 audits storage policies.
-    const db = adminClient()
+    const db = adminClient('closeiq-doc-insert', { userId: user.id, context: 'POST /api/closeiq/bundle' })
 
     const safeBuyer = buyerName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
     const fileName = `offer_package_${safeBuyer}_${offerId.substring(0, 8)}_${Date.now()}.pdf`

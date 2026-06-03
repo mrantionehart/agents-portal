@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { requireAuth, requireRateLimit } from '@/lib/security'
+import { requireAuth, requireRateLimit, adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -249,10 +248,7 @@ export async function POST(request: NextRequest) {
     }
     // ------------------------------------------------
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const admin = adminClient('compliance-upload-notification-fanout', { userId: user.id, context: 'POST /api/compliance/upload notification-fanout' })
 
     // Verify transaction exists and user has access
     const { data: transaction } = await admin

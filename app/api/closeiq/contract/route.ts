@@ -10,10 +10,9 @@
 // Sprint 8B Phase 2A — Phase 4 will revisit.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
-import { requireAuth, userClient } from '@/lib/security'
+import { requireAuth, userClient, adminClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
@@ -25,10 +24,6 @@ export const maxDuration = 60
 // Used ONLY for storage download/upload + the offer_documents INSERTs that
 // record the generated contract. The DB reads of offers/profiles/templates
 // above the write block use userClient(request) instead.
-function adminClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-}
-
 // ---------------------------------------------------------------------------
 // XFA Global_Info field mapping: offer data keys → XFA XML paths
 // Florida Realtors forms use XFA (XML Forms Architecture) with nested paths
@@ -435,7 +430,7 @@ export async function POST(request: NextRequest) {
     // Storage bucket "documents" RLS not verified in Phase 2A; storage
     // download + the subsequent upload + offer_documents INSERTs stay
     // under service role until Phase 4 audits storage policies.
-    const db = adminClient()
+    const db = adminClient('closeiq-doc-insert', { userId: user.id, context: 'POST /api/closeiq/contract' })
 
     const { data: pdfData, error: dlErr } = await db.storage
       .from('documents')

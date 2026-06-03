@@ -32,3 +32,9 @@ export {
   requireWebhookSignature,
   withWebhookSignature,
 } from './withWebhookSignature'
+
+export {
+  type ServiceRoleReason,
+  type ServiceRoleCaller,
+  adminClient,
+} from './withServiceRole'
