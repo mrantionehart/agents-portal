@@ -2,13 +2,21 @@
 // Returns matching property addresses from Rentcast for autocomplete
 
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, clientIp } from "@/lib/ratelimit";
 
 const RENTCAST_KEY = process.env.RENTCAST_API_KEY || "";
+
+// Build a fresh NextResponse on every call — module-scope instances
+// have their body stream consumed on first return (Sprint 5A lesson).
+const tooManyRequests = () =>
+  NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
 export async function GET(req: NextRequest) {
   try {
     const q = new URL(req.url).searchParams.get("q")?.trim() || "";
     if (q.length < 5) {
+      // Cheap early return — no Rentcast quota burnt — so do NOT
+      // consume rate-limit slots on UI-pre-filtered short queries.
       return NextResponse.json([]);
     }
 
@@ -16,6 +24,30 @@ export async function GET(req: NextRequest) {
       console.warn("[CMA Autocomplete] No RENTCAST_API_KEY configured");
       return NextResponse.json([]);
     }
+
+    // ---- Rate limit: per-IP minute + day (Sprint 5C: L2) ----
+    // Protects paid Rentcast quota from automated abuse. Runs AFTER
+    // the cheap q<5 short-circuit (which never hits Rentcast) and
+    // BEFORE the Rentcast fetch (which does). Two sliding-window
+    // buckets so short bursts AND sustained low-rate scraping are
+    // both caught. Generic 429 — do not leak quota internals.
+    const ip = clientIp(req.headers);
+    const minuteCheck = await checkRateLimit(
+      "cma-autocomplete-ip",
+      ip,
+      30,
+      "1 m"
+    );
+    if (!minuteCheck.ok) return tooManyRequests();
+
+    const dayCheck = await checkRateLimit(
+      "cma-autocomplete-day-ip",
+      ip,
+      300,
+      "1 d"
+    );
+    if (!dayCheck.ok) return tooManyRequests();
+    // ---------------------------------------------------------
 
     const params = new URLSearchParams();
     params.set("address", q);

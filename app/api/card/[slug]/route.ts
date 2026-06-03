@@ -1,10 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, clientIp } from '@/lib/ratelimit'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Build a fresh NextResponse on every call — module-scope instances
+// have their body stream consumed on first return (Sprint 5A lesson).
+const tooManyRequests = () =>
+  NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
 /**
  * GET /api/card/[slug]
@@ -23,6 +29,19 @@ export async function GET(
         { status: 400 }
       )
     }
+
+    // ---- Rate limit: per-IP (Sprint 5C: L1) ----
+    // Endpoint is intentionally public; throttle automated roster
+    // scraping / slug enumeration. KV-backed; fails open with
+    // [security:ratelimit] telemetry on outage.
+    const ipCheck = await checkRateLimit(
+      'card-ip',
+      clientIp(req.headers),
+      30,
+      '1 m'
+    )
+    if (!ipCheck.ok) return tooManyRequests()
+    // --------------------------------------------
 
     const { data: profile, error } = await supabase
       .from('profiles')
