@@ -11,6 +11,107 @@ export const dynamic = 'force-dynamic'
 // shape. Existing interleaving (per-user limit BEFORE formData parse,
 // per-transaction limit AFTER formData parse) is preserved.
 
+// ============================================================================
+// Server-side file signature validation (Sprint 6: M1)
+// ============================================================================
+// Pre-Sprint-6: allowedTypes was checked against the browser-supplied
+// File.type, which any attacker can spoof by renaming an .exe to .pdf or
+// by crafting a multipart request with an arbitrary Content-Type header.
+//
+// Post-Sprint-6: we read the first bytes of the uploaded file and verify
+// the magic bytes match the claimed MIME type BEFORE writing to storage.
+// Mismatches return 400 with [security:upload] log. No file contents and
+// no full filenames are written to logs — only the claimed MIME, the
+// claimed extension, and a redacted filename (***.<ext>).
+//
+// Allowed types tightened to exactly the formats checked here:
+//   PDF · PNG · JPEG · DOCX · XLSX · PPTX
+// DOC (application/msword) and TIFF (image/tiff) were dropped — they
+// have weaker magic signatures and aren't currently used by compliance
+// uploads. Operators can re-add them by extending SIGNATURE_VERIFIERS.
+// ============================================================================
+
+type SignatureVerifier = {
+  /** Short label used for [security:upload] logs. */
+  label: string
+  /** True iff `head` matches expected magic AND extension lines up. */
+  verify: (head: Uint8Array, ext: string) => boolean
+}
+
+const SIGNATURE_VERIFIERS: Record<string, SignatureVerifier> = {
+  // %PDF
+  'application/pdf': {
+    label: 'pdf',
+    verify: (head) => startsWith(head, [0x25, 0x50, 0x44, 0x46]),
+  },
+  // 89 50 4E 47 0D 0A 1A 0A
+  'image/png': {
+    label: 'png',
+    verify: (head) =>
+      startsWith(head, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  },
+  // FF D8 FF
+  'image/jpeg': {
+    label: 'jpeg',
+    verify: (head) => startsWith(head, [0xff, 0xd8, 0xff]),
+  },
+  // PK\x03\x04 + .docx extension — guards against generic ZIPs being
+  // accepted as Office documents.
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
+    label: 'docx',
+    verify: (head, ext) =>
+      startsWith(head, [0x50, 0x4b, 0x03, 0x04]) && ext === 'docx',
+  },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+    label: 'xlsx',
+    verify: (head, ext) =>
+      startsWith(head, [0x50, 0x4b, 0x03, 0x04]) && ext === 'xlsx',
+  },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    {
+      label: 'pptx',
+      verify: (head, ext) =>
+        startsWith(head, [0x50, 0x4b, 0x03, 0x04]) && ext === 'pptx',
+    },
+}
+
+const ALLOWED_LABEL = 'PDF, JPG, PNG, DOCX, XLSX, PPTX'
+
+function startsWith(buf: Uint8Array, signature: number[]): boolean {
+  if (buf.length < signature.length) return false
+  for (let i = 0; i < signature.length; i++) {
+    if (buf[i] !== signature[i]) return false
+  }
+  return true
+}
+
+function getExtension(name: string): string {
+  const dot = name.lastIndexOf('.')
+  if (dot < 0 || dot === name.length - 1) return ''
+  return name.slice(dot + 1).toLowerCase()
+}
+
+/**
+ * Filename redaction for logs. Keeps the lowercased extension so ops can
+ * see roughly what was rejected, masks the rest. Filenames have been
+ * known to contain agent names, transaction addresses, deal-counterparty
+ * names, etc. — none of which belong in observability streams.
+ */
+function redactFilename(name: string): string {
+  const ext = getExtension(name)
+  return ext ? `***.${ext}` : '***'
+}
+
+/**
+ * Read the first 16 bytes of an upload — enough for every signature we
+ * verify. Done via File.slice so the rest of the file remains streamable
+ * and we don't double-buffer 50 MB into RAM just to check 4–8 bytes.
+ */
+async function readHeadBytes(file: File, n = 16): Promise<Uint8Array> {
+  const ab = await file.slice(0, n).arrayBuffer()
+  return new Uint8Array(ab)
+}
+
 // Map doc_label to a document_type enum value
 function inferDocType(label: string): string {
   const lower = label.toLowerCase()
@@ -88,26 +189,65 @@ export async function POST(request: NextRequest) {
     if (txLimit.response) return txLimit.response
     // --------------------------------------------------------------------------
 
-    // Validate file type
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/jpeg',
-      'image/png',
-      'image/tiff',
-    ]
-    if (!allowedTypes.includes(file.type)) {
+    // ---- Validate claimed MIME (Sprint 6: M1, pre-check) ----
+    // Cheap allowlist gate — the real defense is the magic-byte check
+    // below. Both are required: this lets us 400-fast on completely
+    // unsupported types without reading bytes; the magic check then
+    // prevents type spoofing within the allowlist.
+    const verifier = SIGNATURE_VERIFIERS[file.type]
+    if (!verifier) {
+      console.warn('[security:upload] disallowed claimed MIME', {
+        claimedMime: file.type,
+        filename: redactFilename(file.name),
+      })
       return NextResponse.json(
-        { error: 'Invalid file type. Allowed: PDF, DOCX, DOC, JPG, PNG, TIFF' },
+        { error: `Invalid file type. Allowed: ${ALLOWED_LABEL}` },
         { status: 400 }
       )
     }
+    // ----------------------------------------------------------
 
-    // Max 50MB
+    // Max 50MB — size gate before reading head bytes so a 1 GB upload
+    // claiming PDF gets rejected before we touch ArrayBuffer.
     if (file.size > 50 * 1024 * 1024) {
       return NextResponse.json({ error: 'File too large. Max 50MB' }, { status: 400 })
     }
+
+    // ---- Magic-byte validation (Sprint 6: M1) ----
+    // Read first 16 bytes and verify they match the signature for the
+    // claimed MIME. For Office Open XML formats (DOCX/XLSX/PPTX) the
+    // ZIP-header check is paired with an extension assertion so a
+    // generic ZIP cannot pose as a DOCX. file.name is never logged in
+    // full — only the lowercased extension via redactFilename().
+    let head: Uint8Array
+    try {
+      head = await readHeadBytes(file)
+    } catch (headErr) {
+      console.warn('[security:upload] head-bytes read failed', {
+        claimedMime: file.type,
+        filename: redactFilename(file.name),
+        error: headErr instanceof Error ? headErr.message : String(headErr),
+      })
+      return NextResponse.json(
+        { error: 'Invalid file type' },
+        { status: 400 }
+      )
+    }
+    const claimedExt = getExtension(file.name)
+    if (!verifier.verify(head, claimedExt)) {
+      console.warn('[security:upload] signature mismatch', {
+        claimedMime: file.type,
+        expected: verifier.label,
+        claimedExt,
+        filename: redactFilename(file.name),
+        size: file.size,
+      })
+      return NextResponse.json(
+        { error: 'Invalid file type' },
+        { status: 400 }
+      )
+    }
+    // ------------------------------------------------
 
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
