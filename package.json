@@ -4,12 +4,14 @@
   "description": "HartFelt Real Estate - Agent Portal",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-api-routes.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "check:api-routes": "node scripts/check-api-routes.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1030.0",

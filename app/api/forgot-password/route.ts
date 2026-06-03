@@ -10,7 +10,13 @@
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, clientIp, normalizeEmail } from '@/lib/ratelimit'
+import { normalizeEmail } from '@/lib/ratelimit'
+import { clientIp, requireRateLimit } from '@/lib/security'
+
+// Intentionally-public endpoint — unauthenticated callers must reach it to
+// initiate password reset. Always-success response shape prevents email
+// enumeration regardless of rate-limit state. (Sprint 5D marker.)
+export const PUBLIC_ROUTE = true
 
 // Build a fresh NextResponse on every call — a shared module-level instance
 // would have its body stream consumed after the first return and send empty
@@ -33,23 +39,26 @@ export async function POST(request: NextRequest) {
     const emailKey = normalizeEmail(body?.email)
     const redirectTo = typeof body?.redirectTo === 'string' ? body.redirectTo : undefined
 
-    // ---- Rate limit ----
-    const ipCheck = await checkRateLimit('forgot-ip', ip, 3, '1 h')
-    if (!ipCheck.ok) {
-      console.warn(
-        '[security:forgot-password] ip limit hit',
-        { reset: ipCheck.reset }
-      )
+    // ---- Rate limit (Sprint 5A; refactored Sprint 5D) ----
+    // NB: trips return alwaysSuccess() — NOT the wrapper's 429 — to
+    // preserve the no-enumeration contract. The wrapper response is
+    // intentionally discarded; we still log the trip for ops visibility.
+    const ipLimit = await requireRateLimit(
+      { name: 'forgot-ip', identifier: ip, limit: 3, window: '1 h' },
+      request
+    )
+    if (ipLimit.response) {
+      console.warn('[security:forgot-password] ip limit hit')
       return alwaysSuccess()
     }
 
     if (emailKey) {
-      const emailCheck = await checkRateLimit('forgot-email', emailKey, 3, '1 h')
-      if (!emailCheck.ok) {
-        console.warn(
-          '[security:forgot-password] email limit hit',
-          { reset: emailCheck.reset }
-        )
+      const emailLimit = await requireRateLimit(
+        { name: 'forgot-email', identifier: emailKey, limit: 3, window: '1 h' },
+        request
+      )
+      if (emailLimit.response) {
+        console.warn('[security:forgot-password] email limit hit')
         return alwaysSuccess()
       }
     } else {

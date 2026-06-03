@@ -1,50 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
+// Sprint 5D: per-route copy of getAuthedUser removed; replaced with the
+// centralized requireAuth() helper from @/lib/security. Behavior is
+// unchanged — same Bearer + cookie auth modes, same 401 on missing session.
 
 /**
  * GET /api/new-leads?filter=available|mine|all
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const filter = request.nextUrl.searchParams.get('filter') || 'available'
 
@@ -89,10 +60,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const body = await request.json()
     const { action, leadId } = body

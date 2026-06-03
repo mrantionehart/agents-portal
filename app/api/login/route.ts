@@ -1,34 +1,47 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, clientIp, normalizeEmail } from '@/lib/ratelimit'
+import { normalizeEmail } from '@/lib/ratelimit'
+import { clientIp, requireRateLimit } from '@/lib/security'
 
-// Build a fresh NextResponse on every call — a shared module-level instance
-// would have its body stream consumed after the first return and send empty
-// bodies on subsequent requests.
-const tooMany = () =>
-  NextResponse.json(
-    { error: 'Too many attempts. Please try again later.' },
-    { status: 429 }
-  )
+// Intentionally-public endpoint — anyone must be able to call /api/login
+// to obtain a session. Rate limits below are the throttling layer.
+// Sprint 5D marker: declares CI-enforced public intent.
+export const PUBLIC_ROUTE = true
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
-    // ---- Rate limit (Sprint 5A: H1) ----
+    // ---- Rate limit (Sprint 5A: H1; refactored Sprint 5D) ----
     // Two sliding-window buckets so we throttle both botnet IPs and email
     // spraying. KV-backed; fails open with telemetry if KV is unavailable
     // (deploy gap or Upstash incident). Existing Sprint 1 error
     // normalization ("Invalid email or password") is preserved for the
-    // signInWithPassword paths below.
-    const ip = clientIp(request.headers)
-    const ipCheck = await checkRateLimit('login-ip', ip, 5, '1 m')
-    if (!ipCheck.ok) return tooMany()
+    // signInWithPassword paths below. 429 body comes from the wrapper —
+    // standardized { error: 'Too many requests' } shape.
+    const ipLimit = await requireRateLimit(
+      {
+        name: 'login-ip',
+        identifier: clientIp(request.headers),
+        limit: 5,
+        window: '1 m',
+      },
+      request
+    )
+    if (ipLimit.response) return ipLimit.response
 
     const emailKey = normalizeEmail(email)
     if (emailKey) {
-      const emailCheck = await checkRateLimit('login-email', emailKey, 10, '1 h')
-      if (!emailCheck.ok) return tooMany()
+      const emailLimit = await requireRateLimit(
+        {
+          name: 'login-email',
+          identifier: emailKey,
+          limit: 10,
+          window: '1 h',
+        },
+        request
+      )
+      if (emailLimit.response) return emailLimit.response
     }
     // -----------------------------------
 

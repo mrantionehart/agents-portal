@@ -1,51 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { checkRateLimit } from '@/lib/ratelimit'
+import { requireAuth, requireRateLimit } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Build a fresh NextResponse on every call — a shared module-level instance
-// would have its body stream consumed after the first return and send empty
-// bodies on subsequent requests (Sprint 5A regression learned the hard way).
-const tooManyUploads = () =>
-  NextResponse.json(
-    { error: 'Too many uploads. Please try again shortly.' },
-    { status: 429 }
-  )
-
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
+// Sprint 5D: per-route copies of getAuthedUser + tooManyUploads removed.
+// Auth flows through requireAuth(); 429 responses flow through
+// requireRateLimit() with the standardized { error: 'Too many requests' }
+// shape. Existing interleaving (per-user limit BEFORE formData parse,
+// per-transaction limit AFTER formData parse) is preserved.
 
 // Map doc_label to a document_type enum value
 function inferDocType(label: string): string {
@@ -72,22 +36,26 @@ function inferDocType(label: string): string {
 // POST — upload a compliance document
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    // ---- Rate limit: per-user (Sprint 5B: H3) ----
+    // ---- Rate limit: per-user (Sprint 5B: H3; refactored Sprint 5D) ----
     // Caps any single account at 20 uploads/min regardless of which
     // transaction. Runs BEFORE formData parsing so a flood of large
     // payloads can't burn bandwidth past this gate. KV-backed; fails
     // open with telemetry if KV is unavailable.
-    const userCheck = await checkRateLimit(
-      'compliance-upload-user',
-      user.id,
-      20,
-      '1 m'
+    const userLimit = await requireRateLimit(
+      {
+        name: 'compliance-upload-user',
+        identifier: user.id,
+        limit: 20,
+        window: '1 m',
+      },
+      request
     )
-    if (!userCheck.ok) return tooManyUploads()
-    // ----------------------------------------------
+    if (userLimit.response) return userLimit.response
+    // --------------------------------------------------------------------
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -102,20 +70,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ---- Rate limit: per-transaction (Sprint 5B: H3) ----
+    // ---- Rate limit: per-transaction (Sprint 5B: H3; refactored Sprint 5D) ----
     // Caps any single transaction at 5 uploads/min regardless of which
     // user. Multi-agent collaboration on one transaction stays below
     // this in normal use; protects against runaway scripts targeting
     // a single transaction_id. Runs after we know transactionId but
     // BEFORE the storage write so blocked attempts mutate nothing.
-    const txCheck = await checkRateLimit(
-      'compliance-upload-transaction',
-      transactionId,
-      5,
-      '1 m'
+    const txLimit = await requireRateLimit(
+      {
+        name: 'compliance-upload-transaction',
+        identifier: transactionId,
+        limit: 5,
+        window: '1 m',
+      },
+      request
     )
-    if (!txCheck.ok) return tooManyUploads()
-    // -----------------------------------------------------
+    if (txLimit.response) return txLimit.response
+    // --------------------------------------------------------------------------
 
     // Validate file type
     const allowedTypes = [

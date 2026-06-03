@@ -1,27 +1,36 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, clientIp } from '@/lib/ratelimit'
+import { clientIp, withRateLimit } from '@/lib/security'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Build a fresh NextResponse on every call — module-scope instances
-// have their body stream consumed on first return (Sprint 5A lesson).
-const tooManyRequests = () =>
-  NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+// Intentionally-public endpoint — anyone with a card slug can view it.
+// Rate limit below throttles roster scraping / slug enumeration.
+// Sprint 5D marker: declares CI-enforced public intent.
+export const PUBLIC_ROUTE = true
 
 /**
  * GET /api/card/[slug]
- * Public endpoint — returns agent card data for the public card page
+ * Public endpoint — returns agent card data for the public card page.
+ *
+ * Sprint 5D: rate limit moved from inline checkRateLimit() to the
+ * withRateLimit() HOF. Identical semantics — KV-backed sliding window,
+ * 30 req/min/IP, fail-open on KV outage with [security:ratelimit] log.
+ * Standardized { error: 'Too many requests' } 429 shape from the wrapper.
  */
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export const GET = withRateLimit<{ slug: string }>(
+  {
+    name: 'card-ip',
+    identifier: (req) => clientIp(req.headers),
+    limit: 30,
+    window: '1 m',
+  },
+  async (_req: NextRequest, { params }) => {
   try {
-    const { slug } = params
+    const slug = params?.slug
 
     if (!slug) {
       return NextResponse.json(
@@ -29,19 +38,6 @@ export async function GET(
         { status: 400 }
       )
     }
-
-    // ---- Rate limit: per-IP (Sprint 5C: L1) ----
-    // Endpoint is intentionally public; throttle automated roster
-    // scraping / slug enumeration. KV-backed; fails open with
-    // [security:ratelimit] telemetry on outage.
-    const ipCheck = await checkRateLimit(
-      'card-ip',
-      clientIp(req.headers),
-      30,
-      '1 m'
-    )
-    if (!ipCheck.ok) return tooManyRequests()
-    // --------------------------------------------
 
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -87,4 +83,5 @@ export async function GET(
       { status: 500 }
     )
   }
-}
+  }
+)

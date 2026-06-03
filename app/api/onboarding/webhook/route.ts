@@ -1,64 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
 import { sendExpoPushToUsers } from '@/lib/push-notifications'
+import { withWebhookSignature } from '@/lib/security'
 
-// DocuSign Webhook Handler
-// This endpoint receives events from DocuSign when documents are signed
+// Onboarding Webhook Handler (DocuSign)
+// This endpoint receives events from DocuSign when onboarding documents
+// are signed. Distinct from /api/docusign/webhook which handles transaction
+// envelopes — both use the same DOCUSIGN_WEBHOOK_SECRET.
 
-const DOCUSIGN_WEBHOOK_SECRET = process.env.DOCUSIGN_WEBHOOK_SECRET
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-/**
- * Verify DocuSign webhook signature
- * Prevents unauthorized/spoofed webhook calls
- */
-function verifyDocuSignSignature(body: string, signature: string | null): boolean {
-  if (!signature || !DOCUSIGN_WEBHOOK_SECRET) {
-    console.error('[hardening:phase-a] webhook verification failed: missing signature or secret', {
-      hasSignature: !!signature,
-      hasSecret: !!DOCUSIGN_WEBHOOK_SECRET,
-    });
-    return false;
-  }
+// Sprint 5D: per-route verifyDocuSignSignature() removed; this route
+// previously omitted the explicit length check before timingSafeEqual
+// (which throws on length mismatch). withWebhookSignature() provides
+// the explicit short-circuit centrally — both onboarding and docusign
+// webhooks now go through identical verification logic.
 
+export const POST = withWebhookSignature(
+  {
+    header: 'X-Docusign-Signature-1',
+    secret: process.env.DOCUSIGN_WEBHOOK_SECRET,
+    encoding: 'base64',
+    logPrefix: '[security:onboarding-webhook]',
+  },
+  async (_request: NextRequest, { rawBody }) => {
   try {
-    // DocuSign uses HMAC-SHA256 for webhook signatures (base64 encoded)
-    const expected = crypto
-      .createHmac('sha256', DOCUSIGN_WEBHOOK_SECRET)
-      .update(body)
-      .digest('base64');
-
-    // Use constant-time comparison to prevent timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, 'utf8'),
-      Buffer.from(expected, 'utf8')
-    );
-  } catch (error) {
-    console.error('Signature verification error:', error);
-    return false;
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Get webhook signature from DocuSign
-    const signature = request.headers.get('X-Docusign-Signature-1')
-    const body = await request.text()
-
-    // Verify webhook signature - CRITICAL for security
-    if (!verifyDocuSignSignature(body, signature)) {
-      console.error('[security:onboarding-webhook] invalid signature');
-      return NextResponse.json(
-        { error: 'Unauthorized: invalid signature' },
-        { status: 401 }
-      );
-    }
-
     let event: any
     try {
-      event = JSON.parse(body)
+      event = JSON.parse(rawBody)
     } catch (parseErr) {
       console.error('[security:onboarding-webhook] malformed payload', parseErr)
       return NextResponse.json(
@@ -157,7 +127,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     )
   }
-}
+  }
+)
 
 async function handleEnvelopeSigned(event: any) {
   // When an agent signs the documents, mark status as "signed"

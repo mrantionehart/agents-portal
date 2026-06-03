@@ -2,14 +2,14 @@
 // Returns matching property addresses from Rentcast for autocomplete
 
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, clientIp } from "@/lib/ratelimit";
+import { clientIp, requireRateLimit } from "@/lib/security";
+
+// Intentionally-public endpoint — autocomplete is consumed from the
+// browser without an auth token. Rate limits below are the throttling
+// layer. Sprint 5D marker: declares CI-enforced public intent.
+export const PUBLIC_ROUTE = true;
 
 const RENTCAST_KEY = process.env.RENTCAST_API_KEY || "";
-
-// Build a fresh NextResponse on every call — module-scope instances
-// have their body stream consumed on first return (Sprint 5A lesson).
-const tooManyRequests = () =>
-  NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,29 +25,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json([]);
     }
 
-    // ---- Rate limit: per-IP minute + day (Sprint 5C: L2) ----
+    // ---- Rate limit: per-IP minute + day (Sprint 5C: L2; refactored Sprint 5D) ----
     // Protects paid Rentcast quota from automated abuse. Runs AFTER
     // the cheap q<5 short-circuit (which never hits Rentcast) and
     // BEFORE the Rentcast fetch (which does). Two sliding-window
     // buckets so short bursts AND sustained low-rate scraping are
     // both caught. Generic 429 — do not leak quota internals.
     const ip = clientIp(req.headers);
-    const minuteCheck = await checkRateLimit(
-      "cma-autocomplete-ip",
-      ip,
-      30,
-      "1 m"
+    const minuteLimit = await requireRateLimit(
+      { name: "cma-autocomplete-ip", identifier: ip, limit: 30, window: "1 m" },
+      req
     );
-    if (!minuteCheck.ok) return tooManyRequests();
+    if (minuteLimit.response) return minuteLimit.response;
 
-    const dayCheck = await checkRateLimit(
-      "cma-autocomplete-day-ip",
-      ip,
-      300,
-      "1 d"
+    const dayLimit = await requireRateLimit(
+      { name: "cma-autocomplete-day-ip", identifier: ip, limit: 300, window: "1 d" },
+      req
     );
-    if (!dayCheck.ok) return tooManyRequests();
-    // ---------------------------------------------------------
+    if (dayLimit.response) return dayLimit.response;
+    // -----------------------------------------------------------------------------
 
     const params = new URLSearchParams();
     params.set("address", q);
