@@ -117,11 +117,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const admin = getAdminClient();
+
+    // ---- Cross-user authorization (Sprint 1: H2) ----
+    // Caller may scan their own agent_id. Cross-user scans require
+    // broker / admin / compliance role. All other cross-user attempts
+    // are rejected before any document data is read.
+    if (caller.userId !== agent_id) {
+      const { data: callerProfile, error: roleErr } = await admin
+        .from('profiles')
+        .select('role')
+        .eq('id', caller.userId)
+        .single();
+
+      if (roleErr || !callerProfile) {
+        console.warn(
+          `[security:compliance-scan] role lookup failed for caller=${caller.userId} err=${roleErr?.message}`
+        );
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      }
+
+      const callerRole = (callerProfile.role as string) || 'agent';
+      const allowedRoles = ['broker', 'admin', 'compliance'];
+      if (!allowedRoles.includes(callerRole)) {
+        console.warn(
+          `[security:compliance-scan] cross-user denied caller=${caller.userId} target=${agent_id} role=${callerRole}`
+        );
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      }
+    }
+
     console.log(
       `[compliance/scan] Starting scan for agent=${agent_id} trigger=${trigger_type} by=${caller.userId}`
     );
-
-    const admin = getAdminClient();
     const now = new Date().toISOString();
     const issues: ComplianceIssue[] = [];
 

@@ -31,12 +31,17 @@ export async function POST(request: NextRequest) {
       password,
     })
 
+    // Normalize all auth failure modes to a single message to prevent
+    // email enumeration via distinct error strings (Sprint 1: H1 partial).
+    // Server-side log keeps the underlying Supabase reason for debugging.
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 401 })
+      console.warn(`[security:login] auth failure for ${email}: ${error.message}`)
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
     if (!data.user) {
-      return NextResponse.json({ error: 'Login failed' }, { status: 401 })
+      console.warn(`[security:login] auth returned no user for ${email}`)
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
     const { data: profile } = await supabase
@@ -67,7 +72,9 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('Error:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    // Server-side log retains the underlying message; client sees a
+    // generic 500 to avoid leaking internals (Sprint 1: H1 partial).
+    console.error('[security:login] handler error:', error?.message || error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

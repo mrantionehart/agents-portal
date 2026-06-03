@@ -1,10 +1,44 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { DocuSignWebhookPayload } from '@/lib/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+const DOCUSIGN_WEBHOOK_SECRET = process.env.DOCUSIGN_WEBHOOK_SECRET;
+
+/**
+ * Verify DocuSign webhook signature.
+ * DocuSign signs the raw request body with HMAC-SHA256, base64-encoded,
+ * and ships the digest in the X-Docusign-Signature-1 header.
+ * Pattern mirrors app/api/onboarding/webhook/route.ts.
+ */
+function verifyDocuSignSignature(body: string, signature: string | null): boolean {
+  if (!signature || !DOCUSIGN_WEBHOOK_SECRET) {
+    console.error('[security:docusign-webhook] verification failed: missing signature or secret', {
+      hasSignature: !!signature,
+      hasSecret: !!DOCUSIGN_WEBHOOK_SECRET,
+    });
+    return false;
+  }
+
+  try {
+    const expected = crypto
+      .createHmac('sha256', DOCUSIGN_WEBHOOK_SECRET)
+      .update(body)
+      .digest('base64');
+
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expBuf = Buffer.from(expected, 'utf8');
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  } catch (error) {
+    console.error('[security:docusign-webhook] signature verification error:', error);
+    return false;
+  }
+}
 
 /**
  * POST /api/docusign/webhook
@@ -20,7 +54,19 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const body: DocuSignWebhookPayload = await req.json();
+    // Read raw body BEFORE JSON.parse for signature verification (Sprint 1: C1)
+    const rawBody = await req.text();
+    const signature = req.headers.get('X-Docusign-Signature-1');
+
+    if (!verifyDocuSignSignature(rawBody, signature)) {
+      console.error('[security:docusign-webhook] unauthorized: invalid signature');
+      return NextResponse.json(
+        { error: 'Unauthorized: invalid signature' },
+        { status: 401 }
+      );
+    }
+
+    const body: DocuSignWebhookPayload = JSON.parse(rawBody);
 
     // Log webhook for debugging
     console.log('DocuSign webhook received:', JSON.stringify(body, null, 2));
