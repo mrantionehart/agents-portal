@@ -49,14 +49,96 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature - CRITICAL for security
     if (!verifyDocuSignSignature(body, signature)) {
-      console.error('Unauthorized webhook: invalid signature');
+      console.error('[security:onboarding-webhook] invalid signature');
       return NextResponse.json(
         { error: 'Unauthorized: invalid signature' },
         { status: 401 }
       );
     }
 
-    const event = JSON.parse(body)
+    let event: any
+    try {
+      event = JSON.parse(body)
+    } catch (parseErr) {
+      console.error('[security:onboarding-webhook] malformed payload', parseErr)
+      return NextResponse.json(
+        { error: 'Webhook processing failed' },
+        { status: 400 }
+      )
+    }
+
+    // ---- Replay protection (Sprint 4: C3) ----
+    // Insert one row per (envelope_id, event_type, event_time) into the
+    // onboarding_webhook_events idempotency table. The unique constraint
+    // catches replays; on conflict we return 200 and skip every mutation.
+    // Service-role client bypasses RLS — table is service-role-only.
+    const envelopeId: string | undefined = event?.envelopeId
+    const eventType: string | undefined = event?.eventType
+    const eventTime: string | null =
+      event?.signingTime || event?.completedDateTime || null
+
+    if (envelopeId && eventType) {
+      const idem = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+      const { data: inserted, error: idemErr } = await idem
+        .from('onboarding_webhook_events')
+        .insert({
+          envelope_id: envelopeId,
+          event_type: eventType,
+          event_time: eventTime,
+          payload: event,
+        })
+        .select('id')
+        .single()
+
+      if (idemErr) {
+        const code = (idemErr as any).code
+        // 23505 = unique_violation → this is a replay; short-circuit safely.
+        if (code === '23505') {
+          console.log(
+            '[security:onboarding-webhook] duplicate event ignored',
+            { envelopeId, eventType, eventTime }
+          )
+          return NextResponse.json(
+            { success: true, idempotent: true, message: 'Duplicate event ignored' },
+            { status: 200 }
+          )
+        }
+        // 42P01 = undefined_table. This is the bootstrap window between
+        // code deploy and the 20260603_onboarding_webhook_events.sql
+        // migration landing in the database. Fail OPEN here so legitimate
+        // onboarding webhooks still process; we lose replay protection
+        // until the migration is applied. The loud log surfaces the gap.
+        if (code === '42P01') {
+          console.error(
+            '[security:onboarding-webhook] idempotency table missing; replay protection disabled until migration runs',
+            { hint: 'apply supabase/migrations/20260603_onboarding_webhook_events.sql' }
+          )
+          // Fall through to legacy processing — do NOT return here.
+        } else {
+          // Any other DB error: fail closed so DocuSign retries later.
+          console.error(
+            '[security:onboarding-webhook] idempotency insert failed',
+            { code, message: idemErr.message }
+          )
+          return NextResponse.json(
+            { error: 'Idempotency check failed' },
+            { status: 500 }
+          )
+        }
+      } else {
+        console.log(
+          '[security:onboarding-webhook] accepted event',
+          { envelopeId, eventType, eventTime, eventId: inserted?.id }
+        )
+      }
+    } else {
+      // Missing envelope_id or event_type → cannot dedupe. Log and continue;
+      // downstream handlers will likely no-op on missing fields anyway.
+      console.warn(
+        '[security:onboarding-webhook] no envelope_id/event_type; replay protection skipped',
+        { hasEnvelopeId: !!envelopeId, hasEventType: !!eventType }
+      )
+    }
 
     // Handle different DocuSign events
     if (event.eventType === 'envelope-completed') {
@@ -69,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Webhook error:', error)
+    console.error('[security:onboarding-webhook] handler error', error)
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 400 }
