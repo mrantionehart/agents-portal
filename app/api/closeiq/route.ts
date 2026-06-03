@@ -201,10 +201,14 @@ export async function GET(request: NextRequest) {
       case 'buyers': {
         let q = db.from('buyers').select('*').order('updated_at', { ascending: false })
         if (!isBroker) q = q.eq('agent_id', user.id)
-        if (id) q = q.eq('id', id).single()
+        if (id) {
+          const { data, error } = await q.eq('id', id).single()
+          if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+          return NextResponse.json(data)
+        }
         const { data, error } = await q
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-        return NextResponse.json(id ? data : { buyers: data })
+        return NextResponse.json({ buyers: data })
       }
 
       case 'offers': {
@@ -212,10 +216,14 @@ export async function GET(request: NextRequest) {
         if (!isBroker) q = q.eq('agent_id', user.id)
         const statusFilter = searchParams.get('status')
         if (statusFilter) q = q.eq('status', statusFilter)
-        if (id) q = q.eq('id', id).single()
+        if (id) {
+          const { data, error } = await q.eq('id', id).single()
+          if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+          return NextResponse.json(data)
+        }
         const { data, error } = await q
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-        return NextResponse.json(id ? data : { offers: data })
+        return NextResponse.json({ offers: data })
       }
 
       case 'presets': {

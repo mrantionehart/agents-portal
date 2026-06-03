@@ -120,7 +120,7 @@ export default function TrainingPage() {
 
       if (mods) setModules(mods as TrainingModule[])
       if (vids) {
-        setVideos(vids as TrainingModule[])
+        setVideos(vids as TrainingVideo[])
         // Auto-expand first module & select first playable video
         const firstMod = (mods || [])[0]
         if (firstMod) {

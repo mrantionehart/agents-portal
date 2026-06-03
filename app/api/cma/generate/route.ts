@@ -65,7 +65,7 @@ function formatCurrency(n: number): string {
   }).format(n);
 }
 
-function generateCMAPdf(data: CMARequest): Buffer {
+function generateCMAPdf(data: CMARequest): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -272,7 +272,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Subject address and at least one comp required" }, { status: 400 });
     }
     const pdfBytes = generateCMAPdf(body);
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(pdfBytes as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

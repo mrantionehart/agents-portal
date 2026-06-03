@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // Verify transaction exists and user has access
     const { data: transaction } = await admin
       .from('transactions')
-      .select('id, agent_id, type')
+      .select('id, agent_id, type, property_address')
       .eq('id', transactionId)
       .is('deleted_at', null)
       .single()
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
             property_address: transaction.property_address,
             agent_name: uploaderName,
           },
-        }).catch(() => {})
+        }).then(undefined, () => {})
 
         // Email notification
         const sgApiKey = process.env.SENDGRID_API_KEY
