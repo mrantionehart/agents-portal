@@ -1,9 +1,32 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, clientIp, normalizeEmail } from '@/lib/ratelimit'
+
+const TOO_MANY = NextResponse.json(
+  { error: 'Too many attempts. Please try again later.' },
+  { status: 429 }
+)
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
+
+    // ---- Rate limit (Sprint 5A: H1) ----
+    // Two sliding-window buckets so we throttle both botnet IPs and email
+    // spraying. KV-backed; fails open with telemetry if KV is unavailable
+    // (deploy gap or Upstash incident). Existing Sprint 1 error
+    // normalization ("Invalid email or password") is preserved for the
+    // signInWithPassword paths below.
+    const ip = clientIp(request.headers)
+    const ipCheck = await checkRateLimit('login-ip', ip, 5, '1 m')
+    if (!ipCheck.ok) return TOO_MANY
+
+    const emailKey = normalizeEmail(email)
+    if (emailKey) {
+      const emailCheck = await checkRateLimit('login-email', emailKey, 10, '1 h')
+      if (!emailCheck.ok) return TOO_MANY
+    }
+    // -----------------------------------
 
     // Collect cookies that Supabase wants to set during auth
     const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = []

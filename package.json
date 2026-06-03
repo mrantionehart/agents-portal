@@ -18,6 +18,8 @@
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.38.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "axios": "^1.15.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.4.1",

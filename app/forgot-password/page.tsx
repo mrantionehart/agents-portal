@@ -2,7 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+
+// Sprint 5A: reset initiation moved from direct Supabase client call to the
+// server route POST /api/forgot-password, which adds per-IP and per-email
+// rate limits and never reveals whether the email exists. The server always
+// returns { success: true }; we treat any non-2xx as a network-level error.
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -16,11 +20,15 @@ export default function ForgotPasswordPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const resp = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
       })
-
-      if (error) throw error
+      if (!resp.ok) throw new Error('Failed to send reset email')
       setSent(true)
     } catch (err: any) {
       setError(err.message || 'Failed to send reset email')
