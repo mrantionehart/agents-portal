@@ -79,7 +79,13 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/new-leads  { action: 'claim', leadId: string }
+ * POST /api/new-leads
+ *   { action: 'claim',   leadId: string }
+ *   { action: 'unclaim', leadId: string }
+ *
+ * Sprint 3: 'unclaim' added so that app/lead-distribution/page.tsx can stop
+ * issuing direct anon-key UPDATEs against public.new_leads. Authorization is
+ * enforced server-side AND by RLS (Sprint 2B migration 001g).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { action, leadId } = body
 
-    if (action !== 'claim' || !leadId) {
+    if (!leadId || (action !== 'claim' && action !== 'unclaim')) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
@@ -100,39 +106,86 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Check if still available
-    const { data: check } = await admin
+    if (action === 'claim') {
+      // Check if still available
+      const { data: check } = await admin
+        .from('new_leads')
+        .select('claimed_by')
+        .eq('id', leadId)
+        .single()
+
+      if (check?.claimed_by) {
+        return NextResponse.json({ error: 'Lead already claimed' }, { status: 409 })
+      }
+
+      // Get agent name
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      // Claim it
+      const { error } = await admin
+        .from('new_leads')
+        .update({
+          claimed_by: user.id,
+          claimed_by_name: profile?.full_name || user.email,
+          claimed_at: new Date().toISOString(),
+          status: 'claimed',
+        })
+        .eq('id', leadId)
+        .is('claimed_by', null) // Double-check atomicity
+
+      if (error) {
+        console.error('Claim error:', error)
+        return NextResponse.json({ error: 'Failed to claim lead' }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    // action === 'unclaim'
+    // Fetch the target lead to verify ownership.
+    const { data: lead, error: fetchError } = await admin
       .from('new_leads')
       .select('claimed_by')
       .eq('id', leadId)
       .single()
 
-    if (check?.claimed_by) {
-      return NextResponse.json({ error: 'Lead already claimed' }, { status: 409 })
+    if (fetchError || !lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Get agent name
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single()
+    if (!lead.claimed_by) {
+      // Idempotent: already unclaimed.
+      return NextResponse.json({ success: true })
+    }
 
-    // Claim it
-    const { error } = await admin
+    if (lead.claimed_by !== user.id) {
+      console.warn(
+        `[security:new-leads] cross-user unclaim denied caller=${user.id} lead=${leadId} owner=${lead.claimed_by}`
+      )
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Release the claim. The `.eq('claimed_by', user.id)` predicate is a
+    // belt-and-braces guard alongside the ownership check above and the
+    // RLS "Owner can edit claimed leads" policy.
+    const { error: unclaimError } = await admin
       .from('new_leads')
       .update({
-        claimed_by: user.id,
-        claimed_by_name: profile?.full_name || user.email,
-        claimed_at: new Date().toISOString(),
-        status: 'claimed',
+        claimed_by: null,
+        claimed_by_name: null,
+        claimed_at: null,
+        status: 'available',
       })
       .eq('id', leadId)
-      .is('claimed_by', null) // Double-check atomicity
+      .eq('claimed_by', user.id)
 
-    if (error) {
-      console.error('Claim error:', error)
-      return NextResponse.json({ error: 'Failed to claim lead' }, { status: 500 })
+    if (unclaimError) {
+      console.error('Unclaim error:', unclaimError)
+      return NextResponse.json({ error: 'Failed to unclaim lead' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

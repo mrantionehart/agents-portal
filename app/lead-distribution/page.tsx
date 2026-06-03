@@ -66,23 +66,27 @@ export default function LeadDistributionPage() {
     }
   }
 
+  // Sprint 3: claim/unclaim now go through /api/new-leads (service-role +
+  // server-side ownership check). Removes the direct anon-key UPDATE writes
+  // against public.new_leads, paired with the RLS tightening from
+  // Sprint 2B (vault migration 001g).
   const handleClaimLead = async (leadId: string) => {
     try {
-      // Check if still available
-      const { data: check } = await supabase.from('new_leads').select('status').eq('id', leadId).single()
-      if (check?.status !== 'available') {
+      const resp = await fetch('/api/new-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'claim', leadId }),
+      })
+      if (resp.status === 409) {
         alert('This lead has already been claimed.')
         loadLeads()
         return
       }
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', currentUser!.id).single()
-      await supabase.from('new_leads').update({
-        status: 'claimed',
-        claimed_by: currentUser!.id,
-        claimed_by_name: profile?.full_name || user?.email,
-        claimed_at: new Date().toISOString(),
-      }).eq('id', leadId)
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: 'Failed to claim lead' }))
+        alert(error || 'Failed to claim lead')
+        return
+      }
       loadLeads()
     } catch (err) {
       alert('Failed to claim lead')
@@ -91,12 +95,16 @@ export default function LeadDistributionPage() {
 
   const handleUnclaimLead = async (leadId: string) => {
     try {
-      await supabase.from('new_leads').update({
-        status: 'available',
-        claimed_by: null,
-        claimed_by_name: null,
-        claimed_at: null,
-      }).eq('id', leadId)
+      const resp = await fetch('/api/new-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unclaim', leadId }),
+      })
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: 'Failed to unclaim lead' }))
+        alert(error || 'Failed to unclaim lead')
+        return
+      }
       loadLeads()
     } catch (err) {
       alert('Failed to unclaim lead')
