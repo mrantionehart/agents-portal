@@ -1,47 +1,28 @@
 // ---------------------------------------------------------------------------
 // CloseIQ Offer Bundle — /api/closeiq/bundle
 // Merges contract PDF + cover letter + supporting docs into one package
+//
+// Sprint 8B Phase 2B (PARTIAL CONVERSION):
+// Reads of offers and offer_documents now run under user JWT — both tables
+// have ALL policies gated on (agent_id = auth.uid() OR broker/admin) /
+// FK-scoped to the caller's owned offer.
+// The terminal storage upload + offer_documents INSERT for the bundle
+// itself stays under service role with a [service-role: closeiq-doc-insert]
+// marker. Reason: storage bucket "documents" RLS policies were not verified
+// in Sprint 8B Phase 2A; keeping the write under SR is the conservative
+// option until Phase 4 audits storage policies.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// ---------------------------------------------------------------------------
-// Auth helper (shared pattern)
-// ---------------------------------------------------------------------------
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
-
+// [service-role: closeiq-doc-insert]
+// Used ONLY for the final bundle storage upload + offer_documents insert.
+// All read paths above the write block use userClient(request) instead.
 function adminClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
@@ -131,10 +112,15 @@ async function createCoverLetterPdf(text: string, buyerName: string, propertyAdd
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const db = adminClient()
+    // User-JWT client for the read paths below. RLS handles ownership:
+    //   offers / offers_agent_policy / ALL / (agent_id = auth.uid() OR broker/admin)
+    //   offer_documents / offer_docs_policy / ALL / FK-scoped to caller's offer
+    const supabase = userClient(request)
+
     const body = await request.json()
     const offerId = body.offer_id
     const includeCoverLetter = body.include_cover_letter !== false
@@ -144,7 +130,7 @@ export async function POST(request: NextRequest) {
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
     // ── Fetch offer with buyer ──────────────────────────────────────────
-    const { data: offer, error: offerErr } = await db
+    const { data: offer, error: offerErr } = await supabase
       .from('offers')
       .select('*, buyers(first_name, last_name, email, phone)')
       .eq('id', offerId)
@@ -154,6 +140,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Offer not found' }, { status: 404 })
     }
 
+    // RLS already filters cross-user offers (would return no row above),
+    // but the explicit ownership check remains as a belt-and-braces guard
+    // and produces the existing 403 contract instead of 404.
     if (offer.agent_id !== user.id) {
       return NextResponse.json({ error: 'Not authorized for this offer' }, { status: 403 })
     }
@@ -182,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     // ── 2. Contract PDFs (from offer_documents) ─────────────────────────
     if (includeContracts) {
-      const { data: contracts } = await db
+      const { data: contracts } = await supabase
         .from('offer_documents')
         .select('id, file_url, file_name, doc_type')
         .eq('offer_id', offerId)
@@ -220,7 +209,7 @@ export async function POST(request: NextRequest) {
 
     // ── 3. Additional documents (pre-approval, proof of funds, etc.) ────
     if (additionalDocIds.length > 0) {
-      const { data: docs } = await db
+      const { data: docs } = await supabase
         .from('offer_documents')
         .select('id, file_url, file_name, doc_type')
         .in('id', additionalDocIds)
@@ -261,6 +250,12 @@ export async function POST(request: NextRequest) {
     const bundleBytes = Buffer.from(await mergedDoc.save())
 
     // ── Upload to storage ───────────────────────────────────────────────
+    // [service-role: closeiq-doc-insert]
+    // Storage bucket "documents" RLS policies were not verified in Sprint
+    // 8B Phase 2A. The bundle storage write + offer_documents INSERT below
+    // stay under service role until Phase 4 audits storage policies.
+    const db = adminClient()
+
     const safeBuyer = buyerName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
     const fileName = `offer_package_${safeBuyer}_${offerId.substring(0, 8)}_${Date.now()}.pdf`
     const storagePath = `bundles/${user.id}/${fileName}`
@@ -282,6 +277,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Record the bundle as an offer document ──────────────────────────
+    // [service-role: closeiq-doc-insert]
     const { data: bundleDoc } = await db.from('offer_documents').insert({
       offer_id: offerId,
       doc_type: 'offer_package',
@@ -313,14 +309,15 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
 
-    const db = adminClient()
+    const supabase = userClient(request)
     const offerId = request.nextUrl.searchParams.get('offer_id')
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
-    const { data: docs, error } = await db
+    // offer_docs_policy filters cross-user offer_documents automatically.
+    const { data: docs, error } = await supabase
       .from('offer_documents')
       .select('id, file_url, file_name, doc_type, status, created_at')
       .eq('offer_id', offerId)

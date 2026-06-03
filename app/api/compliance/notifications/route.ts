@@ -1,59 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
+// Sprint 8B Phase 2B: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B Phase 2A:
+//   compliance_notifications / Users can read own compliance notifications /
+//     SELECT / {authenticated} / (auth.uid() = recipient_id)
+//   compliance_notifications / Users can update own compliance notifications /
+//     UPDATE / {authenticated} / (auth.uid() = recipient_id)
+// INSERT path is intentionally absent for non-service-role; the four
+// compliance writer routes (upload, review, scan, closeiq) keep their
+// service-role inserts unchanged — that is Category A by design.
 
 // GET — fetch compliance notifications for current user
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     const { searchParams } = new URL(request.url)
     const unreadOnly = searchParams.get('unread') === 'true'
     const limit = parseInt(searchParams.get('limit') || '50')
 
-    let query = admin
+    let query = supabase
       .from('compliance_notifications')
       .select('*')
       .eq('recipient_id', user.id)
@@ -68,7 +43,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error
 
     // Get unread count
-    const { count } = await admin
+    const { count } = await supabase
       .from('compliance_notifications')
       .select('*', { count: 'exact', head: true })
       .eq('recipient_id', user.id)
@@ -87,13 +62,11 @@ export async function GET(request: NextRequest) {
 // PATCH — mark notification(s) as read
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     const body = await request.json()
     const { notification_id, mark_all } = body as {
@@ -101,14 +74,17 @@ export async function PATCH(request: NextRequest) {
       mark_all?: boolean
     }
 
+    // RLS UPDATE qual=(auth.uid() = recipient_id) is the actual security
+    // boundary; the .eq('recipient_id', user.id) filter remains as a
+    // query-plan hint and belt-and-braces guard.
     if (mark_all) {
-      await admin
+      await supabase
         .from('compliance_notifications')
         .update({ read_at: new Date().toISOString() })
         .eq('recipient_id', user.id)
         .is('read_at', null)
     } else if (notification_id) {
-      await admin
+      await supabase
         .from('compliance_notifications')
         .update({ read_at: new Date().toISOString() })
         .eq('id', notification_id)

@@ -1,48 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
+// Sprint 8B Phase 2B: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B Phase 2A:
+//   transactions / Agents can view own transactions / SELECT / {public} /
+//                  ((agent_id = auth.uid()) AND (deleted_at IS NULL))
+//   transactions / Brokers and admins can view all transactions / SELECT /
+//                  (broker/admin role check)
+//   transaction_doc_requirements / doc_reqs_select / SELECT / {public} / true
+//   documents / Users can view own documents       / SELECT (covers
+//                uploaded_by OR deal-owner OR admin)
+//   documents / documents_broker_admin_select      / SELECT (broker/admin)
+//   profiles  / profiles_select                    / SELECT / {public} / true
+// Net effect: agents see only their own transactions (RLS enforces); broker/
+// admin see all (RLS enforces). The route's role-aware 403 short-circuit is
+// no longer the sole gate — RLS does the work. The transaction read will
+// simply return no row for a cross-user agent, which yields the existing
+// "Transaction not found" 404 (slightly different from "Forbidden" 403, but
+// indistinguishable for callers and arguably more secure — does not confirm
+// the transaction exists).
 
 // GET — document checklist for a transaction
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const { searchParams } = new URL(request.url)
     const transactionId = searchParams.get('transaction_id')
@@ -51,13 +38,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing transaction_id' }, { status: 400 })
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
-    // Get the transaction
-    const { data: transaction, error: txError } = await admin
+    // Get the transaction — RLS filters: agents see own only, brokers/admins
+    // see all. Cross-user agent attempts yield no row -> 404 (preferred
+    // outcome — does not leak existence).
+    const { data: transaction, error: txError } = await supabase
       .from('transactions')
       .select('*')
       .eq('id', transactionId)
@@ -68,8 +54,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    // Get user role
-    const { data: profile } = await admin
+    // Get user role (own-row read via profiles_select). Used to populate
+    // the response payload's `role` field; authorization itself is now
+    // handled by RLS on the SELECT above.
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -77,13 +65,9 @@ export async function GET(request: NextRequest) {
 
     const role = profile?.role || 'agent'
 
-    // Agents can only see their own transactions
-    if (role === 'agent' && transaction.agent_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Get required documents for this transaction type
-    const { data: requirements } = await admin
+    // Get required documents for this transaction type (catalog read —
+    // qual=true for {public}).
+    const { data: requirements } = await supabase
       .from('transaction_doc_requirements')
       .select('*')
       .eq('transaction_type', transaction.type)
@@ -91,16 +75,16 @@ export async function GET(request: NextRequest) {
       .order('folder')
       .order('sort_order')
 
-    // Get uploaded documents for this transaction
-    const { data: documents } = await admin
+    // Get uploaded documents for this transaction.
+    const { data: documents } = await supabase
       .from('documents')
       .select('*')
       .eq('transaction_id', transactionId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
-    // Get agent profile
-    const { data: agentProfile } = await admin
+    // Get agent profile (via profiles_select — qual=true).
+    const { data: agentProfile } = await supabase
       .from('profiles')
       .select('full_name, email')
       .eq('id', transaction.agent_id)

@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { getQuizForModule, gradeQuiz } from '@/app/data/quizzes'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
+
+// Sprint 8B Phase 2B (PARTIAL CONVERSION):
+// Own-row writes (quiz results + training progress) now run under user JWT.
+// The broker/admin notification fan-out at the end is a cross-user read of
+// profiles WHERE role IN ('admin','broker') + SendGrid email loop, which
+// is legitimate Category A — that block stays under service role with a
+// [service-role: broker-fan-out] marker so it is grep-discoverable.
+//
+// Policy anchors verified in Sprint 8B-P0.1:
+//   training_quiz_results / Users can insert own quiz results / INSERT /
+//                           WITH CHECK (auth.uid() = user_id)
+//   training_progress     / Users can insert own training progress / INSERT /
+//                           WITH CHECK (auth.uid() = user_id)
+//   training_progress     / Users can update own training progress / UPDATE /
+//                           qual=(auth.uid() = user_id)
 
 // Module counts per volume — used to detect volume completion
 const VOLUME_MODULE_COUNTS: Record<number, number[]> = {
@@ -20,52 +35,6 @@ const VOLUME_NAMES: Record<number, string> = {
   3: 'Volume 3 — AI Training',
 }
 
-// Shared auth helper — same pattern as /api/training/catalog/route.ts
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch {
-      return null
-    }
-  }
-
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name)
-          },
-        },
-      }
-    )
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    return user
-  } catch {
-    return null
-  }
-}
-
 // Volume number -> training_progress.volume string
 function volumeString(vol: number): string {
   return `volume-${vol}`
@@ -73,10 +42,9 @@ function volumeString(vol: number): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const body = await request.json()
     const { volume, module_num, answers } = body as {
@@ -101,14 +69,12 @@ export async function POST(request: NextRequest) {
     // Grade
     const result = gradeQuiz(quiz, answers)
 
-    // Service role client for DB writes (bypasses RLS)
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    // User-JWT client for the own-row writes below. RLS WITH CHECK
+    // (auth.uid() = user_id) is the security boundary on each insert/update.
+    const supabase = userClient(request)
 
     // Determine attempt number
-    const { count } = await admin
+    const { count } = await supabase
       .from('training_quiz_results')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
@@ -118,7 +84,7 @@ export async function POST(request: NextRequest) {
     const attemptNum = (count || 0) + 1
 
     // Save quiz result
-    await admin.from('training_quiz_results').insert({
+    await supabase.from('training_quiz_results').insert({
       user_id: user.id,
       volume,
       module_num,
@@ -133,8 +99,8 @@ export async function POST(request: NextRequest) {
     if (result.passed) {
       const volStr = volumeString(volume)
 
-      // Upsert training_progress row
-      const { data: existing } = await admin
+      // Upsert training_progress row (own-row under user JWT + RLS).
+      const { data: existing } = await supabase
         .from('training_progress')
         .select('*')
         .eq('user_id', user.id)
@@ -156,7 +122,7 @@ export async function POST(request: NextRequest) {
         const allComplete = requiredModules.every(m => completedModules.includes(m))
         volumeJustCompleted = allComplete && !existing.volume_completed
 
-        await admin
+        await supabase
           .from('training_progress')
           .update({
             completed_modules: completedModules,
@@ -171,7 +137,7 @@ export async function POST(request: NextRequest) {
         const allComplete = requiredModules.every(m => completedModules.includes(m))
         volumeJustCompleted = allComplete
 
-        await admin.from('training_progress').insert({
+        await supabase.from('training_progress').insert({
           user_id: user.id,
           volume: volStr,
           completed_modules: completedModules,
@@ -181,8 +147,21 @@ export async function POST(request: NextRequest) {
       }
 
       // ── Notify broker/admin when an agent completes an entire volume ──
+      // [service-role: broker-fan-out]
+      // This block reads profiles WHERE role IN ('admin','broker') — a
+      // legitimate cross-user query for a system notification. The agent
+      // does not (and should not) have RLS visibility into other agents'
+      // profile rows. This stays under service role by design; the
+      // surrounding own-row writes above run under user JWT + RLS.
       if (volumeJustCompleted) {
         try {
+          // [service-role: broker-fan-out] — service-role client scoped
+          // narrowly to this notification block.
+          const admin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          )
+
           // Get agent profile info
           const { data: agentProfile } = await admin
             .from('profiles')
@@ -194,7 +173,8 @@ export async function POST(request: NextRequest) {
           const agentEmail = agentProfile?.email || user.email || ''
           const volName = VOLUME_NAMES[volume] || `Volume ${volume}`
 
-          // Get all admins and brokers to notify
+          // [service-role: broker-fan-out] — cross-user read for
+          // admin/broker recipients of the SendGrid notification.
           const { data: admins } = await admin
             .from('profiles')
             .select('email, full_name')

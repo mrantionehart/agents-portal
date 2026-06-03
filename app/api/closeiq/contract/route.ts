@@ -1,12 +1,19 @@
 // ---------------------------------------------------------------------------
 // CloseIQ Contract Generator — /api/closeiq/contract
 // Fills Florida Realtors / FAR-BAR XFA + AcroForm PDF forms with offer data
+//
+// Sprint 8B Phase 2B (PARTIAL CONVERSION):
+// Reads of offers + profiles + contract_templates run under user JWT.
+// Storage download/upload + offer_documents INSERT for the generated
+// contract stay under service role with [service-role: closeiq-doc-insert]
+// markers. Storage bucket "documents" RLS policies were not verified in
+// Sprint 8B Phase 2A — Phase 4 will revisit.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
+import { requireAuth, userClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
@@ -14,38 +21,10 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// ---------------------------------------------------------------------------
-// Auth helper
-// ---------------------------------------------------------------------------
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
-
+// [service-role: closeiq-doc-insert]
+// Used ONLY for storage download/upload + the offer_documents INSERTs that
+// record the generated contract. The DB reads of offers/profiles/templates
+// above the write block use userClient(request) instead.
 function adminClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
@@ -383,10 +362,17 @@ function buildFieldValues(offer: any, buyer: any, agentProfile: any): Record<str
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
-    const db = adminClient()
+    // User-JWT client for the read paths. RLS handles ownership:
+    //   offers / offers_agent_policy / ALL / (agent_id = auth.uid() OR broker/admin)
+    //   profiles / profiles_select / SELECT / {public} / true
+    //   contract_templates / Authenticated users can read active templates /
+    //                        SELECT / {authenticated} / (is_active = true)
+    const supabase = userClient(request)
+
     const body = await request.json()
     const offerId = body.offer_id
     const templateId = body.template_id // optional — picks default if omitted
@@ -395,7 +381,7 @@ export async function POST(request: NextRequest) {
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
     // ── Fetch offer with buyer ──────────────────────────────────────────
-    const { data: offer, error: offerErr } = await db
+    const { data: offer, error: offerErr } = await supabase
       .from('offers')
       .select('*, buyers(first_name, last_name, email, phone, financing_type, preapproval_amount)')
       .eq('id', offerId)
@@ -410,14 +396,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Get agent profile ───────────────────────────────────────────────
-    const { data: agentProfile } = await db
+    const { data: agentProfile } = await supabase
       .from('profiles')
       .select('full_name, email, phone')
       .eq('id', user.id)
       .single()
 
     // ── Load template ───────────────────────────────────────────────────
-    let templateQuery = db.from('contract_templates').select('*').eq('is_active', true)
+    let templateQuery = supabase.from('contract_templates').select('*').eq('is_active', true)
     if (templateId) {
       templateQuery = templateQuery.eq('id', templateId)
     } else if (templateSlug) {
@@ -445,6 +431,12 @@ export async function POST(request: NextRequest) {
       : null
 
     // ── Download blank PDF from storage ─────────────────────────────────
+    // [service-role: closeiq-doc-insert]
+    // Storage bucket "documents" RLS not verified in Phase 2A; storage
+    // download + the subsequent upload + offer_documents INSERTs stay
+    // under service role until Phase 4 audits storage policies.
+    const db = adminClient()
+
     const { data: pdfData, error: dlErr } = await db.storage
       .from('documents')
       .download(template.storage_path)
@@ -564,15 +556,17 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
 
-    const db = adminClient()
+    const supabase = userClient(request)
     const offerId = request.nextUrl.searchParams.get('offer_id')
 
     if (!offerId) return NextResponse.json({ error: 'offer_id required' }, { status: 400 })
 
-    const { data: docs, error } = await db
+    // offer_docs_policy filters cross-user offer_documents automatically;
+    // contract_templates row is included via the FK join (qual=is_active=true).
+    const { data: docs, error } = await supabase
       .from('offer_documents')
       .select('*, contract_templates(name, slug, category)')
       .eq('offer_id', offerId)

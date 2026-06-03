@@ -1,12 +1,19 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-// Sprint 5D: per-route copy of getAuthedUser removed; replaced with the
-// centralized requireAuth() helper from @/lib/security. Behavior is
-// unchanged — same Bearer + cookie auth modes, same 401 on missing session.
+// Sprint 8B Phase 2B: converted from service-role to anon-key + user JWT.
+// Policy anchors verified in Sprint 8B Phase 2A (Sprint 2B's original
+// row-aware policies still present in production):
+//   new_leads / Anyone can view leads / SELECT / {authenticated} / true
+//   new_leads / Claim unclaimed leads / UPDATE / qual=(claimed_by IS NULL)
+//                                       WITH CHECK (claimed_by = auth.uid())
+//   new_leads / Owner can edit claimed leads / UPDATE /
+//                qual=(claimed_by = auth.uid())
+//                WITH CHECK ((claimed_by = auth.uid()) OR (claimed_by IS NULL))
+// The route's explicit ownership checks + `.is('claimed_by', null)` /
+// `.eq('claimed_by', user.id)` filters remain as belt-and-braces guards.
 
 /**
  * GET /api/new-leads?filter=available|mine|all
@@ -19,12 +26,9 @@ export async function GET(request: NextRequest) {
 
     const filter = request.nextUrl.searchParams.get('filter') || 'available'
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
-    let query = admin
+    let query = supabase
       .from('new_leads')
       .select('*')
       .order('created_at', { ascending: false })
@@ -71,14 +75,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = userClient(request)
 
     if (action === 'claim') {
       // Check if still available
-      const { data: check } = await admin
+      const { data: check } = await supabase
         .from('new_leads')
         .select('claimed_by')
         .eq('id', leadId)
@@ -88,15 +89,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Lead already claimed' }, { status: 409 })
       }
 
-      // Get agent name
-      const { data: profile } = await admin
+      // Get agent name (own-row read via profiles_select)
+      const { data: profile } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', user.id)
         .single()
 
-      // Claim it
-      const { error } = await admin
+      // Claim it — RLS "Claim unclaimed leads" gates UPDATE: qual checks
+      // claimed_by IS NULL, WITH CHECK enforces claimed_by = auth.uid().
+      const { error } = await supabase
         .from('new_leads')
         .update({
           claimed_by: user.id,
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     // action === 'unclaim'
     // Fetch the target lead to verify ownership.
-    const { data: lead, error: fetchError } = await admin
+    const { data: lead, error: fetchError } = await supabase
       .from('new_leads')
       .select('claimed_by')
       .eq('id', leadId)
@@ -139,10 +141,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Release the claim. The `.eq('claimed_by', user.id)` predicate is a
-    // belt-and-braces guard alongside the ownership check above and the
-    // RLS "Owner can edit claimed leads" policy.
-    const { error: unclaimError } = await admin
+    // Release the claim. RLS "Owner can edit claimed leads" gates UPDATE:
+    // qual checks claimed_by = auth.uid(), WITH CHECK allows either own
+    // or NULL (the new value). The .eq('claimed_by', user.id) filter
+    // remains as a belt-and-braces guard.
+    const { error: unclaimError } = await supabase
       .from('new_leads')
       .update({
         claimed_by: null,
