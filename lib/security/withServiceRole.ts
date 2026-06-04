@@ -45,7 +45,9 @@ export type ServiceRoleReason =
   | 'compliance-upload-notification-fanout'
   | 'compliance-review-broker-action'
   | 'compliance-scan-broker-action'
-  | 'compliance-transactions-broker-list'
+  // (compliance-transactions-broker-list retired — D-3 Track C: documents
+  // table got documents_agent_own_transaction_select; full coverage now
+  // verified for the compliance/transactions read path.)
   // CloseIQ broker / agent actions
   // (closeiq-broker-offer-approval retired — Phase 4B: full RLS coverage via
   // migration 025; closeiq main route now runs under user JWT.)

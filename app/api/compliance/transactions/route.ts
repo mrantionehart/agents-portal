@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,7 +45,19 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = adminClient('compliance-transactions-broker-list', { userId: user.id, context: 'GET /api/compliance/transactions' })
+    // Sprint D-3 Track C: was service-role; now user JWT + RLS.
+    // Coverage matrix:
+    //   profiles SELECT          profiles_select USING true
+    //   transactions SELECT      agent self + broker/admin (3 OR'd policies)
+    //   transaction_doc_requirements SELECT  doc_reqs_select USING true
+    //   documents SELECT         broker/admin via documents_broker_admin_select;
+    //                            agent sees own uploads (Users can view own documents)
+    //                            + own-transaction docs (documents_agent_own_transaction_select
+    //                            — new Track C policy). Together these reproduce
+    //                            the pre-conversion service-role count behavior
+    //                            (broker-uploaded docs on agent transactions are
+    //                            now visible to the agent).
+    const admin = userClient(request)
 
     // Get user role
     const { data: profile } = await admin
