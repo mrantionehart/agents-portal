@@ -43,7 +43,11 @@ export type ServiceRoleReason =
   | 'token-gated-deal-session'
   // Compliance writer paths — INSERT into RLS-only tables
   | 'compliance-upload-notification-fanout'
-  | 'compliance-review-broker-action'
+  // (compliance-review-broker-action retired — D-3 Track D: PF-DVL
+  // confirmed document_verification_log has wide-open "Allow all for
+  // service role" policy (USING true); Track C had already landed
+  // broker UPDATE on documents; compliance/review now runs under
+  // user JWT.)
   | 'compliance-scan-broker-action'
   // (compliance-transactions-broker-list retired — D-3 Track C: documents
   // table got documents_agent_own_transaction_select; full coverage now

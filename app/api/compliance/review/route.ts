@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -236,7 +236,30 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = adminClient('compliance-review-broker-action', { userId: user.id, context: 'POST /api/compliance/review' })
+    // Sprint D-3 Track D: was service-role; now user JWT + RLS.
+    // Coverage matrix (PF-1 + PF-DVL + Phase 4B + Track C policies):
+    //   profiles SELECT (own role)            profiles_select USING true
+    //   transactions SELECT/UPDATE (broker)   3 OR'd SELECT + broker/admin UPDATE
+    //   transaction_doc_requirements SELECT   doc_reqs_select USING true
+    //   documents SELECT (broker via inner join)
+    //                                         documents_broker_admin_select
+    //   documents UPDATE (broker review actions)
+    //                                         documents_broker_update_review_status
+    //                                         (Track C — admin retains via the
+    //                                         existing misnamed admin-only policy)
+    //   document_verification_log INSERT      "Allow all for service role"
+    //                                         (PF-DVL — USING true; misnamed,
+    //                                         flagged for future hardening track)
+    //   compliance_notifications INSERT       compliance_notifications_broker_insert
+    //                                         (Phase 4B)
+    //
+    // Known minor side-effect under conversion: the createNotification helper's
+    // post-send `email_sent=true` UPDATE on compliance_notifications skips
+    // silently under broker JWT (recipient_id = agent, not broker). Wrapped in
+    // try/catch — emails still send, notifications still insert, review action
+    // still completes. Only the audit tracking column on the notification row
+    // remains false. Not a Rule 8 response-shape violation.
+    const admin = userClient(request)
 
     // Check role
     const { data: profile } = await admin
