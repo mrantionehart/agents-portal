@@ -198,16 +198,19 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
     const notifications = admins.map((admin: any) => ({
       user_id: admin.id,
       type: 'agent_signed_documents',
+      // Sprint D-3 Track F.0.2 — schema-drift fix: production has a NOT NULL
+      // 'status' column. 'unread' matches compliance/scan + licenses/check.
+      status: 'unread',
       title: `Agent Signed Documents`,
       // Sprint D-3 Track F.0 — schema-drift fix: production column is 'body'
-      // (PF-F discovery), not 'message'. Prior INSERTs silently 400'd;
-      // onboarding-signed admin alerts never persisted to notifications.
+      // (PF-NOTIF discovery), not 'message'.
       body: `${agentEmail} has completed and signed their onboarding documents and is awaiting approval.`,
-      data: {
-        agentEmail,
-        action: 'review_agent',
-      },
-      read: false,
+      // Sprint D-3 Track F.0.2 — schema-drift fixes:
+      //   * 'data' column does not exist; structured reference dropped.
+      //     A future product decision can map agentEmail/action to
+      //     related_type='onboarding' + action_url='/agents' if wanted.
+      //   * 'read: false' was writing to a non-existent column; production
+      //     uses 'read_at' (NULL = unread) + the 'status' enum above.
       created_at: new Date().toISOString(),
     }));
 

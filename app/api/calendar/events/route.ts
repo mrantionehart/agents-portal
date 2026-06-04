@@ -169,12 +169,21 @@ export async function POST(request: NextRequest) {
             .map((a: any) => ({
               user_id: a.id,
               type: 'event',
+              // Sprint D-3 Track F.0.2 — schema-drift fix: production has a
+              // NOT NULL 'status' column (USER-DEFINED enum). 'unread' is
+              // the canonical initial value (compliance/scan + licenses/check
+              // both write 'unread').
+              status: 'unread',
               title: `New Event: ${title}`,
               // Sprint D-3 Track F.0 — schema-drift fix: production column is
-              // 'body' (PF-F discovery), not 'message'. Prior INSERTs silently
-              // 400'd; calendar event in-app notifications never persisted.
+              // 'body' (PF-NOTIF discovery), not 'message'.
               body: `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`,
-              data: { event_id: event.id, event_date, event_time, location, type: type },
+              // Sprint D-3 Track F.0.2 — schema-drift fix: production has no
+              // 'data' column. The structured event reference is dropped
+              // here to make INSERT succeed; push notifications still carry
+              // the full payload. A future product decision can map
+              // event_id -> related_id, type -> related_type,
+              // '/calendar' -> action_url if a click-through path is wanted.
             }))
 
           if (notifications.length > 0) {
