@@ -42,8 +42,11 @@
 --
 -- Idempotency
 -- -----------
--- CREATE POLICY IF NOT EXISTS — safe to re-apply against a database that
--- already has this policy. Same pattern as R-8, R-17, R-19, R-20.
+-- DROP POLICY IF EXISTS + CREATE POLICY — universally safe pattern (works
+-- on PG 14, 15, 16). Matches 006_add_broker_to_profiles.sql, which is the
+-- dominant repo pattern for re-runnable policy migrations. CREATE POLICY
+-- IF NOT EXISTS would be cleaner but is PG 16+ only — production may still
+-- be on PG 15.
 --
 -- Rollback (manual)
 -- -----------------
@@ -53,7 +56,10 @@
 -- 005 posture. Existing notification rows are unaffected.
 -- ============================================================================
 
-CREATE POLICY IF NOT EXISTS compliance_notifications_broker_insert
+DROP POLICY IF EXISTS compliance_notifications_broker_insert
+  ON public.compliance_notifications;
+
+CREATE POLICY compliance_notifications_broker_insert
   ON public.compliance_notifications
   FOR INSERT
   TO authenticated
