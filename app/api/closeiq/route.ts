@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -185,7 +185,12 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
+    // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
+    // Coverage: buyers_agent_policy / offers_agent_policy / approvals_policy /
+    // offer_docs_policy / presets_read (migration 025_closeiq_offer_system.sql)
+    // — all FOR ALL USING (agent_id = auth.uid() OR broker/admin). profiles
+    // SELECT via profiles_select USING true (production).
+    const db = userClient(request)
     const { searchParams } = new URL(request.url)
     const entity = searchParams.get('entity') || 'offers'
     const id = searchParams.get('id')
@@ -264,7 +269,8 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
+    // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
+    const db = userClient(request)
     const body = await request.json()
     const entity = body.entity
 
@@ -592,7 +598,8 @@ export async function PATCH(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-broker-offer-approval', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq' })
+    // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
+    const db = userClient(request)
     const body = await request.json()
     const entity = body.entity
 

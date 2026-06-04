@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -66,7 +66,11 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = adminClient('broker-pipeline-view', { userId: user.id, context: 'GET /api/pipeline' })
+    // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
+    // Coverage: transactions_select / commissions_select (agent_id = auth.uid()
+    // OR broker/admin role) + 3-way OR'd SELECT policies on both tables in
+    // production. Agent sees own pipeline rows only; broker/admin sees all.
+    const admin = userClient(request)
 
     // Get user role
     const { data: profile } = await admin

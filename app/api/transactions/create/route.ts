@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,7 +43,12 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const admin = adminClient('transactions-broker-create', { userId: user.id, context: 'POST /api/transactions/create' })
+    // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
+    // Coverage: transactions_insert WITH CHECK (agent_id = auth.uid() OR
+    // user_role() IN ('admin','broker')) — broker/admin may insert with any
+    // agent_id; agent self-insert preserved. profiles SELECT via
+    // profiles_select USING true.
+    const admin = userClient(request)
 
     // Get user role
     const { data: profile } = await admin

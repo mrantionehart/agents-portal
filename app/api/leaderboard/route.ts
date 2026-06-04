@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
+    // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
+    // Coverage: manual_wins "Authenticated users can view all manual wins"
+    // (SELECT TO authenticated USING true) — any authed agent reads.
+    const db = userClient(req)
     const { searchParams } = new URL(req.url)
     const period = searchParams.get('period') || 'month'
 
@@ -73,7 +76,12 @@ export async function POST(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
+    // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
+    // Coverage: "Managers can insert manual wins" — WITH CHECK on
+    // broker/admin/office_manager role. The explicit code-side role check
+    // below remains as defense-in-depth + a clean 403 path; without it the
+    // INSERT would still fail at RLS but with a less friendly Postgres error.
+    const db = userClient(req)
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Only brokers/admins can add wins' }, { status: 403 })
@@ -108,7 +116,9 @@ export async function PATCH(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
+    // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
+    // Coverage: "Managers can update manual wins" — broker/admin/office_manager.
+    const db = userClient(req)
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
@@ -131,7 +141,9 @@ export async function DELETE(req: NextRequest) {
     const user = await getAuthedUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const db = adminClient('leaderboard-broker-wins', { userId: user.id, context: '/api/leaderboard' })
+    // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
+    // Coverage: "Managers can delete manual wins" — broker/admin/office_manager.
+    const db = userClient(req)
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || !['broker', 'admin', 'office_manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
