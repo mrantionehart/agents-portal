@@ -15,12 +15,14 @@ interface Notification {
   // never received a 'message' field; renders were blank.
   body: string
   type: string
-  // Note: production has no 'is_read' boolean; it uses 'read_at' timestamp
-  // (NULL = unread). The 'is_read' field below remains for now — the
-  // read-state refactor is intentionally out of F.0.1 scope. The
-  // mark-as-read UPDATE calls in this file write to a column that does
-  // not exist and silently fail in production. Flagged for follow-up.
-  is_read: boolean
+  // Sprint D-3 Track F.0.4 — schema-drift fix: production has no 'is_read'
+  // boolean; it uses 'read_at' timestamp (NULL = unread, non-NULL = read).
+  // The prior 'is_read: boolean' interface field caused mark-as-read UPDATEs
+  // to write to a non-existent column (silently 400'd) and the unread badge
+  // permanently equalled total count (because is_read was always undefined,
+  // !undefined === true, so every row read as "unread"). Read-state model
+  // now matches the production schema.
+  read_at: string | null
   created_at: string
   metadata?: any
 }
@@ -58,14 +60,17 @@ export default function NotificationsPage() {
   }
 
   const markAsRead = async (id: string) => {
+    // Sprint D-3 Track F.0.4 — production column is 'read_at' (timestamptz);
+    // NULL means unread, a timestamp means read. Set it to now on mark-read.
     try {
+      const nowIso = new Date().toISOString()
       await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read_at: nowIso })
         .eq('id', id)
 
       setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+        prev.map(n => n.id === id ? { ...n, read_at: nowIso } : n)
       )
     } catch (e) {
       console.error('Error marking notification as read:', e)
@@ -73,27 +78,38 @@ export default function NotificationsPage() {
   }
 
   const markAllRead = async () => {
+    // Sprint D-3 Track F.0.4 — production column is 'read_at' (timestamptz).
+    // Unread = read_at IS NULL; PostgREST uses .is() to filter NULL.
+    // Local state preserves any pre-existing read_at timestamps so we don't
+    // overwrite an earlier read time with "now" for already-read rows.
     try {
-      const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
+      const unreadIds = notifications.filter(n => !n.read_at).map(n => n.id)
       if (unreadIds.length === 0) return
 
+      const nowIso = new Date().toISOString()
       await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read_at: nowIso })
         .eq('user_id', user!.id)
-        .eq('is_read', false)
+        .is('read_at', null)
 
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, read_at: n.read_at ?? nowIso }))
+      )
     } catch (e) {
       console.error('Error marking all as read:', e)
     }
   }
 
+  // Sprint D-3 Track F.0.4 — unread = read_at IS NULL.
+  // JS truthiness: null → falsy → !n.read_at === true → "unread".
+  // timestamp string → truthy → !n.read_at === false → "read".
+  // Same semantic as the prior !n.is_read pattern, against the real column.
   const filtered = filter === 'unread'
-    ? notifications.filter(n => !n.is_read)
+    ? notifications.filter(n => !n.read_at)
     : notifications
 
-  const unreadCount = notifications.filter(n => !n.is_read).length
+  const unreadCount = notifications.filter(n => !n.read_at).length
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -187,9 +203,9 @@ export default function NotificationsPage() {
             {filtered.map(notification => (
               <button
                 key={notification.id}
-                onClick={() => !notification.is_read && markAsRead(notification.id)}
+                onClick={() => !notification.read_at && markAsRead(notification.id)}
                 className={`w-full text-left p-4 rounded-xl border transition ${
-                  notification.is_read
+                  notification.read_at
                     ? 'bg-[#0a0a0f]/[0.02] border-white/5 hover:bg-[#0a0a0f]/5'
                     : 'bg-[#0a0a1a] border-[#C9A84C]/20 hover:bg-[#C9A84C]/5'
                 }`}
@@ -198,19 +214,19 @@ export default function NotificationsPage() {
                   <span className="text-lg mt-0.5">{getTypeIcon(notification.type)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-semibold ${notification.is_read ? 'text-gray-400' : 'text-white'}`}>
+                      <p className={`text-sm font-semibold ${notification.read_at ? 'text-gray-400' : 'text-white'}`}>
                         {notification.title}
                       </p>
-                      {!notification.is_read && (
+                      {!notification.read_at && (
                         <span className="w-2 h-2 rounded-full bg-[#2EC4D6] flex-shrink-0" />
                       )}
                     </div>
-                    <p className={`text-sm mt-0.5 ${notification.is_read ? 'text-gray-400' : 'text-gray-400'}`}>
+                    <p className={`text-sm mt-0.5 ${notification.read_at ? 'text-gray-400' : 'text-gray-400'}`}>
                       {notification.body}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">{timeAgo(notification.created_at)}</p>
                   </div>
-                  {notification.is_read && (
+                  {notification.read_at && (
                     <Check className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
                   )}
                 </div>
