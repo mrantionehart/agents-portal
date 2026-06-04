@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
@@ -276,7 +276,21 @@ export async function GET(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
+    // Sprint D-3 Track B: was service-role; now user JWT + RLS.
+    // Coverage: contract_templates SELECT (authenticated reads active=true);
+    // brokers see all via in-code role check + RLS USING (is_active=true).
+    // profiles SELECT via profiles_select USING true.
+    //
+    // Note: under user JWT, brokers attempting to read inactive templates
+    // would be filtered by the SELECT policy (USING is_active=true). The
+    // in-code `if (!isBroker) query.eq('is_active', true)` mirrored that.
+    // Under user JWT, the query returns identical results for brokers
+    // (all active) and agents (all active). Brokers can no longer toggle
+    // inactive templates via this list view — they must navigate to the
+    // /settings/docusign-templates settings page which uses a different
+    // endpoint. If that becomes a friction point, add an additive SELECT
+    // policy for brokers covering is_active=false rows.
+    const db = userClient(request)
 
     // Check if user is broker
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
@@ -310,7 +324,12 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
+    // Sprint D-3 Track B: was service-role; now user JWT + RLS.
+    // Coverage: contract_templates INSERT (broker WITH CHECK); storage
+    // documents_templates_broker_insert (broker/admin folder[1]='templates').
+    // profiles SELECT via profiles_select USING true. In-code broker gate
+    // retained for clean 403 response shape before any DB call.
+    const db = userClient(request)
 
     // Verify broker role
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
@@ -430,7 +449,10 @@ export async function PATCH(request: NextRequest) {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const db = adminClient('closeiq-template-management', { userId: user.id, context: 'POST/GET/PATCH /api/closeiq/templates' })
+    // Sprint D-3 Track B: was service-role; now user JWT + RLS.
+    // Coverage: contract_templates UPDATE (broker). In-code broker gate
+    // retained for clean 403 response shape before any DB call.
+    const db = userClient(request)
 
     // Verify broker role
     const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()

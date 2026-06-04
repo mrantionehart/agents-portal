@@ -49,8 +49,9 @@ export type ServiceRoleReason =
   // CloseIQ broker / agent actions
   // (closeiq-broker-offer-approval retired — Phase 4B: full RLS coverage via
   // migration 025; closeiq main route now runs under user JWT.)
-  | 'closeiq-template-management'
-  | 'closeiq-doc-insert'
+  // (closeiq-doc-insert + closeiq-template-management retired — D-3 Track B:
+  // documents storage bucket policies backfilled; closeiq/bundle, contract,
+  // and templates routes now run under user JWT.)
   // Broker cross-user surfaces
   // (broker-pipeline-view + leaderboard-broker-wins + transactions-broker-create
   // retired — Phase 4B: full RLS coverage verified in production for

@@ -2,17 +2,18 @@
 // CloseIQ Contract Generator — /api/closeiq/contract
 // Fills Florida Realtors / FAR-BAR XFA + AcroForm PDF forms with offer data
 //
-// Sprint 8B Phase 2B (PARTIAL CONVERSION):
-// Reads of offers + profiles + contract_templates run under user JWT.
-// Storage download/upload + offer_documents INSERT for the generated
-// contract stay under service role with [service-role: closeiq-doc-insert]
-// markers. Storage bucket "documents" RLS policies were not verified in
-// Sprint 8B Phase 2A — Phase 4 will revisit.
+// Sprint D-3 Track B (FULL CONVERSION — service-role retired):
+// All reads + storage download/upload + offer_documents INSERT now run
+// under user JWT. Coverage:
+//   * offers / offer_documents (PF-OFFER ✓ — agent_id self OR broker/admin)
+//   * contract_templates SELECT (authenticated, is_active=true)
+//   * storage documents_authenticated_select (template download)
+//   * storage documents_contracts_own_folder_insert (contracts/{uid}/...)
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
-import { requireAuth, userClient, adminClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 const inflateAsync = promisify(inflate)
 
@@ -20,10 +21,6 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// [service-role: closeiq-doc-insert]
-// Used ONLY for storage download/upload + the offer_documents INSERTs that
-// record the generated contract. The DB reads of offers/profiles/templates
-// above the write block use userClient(request) instead.
 // ---------------------------------------------------------------------------
 // XFA Global_Info field mapping: offer data keys → XFA XML paths
 // Florida Realtors forms use XFA (XML Forms Architecture) with nested paths
@@ -426,11 +423,11 @@ export async function POST(request: NextRequest) {
       : null
 
     // ── Download blank PDF from storage ─────────────────────────────────
-    // [service-role: closeiq-doc-insert]
-    // Storage bucket "documents" RLS not verified in Phase 2A; storage
-    // download + the subsequent upload + offer_documents INSERTs stay
-    // under service role until Phase 4 audits storage policies.
-    const db = adminClient('closeiq-doc-insert', { userId: user.id, context: 'POST /api/closeiq/contract' })
+    // Sprint D-3 Track B: documents bucket policies backfilled.
+    // documents_authenticated_select covers .download(template.storage_path).
+    // documents_contracts_own_folder_insert covers .upload(contracts/{uid}/...).
+    // offer_documents INSERT covered by offer_docs_policy (PF-OFFER ✓).
+    const db = userClient(request)
 
     const { data: pdfData, error: dlErr } = await db.storage
       .from('documents')

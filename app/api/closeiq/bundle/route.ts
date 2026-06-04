@@ -2,26 +2,21 @@
 // CloseIQ Offer Bundle — /api/closeiq/bundle
 // Merges contract PDF + cover letter + supporting docs into one package
 //
-// Sprint 8B Phase 2B (PARTIAL CONVERSION):
-// Reads of offers and offer_documents now run under user JWT — both tables
-// have ALL policies gated on (agent_id = auth.uid() OR broker/admin) /
-// FK-scoped to the caller's owned offer.
-// The terminal storage upload + offer_documents INSERT for the bundle
-// itself stays under service role with a [service-role: closeiq-doc-insert]
-// marker. Reason: storage bucket "documents" RLS policies were not verified
-// in Sprint 8B Phase 2A; keeping the write under SR is the conservative
-// option until Phase 4 audits storage policies.
+// Sprint D-3 Track B (FULL CONVERSION — service-role retired):
+// All reads + the terminal bundle storage upload + offer_documents INSERT
+// now run under user JWT. Coverage:
+//   * offers / offer_documents (PF-OFFER ✓ — agent_id self OR broker/admin)
+//   * storage documents_bundles_own_folder_insert (folder[2]=auth.uid())
+//   * storage documents_own_folder_update (upsert mode)
+//   * storage documents_authenticated_select (server-side reads)
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, userClient, adminClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// [service-role: closeiq-doc-insert]
-// Used ONLY for the final bundle storage upload + offer_documents insert.
-// All read paths above the write block use userClient(request) instead.
 // ---------------------------------------------------------------------------
 // Build a cover letter page as a simple PDF
 // Uses pdf-lib to create a single page with the letter text
@@ -245,11 +240,12 @@ export async function POST(request: NextRequest) {
     const bundleBytes = Buffer.from(await mergedDoc.save())
 
     // ── Upload to storage ───────────────────────────────────────────────
-    // [service-role: closeiq-doc-insert]
-    // Storage bucket "documents" RLS policies were not verified in Sprint
-    // 8B Phase 2A. The bundle storage write + offer_documents INSERT below
-    // stay under service role until Phase 4 audits storage policies.
-    const db = adminClient('closeiq-doc-insert', { userId: user.id, context: 'POST /api/closeiq/bundle' })
+    // Sprint D-3 Track B: documents bucket policies backfilled.
+    // documents_bundles_own_folder_insert covers the upload below
+    // (bucket='documents' AND folder[1]='bundles' AND folder[2]=auth.uid()).
+    // documents_own_folder_update covers upsert-mode overwrites.
+    // offer_documents INSERT covered by offer_docs_policy (PF-OFFER ✓).
+    const db = userClient(request)
 
     const safeBuyer = buyerName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
     const fileName = `offer_package_${safeBuyer}_${offerId.substring(0, 8)}_${Date.now()}.pdf`
@@ -272,7 +268,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Record the bundle as an offer document ──────────────────────────
-    // [service-role: closeiq-doc-insert]
+    // RLS coverage: offer_docs_policy ALL via offers.agent_id match
     const { data: bundleDoc } = await db.from('offer_documents').insert({
       offer_id: offerId,
       doc_type: 'offer_package',
