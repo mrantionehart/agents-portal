@@ -1,0 +1,81 @@
+-- ============================================================================
+-- notification_type enum — add 'event' value (Sprint D-3 Track Option C)
+-- ============================================================================
+-- Background
+-- ----------
+-- PF-NOTIF-ENUM verification revealed that the production
+-- public.notification_type enum has 9 values:
+--   exam_completion, team_chat, direct_message, announcement, deal_update,
+--   team_activity, reminder, admin_alert, lead
+--
+-- Two Agent Portal writers were caught attempting to insert types that the
+-- enum does not contain:
+--
+--   app/api/calendar/events/route.ts        writes type='event'
+--   app/api/onboarding/webhook/route.ts     writes type='agent_signed_documents'
+--
+-- The F.0 / F.0.2 sprints fixed the row-shape (message→body, status, drop
+-- data/read) but the INSERTs still fail in production with
+-- 22P02 invalid input value for enum notification_type for those two
+-- type strings.
+--
+-- Per Option C (selected by the user):
+--   * Add 'event' to the enum (preserves the calendar/events writer's
+--     intended semantic — the page already has icon affordance for it
+--     at app/notifications/page.tsx:106 — `case 'event': return '📅'`).
+--   * Do NOT add 'agent_signed_documents'. The onboarding/webhook writer
+--     will be updated in a follow-up commit to use the existing
+--     'admin_alert' value (matches compliance/scan + licenses/check
+--     semantically; no page icon affordance is lost since there is no
+--     existing 'agent_signed_documents' icon case).
+--
+-- Scope
+-- -----
+-- This migration ONLY adds 'event' to the notification_type enum. It does
+-- NOT:
+--   * touch any policy
+--   * change any grant
+--   * modify any row
+--   * touch the notification_status enum
+--   * change any code
+--   * affect any other route or table
+--
+-- Idempotency
+-- -----------
+-- ALTER TYPE ... ADD VALUE IF NOT EXISTS is safe to re-apply. Supabase
+-- runs PG 15 where this syntax is fully supported and the new value is
+-- committed eagerly.
+--
+-- Sort order
+-- ----------
+-- The new value is appended (default behavior — no BEFORE/AFTER clause)
+-- and will receive sort_order 10. Enum sort order has no semantic meaning
+-- in production (PF-NOTIF-ENUM showed values are looked up by string, not
+-- order), so no positional anchor is needed.
+--
+-- Downstream impact
+-- -----------------
+-- After this migration is applied:
+--   * app/api/calendar/events/route.ts INSERT will succeed for the first
+--     time since the route was originally shipped (post-F.0/F.0.2 row shape
+--     + valid enum value).
+--   * Any Vault or EASE consumer that filters notifications.type will
+--     gracefully ignore 'event' rows it does not have UI for (PostgREST
+--     does not error on enum values it does not know about during SELECT).
+--   * No existing rows are modified; no schema-defining UDT replacement.
+--
+-- Rollback
+-- --------
+-- Postgres does NOT support removing a single enum value. The standard
+-- rollback options are:
+--   (a) Leave 'event' in the enum (preferred — additive enum values are
+--       backward-compatible).
+--   (b) Recreate the enum from scratch via DROP TYPE / CREATE TYPE with the
+--       9 prior values, then update every column that references it; this
+--       is invasive and breaks any consumer mid-flight. Not recommended.
+--
+-- The follow-up code commit (onboarding/webhook → admin_alert) is the
+-- reversible piece — `git revert` undoes it without touching the enum.
+-- ============================================================================
+
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'event';
