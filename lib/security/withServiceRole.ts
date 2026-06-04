@@ -48,7 +48,12 @@ export type ServiceRoleReason =
   // service role" policy (USING true); Track C had already landed
   // broker UPDATE on documents; compliance/review now runs under
   // user JWT.)
-  | 'compliance-scan-broker-action'
+  // (compliance-scan-broker-action retired — D-3 Track E: PF-CA
+  // surfaced critical anon CRUD exposure on compliance_alerts;
+  // migration 20260605 enabled RLS + revoked anon/authenticated full
+  // grants + added broker/admin SELECT/INSERT/UPDATE policies. Route
+  // schema-drift bug (alert INSERT 'message' -> 'description') fixed
+  // in same commit. compliance/scan now runs under user JWT.)
   // (compliance-transactions-broker-list retired — D-3 Track C: documents
   // table got documents_agent_own_transaction_select; full coverage now
   // verified for the compliance/transactions read path.)

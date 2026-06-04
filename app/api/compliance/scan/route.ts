@@ -13,7 +13,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
 import { sendExpoPushToUsers } from '@/lib/push-notifications';
-import { adminClient } from '@/lib/security'
+import { userClient } from '@/lib/security'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,9 +24,25 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-// Service-role client — bypasses RLS
-function getAdminClient(userId?: string) {
-  return adminClient('compliance-scan-broker-action', { userId, context: 'POST /api/compliance/scan' });
+// Sprint D-3 Track E: user JWT + RLS (was service-role).
+// Coverage matrix:
+//   profiles SELECT             profiles_select USING true
+//   documents SELECT            documents_broker_admin_select (broker/admin)
+//                               OR Users-can-view-own + documents_agent_own_transaction_select
+//   document_analysis SELECT    broker/admin OR agent-via-transaction
+//   compliance_checks INSERT    WITH CHECK true (loose — Track F follow-up)
+//   compliance_issues INSERT    WITH CHECK true (loose — Track F follow-up)
+//   compliance_alerts INSERT    compliance_alerts_broker_admin_insert (D-3 Track E)
+//   notifications INSERT        WITH CHECK true (loose — Track F follow-up)
+//
+// The route's in-code role gate accepts broker / admin / compliance.
+// 'compliance' is NOT a value in the production user_role enum
+// (PF-UR confirmed: agent, admin, broker, tc, manager, new_agent).
+// That branch is preserved as a documented dead branch — future
+// product decision (add the enum value OR drop the branch) is out
+// of scope for this sprint.
+function getDbClient(request: NextRequest) {
+  return userClient(request);
 }
 
 async function getAuthedUser(
@@ -115,7 +131,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = getAdminClient(caller.userId);
+    const admin = getDbClient(request);
 
     // ---- Cross-user authorization (Sprint 1: H2) ----
     // Caller may scan their own agent_id. Cross-user scans require
@@ -423,7 +439,11 @@ export async function POST(request: NextRequest) {
         type: 'missing_signature',
         severity: 'warning',
         title: issue.title,
-        message: issue.description,
+        // Sprint D-3 Track E schema-drift fix: production column is
+        // 'description' (PF-CA.1), not 'message'. The prior shape
+        // silently 400'd under SR (caught by the alertErr block); the
+        // route returned alertsCreated=0 every time.
+        description: issue.description,
         status: 'pending',
         created_at: now,
       }));
