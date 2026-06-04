@@ -65,6 +65,7 @@ export const GET = withRateLimit<{ slug: string }>(
     return NextResponse.json({
       success: true,
       data: {
+        agent_id: profile.id,
         name: profile.full_name,
         title: profile.title || 'Real Estate Agent',
         email: profile.email,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
 interface CardData {
+  agent_id: string
   name: string
   title: string
   email: string
@@ -54,7 +55,9 @@ export default function PublicCardPage() {
   }
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}&bgcolor=0A0A0B&color=C9A84C`
+  // QR code links to the public client intake form for this agent
+  const intakeUrl = card ? `https://vault.hartfeltrealestate.com/intake/${card.agent_id}` : shareUrl
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(intakeUrl)}&bgcolor=0A0A0B&color=C9A84C`
 
   const handleSaveContact = () => {
     if (!card) return
