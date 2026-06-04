@@ -197,7 +197,14 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
     // Create in-app notifications for all admins/brokers
     const notifications = admins.map((admin: any) => ({
       user_id: admin.id,
-      type: 'agent_signed_documents',
+      // Sprint D-3 Option C, Step 2: production notification_type enum
+      // does not contain 'agent_signed_documents' (PF-NOTIF-ENUM).
+      // 'admin_alert' is the existing semantic match — the same value
+      // compliance/scan + licenses/check use for broker-level alerts about
+      // an agent. Adding the original value to the enum would have
+      // required a schema change with no page-side icon affordance to
+      // preserve, so the writer substitution is the lighter fix.
+      type: 'admin_alert',
       // Sprint D-3 Track F.0.2 — schema-drift fix: production has a NOT NULL
       // 'status' column. 'unread' matches compliance/scan + licenses/check.
       status: 'unread',
