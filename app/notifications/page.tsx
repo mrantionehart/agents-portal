@@ -10,8 +10,16 @@ interface Notification {
   id: string
   user_id: string
   title: string
-  message: string
+  // Sprint D-3 Track F.0.1 — schema-drift fix: production column is 'body'
+  // (PF-NOTIF discovery), not 'message'. The page read via select('*')
+  // never received a 'message' field; renders were blank.
+  body: string
   type: string
+  // Note: production has no 'is_read' boolean; it uses 'read_at' timestamp
+  // (NULL = unread). The 'is_read' field below remains for now — the
+  // read-state refactor is intentionally out of F.0.1 scope. The
+  // mark-as-read UPDATE calls in this file write to a column that does
+  // not exist and silently fail in production. Flagged for follow-up.
   is_read: boolean
   created_at: string
   metadata?: any
@@ -198,7 +206,7 @@ export default function NotificationsPage() {
                       )}
                     </div>
                     <p className={`text-sm mt-0.5 ${notification.is_read ? 'text-gray-400' : 'text-gray-400'}`}>
-                      {notification.message}
+                      {notification.body}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">{timeAgo(notification.created_at)}</p>
                   </div>
