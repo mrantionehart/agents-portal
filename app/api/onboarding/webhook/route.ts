@@ -199,7 +199,10 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
       user_id: admin.id,
       type: 'agent_signed_documents',
       title: `Agent Signed Documents`,
-      message: `${agentEmail} has completed and signed their onboarding documents and is awaiting approval.`,
+      // Sprint D-3 Track F.0 — schema-drift fix: production column is 'body'
+      // (PF-F discovery), not 'message'. Prior INSERTs silently 400'd;
+      // onboarding-signed admin alerts never persisted to notifications.
+      body: `${agentEmail} has completed and signed their onboarding documents and is awaiting approval.`,
       data: {
         agentEmail,
         action: 'review_agent',

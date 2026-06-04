@@ -170,7 +170,10 @@ export async function POST(request: NextRequest) {
               user_id: a.id,
               type: 'event',
               title: `New Event: ${title}`,
-              message: `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`,
+              // Sprint D-3 Track F.0 — schema-drift fix: production column is
+              // 'body' (PF-F discovery), not 'message'. Prior INSERTs silently
+              // 400'd; calendar event in-app notifications never persisted.
+              body: `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`,
               data: { event_id: event.id, event_date, event_time, location, type: type },
             }))
 
