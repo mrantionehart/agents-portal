@@ -55,8 +55,8 @@ export default function PublicCardPage() {
   }
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
-  // QR code links to the public client intake form for this agent
-  const intakeUrl = card ? `https://vault.hartfeltrealestate.com/intake/${card.agent_id}` : shareUrl
+  // QR code links to the public client intake form on the main website
+  const intakeUrl = card ? `https://hartfeltrealestate.com/intake.html?agent=${card.agent_id}` : shareUrl
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(intakeUrl)}&bgcolor=0A0A0B&color=C9A84C`
 
   const handleSaveContact = () => {
