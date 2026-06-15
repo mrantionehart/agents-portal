@@ -60,8 +60,8 @@ export async function GET(request: NextRequest) {
     // Vol 1 required list: base modules 1-9 only
     const vol1Required = [...VOL1_BASE]
 
-    // Brokers, admins, and QA users always pass the gate
-    if (role === 'broker' || role === 'admin' || isQaUser) {
+    // Brokers, admins, office managers, and QA users always pass the gate
+    if (role === 'broker' || role === 'admin' || role === 'office_manager' || isQaUser) {
       return NextResponse.json({
         gateOpen: true,
         role,
