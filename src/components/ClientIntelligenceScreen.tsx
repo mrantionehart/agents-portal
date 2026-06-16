@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Search, Brain, Flame, Thermometer, Snowflake,
   Phone, Mail, MapPin, DollarSign, Clock,
@@ -9,7 +9,7 @@ import {
   Target, Shield, TrendingUp, Copy, ChevronDown,
   ChevronUp, Send, ExternalLink, Activity, Bell,
   Sparkles, X, Share2, Link, AlertTriangle, Banknote, FileText, CalendarClock,
-  Briefcase,
+  Briefcase, Upload, Trash2,
 } from 'lucide-react';
 import ClientActionCenter from './ClientActionCenter';
 
@@ -246,6 +246,10 @@ function AgentWorkspace({
   const [dealPortalSelectedBuildings, setDealPortalSelectedBuildings] = useState<string[]>([]);
   const [dealPortalCreating, setDealPortalCreating] = useState(false);
   const [dealPortalResult, setDealPortalResult] = useState<{ share_url: string; access_token: string; portal_id?: string } | null>(null);
+  const [dealPortalMediaFiles, setDealPortalMediaFiles] = useState<{ url: string; media_type: string; title: string; file_size?: number }[]>([]);
+  const [dealPortalUploading, setDealPortalUploading] = useState(false);
+  const [dealPortalUploadProgress, setDealPortalUploadProgress] = useState(0);
+  const dealPortalFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Client Portal Activity state ──
   interface ClientPortalEntry {
@@ -611,6 +615,12 @@ function AgentWorkspace({
           advisor_notes: dealPortalNotes.trim() || undefined,
           panorama_url: dealPortalPanoramaUrl.trim() || undefined,
           building_ids: dealPortalSelectedBuildings.length > 0 ? dealPortalSelectedBuildings : undefined,
+          media: dealPortalMediaFiles.length > 0 ? dealPortalMediaFiles.map(m => ({
+            url: m.url,
+            media_type: m.media_type,
+            title: m.title,
+            file_size: m.file_size,
+          })) : undefined,
         }),
       });
       const result = await res.json();
@@ -641,7 +651,55 @@ function AgentWorkspace({
       strRecs?.recommendations?.slice(0, 5).map(r => r.id) || []
     );
     setDealPortalResult(null);
+    setDealPortalMediaFiles([]);
+    setDealPortalUploading(false);
+    setDealPortalUploadProgress(0);
     setShowDealPortalModal(true);
+  };
+
+  const uploadDealPortalFile = (file: File) => {
+    setDealPortalUploading(true);
+    setDealPortalUploadProgress(0);
+    const formData = new FormData();
+    formData.append('file', file);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/broker/deal-portals/upload');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        setDealPortalUploadProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      setDealPortalUploading(false);
+      setDealPortalUploadProgress(0);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const result = JSON.parse(xhr.responseText);
+          if (result.url) {
+            const ext = file.name.split('.').pop()?.toLowerCase() || '';
+            const mediaType = ['jpg','jpeg','png','gif','webp','svg'].includes(ext) ? 'image'
+              : ['pdf'].includes(ext) ? 'document'
+              : ['mp4','mov','webm'].includes(ext) ? 'video' : 'document';
+            setDealPortalMediaFiles(prev => [...prev, {
+              url: result.url,
+              media_type: mediaType,
+              title: file.name,
+              file_size: file.size,
+            }]);
+          }
+        } catch {
+          console.error('Failed to parse upload response');
+        }
+      } else {
+        alert('File upload failed. Please try again.');
+      }
+    };
+    xhr.onerror = () => {
+      setDealPortalUploading(false);
+      setDealPortalUploadProgress(0);
+      alert('File upload failed. Please try again.');
+    };
+    xhr.send(formData);
   };
 
   const toggleListingCard = (rec: STRRecommendation) => {
@@ -2171,6 +2229,83 @@ function AgentWorkspace({
                   <p className="text-[10px] text-zinc-600 mt-1">Embeds virtual tour, schools, mortgage calc & more on the portal</p>
                 </div>
 
+                {/* Media & Documents */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
+                    Media & Documents <span className="text-zinc-600 normal-case font-normal">(optional)</span>
+                  </label>
+                  <input
+                    ref={dealPortalFileInputRef}
+                    type="file"
+                    accept="image/*,.pdf,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        uploadDealPortalFile(file);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => dealPortalFileInputRef.current?.click()}
+                    disabled={dealPortalUploading}
+                    className="w-full border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-3 text-sm text-zinc-400 hover:text-zinc-300 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {dealPortalUploading ? (
+                      <>
+                        <Activity className="w-4 h-4 animate-spin" />
+                        Uploading... {dealPortalUploadProgress}%
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Click to upload images, PDFs, or videos
+                      </>
+                    )}
+                  </button>
+                  {dealPortalUploading && (
+                    <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#c9a54e] rounded-full transition-all duration-300"
+                        style={{ width: `${dealPortalUploadProgress}%` }}
+                      />
+                    </div>
+                  )}
+                  {dealPortalMediaFiles.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {dealPortalMediaFiles.map((media, idx) => (
+                        <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+                          {media.media_type === 'image' ? (
+                            <img src={media.url} alt={media.title} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 text-zinc-500" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-white truncate">{media.title}</p>
+                            {media.file_size && (
+                              <p className="text-[10px] text-zinc-500">
+                                {media.file_size < 1024 * 1024
+                                  ? `${(media.file_size / 1024).toFixed(1)} KB`
+                                  : `${(media.file_size / (1024 * 1024)).toFixed(1)} MB`}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setDealPortalMediaFiles(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-red-400 transition flex-shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Building Selection */}
                 {strRecs && strRecs.recommendations.length > 0 && (
                   <div>
@@ -2221,6 +2356,12 @@ function AgentWorkspace({
                         <span className="text-xs text-white font-medium">
                           {strRecs.recommendations.filter(r => dealPortalSelectedBuildings.includes(r.id) && r.listing_match?.mls_status === 'cached').length}
                         </span>
+                      </div>
+                    )}
+                    {dealPortalMediaFiles.length > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400">Media Files</span>
+                        <span className="text-xs text-white font-medium">{dealPortalMediaFiles.length}</span>
                       </div>
                     )}
                     {dealPortalNotes.trim() && (
