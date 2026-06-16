@@ -83,6 +83,30 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
         ),
       ])
       accessToken = sessionResult.data?.session?.access_token
+
+      // ── Session hydration race fix ──────────────────────────────────
+      // AuthProvider.initAuth() sets `user` state via /api/auth/me (cookie-
+      // based) BEFORE the Supabase browser client hydrates its session from
+      // cookies. Any useEffect that triggers on `user` and calls authFetch
+      // hits getSession() before it's ready, getting null.
+      // Fix: subscribe to onAuthStateChange, which fires immediately once
+      // the session is hydrated (INITIAL_SESSION event). For logged-out
+      // users it resolves instantly with undefined — no delay added.
+      if (!accessToken) {
+        accessToken = await new Promise<string | undefined>((resolve) => {
+          let sub: { unsubscribe: () => void }
+          const giveUp = setTimeout(() => {
+            sub?.unsubscribe()
+            resolve(undefined)
+          }, 2000)
+          const result = supabase.auth.onAuthStateChange((_event, session) => {
+            clearTimeout(giveUp)
+            sub?.unsubscribe()
+            resolve(session?.access_token)
+          })
+          sub = result.data.subscription
+        })
+      }
     } catch (sessionErr) {
       console.warn('authFetch: getSession failed/timed out, proceeding without token:', sessionErr)
     }
