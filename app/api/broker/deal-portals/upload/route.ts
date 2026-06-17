@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request);
+    // PORTAL.4 (2026-06-16) — pre-fix this line discarded requireAuth()'s
+    // return value, so unauthenticated requests fell through to
+    // request.formData() and the Vault upload fetch. Vault's downstream
+    // Bearer check still rejected, but the proxy wasted bandwidth on the
+    // file body and silently violated the CI route-guard pattern documented
+    // in lib/security/withAuth.ts:100-104. Per the discriminated-union
+    // contract, return the 401 response immediately when auth fails.
+    const auth = await requireAuth(request);
+    if (auth.response) return auth.response;
     const authHeader = request.headers.get("authorization") || "";
     const formData = await request.formData();
 
