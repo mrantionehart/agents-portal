@@ -12,6 +12,8 @@
     "app/api/broker/client-intelligence/[id]/claim/route.ts",
     "app/api/broker/client-intelligence/[id]/str-recommendations/route.ts",
     "app/api/broker/client-intelligence/route.ts",
+    "app/api/broker/contract-training/categories/route.ts",
+    "app/api/broker/contract-training/route.ts",
     "app/api/broker/conversion-intelligence/route.ts",
     "app/api/broker/deal-portals/advisor/route.ts",
     "app/api/broker/investor-rooms/route.ts",

@@ -62,6 +62,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'My Card', href: '/business-card', icon: CreditCard },
     { label: 'Training', href: '/training', icon: BookOpen },
     { label: 'Script Library', href: '/scripts', icon: ScrollText },
+    { label: 'Contract Training', href: '/contract-training', icon: FileText },
     { label: 'Leaderboard & Wins', href: '/leaderboard', icon: Trophy },
     { label: 'Calendar', href: '/calendar', icon: CalendarDays },
     { label: 'Documents', href: '/documents', icon: FileText },
