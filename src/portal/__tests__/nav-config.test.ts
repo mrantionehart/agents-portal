@@ -9,8 +9,8 @@
 
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
-describe("NAV_ITEMS (AP2.1H — final sidebar list)", () => {
-  it("ships the 9 documented items in order", () => {
+describe("NAV_ITEMS (R5 — Training Hub absorbs Resources)", () => {
+  it("ships the 8 documented items in order (Resources merged into Training)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -19,7 +19,6 @@ describe("NAV_ITEMS (AP2.1H — final sidebar list)", () => {
       "Calendar",
       "Notifications",
       "Training",
-      "Resources",
       "Settings",
     ]);
   });
@@ -29,9 +28,12 @@ describe("NAV_ITEMS (AP2.1H — final sidebar list)", () => {
     expect(t.href).toBe("/workspace");
   });
 
-  it("Training + Resources are flagged legacy (outside (portal) shell)", () => {
-    expect(NAV_ITEMS.find((i) => i.id === "training")?.legacy).toBe(true);
-    expect(NAV_ITEMS.find((i) => i.id === "resources")?.legacy).toBe(true);
+  it("R5 — Training is now in-shell (not flagged legacy); Resources removed", () => {
+    const t = NAV_ITEMS.find((i) => i.id === "training");
+    expect(t).toBeDefined();
+    expect(t?.href).toBe("/training");
+    expect(t?.legacy).toBeUndefined();
+    expect(NAV_ITEMS.find((i) => i.id === "resources")).toBeUndefined();
   });
 
   it("every item has a unique id + href", () => {

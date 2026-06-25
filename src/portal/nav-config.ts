@@ -4,12 +4,16 @@
 // Single declarative list of nav items. The Sidebar reads this — the
 // only place a route changes when we ship a new (portal) page.
 //
-// Final menu locked in by AP2.1H spec:
+// Final menu locked in by AP2.1H spec, updated by R5:
 //   Home / Transactions / Clients / AI / Calendar / Notifications /
-//   Training / Resources / Settings
+//   Training / Settings
 //
-// Training + Resources point at the existing legacy pages (outside the
-// (portal) shell). Settings has a clean placeholder. No dead links.
+// R5 — Training Hub unifies the old Training + Script Library +
+// Resources surfaces under one (portal) destination at /training.
+// The standalone Resources sidebar entry was removed (its content
+// is now a tab inside Training). Legacy /training was renamed to
+// /training-legacy so the new hub owns /training; cards in the hub's
+// Training tab deep-link there for video playback.
 // ============================================================================
 
 export type NavItem = {
@@ -42,8 +46,7 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },
-  { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training",  legacy: true },
-  { id: "resources",    label: "Resources",     icon: "book-open",       href: "/resources", legacy: true },
+  { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training" },
   { id: "settings",     label: "Settings",      icon: "settings",        href: "/settings" },
 ] as const;
 
