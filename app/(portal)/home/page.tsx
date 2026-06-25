@@ -13,16 +13,16 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import {
+  Activity,
   AlertCircle,
   Bell,
   Calendar,
   ListChecks,
   Plus,
   Sparkles,
-  Activity,
 } from "lucide-react";
 
 import { fetchWorkspaceFromVault, vaultSiteBase } from "@/src/portal/workspace/api";
@@ -36,6 +36,19 @@ import {
   prioritizeForToday,
   summarySentence,
 } from "@/src/portal/home/home-helpers";
+import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
+import {
+  pipelineSnapshot,
+  productionSnapshot,
+} from "@/src/portal/home/intelligence-helpers";
+import {
+  DevelopmentRadarWidget,
+  HotLeadsWidget,
+  MarketNewsWidget,
+  OpportunitiesWidget,
+  PipelineSnapshotWidget,
+  ProductionSnapshotWidget,
+} from "@/src/portal/home/IntelligenceWidgets";
 
 export default async function PortalHomePage() {
   const cookieStore = await cookies();
@@ -92,6 +105,30 @@ export default async function PortalHomePage() {
   const prioritized = prioritizeForToday(cards);
   const todays = prioritized.slice(0, 6);
 
+  // R6 — Production + Pipeline snapshots are pure derivations from
+  // the workspace cards we just loaded. No new fetches.
+  const production = productionSnapshot(cards);
+  const pipeline = pipelineSnapshot(cards);
+
+  // R6 — News + Radar + Hot Leads are parallel-fetched against
+  // existing endpoints. Each source's failure is captured per
+  // stream so the dashboard never blanks on one upstream blip.
+  const hdrs = await headers();
+  const cookieHeader =
+    hdrs.get("cookie") ??
+    cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
+  const host = hdrs.get("host") ?? "agents.hartfeltrealestate.com";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const baseUrl = `${proto}://${host}`;
+
+  const intelligence = await loadHomeIntelligence({
+    baseUrl,
+    cookieHeader,
+    accessToken: session.access_token,
+    supabase,
+    callerId: session.user.id,
+  });
+
   return (
     <HomeShell now={now} agentName={agentName}>
       {/* ── Summary sentence ───────────────────────────────────── */}
@@ -126,7 +163,29 @@ export default async function PortalHomePage() {
         />
       </div>
 
-      {/* ── 3. Today's Transactions ────────────────────────────── */}
+      {/* ── 3. R6 Intelligence Widgets ─────────────────────────── */}
+      {/*    Production + Pipeline snapshots first (derived from the
+            cards we already loaded), then Market News + Development
+            Radar + Opportunities + Hot Leads in a 2-column grid. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <ProductionSnapshotWidget snapshot={production} />
+        <PipelineSnapshotWidget snapshot={pipeline} />
+        <MarketNewsWidget
+          articles={intelligence.news}
+          error={intelligence.errors.news}
+        />
+        <DevelopmentRadarWidget
+          developments={intelligence.radar}
+          error={intelligence.errors.radar}
+        />
+        <HotLeadsWidget
+          leads={intelligence.hotLeads}
+          error={intelligence.errors.leads}
+        />
+        <OpportunitiesWidget opportunities={intelligence.opportunities} />
+      </div>
+
+      {/* ── 4. Continue Working — Today's Transactions ─────────── */}
       <section className="mb-8">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-sm font-medium text-[#F1F1F3]">Today&apos;s Transactions</h2>
