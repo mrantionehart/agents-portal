@@ -77,9 +77,8 @@ export default function DealPortalsPage() {
   }
 
   function getShareUrl(portal: DealPortal): string {
-    if (portal.share_url) return portal.share_url
-    // Fallback: construct URL from access_token
-    return `https://hartfelt-vault.vercel.app/portal/${portal.access_token}`
+    // Always use Vault domain — public portal pages live there, not on agents portal
+    return `https://vault.hartfeltrealestate.com/portal/${portal.access_token}`
   }
 
   async function copyLink(portal: DealPortal) {
