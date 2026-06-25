@@ -11,8 +11,13 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { ClientDetail, ClientListItem, DetailResult, ListResult } from "./types";
-import { formatBudgetRange } from "./helpers";
+import type {
+  ClientDetail,
+  ClientListItem,
+  DetailResult,
+  ListResult,
+} from "./types";
+import { deriveBucket, formatBudgetRange } from "./helpers";
 
 // Sanitized columns. Excludes: broker_notes, red_flags,
 // profitability, commission, decision_notes, ai_relationship_summary_broker,
@@ -89,7 +94,7 @@ function toStringArray(v: unknown): string[] {
   return v.filter((x): x is string => typeof x === "string");
 }
 
-function sanitizeListItem(p: RawProfile): ClientListItem {
+function sanitizeListItem(p: RawProfile, callerId: string): ClientListItem {
   return {
     id: p.id,
     full_name: p.full_name,
@@ -101,12 +106,13 @@ function sanitizeListItem(p: RawProfile): ClientListItem {
     preferred_channel: p.preferred_channel,
     target_areas: toStringArray(p.target_areas),
     updated_at: p.updated_at,
+    assignmentBucket: deriveBucket(p, callerId),
   };
 }
 
-function sanitizeDetail(p: RawProfile): ClientDetail {
+function sanitizeDetail(p: RawProfile, callerId: string): ClientDetail {
   return {
-    ...sanitizeListItem(p),
+    ...sanitizeListItem(p, callerId),
     preferred_contact_time: p.preferred_contact_time,
     motivation: p.motivation,
     timeline: p.qualification_timeline ?? p.timeline,
@@ -151,7 +157,7 @@ export async function loadClientList(input: {
     return { kind: "error", status: 500, message: error.message };
   }
   const rows = ((data ?? []) as unknown) as RawProfile[];
-  return { kind: "ok", items: rows.map(sanitizeListItem) };
+  return { kind: "ok", items: rows.map((r) => sanitizeListItem(r, callerId)) };
 }
 
 // ── Detail loader ───────────────────────────────────────────────────
@@ -180,8 +186,12 @@ export async function loadClientDetail(input: {
   if (!data) return { kind: "not_found" };
   const row = (data as unknown) as RawProfile;
   if (!canAccess(row, callerId, callerRole)) return { kind: "not_found" };
-  return { kind: "ok", client: sanitizeDetail(row) };
+  return { kind: "ok", client: sanitizeDetail(row, callerId) };
 }
 
 // Re-exports for test convenience.
-export { canAccess as _canAccess, sanitizeListItem as _sanitizeListItem, sanitizeDetail as _sanitizeDetail };
+export {
+  canAccess as _canAccess,
+  sanitizeListItem as _sanitizeListItem,
+  sanitizeDetail as _sanitizeDetail,
+};

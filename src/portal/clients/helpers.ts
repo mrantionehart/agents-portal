@@ -5,10 +5,33 @@
 // budget range formatting (mirrors AP2.1D), sanitization. No DB / DOM.
 // ============================================================================
 
-import type { ClientListItem } from "./types";
+import type { AssignmentBucket, ClientListItem } from "./types";
 
 export type TempFilter = "all" | "hot" | "warm" | "cold";
 export type TypeFilter = "all" | "buyers" | "sellers" | "investors";
+
+/** R3A — assignment filter. AND-composed with temperature + type. */
+export type AssignmentFilter = "all" | "assigned" | "claimed" | "dispo";
+
+/** R3A — derive the caller's relationship to a row. Pure function over
+ *  (assigned_agent_id / claimed_by / visibility / status) + caller id;
+ *  does NOT depend on role. Returns null when there's no caller-relative
+ *  bucket (broker visibility only). Encodes ONLY the caller-relative
+ *  category — never another agent's user_id. */
+export function deriveBucket(
+  p: {
+    assigned_agent_id: string | null;
+    claimed_by: string | null;
+    visibility: string | null;
+    status: string | null;
+  },
+  callerId: string
+): AssignmentBucket {
+  if (p.assigned_agent_id === callerId) return "assigned";
+  if (p.claimed_by === callerId) return "claimed";
+  if (p.visibility === "dispo_feed" && p.status === "dispo") return "dispo";
+  return null;
+}
 
 /** Map a profile_type value to one of the documented filter buckets.
  *  Soft mapping — unknown types fall through to "all" (won't match the
@@ -22,12 +45,20 @@ export function typeBucket(profile_type: string | null): TypeFilter {
   return "all";
 }
 
-/** Filter + search composition. AND across all axes. Search is
- *  case-insensitive over name / email / phone / target_areas. */
+/** Filter + search composition. AND across all axes (temperature,
+ *  type, assignment, search). Search is case-insensitive over
+ *  name / email / phone / target_areas. */
 export function applyClientFilters(
   rows: ClientListItem[],
-  filters: { temperature: TempFilter; type: TypeFilter; search: string }
+  filters: {
+    temperature: TempFilter;
+    type: TypeFilter;
+    /** R3A — optional; defaults to "all" so older callers keep working. */
+    assignment?: AssignmentFilter;
+    search: string;
+  }
 ): ClientListItem[] {
+  const assignment: AssignmentFilter = filters.assignment ?? "all";
   const q = filters.search.trim().toLowerCase();
   return rows.filter((c) => {
     if (filters.temperature !== "all") {
@@ -35,6 +66,9 @@ export function applyClientFilters(
     }
     if (filters.type !== "all") {
       if (typeBucket(c.profile_type) !== filters.type) return false;
+    }
+    if (assignment !== "all") {
+      if (c.assignmentBucket !== assignment) return false;
     }
     if (q) {
       const hay = [
@@ -117,6 +151,10 @@ export interface ClientListCounts {
   buyers: number;
   sellers: number;
   investors: number;
+  /** R3A — assignment bucket counts (caller-relative). */
+  assigned: number;
+  claimed: number;
+  dispo: number;
 }
 
 export function clientListCounts(rows: ClientListItem[]): ClientListCounts {
@@ -125,7 +163,10 @@ export function clientListCounts(rows: ClientListItem[]): ClientListCounts {
     cold = 0,
     buyers = 0,
     sellers = 0,
-    investors = 0;
+    investors = 0,
+    assigned = 0,
+    claimed = 0,
+    dispo = 0;
   for (const c of rows) {
     if (c.temperature === "hot") hot += 1;
     else if (c.temperature === "warm") warm += 1;
@@ -134,6 +175,29 @@ export function clientListCounts(rows: ClientListItem[]): ClientListCounts {
     if (tb === "buyers") buyers += 1;
     else if (tb === "sellers") sellers += 1;
     else if (tb === "investors") investors += 1;
+    if (c.assignmentBucket === "assigned") assigned += 1;
+    else if (c.assignmentBucket === "claimed") claimed += 1;
+    else if (c.assignmentBucket === "dispo") dispo += 1;
   }
-  return { total: rows.length, hot, warm, cold, buyers, sellers, investors };
+  return {
+    total: rows.length,
+    hot,
+    warm,
+    cold,
+    buyers,
+    sellers,
+    investors,
+    assigned,
+    claimed,
+    dispo,
+  };
+}
+
+/** Display label for a per-row bucket badge. Returns null when the row
+ *  is broker-visible-only — no badge in that case. */
+export function bucketBadgeLabel(b: ClientListItem["assignmentBucket"]): string | null {
+  if (b === "assigned") return "Assigned";
+  if (b === "claimed") return "Claimed";
+  if (b === "dispo") return "Dispo Feed";
+  return null;
 }

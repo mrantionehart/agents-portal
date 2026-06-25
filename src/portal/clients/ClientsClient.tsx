@@ -12,15 +12,17 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Mail, MapPin, Phone, Search, Users } from "lucide-react";
 
-import type { ClientListItem } from "./types";
+import type { AssignmentBucket, ClientListItem } from "./types";
 import {
   applyClientFilters,
+  bucketBadgeLabel,
   channelLabel,
   clientListCounts,
   profileTypeLabel,
   relativeUpdated,
   representationLabel,
   temperatureLabel,
+  type AssignmentFilter,
   type TempFilter,
   type TypeFilter,
 } from "./helpers";
@@ -28,6 +30,7 @@ import {
 export default function ClientsClient({ items }: { items: ClientListItem[] }) {
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all");
   const [search, setSearch] = useState("");
 
   const counts = useMemo(() => clientListCounts(items), [items]);
@@ -36,9 +39,10 @@ export default function ClientsClient({ items }: { items: ClientListItem[] }) {
       applyClientFilters(items, {
         temperature: tempFilter,
         type: typeFilter,
+        assignment: assignmentFilter,
         search,
       }),
-    [items, tempFilter, typeFilter, search]
+    [items, tempFilter, typeFilter, assignmentFilter, search]
   );
 
   return (
@@ -52,11 +56,36 @@ export default function ClientsClient({ items }: { items: ClientListItem[] }) {
       </div>
 
       {/* Type filter chips */}
-      <div className="flex flex-wrap gap-2 mb-4 text-xs">
+      <div className="flex flex-wrap gap-2 mb-3 text-xs">
         <TypeChip label="All Types" active={typeFilter === "all"} onClick={() => setTypeFilter("all")} />
         <TypeChip label={`Buyers (${counts.buyers})`} active={typeFilter === "buyers"} onClick={() => setTypeFilter("buyers")} />
         <TypeChip label={`Sellers (${counts.sellers})`} active={typeFilter === "sellers"} onClick={() => setTypeFilter("sellers")} />
         <TypeChip label={`Investors (${counts.investors})`} active={typeFilter === "investors"} onClick={() => setTypeFilter("investors")} />
+      </div>
+
+      {/* R3A — Assignment filter chips (caller-relative). AND-composed
+          with temperature + type + search above. */}
+      <div className="flex flex-wrap gap-2 mb-4 text-xs">
+        <TypeChip
+          label="All Assignments"
+          active={assignmentFilter === "all"}
+          onClick={() => setAssignmentFilter("all")}
+        />
+        <TypeChip
+          label={`Assigned to Me (${counts.assigned})`}
+          active={assignmentFilter === "assigned"}
+          onClick={() => setAssignmentFilter("assigned")}
+        />
+        <TypeChip
+          label={`Claimed by Me (${counts.claimed})`}
+          active={assignmentFilter === "claimed"}
+          onClick={() => setAssignmentFilter("claimed")}
+        />
+        <TypeChip
+          label={`Dispo Feed (${counts.dispo})`}
+          active={assignmentFilter === "dispo"}
+          onClick={() => setAssignmentFilter("dispo")}
+        />
       </div>
 
       {/* Search */}
@@ -114,6 +143,7 @@ function ClientRow({ c }: { c: ClientListItem }) {
               {c.temperature && c.temperature !== "—" && (
                 <TempBadge t={c.temperature} />
               )}
+              <BucketBadge b={c.assignmentBucket} />
             </div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1 text-xs text-[#A1A1AA]">
               {c.email && (
@@ -192,6 +222,31 @@ function TypeBadge({ type }: { type: string | null }) {
   return (
     <span className="inline-block rounded-md border border-[#252538] bg-[#1a1a25] text-[10px] uppercase tracking-wide text-[#A1A1AA] px-1.5 py-0.5">
       {profileTypeLabel(type)}
+    </span>
+  );
+}
+
+function BucketBadge({ b }: { b: AssignmentBucket }) {
+  const label = bucketBadgeLabel(b);
+  if (!label) return null;
+  const cls =
+    b === "assigned"
+      ? "bg-emerald-900/30 text-emerald-200 border-emerald-700/40"
+      : b === "claimed"
+      ? "bg-violet-900/30 text-violet-200 border-violet-700/40"
+      : "bg-amber-900/20 text-amber-200 border-amber-700/40";
+  return (
+    <span
+      className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${cls}`}
+      title={
+        b === "assigned"
+          ? "You are the assigned agent for this client"
+          : b === "claimed"
+          ? "You claimed this client from the dispo feed"
+          : "Available in the dispo feed — any agent can claim"
+      }
+    >
+      {label}
     </span>
   );
 }

@@ -8,6 +8,11 @@
 // model as AP2.1D.
 // ============================================================================
 
+/** Caller-relative assignment bucket. Encodes ONLY the relationship to
+ *  the caller — never another agent's user_id. Brokers may see rows
+ *  where the bucket is null (visible by role, not by assignment). */
+export type AssignmentBucket = "assigned" | "claimed" | "dispo" | null;
+
 export interface ClientListItem {
   id: string;
   full_name: string | null;
@@ -19,6 +24,8 @@ export interface ClientListItem {
   preferred_channel: string | null;
   target_areas: string[];
   updated_at: string | null;
+  /** R3A — caller-relative assignment marker; null for broker-only rows. */
+  assignmentBucket: AssignmentBucket;
 }
 
 export interface ClientDetail extends ClientListItem {

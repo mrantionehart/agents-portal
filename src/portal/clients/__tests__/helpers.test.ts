@@ -7,8 +7,10 @@
 
 import {
   applyClientFilters,
+  bucketBadgeLabel,
   channelLabel,
   clientListCounts,
+  deriveBucket,
   formatBudgetRange,
   profileTypeLabel,
   relativeUpdated,
@@ -30,6 +32,7 @@ function c(over: Partial<ClientListItem> = {}): ClientListItem {
     preferred_channel: "phone",
     target_areas: ["Miami Beach"],
     updated_at: "2026-06-25T08:00:00Z",
+    assignmentBucket: null,
     ...over,
   };
 }
@@ -112,12 +115,12 @@ describe("applyClientFilters", () => {
 });
 
 describe("clientListCounts", () => {
-  it("counts each axis", () => {
+  it("counts each axis (incl. R3A assignment buckets)", () => {
     const set: ClientListItem[] = [
-      c({ temperature: "hot", profile_type: "buyer" }),
-      c({ temperature: "warm", profile_type: "seller" }),
-      c({ temperature: "cold", profile_type: "investor" }),
-      c({ temperature: "hot", profile_type: "investor" }),
+      c({ temperature: "hot", profile_type: "buyer", assignmentBucket: "assigned" }),
+      c({ temperature: "warm", profile_type: "seller", assignmentBucket: "claimed" }),
+      c({ temperature: "cold", profile_type: "investor", assignmentBucket: "dispo" }),
+      c({ temperature: "hot", profile_type: "investor", assignmentBucket: null }),
     ];
     expect(clientListCounts(set)).toEqual({
       total: 4,
@@ -127,6 +130,9 @@ describe("clientListCounts", () => {
       buyers: 1,
       sellers: 1,
       investors: 2,
+      assigned: 1,
+      claimed: 1,
+      dispo: 1,
     });
   });
   it("empty → all zeros", () => {
@@ -138,7 +144,134 @@ describe("clientListCounts", () => {
       buyers: 0,
       sellers: 0,
       investors: 0,
+      assigned: 0,
+      claimed: 0,
+      dispo: 0,
     });
+  });
+});
+
+describe("R3A — assignment filter + badge", () => {
+  const fleet: ClientListItem[] = [
+    c({ id: "ass1", full_name: "Alice", assignmentBucket: "assigned" }),
+    c({ id: "ass2", full_name: "Adam",  assignmentBucket: "assigned" }),
+    c({ id: "clm1", full_name: "Carla", assignmentBucket: "claimed" }),
+    c({ id: "dip1", full_name: "Dan",   assignmentBucket: "dispo" }),
+    c({ id: "dip2", full_name: "Dora",  assignmentBucket: "dispo" }),
+    c({ id: "brk1", full_name: "Bea",   assignmentBucket: null }), // broker visibility only
+  ];
+
+  it("assignment=all keeps everyone", () => {
+    expect(
+      applyClientFilters(fleet, { temperature: "all", type: "all", assignment: "all", search: "" }).length
+    ).toBe(6);
+  });
+  it("assignment=assigned → only assigned", () => {
+    expect(
+      applyClientFilters(fleet, { temperature: "all", type: "all", assignment: "assigned", search: "" })
+        .map((x) => x.id).sort()
+    ).toEqual(["ass1", "ass2"]);
+  });
+  it("assignment=claimed → only claimed", () => {
+    expect(
+      applyClientFilters(fleet, { temperature: "all", type: "all", assignment: "claimed", search: "" })
+        .map((x) => x.id)
+    ).toEqual(["clm1"]);
+  });
+  it("assignment=dispo → only dispo rows", () => {
+    expect(
+      applyClientFilters(fleet, { temperature: "all", type: "all", assignment: "dispo", search: "" })
+        .map((x) => x.id).sort()
+    ).toEqual(["dip1", "dip2"]);
+  });
+  it("AND-composes with type + search", () => {
+    const set = [
+      c({ id: "x", full_name: "Xerxes", profile_type: "buyer", assignmentBucket: "assigned" }),
+      c({ id: "y", full_name: "Xerxes", profile_type: "seller", assignmentBucket: "assigned" }),
+      c({ id: "z", full_name: "Yvonne", profile_type: "buyer", assignmentBucket: "claimed" }),
+    ];
+    expect(
+      applyClientFilters(set, {
+        temperature: "all",
+        type: "buyers",
+        assignment: "assigned",
+        search: "xer",
+      }).map((x) => x.id)
+    ).toEqual(["x"]);
+  });
+  it("absent assignment field defaults to all (back-compat)", () => {
+    // Older call sites that don't pass assignment — they keep working.
+    expect(
+      (applyClientFilters as any)(fleet, { temperature: "all", type: "all", search: "" }).length
+    ).toBe(6);
+  });
+
+  describe("bucketBadgeLabel", () => {
+    it.each([
+      ["assigned", "Assigned"],
+      ["claimed", "Claimed"],
+      ["dispo", "Dispo Feed"],
+      [null, null],
+    ])("bucket=%s → %s", (input, expected) => {
+      expect(bucketBadgeLabel(input as any)).toBe(expected);
+    });
+  });
+});
+
+describe("R3A — deriveBucket (caller-relative)", () => {
+  it("assigned_agent_id === caller → 'assigned'", () => {
+    expect(deriveBucket({ assigned_agent_id: "U1", claimed_by: null, visibility: null, status: null }, "U1")).toBe("assigned");
+  });
+  it("claimed_by === caller → 'claimed'", () => {
+    expect(deriveBucket({ assigned_agent_id: "U2", claimed_by: "U1", visibility: null, status: null }, "U1")).toBe("claimed");
+  });
+  it("dispo_feed + dispo → 'dispo'", () => {
+    expect(deriveBucket({ assigned_agent_id: null, claimed_by: null, visibility: "dispo_feed", status: "dispo" }, "U1")).toBe("dispo");
+  });
+  it("assigned takes precedence over claimed over dispo", () => {
+    expect(deriveBucket({ assigned_agent_id: "U1", claimed_by: "U1", visibility: "dispo_feed", status: "dispo" }, "U1")).toBe("assigned");
+  });
+  it("none → null (broker-only visibility)", () => {
+    expect(deriveBucket({ assigned_agent_id: "OTHER", claimed_by: "OTHER", visibility: null, status: null }, "U1")).toBeNull();
+  });
+  it("does NOT leak another agent's user_id in the output", () => {
+    // Output is one of the four category literals or null — never the
+    // foreign user_ids themselves, regardless of which input fields
+    // hold them.
+    const VALID_OUTPUTS = new Set(["assigned", "claimed", "dispo", null]);
+    const rows = [
+      { assigned_agent_id: "OTHER_AGENT_UUID", claimed_by: "ANOTHER_AGENT_UUID", visibility: null, status: null },
+      { assigned_agent_id: "OTHER_AGENT_UUID", claimed_by: "U1", visibility: null, status: null },
+      { assigned_agent_id: null, claimed_by: null, visibility: "dispo_feed", status: "dispo" },
+    ];
+    for (const row of rows) {
+      const out = deriveBucket(row, "U1");
+      expect(VALID_OUTPUTS.has(out)).toBe(true);
+      // The output is one of the four legal values — nothing else.
+      const asString = String(out);
+      expect(asString).not.toContain("OTHER_AGENT_UUID");
+      expect(asString).not.toContain("ANOTHER_AGENT_UUID");
+    }
+  });
+});
+
+describe("R3A — sanitized output never includes broker-only IDs", () => {
+  it("ClientListItem shape excludes assigned_agent_id / claimed_by / visibility / status", () => {
+    // Boundary check — verify SAFE_COLUMNS selects those fields for
+    // the access check but sanitizeListItem strips them.
+    const fs = require("fs");
+    const path = require("path");
+    const loaderSrc = fs.readFileSync(
+      path.join(process.cwd(), "src/portal/clients/loader.ts"),
+      "utf-8"
+    );
+    const sanitizeBlock = loaderSrc.match(/function sanitizeListItem[\s\S]*?return\s*\{([\s\S]*?)\};\s*\}/);
+    expect(sanitizeBlock).not.toBeNull();
+    const body = sanitizeBlock![1];
+    expect(body.includes("assigned_agent_id")).toBe(false);
+    expect(body.includes("claimed_by")).toBe(false);
+    expect(body.includes("visibility")).toBe(false);
+    expect(/(^|\s)status:/.test(body)).toBe(false);
   });
 });
 
