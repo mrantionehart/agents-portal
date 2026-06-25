@@ -74,6 +74,10 @@ export type ServiceRoleReason =
   | 'push-token-lookup'
   // Notification fan-out from agent-triggered routes
   | 'broker-fan-out'
+  // SEC.3A — cross-table tenant resolution for new_leads containment.
+  // RLS on new_leads is USING(true); we use service role to look up
+  // posted_by → profiles.tenant_id and filter rows in the application.
+  | 'sec3a-new-leads-tenant-scope'
 
 /**
  * Optional caller context. Pass whichever fields are available at the
