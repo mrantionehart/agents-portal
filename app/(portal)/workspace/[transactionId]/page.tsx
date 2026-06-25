@@ -18,7 +18,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { ArrowLeft, ExternalLink, FileText, Sparkles } from "lucide-react";
 
 import AIAssistantPanel from "@/src/portal/workspace/AIAssistantPanel";
+import ClientIntelligencePanel from "@/src/portal/workspace/ClientIntelligencePanel";
 import { fetchWorkspaceFromVault, vaultSiteBase } from "@/src/portal/workspace/api";
+import {
+  loadClientIntelligenceForTransaction,
+  type ClientIntelligenceResult,
+} from "@/src/portal/workspace/client-intelligence";
 import {
   findCardById,
   nextActionLabel,
@@ -86,7 +91,8 @@ export default async function TransactionWorkspacePage({
   }
 
   const card = findCardById(result.items, transactionId);
-  if (!card) {
+  let resolvedCard = card;
+  if (!resolvedCard) {
     // Either invalid id OR not visible under the agent's own scope.
     // Try office scope as a fallback for broker-tier callers (Vault
     // returns 403 to agents, which we surface as "not found" — never
@@ -95,15 +101,49 @@ export default async function TransactionWorkspacePage({
       accessToken: session.access_token,
       scope: "office",
     });
-    const officeCard =
+    resolvedCard =
       officeResult.ok === true
         ? findCardById(officeResult.items, transactionId)
         : undefined;
-    if (!officeCard) notFound();
-    return <TransactionView card={officeCard} vaultBase={vaultBase} />;
+    if (!resolvedCard) notFound();
   }
 
-  return <TransactionView card={card} vaultBase={vaultBase} />;
+  // ── AP2.1D: pull Client Intelligence in parallel with the page ────
+  //
+  // We need the transaction's client_email to look up the profile. The
+  // workspace card only carries client_name; the email lives on the
+  // transactions row, which agents have read access to via RLS.
+  const callerProfilePromise = supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", session.user.id)
+    .maybeSingle<{ role: string }>();
+  const txnRowPromise = supabase
+    .from("transactions")
+    .select("client_email, client_name")
+    .eq("id", transactionId)
+    .maybeSingle<{ client_email: string | null; client_name: string | null }>();
+  const [{ data: callerProfile }, { data: txnRow }] = await Promise.all([
+    callerProfilePromise,
+    txnRowPromise,
+  ]);
+  const callerRole = callerProfile?.role ?? "agent";
+  const clientIntelligence: ClientIntelligenceResult =
+    await loadClientIntelligenceForTransaction({
+      supabase,
+      callerId: session.user.id,
+      callerRole,
+      clientEmail: txnRow?.client_email ?? null,
+      clientName: txnRow?.client_name ?? resolvedCard.client_name,
+    });
+
+  return (
+    <TransactionView
+      card={resolvedCard}
+      vaultBase={vaultBase}
+      clientIntelligence={clientIntelligence}
+    />
+  );
 }
 
 // ── Page shells ───────────────────────────────────────────────────────
@@ -149,9 +189,11 @@ function Shell({
 function TransactionView({
   card,
   vaultBase,
+  clientIntelligence,
 }: {
   card: import("@/src/portal/workspace/types").WorkspaceCard;
   vaultBase: string;
+  clientIntelligence: ClientIntelligenceResult;
 }) {
   return (
     <div>
@@ -236,6 +278,14 @@ function TransactionView({
             <FileText className="h-3 w-3" /> Open the paperwork package in Vault
           </a>
         </section>
+      </div>
+
+      {/* ── 3b. Client Intelligence (AP2.1D) ───────────────────────── */}
+      <div className="mb-4">
+        <ClientIntelligencePanel
+          result={clientIntelligence}
+          fallbackClientName={card.client_name}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
