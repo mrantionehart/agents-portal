@@ -78,6 +78,13 @@ export type ServiceRoleReason =
   // RLS on new_leads is USING(true); we use service role to look up
   // posted_by → profiles.tenant_id and filter rows in the application.
   | 'sec3a-new-leads-tenant-scope'
+  // R2B — deal-portal feedback read for the agents-portal detail page.
+  // Vault's feedback GET is cookie-only (same-origin dashboard caller);
+  // agents-portal hits Vault cross-origin and uses Bearer instead, so
+  // we re-implement Vault's role+owner+tenant gates here on service
+  // role, then read deal_portal_feedback for the gated portal_id.
+  // Read-only. Aggregation shape mirrors Vault response exactly.
+  | 'r2b-deal-portal-feedback-read'
 
 /**
  * Optional caller context. Pass whichever fields are available at the
