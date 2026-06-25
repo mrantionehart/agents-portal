@@ -58,7 +58,9 @@ export default function PortalNotificationsPage() {
     try {
       const { data, error: err } = await supabase
         .from("notifications")
-        .select("id, user_id, title, body, type, read_at, created_at, metadata")
+        .select(
+          "id, user_id, title, body, type, read_at, created_at, action_url, related_type, related_id"
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(100);

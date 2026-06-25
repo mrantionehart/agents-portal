@@ -21,7 +21,12 @@ export interface NotificationRow {
   /** read_at — timestamptz. NULL = unread, ISO string = read. */
   read_at: string | null;
   created_at: string;
-  metadata?: Record<string, unknown> | null;
+  /** Optional deep-link the producer (Vault) embedded. */
+  action_url?: string | null;
+  /** Optional polymorphic foreign key. The only `related_type` we
+   *  surface a deep-link for is "transaction" (→ /workspace/<uuid>). */
+  related_type?: string | null;
+  related_id?: string | null;
 }
 
 // ── Categories ──────────────────────────────────────────────────────
@@ -144,18 +149,66 @@ export function iconFor(type: string): string {
 
 // ── Link target derivation ──────────────────────────────────────────
 
-/** If the notification's metadata names a transaction id, return the
- *  workspace deep-link. Returns null when no link applies. Pure — does
- *  no I/O. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A `related_type` value we know how to deep-link safely. */
+function isTransactionRelatedType(t: string | null | undefined): boolean {
+  if (!t) return false;
+  const v = t.toLowerCase();
+  return v === "transaction" || v === "deal";
+}
+
+/** Whitelist of internal app routes we will follow as `action_url`.
+ *  Anything else (including absolute URLs to external domains) is
+ *  ignored to avoid letting Vault inject open redirects through the
+ *  notification stream. */
+function isSafeInternalUrl(url: string): boolean {
+  if (!url) return false;
+  // Must be a single-slash absolute path; reject protocol-relative
+  // ("//evil.com"), schemes ("https://"), control chars, and back-
+  // referenced ".." traversal.
+  if (!url.startsWith("/")) return false;
+  if (url.startsWith("//")) return false;
+  if (/[\s\\]/.test(url)) return false;
+  if (url.includes("..")) return false;
+  // Optional further hardening: only allow paths under known portal
+  // surfaces. This list mirrors the AP2.1A-H route table.
+  const ALLOWED_PREFIXES = [
+    "/home",
+    "/workspace",
+    "/clients",
+    "/calendar",
+    "/notifications",
+    "/ai",
+    "/settings",
+  ];
+  return ALLOWED_PREFIXES.some((p) => url === p || url.startsWith(p + "/") || url.startsWith(p + "?"));
+}
+
+/**
+ * Derive a deep-link target for the row. Order:
+ *   1. If related_type names a transaction AND related_id is a UUID →
+ *      /workspace/<uuid>
+ *   2. Else if action_url is a safe internal route → action_url
+ *   3. Else null (no link rendered)
+ * Pure — does no I/O.
+ */
 export function linkTargetFor(n: NotificationRow): string | null {
-  const md = n.metadata;
-  if (!md || typeof md !== "object") return null;
-  const txnId =
-    (typeof (md as any).transaction_id === "string" && (md as any).transaction_id) ||
-    (typeof (md as any).txnId === "string" && (md as any).txnId) ||
-    null;
-  if (txnId && /^[0-9a-f-]{36}$/i.test(txnId)) {
-    return `/workspace/${txnId}`;
+  // 1. Polymorphic foreign key.
+  if (
+    isTransactionRelatedType(n.related_type) &&
+    typeof n.related_id === "string" &&
+    UUID_RE.test(n.related_id)
+  ) {
+    return `/workspace/${n.related_id}`;
+  }
+  // 2. Producer-provided action_url, ONLY if it points at an internal
+  //    portal route. Vault could otherwise inject an external redirect.
+  if (typeof n.action_url === "string" && isSafeInternalUrl(n.action_url)) {
+    return n.action_url;
   }
   return null;
 }
+
+// Exported for tests.
+export const _internal = { isSafeInternalUrl, isTransactionRelatedType };

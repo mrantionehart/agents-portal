@@ -24,7 +24,9 @@ function n(over: Partial<NotificationRow> = {}): NotificationRow {
     type: "deal",
     read_at: null,
     created_at: "2026-06-25T08:00:00Z",
-    metadata: null,
+    action_url: null,
+    related_type: null,
+    related_id: null,
     ...over,
   };
 }
@@ -154,26 +156,126 @@ describe("iconFor", () => {
   });
 });
 
-describe("linkTargetFor", () => {
+describe("linkTargetFor (HOTFIX.1 — real schema)", () => {
   const validUuid = "11111111-1111-4111-9111-111111111111";
 
-  it("metadata.transaction_id (UUID) → /workspace/<id>", () => {
-    expect(linkTargetFor(n({ metadata: { transaction_id: validUuid } }))).toBe(
+  // ── related_type / related_id (polymorphic FK) ─────────────────
+  it("related_type='transaction' + valid UUID → /workspace/<id>", () => {
+    expect(linkTargetFor(n({ related_type: "transaction", related_id: validUuid }))).toBe(
       `/workspace/${validUuid}`
     );
   });
-  it("metadata.txnId (UUID) → /workspace/<id>", () => {
-    expect(linkTargetFor(n({ metadata: { txnId: validUuid } }))).toBe(`/workspace/${validUuid}`);
+  it("related_type='deal' (alias) + valid UUID → /workspace/<id>", () => {
+    expect(linkTargetFor(n({ related_type: "deal", related_id: validUuid }))).toBe(
+      `/workspace/${validUuid}`
+    );
   });
-  it("non-UUID id → null (safety)", () => {
-    expect(linkTargetFor(n({ metadata: { transaction_id: "not-a-uuid" } }))).toBeNull();
+  it("related_type='Transaction' (case-insensitive) → /workspace/<id>", () => {
+    expect(linkTargetFor(n({ related_type: "Transaction", related_id: validUuid }))).toBe(
+      `/workspace/${validUuid}`
+    );
   });
-  it("no metadata → null", () => {
-    expect(linkTargetFor(n({ metadata: null }))).toBeNull();
-    expect(linkTargetFor(n({ metadata: undefined as any }))).toBeNull();
+  it("related_type=transaction but non-UUID related_id → null (safety)", () => {
+    expect(
+      linkTargetFor(n({ related_type: "transaction", related_id: "not-a-uuid" }))
+    ).toBeNull();
   });
-  it("empty object → null", () => {
-    expect(linkTargetFor(n({ metadata: {} }))).toBeNull();
+  it("related_type=transaction but missing related_id → null", () => {
+    expect(linkTargetFor(n({ related_type: "transaction", related_id: null }))).toBeNull();
+  });
+  it("unknown related_type → null even with valid UUID", () => {
+    expect(linkTargetFor(n({ related_type: "lead", related_id: validUuid }))).toBeNull();
+  });
+
+  // ── action_url fallback (safe internal URLs only) ──────────────
+  it("action_url to internal /workspace/<id> → returned as-is", () => {
+    expect(
+      linkTargetFor(n({ action_url: `/workspace/${validUuid}` }))
+    ).toBe(`/workspace/${validUuid}`);
+  });
+  it("action_url to /home → returned as-is", () => {
+    expect(linkTargetFor(n({ action_url: "/home" }))).toBe("/home");
+  });
+  it("action_url to /clients/<id> → returned as-is", () => {
+    expect(linkTargetFor(n({ action_url: `/clients/${validUuid}` }))).toBe(
+      `/clients/${validUuid}`
+    );
+  });
+  it("action_url to /notifications?foo=bar → returned as-is", () => {
+    expect(linkTargetFor(n({ action_url: "/notifications?foo=bar" }))).toBe(
+      "/notifications?foo=bar"
+    );
+  });
+
+  // ── unsafe action_url variants → null ───────────────────────────
+  it("action_url to external https URL → null (no open redirect)", () => {
+    expect(linkTargetFor(n({ action_url: "https://evil.com/path" }))).toBeNull();
+  });
+  it("action_url to http URL → null", () => {
+    expect(linkTargetFor(n({ action_url: "http://evil.com/path" }))).toBeNull();
+  });
+  it("action_url protocol-relative '//evil.com' → null", () => {
+    expect(linkTargetFor(n({ action_url: "//evil.com/path" }))).toBeNull();
+  });
+  it("action_url with mailto: → null", () => {
+    expect(linkTargetFor(n({ action_url: "mailto:evil@example.com" }))).toBeNull();
+  });
+  it("action_url with javascript: → null", () => {
+    expect(linkTargetFor(n({ action_url: "javascript:alert(1)" }))).toBeNull();
+  });
+  it("action_url with .. traversal → null", () => {
+    expect(linkTargetFor(n({ action_url: "/workspace/../admin" }))).toBeNull();
+  });
+  it("action_url to a legacy / non-AP2 route → null", () => {
+    expect(linkTargetFor(n({ action_url: "/closeiq" }))).toBeNull();
+    expect(linkTargetFor(n({ action_url: "/commissions" }))).toBeNull();
+  });
+  it("action_url with leading whitespace → null", () => {
+    expect(linkTargetFor(n({ action_url: " /home" }))).toBeNull();
+  });
+  it("missing both related_type and action_url → null", () => {
+    expect(linkTargetFor(n({}))).toBeNull();
+  });
+
+  // ── precedence: related_type wins over action_url ──────────────
+  it("related_type wins over action_url when both present", () => {
+    expect(
+      linkTargetFor(
+        n({
+          related_type: "transaction",
+          related_id: validUuid,
+          action_url: "/home",
+        })
+      )
+    ).toBe(`/workspace/${validUuid}`);
+  });
+});
+
+describe("HOTFIX.1 — boundary checks", () => {
+  it("NotificationRow type has NO metadata field (column doesn't exist in prod)", () => {
+    // Type-level check: the row constructor in this test file doesn't
+    // assign `metadata`, and the source file's interface should not
+    // declare it. The build itself enforces this; this test is the
+    // belt-and-suspenders documentation.
+    const sample = n({});
+    expect("metadata" in (sample as any)).toBe(false);
+  });
+
+  it("page's select uses real columns only (no 'metadata')", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "app/(portal)/notifications/page.tsx"),
+      "utf-8"
+    );
+    const selectMatch = src.match(/\.select\(\s*["']([^"']+)["']\s*\)/);
+    expect(selectMatch).not.toBeNull();
+    const cols = selectMatch![1];
+    expect(cols.includes("metadata")).toBe(false);
+    // Must reference at least the columns we now depend on.
+    expect(cols).toContain("action_url");
+    expect(cols).toContain("related_type");
+    expect(cols).toContain("related_id");
   });
 });
 
