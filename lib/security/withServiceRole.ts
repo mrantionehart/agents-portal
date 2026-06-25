@@ -85,6 +85,13 @@ export type ServiceRoleReason =
   // role, then read deal_portal_feedback for the gated portal_id.
   // Read-only. Aggregation shape mirrors Vault response exactly.
   | 'r2b-deal-portal-feedback-read'
+  // R3B — client_intakes read for the agents-portal /clients Leads tab.
+  // Vault's /api/intakes GET is cookie-only (same-origin dashboard
+  // caller); agents-portal hits Vault cross-origin, so we re-implement
+  // the SEC.3A agent_id → profiles.tenant_id scope here on service
+  // role and read client_intakes for the gated tenant. Read-only;
+  // no PATCH/POST. Shape mirrors Vault's { intakes: [...] } envelope.
+  | 'r3b-intakes-tenant-scope'
 
 /**
  * Optional caller context. Pass whichever fields are available at the
