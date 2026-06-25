@@ -4,9 +4,12 @@
 // Single declarative list of nav items. The Sidebar reads this — the
 // only place a route changes when we ship a new (portal) page.
 //
-// `brokerOnly` items are filtered out for agents. AP2.1A does not ship
-// any broker-only items, but the gate is in place for future broker
-// dashboards (AP2.1H+).
+// Final menu locked in by AP2.1H spec:
+//   Home / Transactions / Clients / AI / Calendar / Notifications /
+//   Training / Resources / Settings
+//
+// Training + Resources point at the existing legacy pages (outside the
+// (portal) shell). Settings has a clean placeholder. No dead links.
 // ============================================================================
 
 export type NavItem = {
@@ -15,31 +18,33 @@ export type NavItem = {
   /** Lucide icon name (resolved by the Sidebar). */
   icon:
     | "home"
-    | "layout-grid"
     | "list-checks"
-    | "file-text"
     | "users"
     | "sparkles"
     | "calendar"
     | "bell"
+    | "graduation-cap"
+    | "book-open"
     | "settings";
   href: string;
   /** Optional gate. When true, the item only renders for broker tier. */
   brokerOnly?: boolean;
+  /** True when this item routes to a legacy page (outside (portal)). */
+  legacy?: boolean;
 };
 
-/** Sidebar order is fixed by the spec — do NOT reorder without updating
+/** Sidebar order is fixed by AP2.1H — do NOT reorder without updating
  *  the AP2 design doc. */
 export const NAV_ITEMS: ReadonlyArray<NavItem> = [
-  { id: "home",         label: "Home",           icon: "home",         href: "/home" },
-  { id: "workspace",    label: "Workspace",      icon: "layout-grid",  href: "/workspace" },
-  { id: "transactions", label: "Transactions",   icon: "list-checks",  href: "/transactions" },
-  { id: "paperwork",    label: "Paperwork",      icon: "file-text",    href: "/paperwork" },
-  { id: "clients",      label: "Clients",        icon: "users",        href: "/clients" },
-  { id: "ai",           label: "AI",             icon: "sparkles",     href: "/ai" },
-  { id: "calendar",     label: "Calendar",       icon: "calendar",     href: "/calendar" },
-  { id: "notifications",label: "Notifications",  icon: "bell",         href: "/notifications" },
-  { id: "settings",     label: "Settings",       icon: "settings",     href: "/settings" },
+  { id: "home",         label: "Home",          icon: "home",            href: "/home" },
+  { id: "transactions", label: "Transactions",  icon: "list-checks",     href: "/workspace" },
+  { id: "clients",      label: "Clients",       icon: "users",           href: "/clients" },
+  { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
+  { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
+  { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },
+  { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training",  legacy: true },
+  { id: "resources",    label: "Resources",     icon: "book-open",       href: "/resources", legacy: true },
+  { id: "settings",     label: "Settings",      icon: "settings",        href: "/settings" },
 ] as const;
 
 /** Tier check. Mirrors Vault's isBrokerTier vocabulary so the same

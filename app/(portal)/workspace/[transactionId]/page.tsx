@@ -254,7 +254,7 @@ function TransactionView({
         {/* ── 3. Forms Summary ───────────────────────────────────── */}
         <section className="lg:col-span-2 rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
           <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-3">Forms Summary</h2>
-          <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
             <Stat label="Required" value={card.required_forms_count} tone="muted" />
             <Stat label="Ready" value={card.ready_forms_count} tone="info" />
             <Stat label="Signed" value={card.signed_forms_count} tone="ok" />

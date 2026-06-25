@@ -13,10 +13,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   Calendar,
-  FileText,
+  GraduationCap,
   Home,
-  LayoutGrid,
   ListChecks,
   Settings,
   Sparkles,
@@ -29,13 +29,13 @@ import { isActiveRoute, visibleNavItems, type NavItem } from "./nav-config";
 
 const ICONS = {
   "home": Home,
-  "layout-grid": LayoutGrid,
   "list-checks": ListChecks,
-  "file-text": FileText,
   "users": Users,
   "sparkles": Sparkles,
   "calendar": Calendar,
   "bell": Bell,
+  "graduation-cap": GraduationCap,
+  "book-open": BookOpen,
   "settings": Settings,
 } as const;
 

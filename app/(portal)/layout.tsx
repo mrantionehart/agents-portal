@@ -58,15 +58,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-[#050507] text-[#F1F1F3]">
+    <div className="min-h-screen bg-[#050507] text-[#F1F1F3] overflow-x-hidden">
       <Sidebar
         role={role}
         open={mobileNavOpen}
         onDismiss={() => setMobileNavOpen(false)}
       />
 
-      {/* Main column — offset by sidebar on md+. */}
-      <div className="md:ml-[240px] min-h-screen flex flex-col">
+      {/* Main column — offset by sidebar on md+. min-w-0 so flex
+          children can shrink instead of forcing horizontal overflow. */}
+      <div className="md:ml-[240px] min-h-screen flex flex-col min-w-0">
         <TopBar
           userName={(user as any)?.user_metadata?.full_name ?? null}
           userEmail={user?.email ?? null}
@@ -75,7 +76,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           onCommandBarOpen={() => setCommandBarOpen(true)}
         />
 
-        <main className="flex-1 px-4 md:px-6 py-6 max-w-[1280px] w-full mx-auto">
+        <main className="flex-1 px-4 md:px-6 py-6 max-w-[1280px] w-full mx-auto min-w-0">
           {children}
         </main>
       </div>

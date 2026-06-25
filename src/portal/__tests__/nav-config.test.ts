@@ -9,19 +9,29 @@
 
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
-describe("NAV_ITEMS (V3 — sidebar list)", () => {
+describe("NAV_ITEMS (AP2.1H — final sidebar list)", () => {
   it("ships the 9 documented items in order", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
-      "Workspace",
       "Transactions",
-      "Paperwork",
       "Clients",
       "AI",
       "Calendar",
       "Notifications",
+      "Training",
+      "Resources",
       "Settings",
     ]);
+  });
+
+  it("Transactions points to /workspace (AP2.1B's dashboard URL)", () => {
+    const t = NAV_ITEMS.find((i) => i.id === "transactions")!;
+    expect(t.href).toBe("/workspace");
+  });
+
+  it("Training + Resources are flagged legacy (outside (portal) shell)", () => {
+    expect(NAV_ITEMS.find((i) => i.id === "training")?.legacy).toBe(true);
+    expect(NAV_ITEMS.find((i) => i.id === "resources")?.legacy).toBe(true);
   });
 
   it("every item has a unique id + href", () => {
