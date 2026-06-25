@@ -31,6 +31,11 @@ const nextConfig = {
 
       // R8 — sunset the duplicate legacy chat page in favour of AP2.1H /ai.
       { source: '/ai-chat',      destination: '/ai',        permanent: false },
+
+      // R2A — fold legacy /deal-portals into the AP2 workspace shell.
+      // /portal/[token] is the public client-facing page and is NOT
+      // matched (exact-match source).
+      { source: '/deal-portals', destination: '/workspace/portals', permanent: false },
     ];
   },
 }
