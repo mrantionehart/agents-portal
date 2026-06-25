@@ -20,6 +20,7 @@ import {
   Bell,
   Calendar,
   ListChecks,
+  Plus,
   Sparkles,
   Activity,
 } from "lucide-react";
@@ -170,8 +171,36 @@ export default async function PortalHomePage() {
       {/* ── 5. Quick Actions ──────────────────────────────────── */}
       <section>
         <h2 className="text-sm font-medium text-[#F1F1F3] mb-3">Quick Actions</h2>
+
+        {/* Primary CTA — R1: + New Transaction. Routes to the existing
+            legacy /transactions/new form; the form itself is not yet
+            wrapped in the AP2 shell (R3). */}
+        <Link
+          href="/transactions/new"
+          className="
+            block rounded-lg border border-[#C9A84C]/40
+            bg-[#C9A84C]/10 hover:bg-[#C9A84C]/15
+            px-4 py-3 mb-3
+            transition-colors duration-[180ms]
+            flex items-center gap-3
+          "
+        >
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-[#C9A84C] text-[#0b0b10]"
+          >
+            <Plus className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-[#E8D5A3]">New Transaction</div>
+            <div className="text-xs text-[#A1A1AA] truncate">
+              Start a buyer, seller, lease, or referral transaction.
+            </div>
+          </div>
+        </Link>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <QuickAction href="/transactions" icon={<ListChecks className="h-4 w-4" />} label="View Transactions" />
+          <QuickAction href="/workspace" icon={<ListChecks className="h-4 w-4" />} label="View Transactions" />
           <QuickAction href="/ai" icon={<Sparkles className="h-4 w-4" />} label="Open AI" />
           <QuickAction href="/calendar" icon={<Calendar className="h-4 w-4" />} label="View Calendar" />
           <QuickAction href="/notifications" icon={<Bell className="h-4 w-4" />} label="Notifications" />

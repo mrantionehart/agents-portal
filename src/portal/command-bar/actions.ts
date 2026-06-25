@@ -43,8 +43,13 @@ export type CommandAction = NavigateAction | SeedAIAction;
 // ── Static navigation catalog ───────────────────────────────────────
 
 /** Top-level navigation actions. These MIRROR the sidebar except they're
- *  available from the ⌘K palette as well. */
+ *  available from the ⌘K palette as well.
+ *
+ *  R1 (2026-06-25) — added "Create New Transaction" as the first
+ *  navigate-only action. It opens the existing /transactions/new form;
+ *  the Command Bar itself never POSTs. */
 export const NAV_ACTIONS: ReadonlyArray<NavigateAction> = [
+  { id: "create-transaction", kind: "navigate", section: "Navigate", label: "Create New Transaction", hint: "/transactions/new", href: "/transactions/new" },
   { id: "nav-home",         kind: "navigate", section: "Navigate", label: "Go to Home",          hint: "/home",          href: "/home" },
   { id: "nav-transactions", kind: "navigate", section: "Navigate", label: "Go to Transactions",  hint: "/workspace",     href: "/workspace" },
   { id: "nav-clients",      kind: "navigate", section: "Navigate", label: "Go to Clients",       hint: "/clients",       href: "/clients" },

@@ -20,8 +20,9 @@ import {
 } from "../actions";
 
 describe("NAV_ACTIONS catalog", () => {
-  it("contains exactly the 6 documented navigation entries", () => {
+  it("contains exactly the 7 documented navigation entries (R1 + AP2.1H)", () => {
     expect(NAV_ACTIONS.map((a) => a.id)).toEqual([
+      "create-transaction",
       "nav-home",
       "nav-transactions",
       "nav-clients",
@@ -29,6 +30,18 @@ describe("NAV_ACTIONS catalog", () => {
       "nav-notifications",
       "nav-ai",
     ]);
+  });
+
+  it("R1 — Create New Transaction action exists and targets /transactions/new", () => {
+    const c = NAV_ACTIONS.find((a) => a.id === "create-transaction")!;
+    expect(c).toBeDefined();
+    expect(c.label).toBe("Create New Transaction");
+    expect(c.href).toBe("/transactions/new");
+    expect(c.kind).toBe("navigate"); // NEVER a mutation
+  });
+
+  it("R1 — Create New Transaction is listed first (most prominent)", () => {
+    expect(NAV_ACTIONS[0].id).toBe("create-transaction");
   });
 
   it("Transactions maps to /workspace (AP2.1B's dashboard URL)", () => {
@@ -120,8 +133,11 @@ describe("seedAIActions", () => {
 });
 
 describe("targetFor", () => {
-  it("navigate → href", () => {
-    expect(targetFor(NAV_ACTIONS[0])).toBe("/home");
+  it("navigate → href (looked up by id, position-independent)", () => {
+    const home = NAV_ACTIONS.find((a) => a.id === "nav-home")!;
+    expect(targetFor(home)).toBe("/home");
+    const create = NAV_ACTIONS.find((a) => a.id === "create-transaction")!;
+    expect(targetFor(create)).toBe("/transactions/new");
   });
   it("seed-ai → /ai?seed=<encoded>", () => {
     const out = seedAIActions("what's blocking?")[0];
