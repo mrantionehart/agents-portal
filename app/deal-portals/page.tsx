@@ -77,8 +77,7 @@ export default function DealPortalsPage() {
   }
 
   function getShareUrl(portal: DealPortal): string {
-    // Always use Vault domain — public portal pages live there, not on agents portal
-    return `https://vault.hartfeltrealestate.com/portal/${portal.access_token}`
+    return `https://agents.hartfeltrealestate.com/portal/${portal.access_token}`
   }
 
   async function copyLink(portal: DealPortal) {
