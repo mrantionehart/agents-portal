@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import {
   Bed,
   Bath,
@@ -1454,9 +1454,9 @@ function PropertyPresentation({
 export default function PortalPage({
   params,
 }: {
-  params: Promise<{ token: string }>;
+  params: { token: string };
 }) {
-  const { token } = use(params);
+  const { token } = params;
 
   const [portalData, setPortalData] = useState<PortalData | null>(null);
   const [unlocked, setUnlocked] = useState(false);
