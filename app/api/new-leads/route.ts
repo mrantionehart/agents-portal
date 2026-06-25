@@ -158,19 +158,20 @@ export async function POST(request: NextRequest) {
       if (!check) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
       }
-      if (check.claimed_by) {
-        return NextResponse.json({ error: 'Lead already claimed' }, { status: 409 })
-      }
+      // SEC.3A — tenant check runs BEFORE the "already claimed" check
+      // so a cross-tenant lead returns 404 (existence-safe) rather than
+      // 409 (which would confirm the lead exists in another tenant).
       if (!scope.isPlatformSuperAdmin) {
         if (!scope.tenantId) {
           return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
         }
         const tenantUserIds = new Set(await getTenantUserIds(scope.tenantId, user.id))
-        // Cross-tenant claim attempt — return 404 not 403 to avoid
-        // confirming the lead exists in another tenant.
         if (!check.posted_by || !tenantUserIds.has(check.posted_by)) {
           return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
         }
+      }
+      if (check.claimed_by) {
+        return NextResponse.json({ error: 'Lead already claimed' }, { status: 409 })
       }
 
       // Get agent name (own-row read via profiles_select)
