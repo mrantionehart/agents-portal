@@ -19,6 +19,8 @@ import { ArrowLeft, ExternalLink, FileText, Sparkles } from "lucide-react";
 
 import AIAssistantPanel from "@/src/portal/workspace/AIAssistantPanel";
 import ClientIntelligencePanel from "@/src/portal/workspace/ClientIntelligencePanel";
+import DocumentsPanel from "@/src/portal/documents/DocumentsPanel";
+import { fetchDocumentsForTransaction } from "@/src/portal/documents/api";
 import { fetchWorkspaceFromVault, vaultSiteBase } from "@/src/portal/workspace/api";
 import {
   loadClientIntelligenceForTransaction,
@@ -128,20 +130,40 @@ export default async function TransactionWorkspacePage({
     txnRowPromise,
   ]);
   const callerRole = callerProfile?.role ?? "agent";
-  const clientIntelligence: ClientIntelligenceResult =
-    await loadClientIntelligenceForTransaction({
+
+  // R4 — Documents fetch (Vault SEC.3A scope inherited; 404 collapsed
+  // to empty list). Runs in parallel with the Client Intelligence
+  // load above so the page renders fast.
+  const documentsPromise = fetchDocumentsForTransaction({
+    accessToken: session.access_token,
+    transactionId,
+    vaultSiteBase: vaultBase,
+  });
+  const [clientIntelligence, documentsResult] = await Promise.all([
+    loadClientIntelligenceForTransaction({
       supabase,
       callerId: session.user.id,
       callerRole,
       clientEmail: txnRow?.client_email ?? null,
       clientName: txnRow?.client_name ?? resolvedCard.client_name,
-    });
+    }) as Promise<ClientIntelligenceResult>,
+    documentsPromise,
+  ]);
+
+  const documents =
+    documentsResult.kind === "ok" ? documentsResult.documents : [];
+  const documentsError =
+    documentsResult.kind === "error"
+      ? `HTTP ${documentsResult.status}`
+      : null;
 
   return (
     <TransactionView
       card={resolvedCard}
       vaultBase={vaultBase}
       clientIntelligence={clientIntelligence}
+      documents={documents}
+      documentsError={documentsError}
     />
   );
 }
@@ -190,10 +212,14 @@ function TransactionView({
   card,
   vaultBase,
   clientIntelligence,
+  documents,
+  documentsError,
 }: {
   card: import("@/src/portal/workspace/types").WorkspaceCard;
   vaultBase: string;
   clientIntelligence: ClientIntelligenceResult;
+  documents: import("@/src/portal/documents/types").DocumentRow[];
+  documentsError: string | null;
 }) {
   return (
     <div>
@@ -279,6 +305,13 @@ function TransactionView({
           </a>
         </section>
       </div>
+
+      {/* ── 3a. Documents (R4) ────────────────────────────────────── */}
+      <DocumentsPanel
+        documents={documents}
+        error={documentsError}
+        paperworkPackageUrl={vaultPaperworkUrl(card.transaction_id, vaultBase)}
+      />
 
       {/* ── 3b. Client Intelligence (AP2.1D) ───────────────────────── */}
       <div className="mb-4">
