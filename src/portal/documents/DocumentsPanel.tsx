@@ -10,7 +10,7 @@
 // ============================================================================
 
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileText, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, ExternalLink, FileText, Lock } from "lucide-react";
 
 import type { DocumentRow } from "./types";
 import {
@@ -22,6 +22,7 @@ import {
   statusLabel,
   statusTone,
 } from "./helpers";
+import { formDrawerHref } from "./details/helpers";
 
 export interface DocumentsPanelProps {
   documents: DocumentRow[];
@@ -31,12 +32,19 @@ export interface DocumentsPanelProps {
   /** Vault deep-link for the paperwork package — shown once at the
    *  bottom of the panel as a single "Open paperwork package" CTA. */
   paperworkPackageUrl: string;
+  /** Transaction id used to build per-form drawer hrefs.
+   *  Workflow 3.2.A — rows become clickable Links that set ?form=<form_id>. */
+  transactionId: string;
+  /** form_id currently open in the drawer (for active-row highlight). */
+  activeFormId?: string | null;
 }
 
 export default function DocumentsPanel({
   documents,
   error,
   paperworkPackageUrl,
+  transactionId,
+  activeFormId,
 }: DocumentsPanelProps) {
   const counts = documentCounts(documents);
 
@@ -81,7 +89,12 @@ export default function DocumentsPanel({
       ) : (
         <ul className="rounded-lg border border-[#1a1a2e] overflow-hidden divide-y divide-[#1a1a2e]">
           {documents.map((d) => (
-            <DocumentRowItem key={d.form_id} d={d} />
+            <DocumentRowItem
+              key={d.form_id}
+              d={d}
+              transactionId={transactionId}
+              active={activeFormId === d.form_id}
+            />
           ))}
         </ul>
       )}
@@ -105,76 +118,102 @@ export default function DocumentsPanel({
 
 // ── Row ──────────────────────────────────────────────────────────────
 
-function DocumentRowItem({ d }: { d: DocumentRow }) {
+function DocumentRowItem({
+  d,
+  transactionId,
+  active,
+}: {
+  d: DocumentRow;
+  transactionId: string;
+  active: boolean;
+}) {
   const tone = statusTone(d.status);
   const missing = missingFieldsCopy(d.missing_fields_count, d.status);
   const envelope = envelopeCopy(d);
+  const drawerHref = formDrawerHref(transactionId, d.form_id);
 
   return (
-    <li className="px-4 py-3 hover:bg-[#1a1a25] transition-colors duration-[180ms]">
-      <div className="flex items-start gap-3">
-        <FileText className="h-4 w-4 text-[#71717A] shrink-0 mt-1" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="truncate text-sm font-medium text-[#F1F1F3]">
-              {d.form_id}
-            </span>
-            {d.form_revision && (
-              <span className="text-[10px] text-[#71717A]">
-                {d.form_revision}
+    <li
+      className={`relative ${active ? "bg-[#1a1a25]" : "hover:bg-[#1a1a25]"} transition-colors duration-[180ms]`}
+    >
+      {/* Row is a Link to the drawer. The Vault deep-link below uses
+          stopPropagation via being absolutely positioned outside the
+          Link's clickable area. */}
+      <Link
+        href={drawerHref}
+        aria-current={active ? "page" : undefined}
+        aria-label={`View detail for ${d.form_id}`}
+        className="block px-4 py-3 pr-28"
+      >
+        <div className="flex items-start gap-3">
+          <FileText className="h-4 w-4 text-[#71717A] shrink-0 mt-1" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="truncate text-sm font-medium text-[#F1F1F3]">
+                {d.form_id}
               </span>
-            )}
-            <StatusBadge label={statusLabel(d.status)} tone={tone} />
-            {d.form_category && (
-              <span className="text-[10px] text-[#71717A] uppercase tracking-wide">
-                {categoryLabel(d.form_category)}
-              </span>
-            )}
-            {d.status === "blocked" && (
-              <span
-                className="inline-flex items-center gap-0.5 text-[10px] text-amber-200/80"
-                title="Blocked on party attestation"
-              >
-                <Lock className="h-2.5 w-2.5" />
-              </span>
-            )}
-          </div>
-          {missing && (
-            <div className="mt-1 text-xs text-[#A1A1AA] inline-flex items-center gap-1.5">
-              <AlertTriangle className="h-3 w-3 text-amber-300/80" />
-              {missing}
-            </div>
-          )}
-          {envelope && (
-            <div className="mt-1 text-xs text-[#A1A1AA] inline-flex items-center gap-1.5">
-              {d.status === "signed" ? (
-                <CheckCircle2 className="h-3 w-3 text-emerald-300/80" />
-              ) : (
-                <Clock className="h-3 w-3 text-sky-300/80" />
+              {d.form_revision && (
+                <span className="text-[10px] text-[#71717A]">
+                  {d.form_revision}
+                </span>
               )}
-              {envelope}
+              <StatusBadge label={statusLabel(d.status)} tone={tone} />
+              {d.form_category && (
+                <span className="text-[10px] text-[#71717A] uppercase tracking-wide">
+                  {categoryLabel(d.form_category)}
+                </span>
+              )}
+              {d.status === "blocked" && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[10px] text-amber-200/80"
+                  title="Blocked on party attestation"
+                >
+                  <Lock className="h-2.5 w-2.5" />
+                </span>
+              )}
             </div>
-          )}
-          {d.signed_at && (
-            <div className="mt-1 text-[11px] text-[#71717A]">
-              Signed {relativeUpdated(d.signed_at)}
-            </div>
-          )}
-        </div>
-        <div className="shrink-0 flex flex-col items-end gap-1">
-          <div className="text-[11px] text-[#71717A]">
-            {d.updated_at ? `updated ${relativeUpdated(d.updated_at)}` : "—"}
+            {missing && (
+              <div className="mt-1 text-xs text-[#A1A1AA] inline-flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3 text-amber-300/80" />
+                {missing}
+              </div>
+            )}
+            {envelope && (
+              <div className="mt-1 text-xs text-[#A1A1AA] inline-flex items-center gap-1.5">
+                {d.status === "signed" ? (
+                  <CheckCircle2 className="h-3 w-3 text-emerald-300/80" />
+                ) : (
+                  <Clock className="h-3 w-3 text-sky-300/80" />
+                )}
+                {envelope}
+              </div>
+            )}
+            {d.signed_at && (
+              <div className="mt-1 text-[11px] text-[#71717A]">
+                Signed {relativeUpdated(d.signed_at)}
+              </div>
+            )}
           </div>
-          <a
-            href={d.open_in_vault_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
-          >
-            <ExternalLink className="h-3 w-3" /> Open in Vault
-          </a>
+          <ChevronRight className="h-4 w-4 text-[#71717A] shrink-0 self-center" />
         </div>
-      </div>
+      </Link>
+      {/* Open-in-Vault anchor lives outside the row Link so opening
+          Vault doesn't also pop the drawer. Absolutely positioned on
+          the right edge. */}
+      <a
+        href={d.open_in_vault_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-3 right-4 text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
+        aria-label={`Open ${d.form_id} in Vault`}
+      >
+        <ExternalLink className="h-3 w-3" /> Open in Vault
+      </a>
+      {d.updated_at && (
+        <div className="absolute bottom-3 right-4 text-[10px] text-[#71717A]">
+          updated {relativeUpdated(d.updated_at)}
+        </div>
+      )}
     </li>
   );
 }

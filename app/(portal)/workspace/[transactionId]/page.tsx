@@ -43,17 +43,21 @@ import ComplianceTab from "@/src/portal/workspace/tabs/ComplianceTab";
 import CommissionTab from "@/src/portal/workspace/tabs/CommissionTab";
 import AITab from "@/src/portal/workspace/tabs/AITab";
 import { parseTab, type TabId } from "@/src/portal/workspace/tabs/tab-config";
+import { fetchFormDetail } from "@/src/portal/documents/details/api";
+import { parseFormId } from "@/src/portal/documents/details/helpers";
+import type { FormDetailBundle } from "@/src/portal/documents/details/types";
 
 export default async function TransactionWorkspacePage({
   params,
   searchParams,
 }: {
   params: Promise<{ transactionId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; form?: string }>;
 }) {
   const { transactionId } = await params;
   const sp = await searchParams;
   const activeTab: TabId = parseTab(sp.tab);
+  const rawFormParam = typeof sp.form === "string" ? sp.form : null;
 
   // ── Auth + session ────────────────────────────────────────────────
   const cookieStore = await cookies();
@@ -156,12 +160,51 @@ export default async function TransactionWorkspacePage({
 
   const documents =
     documentsResult.kind === "ok" ? documentsResult.documents : [];
+  const rawRequirements =
+    documentsResult.kind === "ok" ? documentsResult.requirements : [];
+  const rawInstances =
+    documentsResult.kind === "ok" ? documentsResult.instances : [];
   const documentsError =
     documentsResult.kind === "error"
       ? `HTTP ${documentsResult.status}`
       : null;
 
   const paperworkPackageUrl = vaultPaperworkUrl(resolvedCard.transaction_id, vaultBase);
+
+  // ── Per-form drawer hydration (Workflow 3.2.A) ─────────────────────
+  // Only relevant when the Documents tab is active. parseFormId returns
+  // null for any value not in the loaded documents scope — cross-tenant
+  // safety bound. Broker-only fetches inside fetchFormDetail are skipped
+  // when the caller is agent.
+  let activeFormId: string | null = null;
+  let activeFormDocument: typeof documents[number] | null = null;
+  let activeFormInstanceId: string | null = null;
+  let activeFormDetail: FormDetailBundle | null = null;
+  if (activeTab === "documents" && rawFormParam) {
+    activeFormId = parseFormId(rawFormParam, documents);
+    if (activeFormId) {
+      activeFormDocument = documents.find((d) => d.form_id === activeFormId) ?? null;
+      const requirement =
+        rawRequirements.find((r) => r.form_id === activeFormId) ?? null;
+      const matchingInstance =
+        rawInstances
+          .filter((i) => i.form_id === activeFormId)
+          .sort((a, b) =>
+            (b.updated_at ?? "") > (a.updated_at ?? "") ? 1 : -1
+          )[0] ?? null;
+      activeFormInstanceId = matchingInstance?.id ?? null;
+      if (activeFormDocument) {
+        activeFormDetail = await fetchFormDetail({
+          accessToken: session.access_token,
+          transactionId,
+          formInstanceId: activeFormInstanceId,
+          callerRole,
+          document: activeFormDocument,
+          requirement,
+        });
+      }
+    }
+  }
 
   // ── Tab dispatch ──────────────────────────────────────────────────
   const tabContent = (() => {
@@ -171,9 +214,14 @@ export default async function TransactionWorkspacePage({
       case "documents":
         return (
           <DocumentsTab
+            transactionId={resolvedCard.transaction_id}
             documents={documents}
             documentsError={documentsError}
             paperworkPackageUrl={paperworkPackageUrl}
+            activeFormId={activeFormId}
+            activeFormDocument={activeFormDocument}
+            activeFormInstanceId={activeFormInstanceId}
+            activeFormDetail={activeFormDetail}
           />
         );
       case "timeline":

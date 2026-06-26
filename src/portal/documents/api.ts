@@ -58,7 +58,11 @@ export async function fetchDocumentsForTransaction(input: {
       requirements,
       instances,
     });
-    return { kind: "ok", documents };
+    // Workflow 3.2.A — surface raw lists so the per-form drawer can
+    // resolve the rule-engine RequirementRow (for statutory fields) and
+    // the form_instances.id (for the broker-only envelope/history calls)
+    // without a second /forms round-trip.
+    return { kind: "ok", documents, requirements, instances };
   } catch (err) {
     return {
       kind: "error",

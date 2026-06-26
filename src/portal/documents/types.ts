@@ -109,6 +109,14 @@ export interface DocumentCounts {
 
 /** Server-fetch result envelope. */
 export type DocumentsResult =
-  | { kind: "ok"; documents: DocumentRow[] }
+  | {
+      kind: "ok";
+      documents: DocumentRow[];
+      /** Workflow 3.2.A — raw rule-engine output (kept alongside the
+       *  merged DocumentRow[] for the per-form drawer). */
+      requirements: RequirementRow[];
+      /** Workflow 3.2.A — raw form_instances rows. */
+      instances: FormInstanceRow[];
+    }
   | { kind: "not_found" }
   | { kind: "error"; status: number; message: string };
