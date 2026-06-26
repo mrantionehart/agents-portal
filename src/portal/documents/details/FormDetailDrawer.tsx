@@ -45,6 +45,7 @@ import {
   humanSeverity,
   severityTone,
 } from "./helpers";
+import FormEditableSection from "./edit/FormEditableSection";
 
 export interface FormDetailDrawerProps {
   transactionId: string;
@@ -127,6 +128,14 @@ export default function FormDetailDrawer({
       </header>
 
       <div className="px-5 py-4 space-y-5">
+        {/* Section: Editable fields (Workflow 3.2.B.1, agent + broker) */}
+        <FormEditableSection
+          transactionId={transactionId}
+          editableFields={detail.editable_fields}
+          snapshot={detail.snapshot}
+          snapshotError={detail.errors.snapshot}
+        />
+
         {/* Section: Missing fields */}
         <Section title="Missing fields">
           {detail.errors.missing && (

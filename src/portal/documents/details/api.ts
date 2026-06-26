@@ -15,6 +15,7 @@ import type {
   MissingFieldsItem,
   MissingFieldsReport,
   TimelineEvent,
+  TransactionSnapshot,
 } from "./types";
 import type { DocumentRow, RequirementRow } from "../types";
 import {
@@ -23,6 +24,7 @@ import {
   filterMissingFieldsForForm,
   isBrokerTier,
 } from "./helpers";
+import { deriveAgentEditableFields } from "./edit/editable-fields";
 
 const VAULT_API_URL = (
   process.env.NEXT_PUBLIC_VAULT_API_URL ?? "https://vault.hartfeltrealestate.com/api"
@@ -48,15 +50,20 @@ export async function fetchFormDetail(
 ): Promise<FormDetailBundle> {
   const broker = isBrokerTier(input.callerRole);
 
-  const [missingResult, envelopeResult, historyResult] = await Promise.all([
-    safeFetchMissing(input),
-    broker && input.formInstanceId
-      ? safeFetchEnvelope(input.accessToken, input.formInstanceId)
-      : Promise.resolve<SafeResult<EnvelopeBundle>>({ kind: "skip" }),
-    broker
-      ? safeFetchHistory(input.accessToken, input.transactionId)
-      : Promise.resolve<SafeResult<TimelineEvent[]>>({ kind: "skip" }),
-  ]);
+  // Workflow 3.2.B.1 — snapshot is fetched for ALL callers (agent OR
+  // broker) because the editor needs current values to seed inputs.
+  // /paperwork/transactions/[id] is agent-allowed.
+  const [missingResult, envelopeResult, historyResult, snapshotResult] =
+    await Promise.all([
+      safeFetchMissing(input),
+      broker && input.formInstanceId
+        ? safeFetchEnvelope(input.accessToken, input.formInstanceId)
+        : Promise.resolve<SafeResult<EnvelopeBundle>>({ kind: "skip" }),
+      broker
+        ? safeFetchHistory(input.accessToken, input.transactionId)
+        : Promise.resolve<SafeResult<TimelineEvent[]>>({ kind: "skip" }),
+      safeFetchTransactionSnapshot(input.accessToken, input.transactionId),
+    ]);
 
   const missingReport: MissingFieldsReport | null =
     missingResult.kind === "ok" ? missingResult.value : null;
@@ -75,6 +82,13 @@ export async function fetchFormDetail(
       ? filterHistoryForFormInstance(historyResult.value, input.formInstanceId)
       : null;
 
+  // Workflow 3.2.B.1 — derive agent-editable fields from the rule-engine
+  // requirement. Pure server-side classification — no values mutated.
+  const editable_fields = deriveAgentEditableFields(input.requirement);
+
+  const snapshot: TransactionSnapshot | null =
+    snapshotResult.kind === "ok" ? snapshotResult.value : null;
+
   return {
     missing,
     statutory_count_total: missingReport?.statutory_count ?? 0,
@@ -86,7 +100,10 @@ export async function fetchFormDetail(
       missing: missingResult.kind === "error" ? missingResult.message : null,
       envelope: envelopeResult.kind === "error" ? envelopeResult.message : null,
       history: historyResult.kind === "error" ? historyResult.message : null,
+      snapshot: snapshotResult.kind === "error" ? snapshotResult.message : null,
     },
+    editable_fields,
+    snapshot,
   };
 }
 
@@ -151,6 +168,50 @@ async function safeFetchEnvelope(
     }
     const body = (await res.json()) as EnvelopeBundle;
     return { kind: "ok", value: body };
+  } catch (err) {
+    return {
+      kind: "error",
+      status: 500,
+      message: err instanceof Error ? err.message : "Network error",
+    };
+  }
+}
+
+async function safeFetchTransactionSnapshot(
+  accessToken: string,
+  transactionId: string
+): Promise<SafeResult<TransactionSnapshot>> {
+  try {
+    const res = await fetch(
+      `${VAULT_API_URL}/paperwork/transactions/${transactionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.statusText);
+      return { kind: "error", status: res.status, message: trimMessage(body) };
+    }
+    const body = (await res.json()) as {
+      transaction?: {
+        facts?: Record<string, unknown> | null;
+        terms?: Record<string, unknown> | null;
+        broker_review_status?: string | null;
+      };
+    };
+    const txn = body?.transaction ?? null;
+    return {
+      kind: "ok",
+      value: {
+        facts: (txn?.facts as Record<string, unknown> | null) ?? null,
+        terms: (txn?.terms as Record<string, unknown> | null) ?? null,
+        broker_review_status: (txn?.broker_review_status as TransactionSnapshot["broker_review_status"]) ?? null,
+      },
+    };
   } catch (err) {
     return {
       kind: "error",

@@ -127,7 +127,50 @@ export interface FormDetailBundle {
     missing: string | null;
     envelope: string | null;
     history: string | null;
+    /** Workflow 3.2.B.1 — snapshot fetch error (for editor). */
+    snapshot: string | null;
   };
+  /** Workflow 3.2.B.1 — Agent-editable fields derived from the
+   *  requirement row's required_fields. Empty array when no edits
+   *  are agent-allowed for this form. */
+  editable_fields: EditableField[];
+  /** Workflow 3.2.B.1 — Current values snapshot for the editor.
+   *  null when caller couldn't load the transaction (e.g. degraded
+   *  network); editor renders with "—" placeholders. */
+  snapshot: TransactionSnapshot | null;
+}
+
+/** One agent-editable field surfaced in the drawer's editor section. */
+export interface EditableField {
+  /** Full transaction path (e.g. "facts.condo" or "terms.lease.rent.monthly_amount"). */
+  transaction_path: string;
+  /** Which PATCH endpoint this writes to. */
+  endpoint: "facts" | "terms";
+  /** Set when endpoint === 'facts'; the fact key without the "facts." prefix. */
+  key?: string;
+  /** Set when endpoint === 'terms'; the path WITHOUT the "terms." prefix
+   *  (matches Vault TERMS_PATH_ALLOWLIST regex). */
+  termPath?: string;
+  /** Display label. */
+  label: string;
+  /** InlineEditableField input variant. */
+  inputType: "text" | "number" | "boolean" | "date";
+  /** Echoed from the rule-engine spec for tone/badging. */
+  severity: string;
+  /** Echoed from the rule-engine spec for tone/badging. */
+  completer_role: string;
+}
+
+/** Minimal projection of the Vault GET /paperwork/transactions/[id]
+ *  response carrying the fields the editor needs to surface current
+ *  values + drive UPL L4 lock. */
+export interface TransactionSnapshot {
+  /** transactions.facts JSONB — each key wraps {value, state, ...} */
+  facts: Record<string, unknown> | null;
+  /** transactions.terms JSONB — nested object */
+  terms: Record<string, unknown> | null;
+  /** broker_review_status — drives UPL L4 lock on the editor. */
+  broker_review_status: "draft" | "submitted" | "approved" | "revisions_required" | string | null;
 }
 
 /** Pure-render shape of one statutory required_field spec. */
