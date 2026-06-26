@@ -51,6 +51,9 @@ import { fetchPayoutReadinessSafely } from "@/src/portal/workspace/compliance/ap
 import { composeComplianceTabState } from "@/src/portal/workspace/compliance/compose-compliance-tab";
 import type { ComplianceTabState } from "@/src/portal/workspace/compliance/types";
 import type { MissingFieldsItem } from "@/src/portal/documents/details/types";
+import { fetchTimelineHistorySafely } from "@/src/portal/workspace/timeline/api";
+import { composeTimelineState } from "@/src/portal/workspace/timeline/compose-timeline";
+import type { TimelineTabState } from "@/src/portal/workspace/timeline/types";
 
 export default async function TransactionWorkspacePage({
   params,
@@ -180,11 +183,20 @@ export default async function TransactionWorkspacePage({
     accessToken: session.access_token,
     transactionId,
   });
+  // Workflow 3.3.1 — Timeline history fetch. BROKER-ONLY at the
+  // function-level gate (isBrokerTier check); agent role short-circuits
+  // to { kind: 'skip' } without ever calling Vault's /history.
+  const timelineHistoryPromise = fetchTimelineHistorySafely({
+    accessToken: session.access_token,
+    transactionId,
+    callerRole,
+  });
   const [
     clientIntelligence,
     documentsResult,
     missingFieldsSummary,
     payoutReadinessSafe,
+    timelineHistoryResult,
   ] = await Promise.all([
       loadClientIntelligenceForTransaction({
         supabase,
@@ -196,6 +208,7 @@ export default async function TransactionWorkspacePage({
       documentsPromise,
       missingFieldsPromise,
       payoutReadinessPromise,
+      timelineHistoryPromise,
     ]);
 
   const documents =
@@ -248,6 +261,24 @@ export default async function TransactionWorkspacePage({
       brokerReviewStatus: txnRow?.broker_review_status ?? null,
       closingDate: txnRow?.closing_date ?? null,
       payoutReadiness: payoutReadinessSafe,
+      paperworkPackageUrl,
+    });
+  }
+
+  // ── Compose TimelineTab state (Workflow 3.3.1) ─────────────────────
+  // Pure derivation from already-loaded signals + role-gated history.
+  let timelineState: TimelineTabState | null = null;
+  if (activeTab === "timeline") {
+    timelineState = composeTimelineState({
+      callerRole,
+      card: resolvedCard,
+      documents,
+      transactionStatus: txnRow?.status ?? null,
+      brokerReviewStatus: txnRow?.broker_review_status ?? null,
+      closingDate: txnRow?.closing_date ?? null,
+      statutoryCount: missingFieldsSummary.statutory_count,
+      satisfiedStatutoryCount: missingFieldsSummary.satisfied_statutory_count,
+      history: timelineHistoryResult,
       paperworkPackageUrl,
     });
   }
@@ -306,7 +337,7 @@ export default async function TransactionWorkspacePage({
           />
         );
       case "timeline":
-        return <TimelineTab />;
+        return timelineState ? <TimelineTab state={timelineState} /> : null;
       case "client":
         return (
           <ClientTab
