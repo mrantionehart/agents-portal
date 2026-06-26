@@ -46,6 +46,7 @@ import { parseTab, type TabId } from "@/src/portal/workspace/tabs/tab-config";
 import { fetchFormDetail } from "@/src/portal/documents/details/api";
 import { parseFormId } from "@/src/portal/documents/details/helpers";
 import type { FormDetailBundle } from "@/src/portal/documents/details/types";
+import { composeBannerState } from "@/src/portal/workspace/banner/compose-banner-state";
 
 export default async function TransactionWorkspacePage({
   params,
@@ -130,11 +131,20 @@ export default async function TransactionWorkspacePage({
     .select("role, full_name")
     .eq("id", session.user.id)
     .maybeSingle<{ role: string; full_name: string | null }>();
+  // Workflow 3.2.C.1 — extend the existing direct-Supabase SELECT with
+  // `status` + `broker_review_status` to drive the ComplianceBanner.
+  // RLS (SEC.3B.M2 live on transactions) enforces tenant scoping; this
+  // adds columns to a row Vault already authorizes the caller to read.
   const txnRowPromise = supabase
     .from("transactions")
-    .select("client_email, client_name")
+    .select("client_email, client_name, status, broker_review_status")
     .eq("id", transactionId)
-    .maybeSingle<{ client_email: string | null; client_name: string | null }>();
+    .maybeSingle<{
+      client_email: string | null;
+      client_name: string | null;
+      status: string | null;
+      broker_review_status: string | null;
+    }>();
   const [{ data: callerProfile }, { data: txnRow }] = await Promise.all([
     callerProfilePromise,
     txnRowPromise,
@@ -147,16 +157,27 @@ export default async function TransactionWorkspacePage({
     transactionId,
     vaultSiteBase: vaultBase,
   });
-  const [clientIntelligence, documentsResult] = await Promise.all([
-    loadClientIntelligenceForTransaction({
-      supabase,
-      callerId: session.user.id,
-      callerRole,
-      clientEmail: txnRow?.client_email ?? null,
-      clientName: txnRow?.client_name ?? resolvedCard.client_name,
-    }) as Promise<ClientIntelligenceResult>,
-    documentsPromise,
-  ]);
+  // Workflow 3.2.C.1 — page-level /missing-fields fetch. Banner always
+  // renders and needs statutory counts; lifting this off the drawer-
+  // only path (W3.2.A) means future Compliance/Commission tabs can
+  // consume it for free. Soft-fails to zero counts on error so the
+  // banner still renders the rest of the signals.
+  const missingFieldsPromise = fetchMissingFieldsSafely({
+    accessToken: session.access_token,
+    transactionId,
+  });
+  const [clientIntelligence, documentsResult, missingFieldsSummary] =
+    await Promise.all([
+      loadClientIntelligenceForTransaction({
+        supabase,
+        callerId: session.user.id,
+        callerRole,
+        clientEmail: txnRow?.client_email ?? null,
+        clientName: txnRow?.client_name ?? resolvedCard.client_name,
+      }) as Promise<ClientIntelligenceResult>,
+      documentsPromise,
+      missingFieldsPromise,
+    ]);
 
   const documents =
     documentsResult.kind === "ok" ? documentsResult.documents : [];
@@ -170,6 +191,24 @@ export default async function TransactionWorkspacePage({
       : null;
 
   const paperworkPackageUrl = vaultPaperworkUrl(resolvedCard.transaction_id, vaultBase);
+
+  // ── Compose ComplianceBanner state (Workflow 3.2.C.1) ──────────────
+  // Pure derivation from already-loaded signals. No commission amounts,
+  // no broker notes, no Stripe data — composer's input type excludes them.
+  const bannerState = composeBannerState({
+    readiness_tier: resolvedCard.readiness_tier,
+    required_forms_count: resolvedCard.required_forms_count,
+    ready_forms_count: resolvedCard.ready_forms_count,
+    signed_forms_count: resolvedCard.signed_forms_count,
+    blocked_forms_count: resolvedCard.blocked_forms_count,
+    pending_envelopes_count: resolvedCard.pending_envelopes_count,
+    portal_status: resolvedCard.portal_status,
+    broker_confirmation_required: resolvedCard.broker_confirmation_required,
+    statutory_count: missingFieldsSummary.statutory_count,
+    satisfied_statutory_count: missingFieldsSummary.satisfied_statutory_count,
+    broker_review_status: txnRow?.broker_review_status ?? null,
+    transaction_status: txnRow?.status ?? null,
+  });
 
   // ── Per-form drawer hydration (Workflow 3.2.A) ─────────────────────
   // Only relevant when the Documents tab is active. parseFormId returns
@@ -251,10 +290,59 @@ export default async function TransactionWorkspacePage({
       activeTab={activeTab}
       agentName={agentName}
       dealPortal={{ kind: "unknown" }}
+      bannerState={bannerState}
     >
       {tabContent}
     </WorkspaceShell>
   );
+}
+
+// ── /missing-fields page-level fetcher (Workflow 3.2.C.1) ────────────
+// Server-side. Soft-fails so the banner can render the other signals
+// when this single endpoint is degraded. Returns only the aggregate
+// counts the composer needs — never the per-blocker text (which may
+// reference broker context).
+
+const VAULT_API_URL = (
+  process.env.NEXT_PUBLIC_VAULT_API_URL ??
+  "https://vault.hartfeltrealestate.com/api"
+).replace(/\/$/, "");
+
+interface MissingFieldsSummary {
+  statutory_count: number;
+  satisfied_statutory_count: number;
+}
+
+async function fetchMissingFieldsSafely(input: {
+  accessToken: string;
+  transactionId: string;
+}): Promise<MissingFieldsSummary> {
+  try {
+    const res = await fetch(
+      `${VAULT_API_URL}/paperwork/transactions/${input.transactionId}/missing-fields`,
+      {
+        headers: {
+          Authorization: `Bearer ${input.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) return { statutory_count: 0, satisfied_statutory_count: 0 };
+    const body = (await res.json()) as {
+      statutory_count?: number;
+      satisfied_statutory_paths?: string[];
+    };
+    return {
+      statutory_count:
+        typeof body?.statutory_count === "number" ? body.statutory_count : 0,
+      satisfied_statutory_count: Array.isArray(body?.satisfied_statutory_paths)
+        ? body.satisfied_statutory_paths.length
+        : 0,
+    };
+  } catch {
+    return { statutory_count: 0, satisfied_statutory_count: 0 };
+  }
 }
 
 // ── Error shell (unauthed / fetch-failed paths) ──────────────────────

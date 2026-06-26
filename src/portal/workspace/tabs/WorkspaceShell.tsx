@@ -13,6 +13,7 @@ import ComplianceBanner from "./ComplianceBanner";
 import LeftRail, { type LeftRailDealPortal } from "./LeftRail";
 import TabStrip from "./TabStrip";
 import type { TabId } from "./tab-config";
+import type { ComposedBannerState } from "../banner/compose-banner-state";
 
 export interface WorkspaceShellProps {
   card: WorkspaceCard;
@@ -20,6 +21,9 @@ export interface WorkspaceShellProps {
   activeTab: TabId;
   agentName?: string | null;
   dealPortal?: LeftRailDealPortal;
+  /** Workflow 3.2.C.1 — composed banner state. Page derives via
+   *  composeBannerState() from already-loaded signals. */
+  bannerState: ComposedBannerState;
   children: React.ReactNode;
 }
 
@@ -29,6 +33,7 @@ export default function WorkspaceShell({
   activeTab,
   agentName,
   dealPortal,
+  bannerState,
   children,
 }: WorkspaceShellProps) {
   return (
@@ -40,7 +45,7 @@ export default function WorkspaceShell({
         <ArrowLeft className="h-3 w-3" /> Back to Workspace
       </Link>
 
-      <ComplianceBanner card={card} />
+      <ComplianceBanner state={bannerState} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-4">
         {/* Left rail */}
