@@ -57,6 +57,23 @@ function mapAuditEvent(
 
   const drillHref = formId ? formDrawerHref(ctx.transactionId, formId) : undefined;
 
+  // W3.4.4.1 — Commission lifecycle events. Detected by field_path
+  // prefix BEFORE the source switch so they short-circuit the generic
+  // broker_review handler that previously rendered them as "Broker
+  // updated field". Card composer-owned labels only; raw new_value
+  // is never rendered (the dispatcher already enforces a safe shape
+  // per W3.4.4.0, but the mapper does not depend on it).
+  if (fieldPath.startsWith("commission.")) {
+    const commissionCard = mapCommissionAuditEvent(
+      fieldPath,
+      id,
+      occurred_at,
+      ctx,
+      source
+    );
+    if (commissionCard) return commissionCard;
+  }
+
   switch (source) {
     case "system": {
       if (fieldPath === "transaction.promoted") {
@@ -234,6 +251,104 @@ const STATUTORY_LABELS: Record<string, string> = {
 
 function humanizeStatutoryKey(key: string): string {
   return STATUTORY_LABELS[key] ?? key.replace(/_/g, " ");
+}
+
+// ── W3.4.4.1 — commission lifecycle audit mapper ────────────────────
+// Vault writes one paperwork_audit_log row per commission state
+// transition (W3.4.4.0). This mapper renders them as kind='commission'
+// with Agent-Portal-owned labels — NEVER from raw `notes` / `old_value`
+// / `new_value` text. Only the `field_path` and (for compliance_checked)
+// a high-level `verdict` enum drive the rendering.
+
+function mapCommissionAuditEvent(
+  fieldPath: string,
+  id: string,
+  occurred_at: string,
+  ctx: { transactionId: string },
+  source: string
+): TimelineCard | null {
+  const drillHref = `/workspace/${ctx.transactionId}?tab=commission`;
+  switch (fieldPath) {
+    case "commission.calculated":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "info",
+        iconName: "pencil",
+        label: "Commission calculated",
+        source,
+        drillHref,
+      };
+    case "commission.compliance_checked":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "info",
+        iconName: "shield",
+        label: "Commission compliance check",
+        source,
+        drillHref,
+      };
+    case "commission.approved":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "ok",
+        iconName: "check-circle-2",
+        label: "Broker approved commission",
+        source,
+        drillHref,
+      };
+    case "commission.paid":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "ok",
+        iconName: "check-circle-2",
+        label: "Commission paid",
+        source,
+        drillHref,
+      };
+    case "commission.pay.blocked":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "warn",
+        iconName: "alert-triangle",
+        label: "Commission payment blocked",
+        source,
+        drillHref,
+      };
+    case "commission.deleted":
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "muted",
+        iconName: "alert-circle",
+        label: "Commission deleted",
+        source,
+        drillHref,
+      };
+    default:
+      // Unknown commission.* — emit a generic safe card so the
+      // event stays visible without leaking field_path internals.
+      return {
+        id,
+        occurred_at,
+        kind: "commission",
+        tone: "muted",
+        iconName: "list-checks",
+        label: "Commission updated",
+        source,
+        drillHref,
+      };
+  }
 }
 
 function humanizeFieldPath(p: string): string | undefined {

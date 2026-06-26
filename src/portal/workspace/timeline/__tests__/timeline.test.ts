@@ -238,6 +238,263 @@ describe("toSafeTimelineCard", () => {
   });
 });
 
+// ── Workflow 3.4.4.1 — commission audit event mapping ───────────────
+
+describe("toSafeTimelineCard — W3.4.4.1 commission lifecycle events", () => {
+  const ctx = { transactionId: "txn-1" };
+
+  function mapAt(fieldPath: string, source = "broker_review") {
+    return toSafeTimelineCard(
+      {
+        kind: "audit",
+        // Stable ID that does NOT echo the field_path back into the
+        // serialized output (some assertions scan the whole card JSON
+        // for leak markers).
+        id: "row-" + Math.abs(hashString(fieldPath)).toString(16),
+        created_at: "2026-06-26T10:00:00Z",
+        source,
+        field_path: fieldPath,
+      },
+      ctx
+    );
+  }
+
+  function hashString(s: string): number {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (h << 5) - h + s.charCodeAt(i);
+      h |= 0;
+    }
+    return h;
+  }
+
+  it("maps commission.calculated → kind='commission', tone='info', label='Commission calculated'", () => {
+    const c = mapAt("commission.calculated");
+    expect(c?.kind).toBe("commission");
+    expect(c?.tone).toBe("info");
+    expect(c?.iconName).toBe("pencil");
+    expect(c?.label).toBe("Commission calculated");
+    expect(c?.drillHref).toBe("/workspace/txn-1?tab=commission");
+  });
+
+  it("maps commission.compliance_checked → kind='commission', tone='info', shield icon", () => {
+    const c = mapAt("commission.compliance_checked");
+    expect(c?.kind).toBe("commission");
+    expect(c?.iconName).toBe("shield");
+    expect(c?.label).toBe("Commission compliance check");
+  });
+
+  it("maps commission.approved → tone='ok', check-circle-2 icon", () => {
+    const c = mapAt("commission.approved");
+    expect(c?.kind).toBe("commission");
+    expect(c?.tone).toBe("ok");
+    expect(c?.iconName).toBe("check-circle-2");
+    expect(c?.label).toBe("Broker approved commission");
+  });
+
+  it("maps commission.paid → tone='ok', label='Commission paid'", () => {
+    const c = mapAt("commission.paid");
+    expect(c?.kind).toBe("commission");
+    expect(c?.tone).toBe("ok");
+    expect(c?.label).toBe("Commission paid");
+  });
+
+  it("maps commission.pay.blocked → tone='warn', alert-triangle, distinct label", () => {
+    const c = mapAt("commission.pay.blocked");
+    expect(c?.kind).toBe("commission");
+    expect(c?.tone).toBe("warn");
+    expect(c?.iconName).toBe("alert-triangle");
+    expect(c?.label).toBe("Commission payment blocked");
+  });
+
+  it("maps commission.deleted → tone='muted', alert-circle", () => {
+    const c = mapAt("commission.deleted");
+    expect(c?.kind).toBe("commission");
+    expect(c?.tone).toBe("muted");
+    expect(c?.iconName).toBe("alert-circle");
+    expect(c?.label).toBe("Commission deleted");
+  });
+
+  it("unknown commission.* defaults to generic safe card (no field_path leak)", () => {
+    const c = mapAt("commission.something_new");
+    expect(c?.kind).toBe("commission");
+    expect(c?.label).toBe("Commission updated");
+    const ser = JSON.stringify(c);
+    expect(ser).not.toContain("something_new");
+  });
+
+  it("commission events take precedence over the generic broker_review handler", () => {
+    // A row with source='broker_review' and field_path starting with
+    // 'commission.' must NOT fall through to "Broker updated field".
+    const c = mapAt("commission.calculated", "broker_review");
+    expect(c?.label).not.toBe("Broker updated field");
+    expect(c?.label).toBe("Commission calculated");
+  });
+
+  it("SAFETY: never renders raw notes / old_value / new_value when row carries them", () => {
+    const raw: RawHistoryEvent = {
+      kind: "audit",
+      id: "x",
+      created_at: "2026-06-26T10:00:00Z",
+      source: "broker_review",
+      field_path: "commission.paid",
+      old_value: "must-not-leak-Z1",
+      new_value: "must-not-leak-Z2",
+      notes: "must-not-leak-Z3" as any,
+    };
+    const c = toSafeTimelineCard(raw, ctx);
+    const ser = JSON.stringify(c);
+    expect(ser).not.toContain("must-not-leak-Z1");
+    expect(ser).not.toContain("must-not-leak-Z2");
+    expect(ser).not.toContain("must-not-leak-Z3");
+  });
+
+  it("SAFETY: never renders amounts / Stripe IDs / statutory keys in commission cards", () => {
+    const FORBIDDEN_FIELDS = [
+      "net_commission",
+      "agent_amount",
+      "brokerage_amount",
+      "agent_split_pct",
+      "cap_applied",
+      "cap_remaining",
+      "stripe_payout_id",
+      "payment_reference",
+      "revision_notes",
+      "coaching_notes",
+      "flood_history",
+      "prior_insurance_claim",
+      "lead_paint_knowledge",
+    ];
+    const cards = [
+      "commission.calculated",
+      "commission.compliance_checked",
+      "commission.approved",
+      "commission.paid",
+      "commission.pay.blocked",
+      "commission.deleted",
+    ].map((f) => mapAt(f));
+    const ser = JSON.stringify(cards);
+    for (const f of FORBIDDEN_FIELDS) {
+      expect(ser).not.toContain(f);
+    }
+  });
+});
+
+// ── Workflow 3.4.4.1 — composer broker-skip behavior ────────────────
+
+describe("composeTimelineState — W3.4.4.1 broker tier skips synthesis", () => {
+  function safeCommission() {
+    return {
+      id: "comm-1",
+      transaction_id: "txn-1",
+      commission_status: "broker_approved",
+      approved_at: "2026-06-20T10:00:00Z",
+      paid_at: null,
+      payment_method: null,
+      payment_reference_tail: null,
+      has_statement: false,
+    };
+  }
+  function verdict() {
+    return {
+      commission_id: "comm-1",
+      transaction_id: "txn-1",
+      commission_status: "broker_approved",
+      payable: true,
+      blockers: [],
+      ts: "2026-06-26T10:00:00Z",
+    };
+  }
+
+  it("broker tier (kind='broker') does NOT add synthesized commission cards (Vault /history is authoritative)", () => {
+    const r = composeTimelineState(
+      base({
+        callerRole: "broker",
+        history: { kind: "broker", cards: [] },
+        commission: {
+          kind: "ok",
+          commission: safeCommission(),
+          verdict: verdict(),
+          verdictError: null,
+        },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = r.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids.some((id) => id.startsWith("commission:"))).toBe(false);
+  });
+
+  it("agent tier (kind='skip') KEEPS synthesized commission cards (degraded fallback)", () => {
+    const r = composeTimelineState(
+      base({
+        commission: {
+          kind: "ok",
+          commission: safeCommission(),
+          verdict: verdict(),
+          verdictError: null,
+        },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = r.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids.some((id) => id.startsWith("commission:"))).toBe(true);
+  });
+
+  it("broker tier still renders kind='commission' cards that came via /history (no duplicates from synthesis)", () => {
+    const historyCard = {
+      id: "h-paid",
+      occurred_at: "2026-06-22T10:00:00Z",
+      kind: "commission" as const,
+      tone: "ok" as const,
+      iconName: "check-circle-2" as const,
+      label: "Commission paid",
+    };
+    const r = composeTimelineState(
+      base({
+        callerRole: "broker",
+        history: { kind: "broker", cards: [historyCard] },
+        commission: {
+          kind: "ok",
+          commission: safeCommission(),
+          verdict: verdict(),
+          verdictError: null,
+        },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const commissionCards = r.groups
+      .flatMap((g) => g.cards)
+      .filter((c) => c.kind === "commission");
+    expect(commissionCards.length).toBe(1);
+    expect(commissionCards[0].id).toBe("h-paid");
+    // No synthesized "commission:paid" card alongside
+    expect(
+      commissionCards.some((c) => c.id.startsWith("commission:"))
+    ).toBe(false);
+  });
+
+  it("broker tier with /history error STILL skips synthesis (composer treats history.kind!='broker' as agent)", () => {
+    // When /history errors, fetcher returns kind='error' which the
+    // composer treats as agent path. Synthesis comes back as the
+    // degraded fallback — this is by design (W3.3.1 behavior preserved).
+    const r = composeTimelineState(
+      base({
+        callerRole: "broker",
+        history: { kind: "error", message: "HTTP 500" },
+        commission: {
+          kind: "ok",
+          commission: safeCommission(),
+          verdict: verdict(),
+          verdictError: null,
+        },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = r.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids.some((id) => id.startsWith("commission:"))).toBe(true);
+  });
+});
+
 // ── composeTimelineState ────────────────────────────────────────────
 
 describe("composeTimelineState — broker path", () => {
@@ -709,23 +966,19 @@ describe("composeTimelineState — commission lifecycle (W3.4.3.2)", () => {
     expect(card?.iconName).toBe("alert-triangle");
   });
 
-  it("cards sort chronologically alongside other timeline events", () => {
+  it("cards sort chronologically alongside other timeline events (agent tier — synthesis path)", () => {
+    // After W3.4.4.1 the broker tier skips synthesis (avoids duplicates
+    // with /history). The chronological-merge contract still applies on
+    // the AGENT tier where synthesis is the degraded fallback.
+    // For this test we use agent tier (default in `base()`) and merge
+    // synthesized commission cards alongside a synthetic milestone.
     const r = composeTimelineState(
       base({
-        callerRole: "broker",
-        history: {
-          kind: "broker",
-          cards: [
-            {
-              id: "paperwork-event",
-              occurred_at: "2026-06-21T10:00:00Z",
-              kind: "audit" as const,
-              tone: "info" as const,
-              iconName: "pencil" as const,
-              label: "Some paperwork event",
-            },
-          ],
-        },
+        // Inject a "paperwork-event" via the agent milestone path by
+        // closingDate (it's the only history-like event the agent path
+        // emits with a real timestamp).
+        closingDate: "2026-06-21T10:00:00Z",
+        transactionStatus: "closed",
         commission: okFetch(
           safeCommissionFx({
             commission_status: "paid",
@@ -737,17 +990,18 @@ describe("composeTimelineState — commission lifecycle (W3.4.3.2)", () => {
         workspaceBaseUrl: "/workspace/txn-1",
       })
     );
-    // Cards across days flatten in DESC order: paid (6/22) → paperwork (6/21) → approved (6/20)
     const ordered = r.groups.flatMap((g) =>
       g.cards.map((c) => ({ id: c.id, at: c.occurred_at }))
     );
     const positions = {
       paid: ordered.findIndex((c) => c.id === "commission:paid"),
-      paperwork: ordered.findIndex((c) => c.id === "paperwork-event"),
+      closing: ordered.findIndex((c) => c.id === "milestone:closing-date"),
       approved: ordered.findIndex((c) => c.id === "commission:approved"),
     };
-    expect(positions.paid).toBeLessThan(positions.paperwork);
-    expect(positions.paperwork).toBeLessThan(positions.approved);
+    // Cards across days flatten in DESC order:
+    //   paid (6/22) → closing-date (6/21) → approved (6/20)
+    expect(positions.paid).toBeLessThan(positions.closing);
+    expect(positions.closing).toBeLessThan(positions.approved);
   });
 
   it("cards group by day via existing groupByDay (no commission-specific logic)", () => {

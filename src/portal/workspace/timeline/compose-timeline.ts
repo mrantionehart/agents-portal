@@ -77,11 +77,23 @@ export function composeTimelineState(
     cards = composeMilestoneCards(input, now);
   }
 
-  // W3.4.3.2 — Merge synthesized commission lifecycle cards. Pure
-  // derivation from the safe commission projection + gate verdict
-  // already loaded by the W3.4.3.1 page batch. Same cards render for
-  // broker (alongside /history events) and agent (alongside milestones).
-  if (input.commission && input.commission.kind === "ok") {
+  // W3.4.3.2 + W3.4.4.1 — Merge synthesized commission lifecycle cards.
+  // Pure derivation from the safe commission projection + gate verdict
+  // already loaded by the W3.4.3.1 page batch.
+  //
+  // W3.4.4.1: skip synthesis on the broker tier — Vault now emits
+  // commission lifecycle audit rows (W3.4.4.0) that flow into the
+  // broker tier via /history, and the safe-history-event mapper
+  // renders them as kind='commission' cards. Synthesis on the broker
+  // tier would duplicate those cards.
+  //
+  // Agent tier keeps synthesis as the degraded-view fallback because
+  // /history is broker-only.
+  if (
+    input.commission &&
+    input.commission.kind === "ok" &&
+    callerRoleClass !== "broker"
+  ) {
     cards.push(
       ...composeCommissionLifecycleCards(
         input.commission.commission,
