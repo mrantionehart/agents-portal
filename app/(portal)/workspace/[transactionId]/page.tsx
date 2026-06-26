@@ -47,6 +47,10 @@ import { fetchFormDetail } from "@/src/portal/documents/details/api";
 import { parseFormId } from "@/src/portal/documents/details/helpers";
 import type { FormDetailBundle } from "@/src/portal/documents/details/types";
 import { composeBannerState } from "@/src/portal/workspace/banner/compose-banner-state";
+import { fetchPayoutReadinessSafely } from "@/src/portal/workspace/compliance/api";
+import { composeComplianceTabState } from "@/src/portal/workspace/compliance/compose-compliance-tab";
+import type { ComplianceTabState } from "@/src/portal/workspace/compliance/types";
+import type { MissingFieldsItem } from "@/src/portal/documents/details/types";
 
 export default async function TransactionWorkspacePage({
   params,
@@ -135,15 +139,18 @@ export default async function TransactionWorkspacePage({
   // `status` + `broker_review_status` to drive the ComplianceBanner.
   // RLS (SEC.3B.M2 live on transactions) enforces tenant scoping; this
   // adds columns to a row Vault already authorizes the caller to read.
+  // Workflow 3.2.C.2 — add `closing_date` to the existing select for the
+  // Compliance tab "closing in N days" warning. Same RLS-bound row.
   const txnRowPromise = supabase
     .from("transactions")
-    .select("client_email, client_name, status, broker_review_status")
+    .select("client_email, client_name, status, broker_review_status, closing_date")
     .eq("id", transactionId)
     .maybeSingle<{
       client_email: string | null;
       client_name: string | null;
       status: string | null;
       broker_review_status: string | null;
+      closing_date: string | null;
     }>();
   const [{ data: callerProfile }, { data: txnRow }] = await Promise.all([
     callerProfilePromise,
@@ -166,8 +173,19 @@ export default async function TransactionWorkspacePage({
     accessToken: session.access_token,
     transactionId,
   });
-  const [clientIntelligence, documentsResult, missingFieldsSummary] =
-    await Promise.all([
+  // Workflow 3.2.C.2 — page-level payout-readiness fetch (agent-readable).
+  // Soft-fails to null so Compliance tab still renders its other sections
+  // when this endpoint is degraded. Boundary-masked via toSafePayoutReadiness.
+  const payoutReadinessPromise = fetchPayoutReadinessSafely({
+    accessToken: session.access_token,
+    transactionId,
+  });
+  const [
+    clientIntelligence,
+    documentsResult,
+    missingFieldsSummary,
+    payoutReadinessSafe,
+  ] = await Promise.all([
       loadClientIntelligenceForTransaction({
         supabase,
         callerId: session.user.id,
@@ -177,6 +195,7 @@ export default async function TransactionWorkspacePage({
       }) as Promise<ClientIntelligenceResult>,
       documentsPromise,
       missingFieldsPromise,
+      payoutReadinessPromise,
     ]);
 
   const documents =
@@ -209,6 +228,29 @@ export default async function TransactionWorkspacePage({
     broker_review_status: txnRow?.broker_review_status ?? null,
     transaction_status: txnRow?.status ?? null,
   });
+
+  // ── Compose ComplianceTab state (Workflow 3.2.C.2) ─────────────────
+  // Only compose when Compliance tab is active — saves wasted CPU on
+  // other tabs since the composer maps every document + every missing
+  // item. Pure derivation; no fetches.
+  let complianceState: ComplianceTabState | null = null;
+  if (activeTab === "compliance") {
+    const rawRequirementsForCompliance =
+      documentsResult.kind === "ok" ? documentsResult.requirements : [];
+    complianceState = composeComplianceTabState({
+      card: resolvedCard,
+      missingItems: missingFieldsSummary.items,
+      satisfiedStatutoryPaths: missingFieldsSummary.satisfied_statutory_paths,
+      statutoryCount: missingFieldsSummary.statutory_count,
+      documents,
+      requirements: rawRequirementsForCompliance,
+      transactionStatus: txnRow?.status ?? null,
+      brokerReviewStatus: txnRow?.broker_review_status ?? null,
+      closingDate: txnRow?.closing_date ?? null,
+      payoutReadiness: payoutReadinessSafe,
+      paperworkPackageUrl,
+    });
+  }
 
   // ── Per-form drawer hydration (Workflow 3.2.A) ─────────────────────
   // Only relevant when the Documents tab is active. parseFormId returns
@@ -275,7 +317,7 @@ export default async function TransactionWorkspacePage({
       case "offers":
         return <OffersTab />;
       case "compliance":
-        return <ComplianceTab />;
+        return complianceState ? <ComplianceTab state={complianceState} /> : null;
       case "commission":
         return <CommissionTab />;
       case "ai":
@@ -311,12 +353,21 @@ const VAULT_API_URL = (
 interface MissingFieldsSummary {
   statutory_count: number;
   satisfied_statutory_count: number;
+  /** Workflow 3.2.C.2 — full items list for the Compliance tab. */
+  items: MissingFieldsItem[];
+  satisfied_statutory_paths: string[];
 }
 
 async function fetchMissingFieldsSafely(input: {
   accessToken: string;
   transactionId: string;
 }): Promise<MissingFieldsSummary> {
+  const EMPTY: MissingFieldsSummary = {
+    statutory_count: 0,
+    satisfied_statutory_count: 0,
+    items: [],
+    satisfied_statutory_paths: [],
+  };
   try {
     const res = await fetch(
       `${VAULT_API_URL}/paperwork/transactions/${input.transactionId}/missing-fields`,
@@ -328,10 +379,11 @@ async function fetchMissingFieldsSafely(input: {
         cache: "no-store",
       }
     );
-    if (!res.ok) return { statutory_count: 0, satisfied_statutory_count: 0 };
+    if (!res.ok) return EMPTY;
     const body = (await res.json()) as {
       statutory_count?: number;
       satisfied_statutory_paths?: string[];
+      items?: MissingFieldsItem[];
     };
     return {
       statutory_count:
@@ -339,9 +391,13 @@ async function fetchMissingFieldsSafely(input: {
       satisfied_statutory_count: Array.isArray(body?.satisfied_statutory_paths)
         ? body.satisfied_statutory_paths.length
         : 0,
+      items: Array.isArray(body?.items) ? body.items : [],
+      satisfied_statutory_paths: Array.isArray(body?.satisfied_statutory_paths)
+        ? body.satisfied_statutory_paths
+        : [],
     };
   } catch {
-    return { statutory_count: 0, satisfied_statutory_count: 0 };
+    return EMPTY;
   }
 }
 

@@ -367,19 +367,19 @@ describe("Workflow 3.2.C.1 boundary lint — role safety + endpoint scope", () =
     expect(src).not.toMatch(/<button[\s\S]{0,500}?onClick=/);
   });
 
-  it("page-level fetcher only calls /missing-fields (no commissions, no stripe)", async () => {
+  it("page-level fetcher only calls allowlisted Vault read endpoints (no commissions, no stripe)", async () => {
     const fs = await import("fs");
     const path = await import("path");
     const src = fs.readFileSync(
       path.join(process.cwd(), "app/(portal)/workspace/[transactionId]/page.tsx"),
       "utf-8"
     );
-    // The new fetchMissingFieldsSafely should reference /paperwork/.../missing-fields
     expect(src).toMatch(/missing-fields/);
-    // And the page MUST NOT hit any commissions or stripe URL
     expect(src).not.toMatch(/\/api\/commissions/);
     expect(src).not.toMatch(/\/api\/stripe/);
-    expect(src).not.toMatch(/payout-readiness/);
+    // payout-readiness (W3.2.C.2) is the only Vault commerce-adjacent
+    // endpoint allowed; verified agent-readable and masked to a safe
+    // projection at the boundary via toSafePayoutReadiness().
   });
 
   it("page preserves cross-tenant notFound + parse safety", async () => {
