@@ -22,6 +22,11 @@ import type {
   TimelineRoleClass,
   TimelineTabState,
 } from "./types";
+import type { FetchCommissionResult } from "../commission/api";
+import type {
+  CommissionGateVerdict,
+  SafeCommissionRow,
+} from "../commission/types";
 
 export interface ComposeTimelineInputs {
   callerRole: string | null | undefined;
@@ -38,6 +43,16 @@ export interface ComposeTimelineInputs {
   paperworkPackageUrl: string;
   /** Now timestamp injection point (server). */
   now?: Date;
+  /** W3.4.3.2 — Commission lifecycle synthesis. Already loaded by the
+   *  W3.4.3.1 page batch; passed through here so the Timeline shows
+   *  the same lifecycle the Commission Workspace explains.
+   *  • Optional — when absent, no commission cards are emitted.
+   *  • Carries only the SAFE projection (no amounts / Stripe IDs /
+   *    broker notes — guaranteed by W3.4.3.1's SafeCommissionRow). */
+  commission?: FetchCommissionResult;
+  /** Base path for drill links (e.g. "/workspace/<txnId>"). Used by
+   *  commission lifecycle cards to deep-link into the Commission tab. */
+  workspaceBaseUrl?: string;
 }
 
 export function composeTimelineState(
@@ -60,6 +75,21 @@ export function composeTimelineState(
   } else {
     // Agent — milestone view only.
     cards = composeMilestoneCards(input, now);
+  }
+
+  // W3.4.3.2 — Merge synthesized commission lifecycle cards. Pure
+  // derivation from the safe commission projection + gate verdict
+  // already loaded by the W3.4.3.1 page batch. Same cards render for
+  // broker (alongside /history events) and agent (alongside milestones).
+  if (input.commission && input.commission.kind === "ok") {
+    cards.push(
+      ...composeCommissionLifecycleCards(
+        input.commission.commission,
+        input.commission.verdict,
+        input.workspaceBaseUrl ?? null,
+        now
+      )
+    );
   }
 
   // Sort cards by occurred_at DESC (newest first).
@@ -195,6 +225,185 @@ function composeMilestoneCards(
   return cards;
 }
 
+// ── Commission lifecycle synthesis (W3.4.3.2) ───────────────────────
+// Pure. Derives 0-6 commission lifecycle cards from the SAFE projection
+// (W3.4.3.1) + the W3.4.3.0 gate verdict. Same shape as the rest of
+// the timeline — sort/group/render unchanged.
+//
+// SAFETY CONTRACT — by construction:
+//   • Input type (SafeCommissionRow + CommissionGateVerdict) has NO
+//     amounts / splits / cap math / Stripe IDs / broker notes
+//   • Cards never reference those field NAMES either
+//   • Payment-method labels are humanized strings; raw enum stays in
+//     the safe projection but never reaches the card detail directly
+//
+// Card emission rules:
+//   • "Commission calculated" — emit whenever a commission row exists
+//     and status has moved past pending_calculation
+//   • "Awaiting broker approval" — emit only when in calculated /
+//     compliance_check
+//   • "Broker approved commission" — emit when approved_at is set
+//   • "Payment blocked" — emit only when status='broker_approved' AND
+//     gate verdict has blockers. (For broker tier, /history already
+//     surfaces every historical blocked attempt; this card is the
+//     CURRENT-state snapshot for the agent path.)
+//   • "Payment processing" — emit when status='payment_processing'
+//   • "Commission paid" — emit when paid_at is set
+//   • "Commission disputed" — emit when status='disputed'
+//
+// Timestamps:
+//   • approved_at + paid_at are real — used directly
+//   • "calculated" anchors to `now` (no explicit calculated_at field
+//     on the safe projection; the existence of the row implies it
+//     happened — using `now` keeps it visible above older events)
+//   • "blocked" / "awaiting" / "processing" / "disputed" are CURRENT-
+//     STATE markers, anchored to `now`
+function composeCommissionLifecycleCards(
+  commission: SafeCommissionRow,
+  verdict: CommissionGateVerdict | null,
+  workspaceBaseUrl: string | null,
+  now: Date
+): TimelineCard[] {
+  const cards: TimelineCard[] = [];
+  const status = commission.commission_status;
+  const drillHref = workspaceBaseUrl
+    ? `${workspaceBaseUrl}?tab=commission`
+    : undefined;
+
+  const STATUS_PROGRESS: Record<string, number> = {
+    pending_calculation: 0,
+    calculated: 1,
+    compliance_check: 2,
+    broker_approved: 3,
+    payment_processing: 4,
+    paid: 5,
+    disputed: 6,
+  };
+  const progress = STATUS_PROGRESS[status] ?? 0;
+
+  // 1. "Commission calculated" — once past pending_calculation.
+  if (progress >= STATUS_PROGRESS.calculated) {
+    cards.push({
+      id: "commission:calculated",
+      occurred_at: now.toISOString(),
+      kind: "commission",
+      tone: "info",
+      iconName: "pencil",
+      label: "Commission calculated",
+      drillHref,
+    });
+  }
+
+  // 2. "Awaiting broker approval" — only when still in calc /
+  //    compliance_check stages.
+  if (
+    status === "calculated" ||
+    status === "compliance_check"
+  ) {
+    cards.push({
+      id: "commission:awaiting",
+      occurred_at: now.toISOString(),
+      kind: "commission",
+      tone: "info",
+      iconName: "hourglass",
+      label: "Awaiting broker approval",
+      detail: "Broker review needed before payout.",
+      drillHref,
+    });
+  }
+
+  // 3. "Broker approved commission" — uses real approved_at when set.
+  if (commission.approved_at) {
+    cards.push({
+      id: "commission:approved",
+      occurred_at: commission.approved_at,
+      kind: "commission",
+      tone: "ok",
+      iconName: "check-circle-2",
+      label: "Broker approved commission",
+      drillHref,
+    });
+  }
+
+  // 4. "Payment blocked" — current-state marker. Only emit when the
+  //    commission has reached broker_approved AND the gate is failing.
+  //    (Historical blocks already appear via /history for broker tier.)
+  if (
+    status === "broker_approved" &&
+    verdict &&
+    !verdict.payable &&
+    verdict.blockers.length > 0
+  ) {
+    const n = verdict.blockers.length;
+    cards.push({
+      id: "commission:blocked",
+      occurred_at: now.toISOString(),
+      kind: "commission",
+      tone: "warn",
+      iconName: "alert-triangle",
+      label: "Commission payment blocked",
+      detail: `${n} gate${n === 1 ? "" : "s"} not yet clear.`,
+      drillHref,
+    });
+  }
+
+  // 5. "Payment processing" — only when status is explicitly set.
+  if (status === "payment_processing") {
+    cards.push({
+      id: "commission:processing",
+      occurred_at: now.toISOString(),
+      kind: "commission",
+      tone: "info",
+      iconName: "hourglass",
+      label: "Commission payment processing",
+      drillHref,
+    });
+  }
+
+  // 6. "Commission paid" — uses real paid_at when set.
+  if (commission.paid_at) {
+    cards.push({
+      id: "commission:paid",
+      occurred_at: commission.paid_at,
+      kind: "commission",
+      tone: "ok",
+      iconName: "check-circle-2",
+      label: "Commission paid",
+      detail: paymentMethodDetail(commission.payment_method),
+      drillHref,
+    });
+  }
+
+  // 7. "Commission disputed" — current-state.
+  if (status === "disputed") {
+    cards.push({
+      id: "commission:disputed",
+      occurred_at: now.toISOString(),
+      kind: "commission",
+      tone: "warn",
+      iconName: "alert-triangle",
+      label: "Commission disputed",
+      detail: "Broker flagged this commission.",
+      drillHref,
+    });
+  }
+
+  return cards;
+}
+
+function paymentMethodDetail(method: string | null): string | undefined {
+  switch (method) {
+    case "ach":
+      return "Paid via ACH direct deposit.";
+    case "wire":
+      return "Paid via wire transfer.";
+    case "check":
+      return "Paid by check.";
+    default:
+      return undefined;
+  }
+}
+
 function brokerReviewLabel(status: string): string {
   switch (status) {
     case "draft":
@@ -218,6 +427,7 @@ const BROKER_FILTER_CHIPS = [
   { key: "broker", label: "Broker review" },
   { key: "envelope", label: "Envelopes" },
   { key: "compliance", label: "Compliance" },
+  { key: "commission", label: "Commission" },
 ] as const;
 
 function groupByDay(

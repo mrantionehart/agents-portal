@@ -15,7 +15,8 @@ export type TimelineKind =
   | "envelope"
   | "compliance"
   | "milestone"
-  | "task";
+  | "task"
+  | "commission";
 
 export interface TimelineCard {
   /** Stable key for React + tests. */

@@ -280,8 +280,11 @@ export default async function TransactionWorkspacePage({
     });
   }
 
-  // ── Compose TimelineTab state (Workflow 3.3.1) ─────────────────────
+  // ── Compose TimelineTab state (Workflow 3.3.1 + W3.4.3.2) ──────────
   // Pure derivation from already-loaded signals + role-gated history.
+  // W3.4.3.2: pass-through of W3.4.3.1's commissionWorkspaceResult so
+  // the composer can synthesize commission lifecycle cards alongside
+  // the existing paperwork events. No new fetch.
   let timelineState: TimelineTabState | null = null;
   if (activeTab === "timeline") {
     timelineState = composeTimelineState({
@@ -295,6 +298,8 @@ export default async function TransactionWorkspacePage({
       satisfiedStatutoryCount: missingFieldsSummary.satisfied_statutory_count,
       history: timelineHistoryResult,
       paperworkPackageUrl,
+      commission: commissionWorkspaceResult,
+      workspaceBaseUrl: `/workspace/${resolvedCard.transaction_id}`,
     });
   }
 

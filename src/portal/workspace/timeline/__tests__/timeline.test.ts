@@ -472,6 +472,366 @@ describe("composeTimelineState — day grouping", () => {
   });
 });
 
+// ── Workflow 3.4.3.2 — commission lifecycle ─────────────────────────
+
+import type { FetchCommissionResult } from "../../commission/api";
+import type {
+  CommissionGateVerdict,
+  SafeCommissionRow,
+} from "../../commission/types";
+
+function safeCommissionFx(
+  over: Partial<SafeCommissionRow> = {}
+): SafeCommissionRow {
+  return {
+    id: "comm-1",
+    transaction_id: "txn-1",
+    commission_status: "broker_approved",
+    approved_at: "2026-06-20T10:00:00Z",
+    paid_at: null,
+    payment_method: null,
+    payment_reference_tail: "4821",
+    has_statement: false,
+    ...over,
+  };
+}
+
+function verdictFx(
+  over: Partial<CommissionGateVerdict> = {}
+): CommissionGateVerdict {
+  return {
+    commission_id: "comm-1",
+    transaction_id: "txn-1",
+    commission_status: "broker_approved",
+    payable: true,
+    blockers: [],
+    ts: "2026-06-26T12:00:00Z",
+    ...over,
+  };
+}
+
+function okFetch(
+  commission: SafeCommissionRow,
+  verdict: CommissionGateVerdict | null = verdictFx()
+): FetchCommissionResult {
+  return { kind: "ok", commission, verdict, verdictError: null };
+}
+
+describe("composeTimelineState — commission lifecycle (W3.4.3.2)", () => {
+  it("emits NO commission cards when fetch is empty", () => {
+    const r = composeTimelineState(
+      base({
+        commission: { kind: "empty" },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = r.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids.filter((id) => id.startsWith("commission:"))).toEqual([]);
+  });
+
+  it("emits NO commission cards when fetch errored", () => {
+    const r = composeTimelineState(
+      base({
+        commission: { kind: "error", message: "HTTP 500" },
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = r.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids.filter((id) => id.startsWith("commission:"))).toEqual([]);
+  });
+
+  it("'Commission calculated' card emits when status >= calculated", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(safeCommissionFx({ commission_status: "calculated" })),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const card = r.groups.flatMap((g) => g.cards).find((c) => c.id === "commission:calculated");
+    expect(card).toBeTruthy();
+    expect(card!.kind).toBe("commission");
+    expect(card!.tone).toBe("info");
+    expect(card!.iconName).toBe("pencil");
+    expect(card!.drillHref).toBe("/workspace/txn-1?tab=commission");
+  });
+
+  it("'Awaiting broker approval' fires for calculated and compliance_check only", () => {
+    for (const status of ["calculated", "compliance_check"]) {
+      const r = composeTimelineState(
+        base({
+          commission: okFetch(safeCommissionFx({ commission_status: status })),
+          workspaceBaseUrl: "/workspace/txn-1",
+        })
+      );
+      const card = r.groups
+        .flatMap((g) => g.cards)
+        .find((c) => c.id === "commission:awaiting");
+      expect(card?.tone).toBe("info");
+      expect(card?.iconName).toBe("hourglass");
+    }
+    // Should NOT fire for broker_approved
+    const rApproved = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "broker_approved" })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const ids = rApproved.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(ids).not.toContain("commission:awaiting");
+  });
+
+  it("'Broker approved' uses real approved_at timestamp", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "broker_approved",
+            approved_at: "2026-06-20T15:30:00Z",
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const card = r.groups
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "commission:approved");
+    expect(card?.tone).toBe("ok");
+    expect(card?.iconName).toBe("check-circle-2");
+    expect(card?.occurred_at).toBe("2026-06-20T15:30:00Z");
+  });
+
+  it("'Payment blocked' fires only when status='broker_approved' AND verdict has blockers", () => {
+    // Case A — fires: approved + blockers
+    const rA = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "broker_approved" }),
+          verdictFx({
+            payable: false,
+            blockers: [
+              { key: "transaction_not_closed", label: "Transaction must be closed" },
+              { key: "compliance_not_passed", label: "Compliance must pass" },
+            ],
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const cardA = rA.groups
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "commission:blocked");
+    expect(cardA?.tone).toBe("warn");
+    expect(cardA?.detail).toMatch(/2 gates? not yet clear/);
+
+    // Case B — does NOT fire: approved + payable=true
+    const rB = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "broker_approved" }),
+          verdictFx({ payable: true, blockers: [] })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const idsB = rB.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(idsB).not.toContain("commission:blocked");
+
+    // Case C — does NOT fire: status=paid even with stale blockers
+    const rC = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "paid",
+            paid_at: "2026-06-22T12:00:00Z",
+            payment_method: "ach",
+          }),
+          verdictFx({ payable: false, blockers: [{ key: "compliance_not_passed", label: "x" }] })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const idsC = rC.groups.flatMap((g) => g.cards.map((c) => c.id));
+    expect(idsC).not.toContain("commission:blocked");
+  });
+
+  it("'Payment processing' fires only when status='payment_processing'", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "payment_processing" })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const card = r.groups
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "commission:processing");
+    expect(card?.tone).toBe("info");
+  });
+
+  it("'Commission paid' uses real paid_at + humanized payment-method detail", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "paid",
+            paid_at: "2026-06-22T12:00:00Z",
+            payment_method: "ach",
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const card = r.groups
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "commission:paid");
+    expect(card?.tone).toBe("ok");
+    expect(card?.iconName).toBe("check-circle-2");
+    expect(card?.occurred_at).toBe("2026-06-22T12:00:00Z");
+    expect(card?.detail).toBe("Paid via ACH direct deposit.");
+  });
+
+  it("'Commission disputed' fires only when status='disputed'", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "disputed" })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const card = r.groups
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "commission:disputed");
+    expect(card?.tone).toBe("warn");
+    expect(card?.iconName).toBe("alert-triangle");
+  });
+
+  it("cards sort chronologically alongside other timeline events", () => {
+    const r = composeTimelineState(
+      base({
+        callerRole: "broker",
+        history: {
+          kind: "broker",
+          cards: [
+            {
+              id: "paperwork-event",
+              occurred_at: "2026-06-21T10:00:00Z",
+              kind: "audit" as const,
+              tone: "info" as const,
+              iconName: "pencil" as const,
+              label: "Some paperwork event",
+            },
+          ],
+        },
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "paid",
+            approved_at: "2026-06-20T10:00:00Z",
+            paid_at: "2026-06-22T10:00:00Z",
+            payment_method: "ach",
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    // Cards across days flatten in DESC order: paid (6/22) → paperwork (6/21) → approved (6/20)
+    const ordered = r.groups.flatMap((g) =>
+      g.cards.map((c) => ({ id: c.id, at: c.occurred_at }))
+    );
+    const positions = {
+      paid: ordered.findIndex((c) => c.id === "commission:paid"),
+      paperwork: ordered.findIndex((c) => c.id === "paperwork-event"),
+      approved: ordered.findIndex((c) => c.id === "commission:approved"),
+    };
+    expect(positions.paid).toBeLessThan(positions.paperwork);
+    expect(positions.paperwork).toBeLessThan(positions.approved);
+  });
+
+  it("cards group by day via existing groupByDay (no commission-specific logic)", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "paid",
+            approved_at: "2026-06-20T10:00:00Z",
+            paid_at: "2026-06-26T10:00:00Z",
+            payment_method: "ach",
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    // Paid card on 6/26 (Today), Approved on 6/20 (older)
+    const todayGroup = r.groups.find((g) => g.label === "Today");
+    expect(todayGroup?.cards.some((c) => c.id === "commission:paid")).toBe(true);
+    const olderGroup = r.groups.find((g) => g.dateKey === "2026-06-20");
+    expect(olderGroup?.cards.some((c) => c.id === "commission:approved")).toBe(
+      true
+    );
+  });
+
+  it("Commission filter chip is present in broker tier (6th chip)", () => {
+    const r = composeTimelineState(
+      base({
+        callerRole: "broker",
+        history: { kind: "broker", cards: [] },
+        commission: okFetch(
+          safeCommissionFx({ commission_status: "calculated" })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    expect(r.filterChips.length).toBe(6);
+    expect(r.filterChips.map((c) => c.key)).toContain("commission");
+  });
+
+  it("SAFETY: serialized commission cards never leak amount/Stripe/notes seed strings", () => {
+    const r = composeTimelineState(
+      base({
+        commission: okFetch(
+          safeCommissionFx({
+            commission_status: "paid",
+            paid_at: "2026-06-22T12:00:00Z",
+            payment_method: "ach",
+            payment_reference_tail: "4821",
+            has_statement: true,
+          }),
+          verdictFx({
+            payable: false,
+            blockers: [
+              { key: "compliance_not_passed", label: "compliance fail", current: "issues_found" },
+            ],
+          })
+        ),
+        workspaceBaseUrl: "/workspace/txn-1",
+      })
+    );
+    const commissionCards = r.groups
+      .flatMap((g) => g.cards)
+      .filter((c) => c.kind === "commission");
+    const ser = JSON.stringify(commissionCards);
+    const FORBIDDEN = [
+      "net_commission",
+      "agent_amount",
+      "brokerage_amount",
+      "agent_split_pct",
+      "cap_applied",
+      "cap_remaining",
+      "stripe_payout_id",
+      "payment_reference",   // raw full-length reference must not leak; tail-only allowed but lives in SafeCommissionRow not in cards
+      "revision_notes",
+      "coaching_notes",
+      "flood_history",
+    ];
+    for (const f of FORBIDDEN) {
+      expect(ser).not.toContain(f);
+    }
+  });
+});
+
 // ── Boundary lint ───────────────────────────────────────────────────
 
 describe("Workflow 3.3.1 boundary lint", () => {
@@ -567,16 +927,22 @@ describe("Workflow 3.3.1 boundary lint", () => {
       "src/portal/workspace/timeline/safe-history-event.ts",
       "src/portal/workspace/timeline/compose-timeline.ts",
     ];
+    // W3.4.3.2 — commission_status is a SAFE-projection enum field
+    // (introduced via SafeCommissionRow in W3.4.3.1). It is read by
+    // the lifecycle synthesizer and is intentionally NOT forbidden.
+    // The remaining names ARE broker-only — never appear here.
     const FORBIDDEN = [
       "net_commission",
+      "agent_amount",
       "agent_split_pct",
       "brokerage_amount",
       "cap_applied",
+      "cap_remaining_before",
+      "cap_remaining_after",
       "stripe_payout_id",
-      "payment_reference",
+      "payment_reference", // raw full string; tail-only via SafeCommissionRow is OK
       "revision_notes",
       "coaching_notes",
-      "commission_status",
     ];
     for (const f of composerFiles) {
       const src = stripComments(
