@@ -52,6 +52,9 @@ import { composeComplianceTabState } from "@/src/portal/workspace/compliance/com
 import type { ComplianceTabState } from "@/src/portal/workspace/compliance/types";
 import type { MissingFieldsItem } from "@/src/portal/documents/details/types";
 import { fetchTimelineHistorySafely } from "@/src/portal/workspace/timeline/api";
+import { fetchCommissionWorkspaceSafely } from "@/src/portal/workspace/commission/api";
+import { composeCommissionState } from "@/src/portal/workspace/commission/compose-commission";
+import type { CommissionWorkspaceState } from "@/src/portal/workspace/commission/types";
 import { composeTimelineState } from "@/src/portal/workspace/timeline/compose-timeline";
 import type { TimelineTabState } from "@/src/portal/workspace/timeline/types";
 
@@ -191,12 +194,23 @@ export default async function TransactionWorkspacePage({
     transactionId,
     callerRole,
   });
+  // Workflow 3.4.3.1 — Commission Workspace fetch (server-only api.ts
+  // owns endpoint paths). Two-stage: list the caller's commissions and
+  // pick the one for this transaction; then call the W3.4.3.0 read-
+  // only gate-verdict endpoint for the per-gate verdict + payable flag.
+  // Both fail soft. Result is boundary-masked at the api.ts layer —
+  // composer never sees amounts / splits / Stripe IDs / notes.
+  const commissionWorkspacePromise = fetchCommissionWorkspaceSafely({
+    accessToken: session.access_token,
+    transactionId,
+  });
   const [
     clientIntelligence,
     documentsResult,
     missingFieldsSummary,
     payoutReadinessSafe,
     timelineHistoryResult,
+    commissionWorkspaceResult,
   ] = await Promise.all([
       loadClientIntelligenceForTransaction({
         supabase,
@@ -209,6 +223,7 @@ export default async function TransactionWorkspacePage({
       missingFieldsPromise,
       payoutReadinessPromise,
       timelineHistoryPromise,
+      commissionWorkspacePromise,
     ]);
 
   const documents =
@@ -283,6 +298,37 @@ export default async function TransactionWorkspacePage({
     });
   }
 
+  // ── Compose CommissionTab state (Workflow 3.4.3.1) ─────────────────
+  // Reads the W3.4.3.0 gate-verdict + safe-projected commission row.
+  // Composer is pure; commission logic stays in Vault. NO amounts /
+  // splits / Stripe IDs / broker notes / payout IDs surface.
+  let commissionState: CommissionWorkspaceState | null = null;
+  if (activeTab === "commission") {
+    // Map the W3.2.C.2-masked compliance gate status to the broker-side
+    // shape names the composer's SideSummary expects. The verdict's
+    // blocker list is independently authoritative for the gate-row
+    // tone — this informs the side-summary copy only.
+    const complianceGate =
+      payoutReadinessSafe?.gates.compliance_checklist_complete ?? null;
+    const complianceOverallStatus =
+      complianceGate === "ok"
+        ? "passed"
+        : complianceGate === "warning"
+        ? "issues_found"
+        : complianceGate === "blocked"
+        ? "failed"
+        : null;
+    commissionState = composeCommissionState({
+      fetchResult: commissionWorkspaceResult,
+      transactionStatus: txnRow?.status ?? null,
+      brokerReviewStatus: txnRow?.broker_review_status ?? null,
+      complianceOverallStatus,
+      closingDate: txnRow?.closing_date ?? null,
+      workspaceBaseUrl: `/workspace/${resolvedCard.transaction_id}`,
+      paperworkPackageUrl,
+    });
+  }
+
   // ── Per-form drawer hydration (Workflow 3.2.A) ─────────────────────
   // Only relevant when the Documents tab is active. parseFormId returns
   // null for any value not in the loaded documents scope — cross-tenant
@@ -350,7 +396,7 @@ export default async function TransactionWorkspacePage({
       case "compliance":
         return complianceState ? <ComplianceTab state={complianceState} /> : null;
       case "commission":
-        return <CommissionTab />;
+        return commissionState ? <CommissionTab state={commissionState} /> : null;
       case "ai":
         return <AITab transactionId={resolvedCard.transaction_id} />;
     }
