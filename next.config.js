@@ -36,19 +36,6 @@ const nextConfig = {
       // /portal/[token] is the public client-facing page and is NOT
       // matched (exact-match source).
       { source: '/deal-portals', destination: '/workspace/portals', permanent: false },
-
-      // R8 — Resources + Scripts are now tabs inside the Training Hub
-      // (see R5). Exact-match sources, so /scripts/<id> (none exist
-      // today) and any future sub-routes would NOT be captured.
-      // Query strings on the source carry through to the destination,
-      // e.g. /scripts?category=buyer → /training?tab=scripts&category=buyer.
-      { source: '/resources', destination: '/training?tab=resources', permanent: false },
-      { source: '/scripts',   destination: '/training?tab=scripts',   permanent: false },
-
-      // R8 — Marketing Resources was a small static page superseded
-      // by the Training Hub's Resources tab. Folded into the same
-      // destination as /resources to preserve agent intent.
-      { source: '/marketing-resources', destination: '/training?tab=resources', permanent: false },
     ];
   },
 }
