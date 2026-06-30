@@ -1539,7 +1539,16 @@ export default function PortalPage({
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Unable to access this portal.");
+        const errMsg = body.error || "Unable to access this portal.";
+        // If server says wrong password, show the password field
+        if (res.status === 403 && errMsg.toLowerCase().includes("password")) {
+          setRequiresPassword(true);
+        }
+        // If server says email not authorized, show authorized email messaging
+        if (res.status === 403 && errMsg.toLowerCase().includes("not authorized")) {
+          setRequiresAuthorizedEmail(true);
+        }
+        throw new Error(errMsg);
       }
 
       const raw = await res.json();
