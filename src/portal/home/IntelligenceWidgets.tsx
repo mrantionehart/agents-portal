@@ -38,6 +38,52 @@ import {
   leadKindLabel,
   relativeTime,
 } from "./intelligence-helpers";
+import type { WorkspaceCard } from "../workspace/types";
+
+// ── W3.4.6.4 — Recommended Actions pure helpers ────────────────────
+//
+// These helpers exist so the widget's projection is testable without a
+// React renderer. The widget itself is server-rendered and pure.
+
+export interface RecommendedActionItem {
+  transaction_id: string;
+  property_address: string | null;
+  client_name: string | null;
+  label: string;
+  blocker: boolean;
+  drill_url: string;
+  /** Coach-side kind so downstream icon mapping can branch without
+   *  recomputing anything. */
+  kind: string;
+}
+
+/**
+ * Project a list of workspace cards into the Recommended Actions
+ * widget shape. Pure. Read-only. Returns ONLY cards whose Vault-
+ * produced `coach_recommendation` is non-null. Blockers come first,
+ * then non-blockers — natural urgency ordering with no derivation.
+ */
+export function pickRecommendedActions(
+  cards: ReadonlyArray<WorkspaceCard>
+): RecommendedActionItem[] {
+  const out: RecommendedActionItem[] = [];
+  for (const c of cards) {
+    const r = c.coach_recommendation;
+    if (!r) continue;
+    out.push({
+      transaction_id: c.transaction_id,
+      property_address: c.property_address,
+      client_name: c.client_name,
+      label: r.label,
+      blocker: r.blocker,
+      drill_url: r.drill_url,
+      kind: r.kind,
+    });
+  }
+  // Stable sort: blockers first, otherwise preserve incoming order.
+  out.sort((a, b) => Number(b.blocker) - Number(a.blocker));
+  return out;
+}
 
 // ── Common atoms ────────────────────────────────────────────────────
 
@@ -388,6 +434,68 @@ export function PipelineSnapshotWidget({
         <Stat label="Sign" value={snapshot.signature} tone="ok" />
         <Stat label="Done" value={snapshot.completed} tone="ok" />
       </div>
+    </WidgetShell>
+  );
+}
+
+// ── 7. Recommended Actions (W3.4.6.4) ──────────────────────────────
+//
+// Surfaces every WorkspaceCard whose Vault payload carries a non-null
+// coach_recommendation. Pure presentation: every label / blocker flag
+// / drill URL comes verbatim from the Vault-projected payload. No
+// readiness math, no commission math, no blocker derivation.
+
+export function RecommendedActionsWidget({
+  cards,
+}: {
+  cards: ReadonlyArray<WorkspaceCard>;
+}) {
+  const items = pickRecommendedActions(cards);
+  return (
+    <WidgetShell title="Recommended Actions" icon={Sparkles} href="/workspace">
+      {items.length === 0 ? (
+        <WidgetEmpty
+          message="No coaching actions right now."
+          hint="The AI Coach surfaces a next step here whenever a deal needs your attention."
+        />
+      ) : (
+        <ul className="space-y-2">
+          {items.map((it) => (
+            <li
+              key={it.transaction_id}
+              className="rounded-md border border-[#1a1a2e] bg-[#0b0b10] px-3 py-2 text-xs"
+            >
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[#F1F1F3] font-medium truncate">
+                      {it.property_address ?? it.client_name ?? "Transaction"}
+                    </span>
+                    {it.blocker ? (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#7a2a2a]/40 text-[#fca5a5] border border-[#7a2a2a]">
+                        Blocker
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#7a5a2a]/40 text-[#facc15] border border-[#7a5a2a]">
+                        Next step
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[#A1A1AA] mt-0.5 truncate">
+                    {it.label}
+                  </div>
+                </div>
+                <Link
+                  href={it.drill_url}
+                  className="text-[#C9A84C] hover:text-[#dbb86a] inline-flex items-center gap-1 shrink-0"
+                >
+                  Open <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </WidgetShell>
   );
 }

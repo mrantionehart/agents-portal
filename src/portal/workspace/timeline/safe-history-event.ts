@@ -74,6 +74,20 @@ function mapAuditEvent(
     if (commissionCard) return commissionCard;
   }
 
+  // W3.4.6.4 — AI Transaction Coach lifecycle events. Same precedent
+  // as the commission short-circuit above: detect by `coach.` prefix
+  // and emit a card with kind='coach'. The Coach trigger engine
+  // (W3.4.6.2) currently writes notifications + push only — once a
+  // future phase starts dispatching paperwork_audit_log rows with
+  // field_path='coach.*', this mapper will render them safely
+  // without parsing the underlying new_value JSON. Until then,
+  // mapCoachAuditEvent returns null for any unrecognized fieldPath
+  // and falls through to the generic broker_review handler.
+  if (fieldPath.startsWith("coach.")) {
+    const coachCard = mapCoachAuditEvent(fieldPath, id, occurred_at, ctx, source);
+    if (coachCard) return coachCard;
+  }
+
   switch (source) {
     case "system": {
       if (fieldPath === "transaction.promoted") {
@@ -399,4 +413,47 @@ function envelopeLabel(eventType: string, formId: string | null): string {
  *  generic envelope label until W3.4 wires a richer feed. */
 function pickFormIdFromInstance(_id: string | null): string | null {
   return null;
+}
+
+// ── W3.4.6.4 — Coach lifecycle event mapper ────────────────────────
+//
+// Renders `coach.*` audit-log entries as kind='coach' cards. We use a
+// fixed dictionary of recognized field_path suffixes so the Portal
+// never has to parse the underlying new_value JSON. Unknown
+// `coach.<suffix>` events fall back to a safe generic label rather
+// than rendering raw data.
+//
+// SAFETY: this mapper writes Portal-owned label strings ONLY. The
+// raw new_value JSON dispatched by the Vault Coach trigger is never
+// inspected, parsed, or rendered.
+
+const COACH_EVENT_LABELS: Record<string, string> = {
+  // Emitted when the W3.4.6.2 trigger fires + a notification lands.
+  "coach.recommendation_emitted": "Coach recommendation emitted",
+  // Emitted if/when the agent dismisses a recommendation (future phase).
+  "coach.recommendation_dismissed": "Coach recommendation dismissed",
+  // Emitted if/when the agent accepts/snoozes (future phase).
+  "coach.recommendation_accepted": "Coach recommendation accepted",
+  "coach.recommendation_snoozed": "Coach recommendation snoozed",
+};
+
+function mapCoachAuditEvent(
+  fieldPath: string,
+  id: string,
+  occurred_at: string,
+  ctx: { transactionId: string },
+  source: string
+): TimelineCard | null {
+  const drillHref = `/workspace/${ctx.transactionId}`;
+  const label = COACH_EVENT_LABELS[fieldPath] ?? "Coach activity";
+  return {
+    id,
+    occurred_at,
+    kind: "coach",
+    tone: "info",
+    iconName: "list-checks",
+    label,
+    source,
+    drillHref,
+  };
 }

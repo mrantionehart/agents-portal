@@ -25,7 +25,20 @@ interface Message {
 const VAULT_API_URL =
   (process.env.NEXT_PUBLIC_VAULT_API_URL ?? "https://vault.hartfeltrealestate.com/api").replace(/\/$/, "");
 
-export default function AIAssistantPanel({ transactionId }: { transactionId: string }) {
+/** W3.4.6.4 — Quick-action chip props. When `coachSuggestedPrompt` is
+ *  passed, the panel renders a one-tap chip that sends EXACTLY that
+ *  string as the next user message. No rewriting, no prompt
+ *  engineering, no mutation — the chip is a verbatim passthrough of
+ *  the Vault-produced suggested_prompt. */
+export interface AIAssistantPanelProps {
+  transactionId: string;
+  coachSuggestedPrompt?: string | null;
+}
+
+export default function AIAssistantPanel({
+  transactionId,
+  coachSuggestedPrompt,
+}: AIAssistantPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -35,10 +48,10 @@ export default function AIAssistantPanel({ transactionId }: { transactionId: str
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [coachChipUsed, setCoachChipUsed] = useState(false);
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const userMsg = input.trim();
+  async function sendMessage(rawMsg: string) {
+    const userMsg = rawMsg.trim();
     if (!userMsg || busy) return;
     setMessages((m) => [...m, { role: "user", content: userMsg }]);
     setInput("");
@@ -107,6 +120,25 @@ export default function AIAssistantPanel({ transactionId }: { transactionId: str
     }
   }
 
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    await sendMessage(input);
+  }
+
+  // W3.4.6.4 — render the chip only when Vault produced a
+  // suggested_prompt AND the agent hasn't already used it. The chip
+  // sends the prompt VERBATIM — never rewritten, never wrapped.
+  const showCoachChip =
+    !coachChipUsed &&
+    typeof coachSuggestedPrompt === "string" &&
+    coachSuggestedPrompt.trim().length > 0;
+
+  async function handleCoachChip() {
+    if (!showCoachChip || !coachSuggestedPrompt) return;
+    setCoachChipUsed(true);
+    await sendMessage(coachSuggestedPrompt);
+  }
+
   return (
     <div
       id="ai-assistant"
@@ -119,6 +151,32 @@ export default function AIAssistantPanel({ transactionId }: { transactionId: str
           transaction-scoped
         </span>
       </header>
+
+      {showCoachChip && (
+        <div className="px-4 py-2 border-b border-[#1a1a2e] bg-[#0b0b10]/60">
+          <button
+            type="button"
+            onClick={handleCoachChip}
+            disabled={busy}
+            data-testid="coach-quick-action-chip"
+            className="
+              w-full text-left text-xs text-[#E8D5A3]
+              bg-[#C9A84C]/10 hover:bg-[#C9A84C]/15
+              border border-[#C9A84C]/30
+              rounded-md px-3 py-2
+              transition-colors duration-[180ms]
+              disabled:opacity-50 disabled:cursor-not-allowed
+              inline-flex items-start gap-2
+            "
+          >
+            <Sparkles className="h-3.5 w-3.5 text-[#C9A84C] mt-0.5 shrink-0" />
+            <span className="min-w-0">
+              <span className="text-[#71717A]">Ask AI: </span>
+              <span className="text-[#F1F1F3]">{coachSuggestedPrompt}</span>
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
         {messages.map((m, i) => (

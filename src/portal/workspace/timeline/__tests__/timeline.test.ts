@@ -1304,3 +1304,113 @@ describe("Workflow 3.3.1 boundary lint", () => {
     }
   });
 });
+
+// ============================================================================
+// W3.4.6.4 — coach.* timeline event mapping
+// ============================================================================
+// The mapper short-circuits on field_path prefix 'coach.' BEFORE the
+// generic source switch and emits cards with kind='coach'. Vault has
+// not yet started dispatching paperwork_audit_log rows with this
+// field_path, so these tests are forward-compat: they prove the
+// mapper is ready for the future emission without coupling to a
+// specific Coach event taxonomy. Same precedent as W3.4.4.1
+// commission.* short-circuit landed before Vault emitted those.
+
+describe("W3.4.6.4 — coach.* timeline mapping", () => {
+  const ctx = { transactionId: "t-coach-1" };
+
+  it("maps a known coach.* field_path to kind='coach' with a Portal-owned label", () => {
+    const card = toSafeTimelineCard(
+      {
+        kind: "audit",
+        id: "evt-1",
+        created_at: "2026-06-29T12:00:00Z",
+        field_path: "coach.recommendation_emitted",
+        source: "broker_review",
+      },
+      ctx
+    );
+    expect(card).not.toBeNull();
+    expect(card?.kind).toBe("coach");
+    expect(card?.label).toBe("Coach recommendation emitted");
+    expect(card?.tone).toBe("info");
+    // Drill href is local /workspace/<id> only; never external.
+    expect(card?.drillHref).toBe(`/workspace/${ctx.transactionId}`);
+    // Source preserved for broker-tier filter chips.
+    expect(card?.source).toBe("broker_review");
+  });
+
+  it("falls back to a safe generic label for unknown coach.* field_paths", () => {
+    const card = toSafeTimelineCard(
+      {
+        kind: "audit",
+        id: "evt-2",
+        created_at: "2026-06-29T12:05:00Z",
+        field_path: "coach.future_event_we_dont_know_yet",
+        source: "broker_review",
+      },
+      ctx
+    );
+    expect(card).not.toBeNull();
+    expect(card?.kind).toBe("coach");
+    expect(card?.label).toBe("Coach activity");
+    // The unknown-suffix path MUST NOT render the raw field_path string
+    // — that would surface internal taxonomy.
+    expect(card?.label).not.toContain("future_event_we_dont_know_yet");
+    expect(card?.label).not.toContain("coach.");
+  });
+
+  it("does NOT include forbidden tokens in the rendered card (safety)", () => {
+    const card = toSafeTimelineCard(
+      {
+        kind: "audit",
+        id: "evt-3",
+        created_at: "2026-06-29T12:10:00Z",
+        field_path: "coach.recommendation_emitted",
+        source: "broker_review",
+        // Hostile extras the mapper MUST NOT propagate. We never parse
+        // new_value, so this is double-belt-and-suspenders.
+        new_value: {
+          net_commission: "leak-net",
+          stripe_payout_id: "leak-stripe",
+          flood_history: "leaked",
+          client_email: "leak@example.com",
+        },
+      } as never,
+      ctx
+    );
+    expect(card).not.toBeNull();
+    const ser = JSON.stringify(card);
+    for (const f of [
+      "net_commission",
+      "stripe_payout_id",
+      "flood_history",
+      "lead_paint",
+      "client_email",
+      "leak-net",
+      "leak-stripe",
+      "leak@example.com",
+      "transaction_path",
+    ]) {
+      expect(ser).not.toContain(f);
+    }
+    expect(ser).not.toMatch(/facts\./);
+    expect(ser).not.toMatch(/terms\./);
+  });
+
+  it("commission.* events still route to kind='commission' (no regression)", () => {
+    // Sanity: coach.* short-circuit must NOT poach commission.* events.
+    const c = toSafeTimelineCard(
+      {
+        kind: "audit",
+        id: "evt-4",
+        created_at: "2026-06-29T12:15:00Z",
+        field_path: "commission.calculated",
+        source: "broker_review",
+      },
+      ctx
+    );
+    expect(c?.kind).toBe("commission");
+    expect(c?.label).toBe("Commission calculated");
+  });
+});

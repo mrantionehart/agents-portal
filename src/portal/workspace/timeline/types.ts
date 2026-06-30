@@ -16,7 +16,13 @@ export type TimelineKind =
   | "compliance"
   | "milestone"
   | "task"
-  | "commission";
+  | "commission"
+  // W3.4.6.4 — AI Transaction Coach lifecycle events. Vault emits
+  // these as paperwork_audit_log rows with field_path='coach.*' once
+  // the W3.4.6.2 trigger engine runs. Today (no Vault emitter for
+  // coach.* yet) this kind is unused at runtime — the mapper is
+  // ready for forward compatibility.
+  | "coach";
 
 export interface TimelineCard {
   /** Stable key for React + tests. */

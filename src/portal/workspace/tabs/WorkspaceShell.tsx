@@ -14,6 +14,7 @@ import LeftRail, { type LeftRailDealPortal } from "./LeftRail";
 import TabStrip from "./TabStrip";
 import type { TabId } from "./tab-config";
 import type { ComposedBannerState } from "../banner/compose-banner-state";
+import CoachStrip from "../components/CoachStrip";
 
 export interface WorkspaceShellProps {
   card: WorkspaceCard;
@@ -46,6 +47,12 @@ export default function WorkspaceShell({
       </Link>
 
       <ComplianceBanner state={bannerState} />
+
+      {/* W3.4.6.4 — AI Transaction Coach strip. Sourced verbatim from
+          Vault's W3.4.6.3 workspace endpoint (`card.coach_recommendation`).
+          Renders nothing when the Coach has no actionable recommendation
+          (null / nothing_urgent / composer error). */}
+      <CoachStrip recommendation={card.coach_recommendation} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-4">
         {/* Left rail */}
