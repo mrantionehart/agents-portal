@@ -128,24 +128,33 @@ function BrandHeader() {
 function EmailGate({
   propertyTitle,
   propertyAddress,
+  requiresPassword,
+  requiresAuthorizedEmail,
   onSubmit,
   loading,
   error,
 }: {
   propertyTitle?: string;
   propertyAddress?: string;
-  onSubmit: (email: string, name: string) => void;
+  requiresPassword?: boolean;
+  requiresAuthorizedEmail?: boolean;
+  onSubmit: (email: string, name: string, password: string) => void;
   loading: boolean;
   error: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
-    onSubmit(email.trim(), name.trim());
+    onSubmit(email.trim(), name.trim(), password);
   }
+
+  const inputStyle = {
+    "--tw-ring-color": "#C5A572",
+  } as React.CSSProperties;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex flex-col">
@@ -176,8 +185,9 @@ function EmailGate({
               View This Exclusive Presentation
             </h3>
             <p className="text-gray-400 text-sm mb-6">
-              Enter your email to unlock the full property details, photos,
-              videos, and documents.
+              {requiresAuthorizedEmail
+                ? "Enter your authorized email to access this property presentation."
+                : "Enter your email to unlock the full property details, photos, videos, and documents."}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -189,11 +199,7 @@ function EmailGate({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
                   className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent text-sm"
-                  style={
-                    {
-                      "--tw-ring-color": "#C5A572",
-                    } as React.CSSProperties
-                  }
+                  style={inputStyle}
                 />
               </div>
               <div>
@@ -203,13 +209,22 @@ function EmailGate({
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name (optional)"
                   className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent text-sm"
-                  style={
-                    {
-                      "--tw-ring-color": "#C5A572",
-                    } as React.CSSProperties
-                  }
+                  style={inputStyle}
                 />
               </div>
+              {requiresPassword && (
+                <div>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent text-sm"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
 
               {error && (
                 <p className="text-red-500 text-sm text-left">{error}</p>
@@ -1466,10 +1481,13 @@ export default function PortalPage({
   const [clientEmail, setClientEmail] = useState("");
   const [clientName, setClientName] = useState("");
 
+  // Preview state — property info + gate requirements
   const [previewTitle, setPreviewTitle] = useState<string | undefined>();
   const [previewAddress, setPreviewAddress] = useState<string | undefined>();
+  const [requiresPassword, setRequiresPassword] = useState(false);
+  const [requiresAuthorizedEmail, setRequiresAuthorizedEmail] = useState(false);
 
-  // Fetch preview info on mount
+  // Fetch preview info on mount (title, address, gate flags)
   useEffect(() => {
     async function fetchPreview() {
       try {
@@ -1480,14 +1498,11 @@ export default function PortalPage({
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.property) {
-            setPreviewTitle(data.property.title);
-            setPreviewAddress(
-              data.property.address ||
-                [data.property.city, data.property.state]
-                  .filter(Boolean)
-                  .join(", ")
-            );
+          if (data.preview) {
+            setPreviewTitle(data.preview.title);
+            setPreviewAddress(data.preview.address);
+            setRequiresPassword(!!data.preview.requires_password);
+            setRequiresAuthorizedEmail(!!data.preview.requires_authorized_email);
           }
         } else if (res.status === 404) {
           setNotFound(true);
@@ -1499,7 +1514,7 @@ export default function PortalPage({
     fetchPreview();
   }, [token]);
 
-  async function handleEmailSubmit(email: string, name: string) {
+  async function handleEmailSubmit(email: string, name: string, password: string) {
     setLoading(true);
     setError(null);
     setClientEmail(email);
@@ -1509,7 +1524,12 @@ export default function PortalPage({
       const res = await fetch("/api/deal-portal/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, email, name: name || undefined }),
+        body: JSON.stringify({
+          token,
+          email,
+          name: name || undefined,
+          ...(password ? { password } : {}),
+        }),
       });
 
       if (res.status === 404) {
@@ -1601,6 +1621,8 @@ export default function PortalPage({
       <EmailGate
         propertyTitle={previewTitle}
         propertyAddress={previewAddress}
+        requiresPassword={requiresPassword}
+        requiresAuthorizedEmail={requiresAuthorizedEmail}
         onSubmit={handleEmailSubmit}
         loading={loading}
         error={error}
