@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { userClient } from '@/lib/security'
+import { ensureVaultForms } from '@/lib/vault-forward'
+import { mapPortalTransactionTypeToVaultType } from '@/lib/portal-transaction-type'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -152,22 +154,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    // Auto-generate doc requirements based on type
-    const docRequirements = getDocRequirements(type)
-    if (docRequirements.length > 0) {
-      await admin
-        .from('transaction_doc_requirements')
-        .insert(
-          docRequirements.map((doc, idx) => ({
-            transaction_id: transaction.id,
-            doc_label: doc.label,
-            folder: doc.folder,
-            required: doc.required,
-            signature_required: doc.signatureRequired,
-            condition: doc.condition || null,
-            sort_order: idx,
-          }))
-        )
+    // AGENT.SIGN.1B (Phase 0) — Vault System A is the source of truth for
+    // required documents. We NO LONGER seed transaction_doc_requirements
+    // (System B). Instead we ask Vault to materialize form_instances from
+    // deriveRequiredForms(), using the mapped Vault transaction type
+    // (AGENT.SIGN.1B.5). Best-effort: if Vault is unreachable the compliance
+    // checklist route calls ensure-forms again on read (idempotent), so a
+    // failure here never blocks transaction creation. Unsupported legacy types
+    // (referral/wholesale/double_close) are skipped — NOT mapped to purchase.
+    const mapped = mapPortalTransactionTypeToVaultType(type)
+    if (mapped.supported && mapped.vaultType) {
+      try {
+        const ensured = await ensureVaultForms(request, transaction.id, mapped.vaultType)
+        if (!ensured.ok) {
+          console.warn(
+            `[transactions/create] ensureVaultForms non-OK for ${transaction.id} (${type}→${mapped.vaultType}):`,
+            ensured.status,
+            ensured.body?.error
+          )
+        }
+      } catch (ensureErr) {
+        console.warn('[transactions/create] ensureVaultForms threw:', ensureErr)
+      }
+    } else {
+      console.warn(
+        `[transactions/create] type '${type}' is not covered by Vault System A; skipping ensure-forms (legacy checklist fallback).`
+      )
     }
 
     // Auto-create commission record if contract price is provided
@@ -201,6 +213,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * @deprecated AGENT.SIGN.1B (Phase 0) — SYSTEM B rule set. Vault System A
+ * (deriveRequiredForms) is now the single source of truth for required
+ * documents. This function is retained ONLY for reference during the
+ * transaction_doc_requirements drain; it has NO callers and MUST NOT be wired
+ * back into any create/seed path. Do not add rules here. Slated for deletion
+ * once legacy rows are drained.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getDocRequirements(type: string) {
   // ── Florida-specific compliance document requirements ──────────
   // Phases: listing_intake → under_contract → pre_closing → closing → compliance
