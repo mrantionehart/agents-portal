@@ -26,6 +26,9 @@ import {
   Copy,
   MessageCircle,
   Send,
+  DollarSign,
+  Star,
+  Users,
 } from "lucide-react";
 
 // ============================================================================
@@ -1263,6 +1266,179 @@ function ClientFeedbackSection({
 }
 
 // ============================================================================
+// Buyer Engagement — Interest / Offer / WhatsApp
+// ============================================================================
+
+const WHATSAPP_NJ = "https://chat.whatsapp.com/L20oVKxQOXvDcdZ7KFq6fy";
+const WHATSAPP_FL = "https://chat.whatsapp.com/L20oVKxQOXvDcdZ7KFq6fy";
+
+function BuyerEngagement({ token }: { token: string }) {
+  const [mode, setMode] = useState<"idle" | "interested" | "offer" | "success">("idle");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [offerAmount, setOfferAmount] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/deal-portal/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          type: mode === "offer" ? "offer" : "interested",
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+          offer_amount: mode === "offer" ? Number(offerAmount.replace(/[^0-9.]/g, "")) : undefined,
+          message: message.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to submit. Please try again.");
+      }
+
+      setMode("success");
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (mode === "success") {
+    return (
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-8 max-w-2xl text-center">
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: "#16a34a" }} />
+          <h4 className="font-serif text-xl font-bold text-gray-900 mb-2">
+            Thank You!
+          </h4>
+          <p className="text-gray-600 text-sm">
+            Your submission has been received. Our team will be in touch shortly.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (mode === "interested" || mode === "offer") {
+    const isOffer = mode === "offer";
+    return (
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <SectionHeading>{isOffer ? "Submit an Offer" : "Express Interest"}</SectionHeading>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8 max-w-lg space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Name *</label>
+            <input type="text" required value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ "--tw-ring-color": "#C5A572" } as React.CSSProperties} placeholder="Your full name" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Email *</label>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ "--tw-ring-color": "#C5A572" } as React.CSSProperties} placeholder="you@email.com" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Phone</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ "--tw-ring-color": "#C5A572" } as React.CSSProperties} placeholder="(555) 123-4567" />
+          </div>
+          {isOffer && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Offer Amount *</label>
+              <input type="text" required value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{ "--tw-ring-color": "#C5A572" } as React.CSSProperties} placeholder="$500,000" />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Message (Optional)</label>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+              style={{ "--tw-ring-color": "#C5A572" } as React.CSSProperties} placeholder="Any additional details..." />
+          </div>
+
+          {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
+
+          <div className="flex items-center gap-3 pt-2">
+            <button type="submit" disabled={submitting}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium text-sm transition-opacity disabled:opacity-50"
+              style={{ backgroundColor: isOffer ? "#16a34a" : "#C5A572" }}>
+              {submitting ? (
+                <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>{isOffer ? <DollarSign className="w-4 h-4" /> : <Star className="w-4 h-4" />} {isOffer ? "Submit Offer" : "Submit Interest"}</>
+              )}
+            </button>
+            <button type="button" onClick={() => setMode("idle")} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+          </div>
+        </form>
+      </section>
+    );
+  }
+
+  // Idle — show three cards
+  return (
+    <section className="max-w-6xl mx-auto px-6 py-12">
+      <SectionHeading>Interested in This Property?</SectionHeading>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl">
+        {/* I'm Interested */}
+        <button onClick={() => setMode("interested")}
+          className="group rounded-xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 p-6 text-center transition-all hover:shadow-md hover:border-amber-300">
+          <div className="w-12 h-12 rounded-full bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center mx-auto mb-3 transition-colors">
+            <Star className="w-6 h-6 text-amber-600" />
+          </div>
+          <p className="font-semibold text-gray-900 text-sm mb-1">I&apos;m Interested</p>
+          <p className="text-xs text-gray-500">Get more info about this property</p>
+        </button>
+
+        {/* Submit an Offer */}
+        <button onClick={() => setMode("offer")}
+          className="group rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 p-6 text-center transition-all hover:shadow-md hover:border-green-300">
+          <div className="w-12 h-12 rounded-full bg-green-100 group-hover:bg-green-200 flex items-center justify-center mx-auto mb-3 transition-colors">
+            <DollarSign className="w-6 h-6 text-green-600" />
+          </div>
+          <p className="font-semibold text-gray-900 text-sm mb-1">Submit an Offer</p>
+          <p className="text-xs text-gray-500">Send your offer directly to us</p>
+        </button>
+
+        {/* Join WhatsApp */}
+        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+            <Users className="w-6 h-6 text-emerald-600" />
+          </div>
+          <p className="font-semibold text-gray-900 text-sm mb-2">Off-Market Deals</p>
+          <p className="text-xs text-gray-500 mb-3">Join our WhatsApp groups for exclusive off-market opportunities</p>
+          <div className="flex flex-col gap-2">
+            <a href={WHATSAPP_NJ} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+              NJ Off-Market Deals
+            </a>
+            <a href={WHATSAPP_FL} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+              FL Off-Market Deals
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
 // Full Presentation View
 // ============================================================================
 
@@ -1446,6 +1622,9 @@ function PropertyPresentation({
       {regularDocs.length > 0 && (
         <DocumentsSection media={regularDocs} />
       )}
+
+      {/* Buyer Engagement — Interest / Offer / WhatsApp */}
+      <BuyerEngagement token={token} />
 
       {/* Agent Contact */}
       <AgentContact agent={agent} />
