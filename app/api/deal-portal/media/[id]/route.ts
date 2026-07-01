@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { VAULT_API_URL } from "@/lib/vault-client";
 
 export const dynamic = "force-dynamic";
+export const PUBLIC_ROUTE = true;
 
 export async function GET(
   request: NextRequest,
