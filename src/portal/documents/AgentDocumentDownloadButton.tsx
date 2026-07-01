@@ -13,7 +13,7 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import { authFetch } from "@/lib/supabase";
 
 const VAULT_API_URL = (
   process.env.NEXT_PUBLIC_VAULT_API_URL ??
@@ -42,21 +42,16 @@ export default function AgentDocumentDownloadButton({
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 30000);
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        setError("Sign-in expired");
-        return;
-      }
-      const res = await fetch(
+      // authFetch races supabase.auth.getSession() against a 5s
+      // timeout (with a 2s onAuthStateChange fallback) so a hung
+      // client session can never leave the button visually stuck.
+      const res = await authFetch(
         `${VAULT_API_URL}/paperwork/agents/transactions/${encodeURIComponent(
           transactionId
         )}/documents/${encodeURIComponent(formInstanceId)}/download`,
         {
           method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
-          signal: ctrl.signal,
         }
       );
       if (!res.ok) {

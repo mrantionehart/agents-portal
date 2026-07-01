@@ -15,7 +15,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, Download, FileText, Search } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import { authFetch } from "@/lib/supabase";
 import type { TemplateCard } from "./types";
 
 const VAULT_API_URL = (
@@ -157,25 +157,20 @@ function TemplateDownloadButton({ formId }: { formId: string }) {
   async function handleDownload() {
     setBusy(true);
     setError(null);
-    // Hard 30-second ceiling — never leave the button visually stuck.
+    // Hard 30-second ceiling on the blob fetch. authFetch has its own
+    // 8-second envelope with getSession race for the Vault call.
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 30000);
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        setError("Sign-in expired. Refresh the page.");
-        return;
-      }
-      const res = await fetch(
+      // Shared authFetch handles the getSession-hang race that our
+      // per-component AbortController couldn't cover.
+      const res = await authFetch(
         `${VAULT_API_URL}/paperwork/agents/templates/${encodeURIComponent(
           formId
         )}/download`,
         {
           method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
-          signal: ctrl.signal,
         }
       );
       if (!res.ok) {
