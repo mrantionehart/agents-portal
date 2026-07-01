@@ -76,16 +76,24 @@ export default function AgentDocumentDownloadButton({
         setError("No download URL");
         return;
       }
-      // Anchor-click download — bypasses popup blockers that silently
-      // kill window.open when called from an awaited promise chain.
+      // Fetch as blob + issue a same-origin blob-URL download. Browsers
+      // ignore `<a download>` on cross-origin URLs (Chrome/Firefox
+      // security policy), so the Supabase signed URL would otherwise
+      // navigate instead of download. Blob URL is same-origin.
+      const pdfRes = await fetch(body.signed_url, { signal: ctrl.signal });
+      if (!pdfRes.ok) {
+        setError(`Storage ${pdfRes.status}`);
+        return;
+      }
+      const blob = await pdfRes.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = body.signed_url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
+      a.href = blobUrl;
       a.download = `${formId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setError("Timed out");
