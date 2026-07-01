@@ -1298,8 +1298,12 @@ describe("Workflow 3.3.1 boundary lint", () => {
     const path = await import("path");
     const apiDir = path.join(process.cwd(), "app", "api");
     if (fs.existsSync(apiDir)) {
-      // No new paperwork or timeline app/api subpaths created by W3.3.1
-      expect(fs.existsSync(path.join(apiDir, "paperwork"))).toBe(false);
+      // W3.3.1 created no timeline route. AGENT.SIGN.1C intentionally added
+      // app/api/paperwork/checklist; guard nothing else under paperwork.
+      const pwDir = path.join(apiDir, "paperwork");
+      if (fs.existsSync(pwDir)) {
+        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist"]);
+      }
       expect(fs.existsSync(path.join(apiDir, "timeline"))).toBe(false);
     }
   });

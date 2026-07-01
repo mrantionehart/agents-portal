@@ -9,8 +9,10 @@
 
 import DocumentsPanel from "@/src/portal/documents/DocumentsPanel";
 import FormDetailDrawer from "@/src/portal/documents/details/FormDetailDrawer";
+import ChecklistTable from "@/src/portal/documents/checklist/ChecklistTable";
 import type { DocumentRow } from "@/src/portal/documents/types";
 import type { FormDetailBundle } from "@/src/portal/documents/details/types";
+import type { CoachRecommendation } from "@/src/portal/workspace/types";
 
 export interface DocumentsTabProps {
   transactionId: string;
@@ -23,6 +25,8 @@ export interface DocumentsTabProps {
   activeFormDocument: DocumentRow | null;
   activeFormInstanceId: string | null;
   activeFormDetail: FormDetailBundle | null;
+  /** AGENT.SIGN.1C — Coach recommendation for the checklist header. */
+  coachRecommendation?: CoachRecommendation | null;
 }
 
 export default function DocumentsTab({
@@ -34,9 +38,15 @@ export default function DocumentsTab({
   activeFormDocument,
   activeFormInstanceId,
   activeFormDetail,
+  coachRecommendation,
 }: DocumentsTabProps) {
   return (
-    <div className="relative">
+    <div className="relative space-y-6">
+      {/* AGENT.SIGN.1C — Vault-powered required-document checklist. */}
+      <ChecklistTable
+        transactionId={transactionId}
+        coachRecommendation={coachRecommendation}
+      />
       <DocumentsPanel
         documents={documents}
         error={documentsError}

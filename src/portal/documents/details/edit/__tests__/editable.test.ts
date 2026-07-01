@@ -435,10 +435,13 @@ describe("Workflow 3.2.B.1 boundary lint", () => {
     const path = await import("path");
     const apiDir = path.join(process.cwd(), "app", "api");
     if (fs.existsSync(apiDir)) {
-      // Only verifying nothing under api/paperwork was created.
-      // Walk for any "paperwork" subpath; should not exist.
-      const has = fs.existsSync(path.join(apiDir, "paperwork"));
-      expect(has).toBe(false);
+      // AGENT.SIGN.1C intentionally added app/api/paperwork/checklist (the
+      // Vault-powered checklist source). Guard that nothing ELSE was created
+      // under app/api/paperwork.
+      const pwDir = path.join(apiDir, "paperwork");
+      if (fs.existsSync(pwDir)) {
+        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist"]);
+      }
     }
   });
 
