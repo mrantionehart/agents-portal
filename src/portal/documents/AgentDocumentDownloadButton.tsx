@@ -39,6 +39,8 @@ export default function AgentDocumentDownloadButton({
     e.stopPropagation();
     setBusy(true);
     setError(null);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 30000);
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
@@ -54,6 +56,7 @@ export default function AgentDocumentDownloadButton({
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
+          signal: ctrl.signal,
         }
       );
       if (!res.ok) {
@@ -62,6 +65,8 @@ export default function AgentDocumentDownloadButton({
             ? "Not available"
             : res.status === 400
             ? "Not yet ready"
+            : res.status === 401
+            ? "Sign-in expired"
             : `Failed (${res.status})`
         );
         return;
@@ -71,10 +76,25 @@ export default function AgentDocumentDownloadButton({
         setError("No download URL");
         return;
       }
-      window.open(body.signed_url, "_blank", "noopener,noreferrer");
+      // Anchor-click download — bypasses popup blockers that silently
+      // kill window.open when called from an awaited promise chain.
+      const a = document.createElement("a");
+      a.href = body.signed_url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.download = `${formId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Timed out");
+      } else {
+        console.error("[document-download]", formId, err);
+        setError(err instanceof Error ? err.message : "Download failed");
+      }
     } finally {
+      clearTimeout(timeout);
       setBusy(false);
     }
   }
