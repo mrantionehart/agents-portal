@@ -23,6 +23,7 @@ import {
   statusTone,
 } from "./helpers";
 import { formDrawerHref } from "./details/helpers";
+import AgentDocumentDownloadButton from "./AgentDocumentDownloadButton";
 
 export interface DocumentsPanelProps {
   documents: DocumentRow[];
@@ -200,15 +201,24 @@ function DocumentRowItem({
       {/* Open-in-Vault anchor lives outside the row Link so opening
           Vault doesn't also pop the drawer. Absolutely positioned on
           the right edge. */}
-      <a
-        href={d.open_in_vault_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute top-3 right-4 text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
-        aria-label={`Open ${d.form_id} in Vault`}
-      >
-        <ExternalLink className="h-3 w-3" /> Open in Vault
-      </a>
+      <div className="absolute top-3 right-4 flex items-center gap-2">
+        {d.downloadable && d.form_instance_id && (
+          <AgentDocumentDownloadButton
+            transactionId={transactionId}
+            formInstanceId={d.form_instance_id}
+            formId={d.form_id}
+          />
+        )}
+        <a
+          href={d.open_in_vault_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
+          aria-label={`Open ${d.form_id} in Vault`}
+        >
+          <ExternalLink className="h-3 w-3" /> Open in Vault
+        </a>
+      </div>
       {d.updated_at && (
         <div className="absolute bottom-3 right-4 text-[10px] text-[#71717A]">
           updated {relativeUpdated(d.updated_at)}

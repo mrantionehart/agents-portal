@@ -17,6 +17,7 @@ import {
   Calendar,
   GraduationCap,
   Home,
+  Library,
   ListChecks,
   Settings,
   Sparkles,
@@ -36,6 +37,7 @@ const ICONS = {
   "bell": Bell,
   "graduation-cap": GraduationCap,
   "book-open": BookOpen,
+  "library": Library,
   "settings": Settings,
 } as const;
 

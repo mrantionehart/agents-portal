@@ -6,7 +6,7 @@
 //
 // Final menu locked in by AP2.1H spec, updated by R5:
 //   Home / Transactions / Clients / AI / Calendar / Notifications /
-//   Training / Settings
+//   Training / Library / Settings
 //
 // R5 — Training Hub unifies the old Training + Script Library +
 // Resources surfaces under one (portal) destination at /training.
@@ -14,6 +14,10 @@
 // is now a tab inside Training). Legacy /training was renamed to
 // /training-legacy so the new hub owns /training; cards in the hub's
 // Training tab deep-link there for video playback.
+//
+// AGENT.DOCS.1 — Adds "Library" as a top-level nav item between
+// Training and Settings. Points at the blank-template library at
+// /library, gated server-side by the agent-scoped Vault endpoint.
 // ============================================================================
 
 export type NavItem = {
@@ -29,6 +33,7 @@ export type NavItem = {
     | "bell"
     | "graduation-cap"
     | "book-open"
+    | "library"
     | "settings";
   href: string;
   /** Optional gate. When true, the item only renders for broker tier. */
@@ -47,6 +52,7 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },
   { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training" },
+  { id: "library",      label: "Library",       icon: "library",         href: "/library" },
   { id: "settings",     label: "Settings",      icon: "settings",        href: "/settings" },
 ] as const;
 

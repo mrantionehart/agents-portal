@@ -89,6 +89,15 @@ export interface DocumentRow {
   has_instance: boolean;
   /** Vault deep-link for this form's detail (paperwork package page). */
   open_in_vault_url: string;
+  /** AGENT.DOCS.1 — form_instances.id. Populated when the broker has
+   *  materialized the row. Needed by the client-side Download button
+   *  to hit the agent-scoped Vault download endpoint. */
+  form_instance_id?: string | null;
+  /** AGENT.DOCS.1 — client-side hint that the form has an artifact
+   *  ready for download (ready + generation, signed + envelope,
+   *  signed + manual upload). Vault re-checks visibility + resolves
+   *  the actual PDF at download time; this is only a UI toggle. */
+  downloadable?: boolean;
 }
 
 /** Groupings used in the Documents header strip. */

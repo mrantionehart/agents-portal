@@ -123,6 +123,8 @@ export function mergeDocuments(input: {
         input.transactionId,
         req.form_id
       ),
+      form_instance_id: inst?.id ?? null,
+      downloadable: isRowDownloadable(status, inst),
     });
     byFormId.delete(req.form_id);
   }
@@ -150,10 +152,26 @@ export function mergeDocuments(input: {
         input.transactionId,
         inst.form_id
       ),
+      form_instance_id: inst.id,
+      downloadable: isRowDownloadable(status, inst),
     });
   }
 
   return rows;
+}
+
+/** AGENT.DOCS.1 — UI-side hint for the row's Download button. Only
+ *  the download endpoint on Vault is authoritative — this just decides
+ *  whether to render the button at all. */
+function isRowDownloadable(
+  status: FormInstanceStatus | "not_started",
+  instance: FormInstanceRow | null
+): boolean {
+  if (!instance) return false;
+  if (status === "voided") return false;
+  if (status === "ready") return true;
+  if (status === "signed") return true;
+  return false;
 }
 
 /** Compute the header roll-ups. */

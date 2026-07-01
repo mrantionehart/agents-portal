@@ -9,8 +9,8 @@
 
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
-describe("NAV_ITEMS (R5 — Training Hub absorbs Resources)", () => {
-  it("ships the 8 documented items in order (Resources merged into Training)", () => {
+describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library)", () => {
+  it("ships the 9 documented items in order (Library added between Training and Settings)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -19,6 +19,7 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources)", () => {
       "Calendar",
       "Notifications",
       "Training",
+      "Library",
       "Settings",
     ]);
   });
