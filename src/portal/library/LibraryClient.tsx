@@ -34,6 +34,11 @@ export default function LibraryClient({
 }: LibraryClientProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
+  // AGENT.DOCS.1.3 — flip to true when any download 401s so we surface a
+  // page-level "session hung, reload" banner. The Supabase JS client's
+  // getSession() intermittently hangs on this deploy (PORTAL.1), and a
+  // full page reload is the empirically reliable recovery.
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -56,6 +61,21 @@ export default function LibraryClient({
 
   return (
     <div className="space-y-4">
+      {sessionExpired && (
+        <div className="rounded-lg border border-amber-700/40 bg-amber-900/20 px-3 py-2 text-xs text-amber-100 flex items-center justify-between gap-3">
+          <span className="flex items-start gap-2">
+            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+            Your sign-in expired. Reload the page to continue downloading.
+          </span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-md border border-amber-700/60 bg-amber-900/40 px-2 py-1 text-[11px] font-medium text-amber-100 hover:bg-amber-900/60"
+          >
+            Reload page
+          </button>
+        </div>
+      )}
       {error && (
         <div className="rounded-lg border border-rose-700/40 bg-rose-900/20 px-3 py-2 text-xs text-rose-200 flex items-start gap-2">
           <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -139,7 +159,10 @@ export default function LibraryClient({
                   </div>
                 </div>
               </div>
-              <TemplateDownloadButton formId={t.form_id} />
+              <TemplateDownloadButton
+                formId={t.form_id}
+                onSessionExpired={() => setSessionExpired(true)}
+              />
             </li>
           ))}
         </ul>
@@ -150,7 +173,13 @@ export default function LibraryClient({
 
 // ── Row ──────────────────────────────────────────────────────────────
 
-function TemplateDownloadButton({ formId }: { formId: string }) {
+function TemplateDownloadButton({
+  formId,
+  onSessionExpired,
+}: {
+  formId: string;
+  onSessionExpired?: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,13 +203,14 @@ function TemplateDownloadButton({ formId }: { formId: string }) {
         }
       );
       if (!res.ok) {
-        setError(
-          res.status === 404
-            ? "Not available"
-            : res.status === 401
-            ? "Sign-in expired"
-            : `Failed (${res.status})`
-        );
+        if (res.status === 401) {
+          setError("Sign-in expired");
+          onSessionExpired?.();
+        } else {
+          setError(
+            res.status === 404 ? "Not available" : `Failed (${res.status})`
+          );
+        }
         return;
       }
       const body: { signed_url?: string } = await res.json();
