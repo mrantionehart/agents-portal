@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { supabase } from './supabase'
+import { getAccessToken } from './supabase'
 import { VAULT_API_URL } from './vault-client'
 
 const vaultApiUrl = VAULT_API_URL
@@ -16,15 +16,16 @@ class VaultAPI {
       },
     })
 
-    // Add request interceptor for auth token from Supabase session
+    // PORTAL.1A — attach the CACHED access token (never getSession(), which
+    // hangs on the LockManager). Cold cache → brief onAuthStateChange wait.
     this.client.interceptors.request.use(async (config) => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          config.headers.Authorization = `Bearer ${session.access_token}`
+        const token = await getAccessToken(2000)
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
         }
       } catch (error) {
-        console.error('Error getting auth token from Supabase:', error)
+        console.error('Error getting cached auth token:', error)
       }
       return config
     })
