@@ -6,12 +6,11 @@
 // single-line update here, not a Portal logic change.
 // ============================================================================
 
-/** W3.4.6.4 — Coach recommendation projection, sourced verbatim from
- *  Vault's W3.4.6.3 workspace endpoint. Portal mirrors the 6-field
- *  shape exactly — never widens it, never derives values from the
- *  rest of the card. The Coach kinds match Vault's CoachKind union
- *  (W3.4.6.0); we don't pin the literal type so Vault can extend
- *  without forcing a Portal patch. */
+/** Coach recommendation projection, sourced verbatim from Vault's workspace
+ *  endpoint. Kinds are a bare `string` (not pinned) so Vault can extend without
+ *  a Portal patch. AGENT.SIGN.1E.2 added the richer card fields (title /
+ *  severity / recommended_action / estimated_time) — optional so pre-1E.2
+ *  payloads still type-check. */
 export interface CoachRecommendation {
   kind: string;
   label: string;
@@ -19,6 +18,11 @@ export interface CoachRecommendation {
   reason: string;
   suggested_prompt: string;
   drill_url: string;
+  // AGENT.SIGN.1E.2 — richer card fields (kind-derived, safe).
+  title?: string;
+  severity?: "critical" | "high" | "medium" | "low" | "info";
+  recommended_action?: string;
+  estimated_time?: string;
 }
 
 export interface WorkspaceCard {

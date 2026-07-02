@@ -123,7 +123,7 @@ describe("pickRecommendedActions — null filter", () => {
 // ── Projection (field allowlist) ───────────────────────────────────
 
 describe("pickRecommendedActions — projection allowlist", () => {
-  it("emits EXACTLY the 7 RecommendedActionItem keys per card", () => {
+  it("emits EXACTLY the RecommendedActionItem keys per card (incl. AGENT.SIGN.1E.2 fields)", () => {
     const out = pickRecommendedActions([
       card({
         transaction_id: "t99",
@@ -134,12 +134,24 @@ describe("pickRecommendedActions — projection allowlist", () => {
           label: "Continue collecting required information",
           blocker: true,
           drill_url: "/workspace/t99?tab=documents",
+          recommended_action: "Add the missing details",
+          estimated_time: "5 min",
         }),
       }),
     ]);
     expect(out).toHaveLength(1);
     expect(Object.keys(out[0]).sort()).toEqual(
-      ["blocker", "client_name", "drill_url", "kind", "label", "property_address", "transaction_id"]
+      [
+        "blocker",
+        "client_name",
+        "drill_url",
+        "estimated_time",
+        "kind",
+        "label",
+        "property_address",
+        "recommended_action",
+        "transaction_id",
+      ].sort()
     );
     expect(out[0]).toEqual({
       transaction_id: "t99",
@@ -149,6 +161,8 @@ describe("pickRecommendedActions — projection allowlist", () => {
       blocker: true,
       drill_url: "/workspace/t99?tab=documents",
       kind: "complete_collection",
+      recommended_action: "Add the missing details",
+      estimated_time: "5 min",
     });
   });
 

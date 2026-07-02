@@ -55,6 +55,9 @@ export interface RecommendedActionItem {
   /** Coach-side kind so downstream icon mapping can branch without
    *  recomputing anything. */
   kind: string;
+  // AGENT.SIGN.1E.2 — richer card fields (kind-derived, optional).
+  recommended_action?: string;
+  estimated_time?: string;
 }
 
 /**
@@ -74,10 +77,12 @@ export function pickRecommendedActions(
       transaction_id: c.transaction_id,
       property_address: c.property_address,
       client_name: c.client_name,
-      label: r.label,
+      label: r.title ?? r.label,
       blocker: r.blocker,
       drill_url: r.drill_url,
       kind: r.kind,
+      recommended_action: r.recommended_action,
+      estimated_time: r.estimated_time,
     });
   }
   // Stable sort: blockers first, otherwise preserve incoming order.
@@ -484,6 +489,15 @@ export function RecommendedActionsWidget({
                   <div className="text-[#A1A1AA] mt-0.5 truncate">
                     {it.label}
                   </div>
+                  {/* AGENT.SIGN.1E.2 — recommended action + est. time */}
+                  {it.recommended_action && (
+                    <div className="mt-0.5 text-[11px] text-[#C9A84C] truncate">
+                      {it.recommended_action}
+                      {it.estimated_time && it.estimated_time !== "—"
+                        ? ` · ${it.estimated_time}`
+                        : ""}
+                    </div>
+                  )}
                 </div>
                 <Link
                   href={it.drill_url}

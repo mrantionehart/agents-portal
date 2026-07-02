@@ -15,9 +15,10 @@
 //   • suggested_prompt → unused here (rendered by AIAssistantPanel)
 //   • drill_url        → "Open" link target
 //
-// SAFETY: only the 6 spec'd projection fields are read. Even if Vault
-// regresses and adds extra fields to coach_recommendation, this
-// component will not surface them.
+// AGENT.SIGN.1E.2 also reads the richer card fields (title / severity /
+// recommended_action / estimated_time) — all kind-derived static strings from
+// the deliberately-widened Vault projection. Still presentation-only; no field
+// is computed here.
 //
 // Render rules:
 //   • recommendation === null/undefined  → render nothing
@@ -32,8 +33,11 @@ import {
   ArrowRight,
   CheckCircle2,
   ClipboardList,
+  Clock,
   FileSignature,
   Hourglass,
+  Package,
+  PenLine,
   Send,
   ShieldAlert,
   Sparkles,
@@ -44,6 +48,8 @@ import type { CoachRecommendation } from "../types";
 const KIND_ICON: Record<string, typeof Sparkles> = {
   complete_collection: ClipboardList,
   request_statutory_attestation: ShieldAlert,
+  ready_for_packaging: Package, // AGENT.SIGN.1E.2
+  awaiting_signatures: PenLine, // AGENT.SIGN.1E.2
   submit_for_broker_review: Send,
   send_for_signatures: FileSignature,
   await_broker_approval: Hourglass,
@@ -93,7 +99,8 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-[#F1F1F3]">
-              {recommendation.label}
+              {/* AGENT.SIGN.1E.2 — prefer the kind-level title; fall back to label. */}
+              {recommendation.title ?? recommendation.label}
             </span>
             <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${palette.badge}`}>
               {recommendation.blocker ? "Blocker" : "Next step"}
@@ -102,6 +109,20 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
           <div className="text-xs text-[#A1A1AA] mt-0.5 leading-relaxed">
             {recommendation.reason}
           </div>
+          {/* AGENT.SIGN.1E.2 — recommended action + estimated time hint. */}
+          {(recommendation.recommended_action || recommendation.estimated_time) && (
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-[#C9A84C]">
+              {recommendation.recommended_action && (
+                <span className="font-medium">{recommendation.recommended_action}</span>
+              )}
+              {recommendation.estimated_time &&
+                recommendation.estimated_time !== "—" && (
+                  <span className="inline-flex items-center gap-1 text-[#71717A]">
+                    <Clock className="h-3 w-3" /> {recommendation.estimated_time}
+                  </span>
+                )}
+            </div>
+          )}
         </div>
         <Link
           href={recommendation.drill_url}

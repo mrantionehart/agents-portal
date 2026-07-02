@@ -10,7 +10,8 @@
 // No envelope generation here (deferred to the package phase).
 // ============================================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, Eye, RefreshCw } from 'lucide-react'
 import { authFetch } from '@/lib/supabase'
 import { VAULT_API_URL } from '@/lib/vault-client'
@@ -110,6 +111,26 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
   useEffect(() => {
     void load()
   }, [load])
+
+  // AGENT.SIGN.1E.2 — Coach deep-link. When arrived via a coach card with
+  // ?action=package, pre-select every packageable row and scroll to the action
+  // bar so the agent can download in one click. We do NOT auto-download (no
+  // surprise file downloads on navigation). Runs once after rows load.
+  const searchParams = useSearchParams()
+  const actionBarRef = useRef<HTMLDivElement | null>(null)
+  const deepLinkHandled = useRef(false)
+  useEffect(() => {
+    if (deepLinkHandled.current) return
+    if (loading || rows.length === 0) return
+    if (searchParams?.get('action') !== 'package') return
+    deepLinkHandled.current = true
+    const selectable = rows.filter((r) => r.selectable).map((r) => r.form_id)
+    if (selectable.length > 0) {
+      setSelected(new Set(selectable))
+      // Defer scroll until the action bar renders.
+      setTimeout(() => actionBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    }
+  }, [loading, rows, searchParams])
 
   const bar = useMemo(() => deriveActionBar(rows, selected), [rows, selected])
 
@@ -306,7 +327,10 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
       )}
 
       {bar.count > 0 && (
-        <div className="sticky bottom-2 flex flex-wrap items-center gap-2 rounded-lg border border-[#252538] bg-[#11111a] px-3 py-2 text-xs">
+        <div
+          ref={actionBarRef}
+          className="sticky bottom-2 flex flex-wrap items-center gap-2 rounded-lg border border-[#252538] bg-[#11111a] px-3 py-2 text-xs"
+        >
           <span className="font-medium text-[#F1F1F3]">{bar.count} selected</span>
           <button
             type="button"
