@@ -127,10 +127,17 @@ export async function signOut() {
  * refreshes once and retries once (self-heal), so an expired token recovers
  * without a full page reload.
  */
-export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function authFetch(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 8000
+): Promise<Response> {
   // Overall bound so a hung network / refresh can never leave the caller stuck.
+  // `timeoutMs` is overridable for long server operations (e.g. AGENT.SIGN.2C
+  // "Send via My DocuSign" runs generate + Aspose flatten + a DocuSign API call,
+  // which can exceed the default 8s). Existing 2-arg callers are unchanged.
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 8000)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     // 1. Cached token synchronously; 2. cold cache → brief onAuthStateChange

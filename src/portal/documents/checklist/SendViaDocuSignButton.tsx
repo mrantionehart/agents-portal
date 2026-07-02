@@ -71,7 +71,10 @@ export default function SendViaDocuSignButton({
     try {
       const res = await authFetch(
         `${VAULT_API_URL}/paperwork/agents/transactions/${transactionId}/documents/${formInstanceId}/send`,
-        { method: "POST" }
+        { method: "POST" },
+        // Send does generate + Aspose flatten + a DocuSign API call — allow up
+        // to 60s (the Vault route's maxDuration) before the client gives up.
+        60000
       );
       const body = await res.json().catch(() => ({} as any));
       if (!res.ok) {
