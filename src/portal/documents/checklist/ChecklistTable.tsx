@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Eye, RefreshCw } from 'lucide-react'
+import { Download, Eye, RefreshCw } from 'lucide-react'
 import { authFetch } from '@/lib/supabase'
 import { VAULT_API_URL } from '@/lib/vault-client'
 import AgentDocumentDownloadButton from '@/src/portal/documents/AgentDocumentDownloadButton'
@@ -77,6 +77,8 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [packaging, setPackaging] = useState(false)
+  const [pkgMessage, setPkgMessage] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -125,29 +127,49 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
     setSelected(new Set())
   }
 
-  async function generateSelected() {
-    const targets = rows.filter(
-      (r) => selected.has(r.form_id) && r.generatable && r.form_instance_id
-    )
-    for (const r of targets) {
-      try {
-        await authFetch(
-          `${VAULT_API_URL}/paperwork/agents/transactions/${transactionId}/documents/${r.form_instance_id}/generate`,
-          { method: 'POST' }
-        )
-      } catch {
-        /* continue; per-row buttons surface individual errors */
+  // AGENT.SIGN.1D — assemble + download the Envelope Package (merged PDF or ZIP)
+  // for the agent to upload into their OWN DocuSign account. No send, no OAuth.
+  async function downloadPackage(format: 'merged_pdf' | 'zip') {
+    const ids = rows
+      .filter((r) => selected.has(r.form_id) && r.selectable && r.form_instance_id)
+      .map((r) => r.form_instance_id as string)
+    if (ids.length === 0) return
+    setPackaging(true)
+    setPkgMessage(null)
+    try {
+      const res = await authFetch(
+        `${VAULT_API_URL}/paperwork/agents/transactions/${transactionId}/envelope-package`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ form_instance_ids: ids, format }),
+        }
+      )
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        setPkgMessage(body?.error ?? 'Could not build the package.')
+        return
       }
-    }
-    await load()
-  }
-
-  async function downloadSelected() {
-    const targets = rows.filter(
-      (r) => selected.has(r.form_id) && r.downloadable && r.form_instance_id
-    )
-    for (const r of targets) {
-      await viewDocument(transactionId, r.form_instance_id as string) // opens each in a tab
+      // Fetch the signed URL and trigger a same-origin blob download.
+      const fileRes = await fetch(body.signed_url)
+      const blob = await fileRes.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = body.filename || 'envelope-package'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      const skippedN = Array.isArray(body.skipped) ? body.skipped.length : 0
+      setPkgMessage(
+        `Packaged ${body.document_count} document${body.document_count === 1 ? '' : 's'}` +
+          (skippedN ? ` · skipped ${skippedN}` : '')
+      )
+    } catch {
+      setPkgMessage('Could not build the package.')
+    } finally {
+      setPackaging(false)
     }
   }
 
@@ -288,27 +310,39 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
           <span className="font-medium text-[#F1F1F3]">{bar.count} selected</span>
           <button
             type="button"
-            onClick={() => void generateSelected()}
-            disabled={!bar.canGenerate}
-            className="rounded-md border border-[#252538] px-2 py-1 text-[#C9A84C] hover:border-[#C9A84C] disabled:opacity-40"
+            onClick={() => void downloadPackage('merged_pdf')}
+            disabled={packaging}
+            className="inline-flex items-center gap-1 rounded-md border border-[#252538] bg-[#1a1a2e] px-2 py-1 text-[#C9A84C] hover:border-[#C9A84C] disabled:opacity-40"
           >
-            Generate Selected
+            <Download className="h-3 w-3" /> Download Envelope Package
           </button>
           <button
             type="button"
-            onClick={() => void downloadSelected()}
-            disabled={!bar.canDownload}
+            onClick={() => void downloadPackage('zip')}
+            disabled={packaging}
             className="rounded-md border border-[#252538] px-2 py-1 text-[#A1A1AA] hover:text-[#F1F1F3] disabled:opacity-40"
           >
-            Download Selected
+            Download ZIP
           </button>
           <button
             type="button"
             onClick={clearSelection}
-            className="rounded-md border border-[#252538] px-2 py-1 text-[#71717A] hover:text-[#F1F1F3]"
+            disabled={packaging}
+            className="rounded-md border border-[#252538] px-2 py-1 text-[#71717A] hover:text-[#F1F1F3] disabled:opacity-40"
           >
             Clear Selection
           </button>
+          {packaging && (
+            <span className="inline-flex items-center gap-1 text-[#A1A1AA]">
+              <RefreshCw className="h-3 w-3 animate-spin" /> Building package…
+            </span>
+          )}
+          {!packaging && pkgMessage && (
+            <span className="text-[#A1A1AA]">{pkgMessage}</span>
+          )}
+          <span className="ml-auto text-[10px] text-[#52525B]">
+            Upload the package into your own DocuSign to send.
+          </span>
         </div>
       )}
     </div>
