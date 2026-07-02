@@ -11,7 +11,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FileSignature, Link2Off, Loader2, ShieldCheck } from "lucide-react";
+import {
+  FileSignature,
+  Link2Off,
+  Loader2,
+  Plug,
+  ShieldCheck,
+} from "lucide-react";
 
 import { authFetch } from "@/lib/supabase";
 
@@ -44,6 +50,8 @@ export default function ConnectedAccountsCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [banner, setBanner] = useState<"connected" | "error" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,7 +70,43 @@ export default function ConnectedAccountsCard() {
 
   useEffect(() => {
     void load();
+    // Surface the OAuth return status (?esign=connected|error), then clean the
+    // URL so a refresh doesn't re-show it.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const esign = params.get("esign");
+      if (esign === "connected" || esign === "error") {
+        setBanner(esign);
+        params.delete("esign");
+        const qs = params.toString();
+        window.history.replaceState(
+          {},
+          "",
+          window.location.pathname + (qs ? `?${qs}` : "")
+        );
+      }
+    } catch {
+      /* no-op */
+    }
   }, [load]);
+
+  const connect = useCallback(async () => {
+    setConnecting(true);
+    setError(null);
+    try {
+      const res = await authFetch(`${VAULT_API_URL}/esign/docusign/connect`, {
+        method: "GET",
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const json = (await res.json()) as { redirectUrl?: string };
+      if (!json.redirectUrl) throw new Error("No redirect URL");
+      // Top-level navigation to DocuSign's consent screen.
+      window.location.href = json.redirectUrl;
+    } catch {
+      setError("Couldn't start the DocuSign connection. Please try again.");
+      setConnecting(false);
+    }
+  }, []);
 
   const disconnect = useCallback(async () => {
     setDisconnecting(true);
@@ -95,6 +139,16 @@ export default function ConnectedAccountsCard() {
 
   return (
     <div className="space-y-3">
+      {banner === "connected" && (
+        <div className="rounded-md border border-emerald-700/40 bg-emerald-900/20 px-3 py-2 text-[11px] text-emerald-200">
+          DocuSign connected.
+        </div>
+      )}
+      {banner === "error" && (
+        <div className="rounded-md border border-rose-700/40 bg-rose-900/20 px-3 py-2 text-[11px] text-rose-200">
+          DocuSign connection didn&apos;t complete. Please try again.
+        </div>
+      )}
       {error && (
         <div className="rounded-md border border-rose-700/40 bg-rose-900/20 px-3 py-2 text-[11px] text-rose-200">
           {error}
@@ -128,11 +182,30 @@ export default function ConnectedAccountsCard() {
             <dd className="text-[#D4D4D8]">{fmtDate(status?.last_used_at ?? null)}</dd>
           </dl>
         ) : (
-          <p className="mt-2 text-[11px] text-[#71717A] leading-relaxed">
-            Connecting your own DocuSign lets you send transaction paperwork for
-            signature without downloading the package. The connect flow is
-            coming soon.
-          </p>
+          <div className="mt-2 space-y-2.5">
+            <p className="text-[11px] text-[#71717A] leading-relaxed">
+              Connecting your own DocuSign lets you send transaction paperwork
+              for signature without downloading the package.
+            </p>
+            <button
+              type="button"
+              onClick={connect}
+              disabled={connecting}
+              className="
+                inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40
+                bg-[#C9A84C]/10 px-2.5 py-1.5 text-[11px] font-medium text-[#E8D5A3]
+                hover:bg-[#C9A84C]/20 disabled:opacity-50
+                transition-colors duration-[180ms]
+              "
+            >
+              {connecting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Plug className="h-3 w-3" />
+              )}
+              Connect DocuSign
+            </button>
+          </div>
         )}
 
         {connected && (
