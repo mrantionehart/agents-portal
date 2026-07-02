@@ -29,6 +29,8 @@ import {
   DollarSign,
   Star,
   Users,
+  Loader2,
+  Check,
 } from "lucide-react";
 
 // ============================================================================
@@ -1266,6 +1268,162 @@ function ClientFeedbackSection({
 }
 
 // ============================================================================
+// Locked Files — Request Access (Google Drive-style)
+// ============================================================================
+
+function LockedFilesSection({
+  files,
+  token,
+  portalTitle,
+}: {
+  files: any[];
+  token: string;
+  portalTitle: string;
+}) {
+  const [mode, setMode] = useState<"idle" | "form" | "sending" | "success">("idle");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function handleRequestAccess(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+    setMode("sending");
+    setError("");
+    try {
+      const res = await fetch("/api/deal-portal/access-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, name: name.trim(), email: email.trim(), phone: phone.trim(), message: message.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Request failed");
+      }
+      setMode("success");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+      setMode("form");
+    }
+  }
+
+  return (
+    <section className="max-w-4xl mx-auto px-6 py-10">
+      <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100">
+            <Lock className="w-5 h-5 text-amber-700" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Private Documents</h3>
+            <p className="text-sm text-gray-600">
+              {files.length} file{files.length !== 1 ? "s" : ""} require{files.length === 1 ? "s" : ""} access approval
+            </p>
+          </div>
+        </div>
+
+        {/* File list */}
+        <div className="space-y-2 mb-5">
+          {files.map((f: any, i: number) => (
+            <div key={i} className="flex items-center gap-3 rounded-lg bg-white/60 border border-amber-100 px-4 py-3">
+              <Lock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{f.title || "Private Document"}</p>
+                <p className="text-xs text-amber-600 capitalize">{f.type}</p>
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Locked</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Request Access flow */}
+        {mode === "idle" && (
+          <button
+            onClick={() => setMode("form")}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 text-white py-3 px-6 text-sm font-semibold hover:bg-gray-800 transition-colors"
+          >
+            <Lock className="w-4 h-4" />
+            Request Access
+          </button>
+        )}
+
+        {mode === "form" && (
+          <form onSubmit={handleRequestAccess} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Your Name *"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <input
+                type="email"
+                placeholder="Your Email *"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            <input
+              type="tel"
+              placeholder="Phone (optional)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            <textarea
+              placeholder="Message (optional)"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("idle")}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 rounded-xl bg-gray-900 text-white py-2 px-6 text-sm font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Send Request
+              </button>
+            </div>
+          </form>
+        )}
+
+        {mode === "sending" && (
+          <div className="flex items-center justify-center gap-2 py-4 text-amber-700">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Sending request...</span>
+          </div>
+        )}
+
+        {mode === "success" && (
+          <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+            <Check className="w-6 h-6 text-green-600 mx-auto mb-2" />
+            <p className="text-sm font-medium text-green-800">Access request sent!</p>
+            <p className="text-xs text-green-600 mt-1">
+              You&apos;ll receive an email once your request is approved.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
 // Buyer Engagement — Interest / Offer / WhatsApp
 // ============================================================================
 
@@ -1473,17 +1631,24 @@ function PropertyPresentation({
     ? parsePropertySections(property.description)
     : [];
 
-  const idxMedia = media.filter(
+  // Separate public vs locked (private) media
+  const publicMedia = media.filter((m: any) => m.is_public !== false);
+  const lockedMedia = media.filter((m: any) => m.is_public === false && !m.url);
+  const unlockedPrivateMedia = media.filter((m: any) => m.is_public === false && m.url);
+  // Combine public + unlocked-private for display
+  const visibleMedia = [...publicMedia, ...unlockedPrivateMedia];
+
+  const idxMedia = visibleMedia.filter(
     (m) =>
       m.type === "document" &&
       m.url?.includes("idxbroker.com")
   );
-  const regularDocs = media.filter(
+  const regularDocs = visibleMedia.filter(
     (m) =>
       m.type === "document" &&
       !m.url?.includes("idxbroker.com")
   );
-  const nonDocMedia = media.filter((m) => m.type !== "document");
+  const nonDocMedia = visibleMedia.filter((m) => m.type !== "document");
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -1621,6 +1786,15 @@ function PropertyPresentation({
       {/* Regular Documents */}
       {regularDocs.length > 0 && (
         <DocumentsSection media={regularDocs} />
+      )}
+
+      {/* Locked Files — Request Access */}
+      {lockedMedia.length > 0 && (
+        <LockedFilesSection
+          files={lockedMedia}
+          token={token}
+          portalTitle={property.title}
+        />
       )}
 
       {/* Buyer Engagement — Interest / Offer / WhatsApp */}
