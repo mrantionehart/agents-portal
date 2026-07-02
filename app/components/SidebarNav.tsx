@@ -36,6 +36,7 @@ import {
   Newspaper,
   ScrollText,
   Share2,
+  CheckSquare,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -59,6 +60,7 @@ export default function SidebarNav({ onSignOut, userName, role }: SidebarNavProp
     { label: 'New Leads', href: '/new-leads', icon: UserPlus },
     { label: 'Client Intakes', href: '/intakes', icon: ClipboardList },
     { label: 'Deal Portals', href: '/deal-portals', icon: Share2 },
+    { label: 'Tasks', href: '/tasks', icon: CheckSquare },
     { label: 'My Card', href: '/business-card', icon: CreditCard },
     { label: 'Training', href: '/training', icon: BookOpen },
     { label: 'Script Library', href: '/scripts', icon: ScrollText },

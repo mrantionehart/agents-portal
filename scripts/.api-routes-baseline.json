@@ -61,6 +61,8 @@
     "app/api/training/sign-video/route.ts",
     "app/api/transactions/create/route.ts",
     "app/api/vault/commissions/route.ts",
-    "app/api/vault/deals/route.ts"
+    "app/api/vault/deals/route.ts",
+    "app/api/tasks/route.ts",
+    "app/api/tasks/[id]/route.ts"
   ]
 }
