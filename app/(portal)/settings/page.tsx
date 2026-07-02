@@ -41,6 +41,7 @@ import type {
   SettingsProfile,
   SettingsProfileResult,
 } from "@/src/portal/settings/types";
+import ConnectedAccountsCard from "@/src/portal/settings/ConnectedAccountsCard";
 
 export default async function SettingsHubPage() {
   const cookieStore = await cookies();
@@ -142,7 +143,12 @@ export default async function SettingsHubPage() {
           <CardLink href="/crm/settings" label="Open CRM settings" />
         </Card>
 
-        {/* ── 5. Notifications ───────────────────────────────────── */}
+        {/* ── 5. E-Signature / Connected Accounts ────────────────── */}
+        <Card title="E-Signature" icon={FileSignature} description="Connect your own e-signature account to send transaction paperwork for signature from HartFelt.">
+          <ConnectedAccountsCard />
+        </Card>
+
+        {/* ── 6. Notifications ───────────────────────────────────── */}
         <Card title="Notifications" icon={Bell} description="Your notification inbox and visibility controls.">
           <p className="text-xs text-[#71717A]">
             The inbox lives at /notifications. Per-channel preferences land
@@ -152,7 +158,7 @@ export default async function SettingsHubPage() {
           <CardLink href="/notifications" label="Manage notification visibility" />
         </Card>
 
-        {/* ── 6. Support / Broker ────────────────────────────────── */}
+        {/* ── 7. Support / Broker ────────────────────────────────── */}
         <Card title="Support / Broker" icon={LifeBuoy} description="Get help from your broker and access learning resources.">
           <ul className="space-y-2">
             <SubLink
