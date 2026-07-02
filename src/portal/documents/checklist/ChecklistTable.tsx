@@ -19,6 +19,7 @@ import AgentDocumentDownloadButton from '@/src/portal/documents/AgentDocumentDow
 import CoachStrip from '@/src/portal/workspace/components/CoachStrip'
 import type { CoachRecommendation } from '@/src/portal/workspace/types'
 import GenerateFormButton from './GenerateFormButton'
+import SendViaDocuSignButton from './SendViaDocuSignButton'
 import {
   buildChecklistRows,
   deriveActionBar,
@@ -80,6 +81,26 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [packaging, setPackaging] = useState(false)
   const [pkgMessage, setPkgMessage] = useState<string | null>(null)
+  // AGENT.SIGN.2C — whether the agent has a connected DocuSign (gates the
+  // per-row "Send via My DocuSign" action). Non-secret status only.
+  const [esignConnected, setEsignConnected] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const res = await authFetch(`${VAULT_API_URL}/esign/status`, { method: 'GET' })
+        if (!res.ok) return
+        const s = await res.json().catch(() => null)
+        if (active) setEsignConnected(s?.connected === true)
+      } catch {
+        /* not connected / unavailable — Send button falls back to Connect */
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -317,6 +338,20 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
                           onGenerated={() => void load()}
                         />
                       )}
+                      {r.e_sign &&
+                        !r.manual_only &&
+                        r.generatable &&
+                        r.form_instance_id &&
+                        r.statusLabel !== 'Sent' &&
+                        r.statusLabel !== 'Approved' && (
+                          <SendViaDocuSignButton
+                            transactionId={transactionId}
+                            formInstanceId={r.form_instance_id}
+                            formId={r.form_id}
+                            connected={esignConnected}
+                            onSent={() => void load()}
+                          />
+                        )}
                     </div>
                   </td>
                 </tr>
