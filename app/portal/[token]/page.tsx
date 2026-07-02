@@ -1930,6 +1930,7 @@ export default function PortalPage({
           url: m.url,
           title: m.title,
           description: m.description,
+          is_public: m.is_public,
         })),
         agent: {
           name: p.agent_name,
