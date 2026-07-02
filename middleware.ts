@@ -7,7 +7,7 @@ const TRAINING_GATE_ALLOWED = ['/login', '/forgot-password', '/reset-password', 
 
 export async function middleware(request: NextRequest) {
   // Skip auth check for public pages
-  const publicPaths = ['/login', '/forgot-password', '/reset-password']
+  const publicPaths = ['/login', '/forgot-password', '/reset-password', '/logout']
   const publicPrefixes = ['/card/', '/client/', '/api/client/', '/portal/']
   if (publicPaths.includes(request.nextUrl.pathname) || publicPrefixes.some(p => request.nextUrl.pathname.startsWith(p))) {
     return NextResponse.next({
