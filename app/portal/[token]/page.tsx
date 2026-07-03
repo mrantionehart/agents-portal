@@ -11,8 +11,8 @@ import {
   Mail,
   Building2,
   FileText,
-  Download,
   Play,
+  Eye,
   Lock,
   ArrowRight,
   CheckCircle2,
@@ -521,10 +521,12 @@ function VideoSection({ media }: { media: PortalMedia[] }) {
     url.includes("portal.exploreonemedia.com") ||
     (url.includes("zillow.com") && url.includes("view-imx"));
 
-  const isDirectVideoFile = (url: string) => {
+  const isDirectVideoFile = (url: string, type?: string) => {
+    // Proxy URLs for uploaded videos won't have extensions — use the type field
+    if (type === "video") return true;
     try {
       const pathname = new URL(url).pathname.toLowerCase();
-      return /\.(mp4|webm|mov|ogg)$/.test(pathname);
+      return /\.(mp4|webm|mov|ogg)$/.test(pathname) || pathname.includes("/api/deal-portal/media/");
     } catch {
       return false;
     }
@@ -565,13 +567,16 @@ function VideoSection({ media }: { media: PortalMedia[] }) {
             );
           }
 
-          if (isDirectVideoFile(video.url)) {
+          if (isDirectVideoFile(video.url, video.type)) {
             return (
-              <div key={video.id} className="space-y-2">
+              <div key={video.id} className="space-y-2" onContextMenu={(e) => e.preventDefault()}>
                 <video
                   controls
+                  controlsList="nodownload noremoteplayback"
+                  disablePictureInPicture
                   playsInline
                   preload="metadata"
+                  onContextMenu={(e) => e.preventDefault()}
                   style={{
                     width: "100%",
                     height: "400px",
@@ -663,12 +668,9 @@ function DocumentsSection({ media }: { media: PortalMedia[] }) {
       <SectionHeading>Documents</SectionHeading>
       <div className="space-y-3">
         {docs.map((doc) => (
-          <a
+          <div
             key={doc.id}
-            href={doc.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors group"
+            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50/50"
           >
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -685,9 +687,10 @@ function DocumentsSection({ media }: { media: PortalMedia[] }) {
                   {doc.description}
                 </p>
               )}
+              <p className="text-xs text-gray-400 mt-1">View-only — contact your agent for a copy</p>
             </div>
-            <Download className="w-4 h-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
-          </a>
+            <Eye className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          </div>
         ))}
       </div>
     </section>
