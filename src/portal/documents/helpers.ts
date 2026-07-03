@@ -7,7 +7,9 @@
 // ============================================================================
 
 import type {
+  AttentionReason,
   DocumentCounts,
+  DocumentLifecycleStatus,
   DocumentRow,
   FormInstanceRow,
   RequirementRow,
@@ -125,6 +127,9 @@ export function mergeDocuments(input: {
       ),
       form_instance_id: inst?.id ?? null,
       downloadable: isRowDownloadable(status, inst),
+      lifecycle_status: inst?.lifecycle?.lifecycle_status ?? null,
+      needs_attention: inst?.lifecycle?.needs_attention ?? false,
+      attention_reason: inst?.lifecycle?.attention_reason ?? null,
     });
     byFormId.delete(req.form_id);
   }
@@ -154,6 +159,9 @@ export function mergeDocuments(input: {
       ),
       form_instance_id: inst.id,
       downloadable: isRowDownloadable(status, inst),
+      lifecycle_status: inst.lifecycle?.lifecycle_status ?? null,
+      needs_attention: inst.lifecycle?.needs_attention ?? false,
+      attention_reason: inst.lifecycle?.attention_reason ?? null,
     });
   }
 
@@ -254,6 +262,56 @@ export function statusTone(
   if (s === "ready") return "info";
   if (s === "in_progress") return "info";
   return "muted";
+}
+
+// ── AGENT.SIGN.2.5.3 — canonical lifecycle chips ────────────────────────
+
+/** Human label for the primary lifecycle state. Falls back to the raw
+ *  form-status label when Vault didn't stamp a lifecycle. */
+export function lifecycleLabel(
+  s: DocumentLifecycleStatus | null,
+  fallbackStatus: DocumentRow["status"]
+): string {
+  switch (s) {
+    case "draft": return "Draft";
+    case "generated": return "Generated";
+    case "sent": return "Sent";
+    case "viewed": return "Viewed";
+    case "completed": return "Completed";
+    case "imported": return "Imported";
+    case "signed": return "Signed";
+    default: return statusLabel(fallbackStatus);
+  }
+}
+
+/** Lifecycle chip tone. Distinct from statusTone so the granular DocuSign
+ *  states get their own colors (sent=amber, viewed=orange, signed=green). */
+export function lifecycleTone(
+  s: DocumentLifecycleStatus | null
+): "muted" | "info" | "sent" | "viewed" | "progress" | "ok" {
+  switch (s) {
+    case "draft": return "muted";
+    case "generated": return "info";
+    case "sent": return "sent";
+    case "viewed": return "viewed";
+    case "completed":
+    case "imported": return "progress";
+    case "signed": return "ok";
+    default: return "muted";
+  }
+}
+
+/** Short label for the Needs-Attention overlay chip. */
+export function attentionLabel(r: AttentionReason | null): string {
+  switch (r) {
+    case "import_failed": return "Import failed";
+    case "missing_signatures": return "Missing signatures";
+    case "anchor_health": return "Signing boxes issue";
+    case "reconnect_docusign": return "Reconnect DocuSign";
+    case "awaiting_info": return "Awaiting info";
+    case "stale_sent": return "Awaiting signature";
+    default: return "Needs attention";
+  }
 }
 
 export function missingFieldsCopy(

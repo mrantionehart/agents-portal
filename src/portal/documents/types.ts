@@ -36,6 +36,31 @@ export interface RequirementRow {
   }>;
 }
 
+// ── AGENT.SIGN.2.5.3 — canonical document lifecycle (mirrors Vault) ──────
+export type DocumentLifecycleStatus =
+  | "draft"
+  | "generated"
+  | "sent"
+  | "viewed"
+  | "completed"
+  | "imported"
+  | "signed";
+
+export type AttentionReason =
+  | "import_failed"
+  | "missing_signatures"
+  | "anchor_health"
+  | "reconnect_docusign"
+  | "awaiting_info"
+  | "stale_sent";
+
+/** The lifecycle projection Vault stamps onto each form_instance in /forms. */
+export interface DocumentLifecycle {
+  lifecycle_status: DocumentLifecycleStatus;
+  needs_attention: boolean;
+  attention_reason: AttentionReason | null;
+}
+
 /** What a `form_instances` row looks like once the broker has accepted
  *  the form into the work queue. Captures only the fields the
  *  Documents panel renders. */
@@ -55,6 +80,9 @@ export interface FormInstanceRow {
   transaction_id: string;
   updated_at: string;
   created_at: string;
+  /** AGENT.SIGN.2.5.3 — canonical document lifecycle + attention overlay,
+   *  stamped by Vault's /forms endpoint. Absent on legacy responses. */
+  lifecycle?: DocumentLifecycle | null;
 }
 
 /** Combined per-document row the UI renders. */
@@ -98,6 +126,14 @@ export interface DocumentRow {
    *  signed + manual upload). Vault re-checks visibility + resolves
    *  the actual PDF at download time; this is only a UI toggle. */
   downloadable?: boolean;
+  /** AGENT.SIGN.2.5.3 — canonical primary lifecycle state (Draft →
+   *  Generated → Sent → Viewed → Completed → Imported → Signed). Null when
+   *  Vault didn't stamp one (legacy response / no instance). */
+  lifecycle_status: DocumentLifecycleStatus | null;
+  /** AGENT.SIGN.2.5.3 — Needs-Attention overlay (independent of the primary
+   *  state). */
+  needs_attention: boolean;
+  attention_reason: AttentionReason | null;
 }
 
 /** Groupings used in the Documents header strip. */

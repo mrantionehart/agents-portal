@@ -14,9 +14,12 @@ import { AlertTriangle, CheckCircle2, ChevronRight, Clock, ExternalLink, FileTex
 
 import type { DocumentRow } from "./types";
 import {
+  attentionLabel,
   categoryLabel,
   documentCounts,
   envelopeCopy,
+  lifecycleLabel,
+  lifecycleTone,
   missingFieldsCopy,
   relativeUpdated,
   statusLabel,
@@ -158,7 +161,19 @@ function DocumentRowItem({
                   {d.form_revision}
                 </span>
               )}
-              <StatusBadge label={statusLabel(d.status)} tone={tone} />
+              {/* AGENT.SIGN.2.5.3 — canonical lifecycle chip (falls back to the
+                  raw form-status badge when Vault didn't stamp a lifecycle). */}
+              {d.lifecycle_status ? (
+                <LifecycleChip
+                  label={lifecycleLabel(d.lifecycle_status, d.status)}
+                  tone={lifecycleTone(d.lifecycle_status)}
+                />
+              ) : (
+                <StatusBadge label={statusLabel(d.status)} tone={tone} />
+              )}
+              {d.needs_attention && (
+                <AttentionChip label={attentionLabel(d.attention_reason)} />
+              )}
               {d.form_category && (
                 <span className="text-[10px] text-[#71717A] uppercase tracking-wide">
                   {categoryLabel(d.form_category)}
@@ -260,6 +275,44 @@ function StatusBadge({ label, tone }: { label: string; tone: Tone }) {
       : "bg-[#1a1a25] text-[#A1A1AA] border-[#252538]";
   return (
     <span className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+// AGENT.SIGN.2.5.3 — lifecycle chip: a colored dot + label spanning the full
+// Draft → … → Signed lifecycle. Distinct tones so the DocuSign states read at a
+// glance (⚪ Draft · 🔵 Generated · 🟡 Sent · 🟠 Viewed · 🟣 Completed/Imported ·
+// 🟢 Signed).
+type LifecycleToneKey = "muted" | "info" | "sent" | "viewed" | "progress" | "ok";
+
+function LifecycleChip({ label, tone }: { label: string; tone: LifecycleToneKey }) {
+  const map: Record<LifecycleToneKey, { chip: string; dot: string }> = {
+    muted: { chip: "bg-[#1a1a25] text-[#A1A1AA] border-[#252538]", dot: "bg-[#71717A]" },
+    info: { chip: "bg-sky-900/30 text-sky-200 border-sky-700/40", dot: "bg-sky-400" },
+    sent: { chip: "bg-amber-900/30 text-amber-200 border-amber-700/40", dot: "bg-amber-400" },
+    viewed: { chip: "bg-orange-900/30 text-orange-200 border-orange-700/40", dot: "bg-orange-400" },
+    progress: { chip: "bg-violet-900/30 text-violet-200 border-violet-700/40", dot: "bg-violet-400" },
+    ok: { chip: "bg-emerald-900/30 text-emerald-200 border-emerald-700/40", dot: "bg-emerald-400" },
+  };
+  const { chip, dot } = map[tone];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${chip}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+      {label}
+    </span>
+  );
+}
+
+// AGENT.SIGN.2.5.3 — Needs-Attention overlay chip (red, always secondary to the
+// lifecycle chip).
+function AttentionChip({ label }: { label: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md border border-red-700/40 bg-red-900/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-200"
+      title={label}
+    >
+      <AlertTriangle className="h-2.5 w-2.5" />
       {label}
     </span>
   );

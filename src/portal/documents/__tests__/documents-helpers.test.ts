@@ -6,11 +6,14 @@
 // ============================================================================
 
 import {
+  attentionLabel,
   buildOpenInVaultUrl,
   categoryLabel,
   deriveMissingFieldsCount,
   documentCounts,
   envelopeCopy,
+  lifecycleLabel,
+  lifecycleTone,
   mergeDocuments,
   missingFieldsCopy,
   relativeUpdated,
@@ -59,6 +62,81 @@ function inst(over: Partial<FormInstanceRow> = {}): FormInstanceRow {
     ...over,
   };
 }
+
+// ── AGENT.SIGN.2.5.3 — lifecycle chips ──────────────────────────────────
+describe("lifecycleLabel / lifecycleTone / attentionLabel", () => {
+  it("labels every lifecycle state", () => {
+    expect(lifecycleLabel("draft", "not_started")).toBe("Draft");
+    expect(lifecycleLabel("generated", "ready")).toBe("Generated");
+    expect(lifecycleLabel("sent", "sent")).toBe("Sent");
+    expect(lifecycleLabel("viewed", "sent")).toBe("Viewed");
+    expect(lifecycleLabel("completed", "sent")).toBe("Completed");
+    expect(lifecycleLabel("imported", "sent")).toBe("Imported");
+    expect(lifecycleLabel("signed", "signed")).toBe("Signed");
+  });
+  it("falls back to the raw status label when lifecycle is null", () => {
+    expect(lifecycleLabel(null, "blocked")).toBe("Blocked");
+    expect(lifecycleLabel(null, "not_started")).toBe("Not Started");
+  });
+  it("assigns distinct tones for sent/viewed/signed", () => {
+    expect(lifecycleTone("draft")).toBe("muted");
+    expect(lifecycleTone("generated")).toBe("info");
+    expect(lifecycleTone("sent")).toBe("sent");
+    expect(lifecycleTone("viewed")).toBe("viewed");
+    expect(lifecycleTone("completed")).toBe("progress");
+    expect(lifecycleTone("imported")).toBe("progress");
+    expect(lifecycleTone("signed")).toBe("ok");
+    expect(lifecycleTone(null)).toBe("muted");
+  });
+  it("labels each attention reason", () => {
+    expect(attentionLabel("import_failed")).toBe("Import failed");
+    expect(attentionLabel("missing_signatures")).toBe("Missing signatures");
+    expect(attentionLabel("anchor_health")).toBe("Signing boxes issue");
+    expect(attentionLabel("reconnect_docusign")).toBe("Reconnect DocuSign");
+    expect(attentionLabel("awaiting_info")).toBe("Awaiting info");
+    expect(attentionLabel("stale_sent")).toBe("Awaiting signature");
+    expect(attentionLabel(null)).toBe("Needs attention");
+  });
+});
+
+describe("mergeDocuments — carries lifecycle onto the row", () => {
+  it("stamps lifecycle_status + needs_attention from the instance (req-matched)", () => {
+    const rows = mergeDocuments({
+      vaultBase: "https://v.x",
+      transactionId: "T1",
+      requirements: [req()],
+      instances: [inst({ status: "sent", lifecycle: { lifecycle_status: "viewed", needs_attention: true, attention_reason: "anchor_health" } })],
+    });
+    const r = rows.find((x) => x.form_id === "RLHD-3x")!;
+    expect(r.lifecycle_status).toBe("viewed");
+    expect(r.needs_attention).toBe(true);
+    expect(r.attention_reason).toBe("anchor_health");
+  });
+
+  it("defaults to null/false when the instance has no lifecycle (legacy)", () => {
+    const rows = mergeDocuments({
+      vaultBase: "https://v.x",
+      transactionId: "T1",
+      requirements: [req()],
+      instances: [inst({ status: "in_progress" })],
+    });
+    const r = rows.find((x) => x.form_id === "RLHD-3x")!;
+    expect(r.lifecycle_status).toBeNull();
+    expect(r.needs_attention).toBe(false);
+    expect(r.attention_reason).toBeNull();
+  });
+
+  it("carries lifecycle on orphan instances too", () => {
+    const rows = mergeDocuments({
+      vaultBase: "https://v.x",
+      transactionId: "T1",
+      requirements: [],
+      instances: [inst({ form_id: "ZZZ-1", status: "signed", lifecycle: { lifecycle_status: "signed", needs_attention: false, attention_reason: null } })],
+    });
+    const r = rows.find((x) => x.form_id === "ZZZ-1")!;
+    expect(r.lifecycle_status).toBe("signed");
+  });
+});
 
 describe("buildOpenInVaultUrl", () => {
   it("anchors on the form_id", () => {
