@@ -25,6 +25,31 @@ export interface CoachRecommendation {
   estimated_time?: string;
 }
 
+// ── TXN-OS.3.1D — lifecycle indicator (mirrors Vault's CardLifecycle) ──────
+export type LifecycleTone = "ok" | "info" | "warn" | "muted";
+
+/** Read-only lifecycle block stamped onto each card by Vault's
+ *  /api/platform/workspace (TXN-OS.3.1C). Derived server-side by the pure
+ *  stageState() projector — the UI never recalculates it. Null when the
+ *  projection failed (fail-open). */
+export interface CardLifecycle {
+  current_stage: string;
+  current_stage_label: string;
+  next_stage: string | null;
+  next_stage_label: string | null;
+  stage_readiness: {
+    tier: "not_started" | "in_progress" | "blocked" | "ready_to_advance" | "complete";
+    satisfied_count: number;
+    total_count: number;
+    percent: number;
+    can_advance: boolean;
+  };
+  blockers: Array<{ class: string; key: string; label: string; severity: string; reason: string }>;
+  warnings: string[];
+  next_action: { class: string; key: string; label: string; priority: string };
+  priority: "critical" | "high" | "medium" | "low";
+}
+
 export interface WorkspaceCard {
   transaction_id: string;
   transaction_type: string | null;
@@ -52,6 +77,9 @@ export interface WorkspaceCard {
    *  Null when the Coach has nothing actionable (kind=nothing_urgent)
    *  or when the composer errored. */
   coach_recommendation?: CoachRecommendation | null;
+  /** TXN-OS.3.1D — canonical deal lifecycle (Transaction Stage), from Vault's
+   *  workspace projection. Null/absent when unavailable → indicator hides. */
+  lifecycle?: CardLifecycle | null;
 }
 
 export type StatusFilter =

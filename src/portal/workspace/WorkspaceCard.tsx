@@ -18,7 +18,8 @@ import {
   vaultPaperworkUrl,
   vaultTransactionUrl,
 } from "./helpers";
-import type { WorkspaceCard as WorkspaceCardData } from "./types";
+import type { WorkspaceCard as WorkspaceCardData, CardLifecycle } from "./types";
+import { hasLifecycle, lifecycleChipVM } from "./lifecycle-view";
 
 interface Props {
   card: WorkspaceCardData;
@@ -62,6 +63,12 @@ export default function WorkspaceCard({ card, vaultBase }: Props) {
         )}
       </div>
 
+      {/* TXN-OS.3.1D — Transaction Stage indicator (distinct from the paperwork
+          stage above). Additive + fail-graceful: hidden when lifecycle is null. */}
+      {hasLifecycle(card.lifecycle) && (
+        <TransactionStageIndicator lifecycle={card.lifecycle} />
+      )}
+
       <p className="text-sm text-[#A1A1AA] mb-4 leading-relaxed">
         {card.suggested_prompt}
       </p>
@@ -104,6 +111,36 @@ export default function WorkspaceCard({ card, vaultBase }: Props) {
           <Sparkles className="h-3 w-3" /> Continue with AI
         </Link>
       </div>
+    </div>
+  );
+}
+
+// ── TXN-OS.3.1D — Transaction Stage indicator ───────────────────────
+// Thin shell over the pure lifecycle-view helpers. Renders only labels/counts
+// from Vault's projection — never recalculates lifecycle.
+function TransactionStageIndicator({ lifecycle }: { lifecycle: CardLifecycle }) {
+  const vm = lifecycleChipVM(lifecycle);
+  return (
+    <div className="mb-3 rounded-md border border-[#1a1a2e] bg-[#0b0b10] px-2.5 py-2">
+      <div className="text-[9px] uppercase tracking-wide text-[#71717A] mb-1">
+        {vm.section_label}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge tone="muted">{vm.current_stage_label}</Badge>
+        {vm.next_stage_label && (
+          <span className="text-[10px] text-[#71717A]">→ {vm.next_stage_label}</span>
+        )}
+        <Badge tone={vm.readiness_tone}>{vm.readiness_label}</Badge>
+        {vm.blocker_count > 0 && (
+          <Badge tone="warn">
+            {vm.blocker_count} blocker{vm.blocker_count === 1 ? "" : "s"}
+          </Badge>
+        )}
+        <Badge tone={vm.priority_tone}>{vm.priority}</Badge>
+      </div>
+      {vm.next_action_label && (
+        <div className="mt-1 text-[10px] text-sky-300 truncate">{vm.next_action_label}</div>
+      )}
     </div>
   );
 }
