@@ -1431,6 +1431,7 @@ function LockedFilesSection({
 function InventoryGrid({ token }: { token: string }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stateFilter, setStateFilter] = useState<string>("all"); // all, NJ, FL
   const [filter, setFilter] = useState<string>("all"); // all, available, under_contract
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [interestModal, setInterestModal] = useState<any>(null);
@@ -1488,7 +1489,10 @@ function InventoryGrid({ token }: { token: string }) {
   if (loading) return null;
   if (items.length === 0) return null;
 
+  const availableStates = [...new Set(items.map((i: any) => i.state).filter(Boolean))] as string[];
+
   const filtered = items.filter((item: any) => {
+    if (stateFilter !== "all" && item.state !== stateFilter) return false;
     if (filter !== "all" && item.status !== filter) return false;
     if (typeFilter !== "all" && item.property_type !== typeFilter) return false;
     return true;
@@ -1524,6 +1528,46 @@ function InventoryGrid({ token }: { token: string }) {
           </div>
           <p className="text-gray-500">Exclusive properties available through this portal. Express interest or schedule a showing below.</p>
         </div>
+
+        {/* State Selector */}
+        {availableStates.length > 1 && (
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={() => setStateFilter("all")}
+              className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+                stateFilter === "all"
+                  ? "bg-gray-900 text-white shadow-lg"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All Markets ({items.length})
+            </button>
+            {availableStates.includes("NJ") && (
+              <button
+                onClick={() => setStateFilter("NJ")}
+                className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+                  stateFilter === "NJ"
+                    ? "bg-gray-900 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                New Jersey ({items.filter((i: any) => i.state === "NJ").length})
+              </button>
+            )}
+            {availableStates.includes("FL") && (
+              <button
+                onClick={() => setStateFilter("FL")}
+                className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+                  stateFilter === "FL"
+                    ? "bg-gray-900 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Florida ({items.filter((i: any) => i.state === "FL").length})
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
