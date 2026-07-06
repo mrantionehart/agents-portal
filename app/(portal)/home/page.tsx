@@ -231,11 +231,10 @@ export default async function PortalHomePage() {
       <section>
         <h2 className="text-sm font-medium text-[#F1F1F3] mb-3">Quick Actions</h2>
 
-        {/* Primary CTA — R1: + New Transaction. Routes to the existing
-            legacy /transactions/new form; the form itself is not yet
-            wrapped in the AP2 shell (R3). */}
+        {/* Primary CTA — + New Transaction. Transaction OS 3.3B.3A routes
+            to the in-portal Transaction Wizard at /workspace/new. */}
         <Link
-          href="/transactions/new"
+          href="/workspace/new"
           className="
             block rounded-lg border border-[#C9A84C]/40
             bg-[#C9A84C]/10 hover:bg-[#C9A84C]/15

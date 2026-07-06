@@ -163,7 +163,7 @@ export default function PipelinePage() {
               </select>
             )}
             <button
-              onClick={() => router.push('/transactions/new')}
+              onClick={() => router.push('/workspace/new')}
               className="bg-teal-600 text-white px-4 py-2.5 rounded-lg hover:bg-teal-700 transition flex items-center gap-2 text-sm font-semibold"
             >
               <Plus className="w-4 h-4" />
@@ -224,7 +224,7 @@ export default function PipelinePage() {
             <p className="text-lg font-medium text-gray-400 mb-2">No deals in your pipeline yet</p>
             <p className="text-sm text-gray-400 mb-6">Create a transaction to start tracking your opportunities</p>
             <button
-              onClick={() => router.push('/transactions/new')}
+              onClick={() => router.push('/workspace/new')}
               className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition inline-flex items-center gap-2 text-sm font-semibold"
             >
               <Plus className="w-4 h-4" />

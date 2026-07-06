@@ -32,11 +32,11 @@ describe("NAV_ACTIONS catalog", () => {
     ]);
   });
 
-  it("R1 — Create New Transaction action exists and targets /transactions/new", () => {
+  it("R1 — Create New Transaction action exists and targets the wizard /workspace/new", () => {
     const c = NAV_ACTIONS.find((a) => a.id === "create-transaction")!;
     expect(c).toBeDefined();
     expect(c.label).toBe("Create New Transaction");
-    expect(c.href).toBe("/transactions/new");
+    expect(c.href).toBe("/workspace/new"); // Transaction OS 3.3B.3A: in-portal wizard
     expect(c.kind).toBe("navigate"); // NEVER a mutation
   });
 
@@ -137,7 +137,7 @@ describe("targetFor", () => {
     const home = NAV_ACTIONS.find((a) => a.id === "nav-home")!;
     expect(targetFor(home)).toBe("/home");
     const create = NAV_ACTIONS.find((a) => a.id === "create-transaction")!;
-    expect(targetFor(create)).toBe("/transactions/new");
+    expect(targetFor(create)).toBe("/workspace/new");
   });
   it("seed-ai → /ai?seed=<encoded>", () => {
     const out = seedAIActions("what's blocking?")[0];

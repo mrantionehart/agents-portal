@@ -19,10 +19,10 @@ import { Plus } from "lucide-react";
 import WorkspaceClient from "@/src/portal/workspace/WorkspaceClient";
 import { fetchWorkspaceFromVault, vaultSiteBase } from "@/src/portal/workspace/api";
 
-/** R1: link to the existing legacy /transactions/new creation form. The
- *  Portal does NOT yet wrap the form in the (portal) shell — that lands
- *  in R3. R1's job is just to make the entry point visible. */
-const NEW_TRANSACTION_HREF = "/transactions/new";
+/** Transaction OS 3.3B.3A: the primary entry point is now the in-portal
+ *  Transaction Wizard at /workspace/new (inside the (portal) shell). The
+ *  legacy single-page /transactions/new form is left untouched. */
+const NEW_TRANSACTION_HREF = "/workspace/new";
 
 export default async function WorkspacePage() {
   const cookieStore = await cookies();
