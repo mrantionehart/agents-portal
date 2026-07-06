@@ -25,6 +25,7 @@ import {
   Share2,
   Copy,
   MessageCircle,
+  Package,
   Send,
   DollarSign,
   Star,
@@ -1426,6 +1427,321 @@ function LockedFilesSection({
   );
 }
 
+// ── Inventory Grid — Off-Market Deals ─────────────────────────────
+function InventoryGrid({ token }: { token: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>("all"); // all, available, under_contract
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [interestModal, setInterestModal] = useState<any>(null);
+  const [interestForm, setInterestForm] = useState({
+    name: "", email: "", phone: "", interest_type: "info" as string, message: "", offer_amount: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/deal-portal/inventory?token=${token}`);
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data.inventory || []);
+        }
+      } catch (err) {
+        console.error("Error loading inventory:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [token]);
+
+  async function submitInterest() {
+    if (!interestModal || !interestForm.name || !interestForm.email) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/deal-portal/inventory/interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inventory_id: interestModal.id,
+          portal_id: interestModal.portal_id,
+          ...interestForm,
+          offer_amount: interestForm.interest_type === "offer" && interestForm.offer_amount
+            ? Number(interestForm.offer_amount) : undefined,
+        }),
+      });
+      if (res.ok) {
+        setSubmitted(interestModal.id);
+        setInterestModal(null);
+        setInterestForm({ name: "", email: "", phone: "", interest_type: "info", message: "", offer_amount: "" });
+        setTimeout(() => setSubmitted(null), 3000);
+      }
+    } catch (err) {
+      console.error("Error submitting interest:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) return null;
+  if (items.length === 0) return null;
+
+  const filtered = items.filter((item: any) => {
+    if (filter !== "all" && item.status !== filter) return false;
+    if (typeFilter !== "all" && item.property_type !== typeFilter) return false;
+    return true;
+  });
+
+  const propertyTypes = [...new Set(items.map((i: any) => i.property_type))];
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "available": return "bg-emerald-100 text-emerald-800";
+      case "under_contract": return "bg-amber-100 text-amber-800";
+      case "sold": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-600";
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "available": return "Available";
+      case "under_contract": return "Under Contract";
+      case "sold": return "Sold";
+      default: return status;
+    }
+  };
+
+  return (
+    <>
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <Package className="h-6 w-6 text-gray-700" />
+            <h2 className="text-2xl font-bold text-gray-900">Off-Market Inventory</h2>
+          </div>
+          <p className="text-gray-500">Exclusive properties available through this portal. Express interest or schedule a showing below.</p>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === "all" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+          >
+            All ({items.length})
+          </button>
+          <button
+            onClick={() => setFilter("available")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === "available" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
+          >
+            Available ({items.filter((i: any) => i.status === "available").length})
+          </button>
+          <button
+            onClick={() => setFilter("under_contract")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === "under_contract" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100"}`}
+          >
+            Under Contract ({items.filter((i: any) => i.status === "under_contract").length})
+          </button>
+          {propertyTypes.length > 1 && (
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border-0 outline-none cursor-pointer"
+            >
+              <option value="all">All Types</option>
+              {propertyTypes.map((t: string) => (
+                <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Grid */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((item: any) => (
+            <div key={item.id} className="rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              {/* Photo */}
+              {item.photo_url && (
+                <div className="h-44 bg-gray-100 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              <div className="p-4">
+                {/* Status + Type */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${statusBadge(item.status)}`}>
+                    {statusLabel(item.status)}
+                  </span>
+                  <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">
+                    {item.property_type?.replace(/_/g, " ")}
+                  </span>
+                </div>
+
+                {/* Title + Address */}
+                <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2">{item.title}</h3>
+                {item.address && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    {item.address}{item.city ? `, ${item.city}` : ""}{item.state ? `, ${item.state}` : ""} {item.zip || ""}
+                  </p>
+                )}
+
+                {/* Price */}
+                {(item.price || item.price_label) && (
+                  <p className="text-lg font-bold text-gray-900 mb-2">
+                    {item.price ? formatPrice(item.price) : ""}
+                    {item.price_label && <span className="text-xs font-normal text-gray-500 ml-1">{item.price_label}</span>}
+                  </p>
+                )}
+
+                {/* Quick Facts */}
+                <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                  {item.beds && <span className="flex items-center gap-0.5"><Bed className="h-3 w-3" /> {item.beds} bd</span>}
+                  {item.baths && <span className="flex items-center gap-0.5"><Bath className="h-3 w-3" /> {item.baths} ba</span>}
+                  {item.sqft && <span className="flex items-center gap-0.5"><Maximize className="h-3 w-3" /> {item.sqft.toLocaleString()} sqft</span>}
+                  {item.lot_size && <span>{item.lot_size}</span>}
+                  {item.units && <span>{item.units} units</span>}
+                </div>
+
+                {/* Description */}
+                {item.description && (
+                  <p className="text-xs text-gray-600 mb-3 line-clamp-3">{item.description}</p>
+                )}
+
+                {/* Action buttons */}
+                {item.status !== "sold" ? (
+                  submitted === item.id ? (
+                    <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium py-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Interest submitted!
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setInterestModal(item); setInterestForm(f => ({ ...f, interest_type: "info" })); }}
+                        className="flex-1 rounded-lg bg-gray-900 text-white px-3 py-2 text-xs font-medium hover:bg-gray-800 transition-colors"
+                      >
+                        I&apos;m Interested
+                      </button>
+                      <button
+                        onClick={() => { setInterestModal(item); setInterestForm(f => ({ ...f, interest_type: "showing" })); }}
+                        className="rounded-lg border border-gray-300 text-gray-700 px-3 py-2 text-xs font-medium hover:bg-gray-50 transition-colors"
+                      >
+                        Schedule Showing
+                      </button>
+                      <button
+                        onClick={() => { setInterestModal(item); setInterestForm(f => ({ ...f, interest_type: "offer" })); }}
+                        className="rounded-lg border border-emerald-300 text-emerald-700 px-3 py-2 text-xs font-medium hover:bg-emerald-50 transition-colors"
+                      >
+                        <DollarSign className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <p className="text-xs text-red-500 font-medium py-2">This property has been sold</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filtered.length === 0 && (
+          <p className="text-center text-gray-400 py-8 text-sm">No properties match your current filters.</p>
+        )}
+      </section>
+
+      {/* Interest Submission Modal */}
+      {interestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setInterestModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">
+                {interestForm.interest_type === "offer" ? "Submit Offer" :
+                 interestForm.interest_type === "showing" ? "Schedule Showing" : "Express Interest"}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">{interestModal.title}</p>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="flex gap-2 mb-4">
+                {["info", "showing", "offer"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setInterestForm((f) => ({ ...f, interest_type: type }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      interestForm.interest_type === type
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {type === "info" ? "General Interest" : type === "showing" ? "Schedule Showing" : "Make Offer"}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Your name *"
+                value={interestForm.name}
+                onChange={(e) => setInterestForm((f) => ({ ...f, name: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+              />
+              <input
+                type="email"
+                placeholder="Your email *"
+                value={interestForm.email}
+                onChange={(e) => setInterestForm((f) => ({ ...f, email: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+              />
+              <input
+                type="tel"
+                placeholder="Phone (optional)"
+                value={interestForm.phone}
+                onChange={(e) => setInterestForm((f) => ({ ...f, phone: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+              />
+              {interestForm.interest_type === "offer" && (
+                <input
+                  type="number"
+                  placeholder="Offer amount *"
+                  value={interestForm.offer_amount}
+                  onChange={(e) => setInterestForm((f) => ({ ...f, offer_amount: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                />
+              )}
+              <textarea
+                placeholder={interestForm.interest_type === "showing" ? "Preferred dates/times..." : "Message (optional)"}
+                value={interestForm.message}
+                onChange={(e) => setInterestForm((f) => ({ ...f, message: e.target.value }))}
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+              />
+            </div>
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                onClick={() => setInterestModal(null)}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitInterest}
+                disabled={submitting || !interestForm.name || !interestForm.email || (interestForm.interest_type === "offer" && !interestForm.offer_amount)}
+                className="flex-1 rounded-lg bg-gray-900 text-white px-4 py-2.5 text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                {submitting ? "Submitting..." : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ============================================================================
 // Buyer Engagement — Interest / Offer / WhatsApp
 // ============================================================================
@@ -1799,6 +2115,9 @@ function PropertyPresentation({
           portalTitle={property.title}
         />
       )}
+
+      {/* Off-Market Inventory */}
+      <InventoryGrid token={token} />
 
       {/* Buyer Engagement — Interest / Offer / WhatsApp */}
       <BuyerEngagement token={token} />
