@@ -50,6 +50,25 @@ export interface CardLifecycle {
   priority: "critical" | "high" | "medium" | "low";
 }
 
+// ── TXN-OS.3.2D — deadline summary (mirrors Vault's 3.2C deadline_summary) ──
+/** Read-only, SAFE deadline block stamped onto each card by Vault's
+ *  /api/platform/workspace (TXN-OS.3.2C). Derived server-side by the pure
+ *  deadlineState() projector — the UI never recalculates it. Null when the
+ *  deadline projection failed (fail-open). Carries only labels/keys/dates/counts;
+ *  Vault already withholds metadata/confidence/tenant/owner ids. */
+export interface DeadlineSummary {
+  next_deadline: string | null;
+  next_deadline_label: string | null;
+  due_date: string | null;
+  days_remaining: number | null;
+  priority: "critical" | "high" | "medium" | "low";
+  overdue_count: number;
+  at_risk_count: number;
+  breached_count: number;
+  blocker_count: number;
+  warning_count: number;
+}
+
 export interface WorkspaceCard {
   transaction_id: string;
   transaction_type: string | null;
@@ -80,6 +99,9 @@ export interface WorkspaceCard {
   /** TXN-OS.3.1D — canonical deal lifecycle (Transaction Stage), from Vault's
    *  workspace projection. Null/absent when unavailable → indicator hides. */
   lifecycle?: CardLifecycle | null;
+  /** TXN-OS.3.2D — deadline summary (Deadline section), from Vault's workspace
+   *  projection. Null/absent when unavailable → section hides. */
+  deadline_summary?: DeadlineSummary | null;
 }
 
 export type StatusFilter =

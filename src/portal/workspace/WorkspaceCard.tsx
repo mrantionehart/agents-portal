@@ -18,8 +18,9 @@ import {
   vaultPaperworkUrl,
   vaultTransactionUrl,
 } from "./helpers";
-import type { WorkspaceCard as WorkspaceCardData, CardLifecycle } from "./types";
+import type { WorkspaceCard as WorkspaceCardData, CardLifecycle, DeadlineSummary } from "./types";
 import { hasLifecycle, lifecycleChipVM } from "./lifecycle-view";
+import { hasDeadlineSummary, deadlineChipVM } from "./deadline-view";
 
 interface Props {
   card: WorkspaceCardData;
@@ -67,6 +68,13 @@ export default function WorkspaceCard({ card, vaultBase }: Props) {
           stage above). Additive + fail-graceful: hidden when lifecycle is null. */}
       {hasLifecycle(card.lifecycle) && (
         <TransactionStageIndicator lifecycle={card.lifecycle} />
+      )}
+
+      {/* TXN-OS.3.2D — Deadline section (distinct from the paperwork stage badge
+          and the Transaction Stage indicator above). Additive + fail-graceful:
+          hidden when deadline_summary is null or empty. */}
+      {hasDeadlineSummary(card.deadline_summary) && (
+        <DeadlineIndicator summary={card.deadline_summary} />
       )}
 
       <p className="text-sm text-[#A1A1AA] mb-4 leading-relaxed">
@@ -141,6 +149,31 @@ function TransactionStageIndicator({ lifecycle }: { lifecycle: CardLifecycle }) 
       {vm.next_action_label && (
         <div className="mt-1 text-[10px] text-sky-300 truncate">{vm.next_action_label}</div>
       )}
+    </div>
+  );
+}
+
+// ── TXN-OS.3.2D — Deadline indicator ────────────────────────────────
+// Thin shell over the pure deadline-view helpers. Renders only labels/dates/
+// counts from Vault's deadline_summary — never recalculates, never shows the
+// internal next_deadline key. Priority colors match the Transaction Stage.
+function DeadlineIndicator({ summary }: { summary: DeadlineSummary }) {
+  const vm = deadlineChipVM(summary);
+  return (
+    <div className="mb-3 rounded-md border border-[#1a1a2e] bg-[#0b0b10] px-2.5 py-2">
+      <div className="text-[9px] uppercase tracking-wide text-[#71717A] mb-1">
+        {vm.section_label}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {vm.next_deadline_label && <Badge tone="muted">{vm.next_deadline_label}</Badge>}
+        {vm.due_date_label && (
+          <span className="text-[10px] text-[#71717A]">{vm.due_date_label}</span>
+        )}
+        {vm.days_label && <Badge tone={vm.days_tone}>{vm.days_label}</Badge>}
+        {vm.overdue_count > 0 && <Badge tone="warn">{vm.overdue_count} overdue</Badge>}
+        {vm.at_risk_count > 0 && <Badge tone="info">{vm.at_risk_count} at risk</Badge>}
+        <Badge tone={vm.priority_tone}>{vm.priority}</Badge>
+      </div>
     </div>
   );
 }
