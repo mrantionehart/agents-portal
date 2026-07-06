@@ -1432,6 +1432,7 @@ function InventoryGrid({ token }: { token: string }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stateFilter, setStateFilter] = useState<string>("all"); // all, NJ, FL
+  const [countyFilter, setCountyFilter] = useState<string>("all");
   const [filter, setFilter] = useState<string>("all"); // all, available, under_contract
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [interestModal, setInterestModal] = useState<any>(null);
@@ -1491,8 +1492,13 @@ function InventoryGrid({ token }: { token: string }) {
 
   const availableStates = [...new Set(items.map((i: any) => i.state).filter(Boolean))] as string[];
 
+  // Counties filtered by selected state
+  const stateItems = stateFilter === "all" ? items : items.filter((i: any) => i.state === stateFilter);
+  const availableCounties = [...new Set(stateItems.map((i: any) => i.county).filter(Boolean))].sort() as string[];
+
   const filtered = items.filter((item: any) => {
     if (stateFilter !== "all" && item.state !== stateFilter) return false;
+    if (countyFilter !== "all" && item.county !== countyFilter) return false;
     if (filter !== "all" && item.status !== filter) return false;
     if (typeFilter !== "all" && item.property_type !== typeFilter) return false;
     return true;
@@ -1533,7 +1539,7 @@ function InventoryGrid({ token }: { token: string }) {
         {availableStates.length > 1 && (
           <div className="flex gap-3 mb-6">
             <button
-              onClick={() => setStateFilter("all")}
+              onClick={() => { setStateFilter("all"); setCountyFilter("all"); }}
               className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
                 stateFilter === "all"
                   ? "bg-gray-900 text-white shadow-lg"
@@ -1544,7 +1550,7 @@ function InventoryGrid({ token }: { token: string }) {
             </button>
             {availableStates.includes("NJ") && (
               <button
-                onClick={() => setStateFilter("NJ")}
+                onClick={() => { setStateFilter("NJ"); setCountyFilter("all"); }}
                 className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
                   stateFilter === "NJ"
                     ? "bg-gray-900 text-white shadow-lg"
@@ -1556,7 +1562,7 @@ function InventoryGrid({ token }: { token: string }) {
             )}
             {availableStates.includes("FL") && (
               <button
-                onClick={() => setStateFilter("FL")}
+                onClick={() => { setStateFilter("FL"); setCountyFilter("all"); }}
                 className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold transition-all ${
                   stateFilter === "FL"
                     ? "bg-gray-900 text-white shadow-lg"
@@ -1566,6 +1572,35 @@ function InventoryGrid({ token }: { token: string }) {
                 Florida ({items.filter((i: any) => i.state === "FL").length})
               </button>
             )}
+          </div>
+        )}
+
+        {/* County Filter */}
+        {availableCounties.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setCountyFilter("all")}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                countyFilter === "all"
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              All Counties
+            </button>
+            {availableCounties.map((county: string) => (
+              <button
+                key={county}
+                onClick={() => setCountyFilter(county)}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  countyFilter === county
+                    ? "bg-gray-800 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200"
+                }`}
+              >
+                {county} County ({stateItems.filter((i: any) => i.county === county).length})
+              </button>
+            ))}
           </div>
         )}
 
@@ -1631,7 +1666,7 @@ function InventoryGrid({ token }: { token: string }) {
                 {item.address && (
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
-                    {item.address}{item.city ? `, ${item.city}` : ""}{item.state ? `, ${item.state}` : ""} {item.zip || ""}
+                    {item.address}{item.city ? `, ${item.city}` : ""}{item.county ? ` (${item.county} Co.)` : ""}{item.state ? `, ${item.state}` : ""} {item.zip || ""}
                   </p>
                 )}
 

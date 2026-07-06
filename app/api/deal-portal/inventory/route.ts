@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const token = searchParams.get("token");
     const state = searchParams.get("state");
+    const county = searchParams.get("county");
     const property_type = searchParams.get("property_type");
     const status = searchParams.get("status");
 
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
 
     const params = new URLSearchParams({ token });
     if (state) params.append("state", state);
+    if (county) params.append("county", county);
     if (property_type) params.append("property_type", property_type);
     if (status) params.append("status", status);
 
