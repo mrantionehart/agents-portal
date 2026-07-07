@@ -1333,29 +1333,35 @@ function LockedFilesSection({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              {allMediaLocked ? "Documents & Media" : "Private Documents"}
+              {files.length === 0
+                ? "Download Access"
+                : allMediaLocked ? "Documents & Media" : "Private Documents"}
             </h3>
             <p className="text-sm text-gray-600">
-              {allMediaLocked
-                ? `${files.length} file${files.length !== 1 ? "s" : ""} — request access to view`
-                : `${files.length} file${files.length !== 1 ? "s" : ""} require${files.length === 1 ? "s" : ""} access approval`}
+              {files.length === 0
+                ? "All media is view-only. Request access to download files and documents."
+                : allMediaLocked
+                  ? `${files.length} file${files.length !== 1 ? "s" : ""} — request access to download`
+                  : `${files.length} file${files.length !== 1 ? "s" : ""} require${files.length === 1 ? "s" : ""} access approval`}
             </p>
           </div>
         </div>
 
         {/* File list */}
-        <div className="space-y-2 mb-5">
-          {files.map((f: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg bg-white/60 border border-amber-100 px-4 py-3">
-              <Lock className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{f.title || "Private Document"}</p>
-                <p className="text-xs text-amber-600 capitalize">{f.type}</p>
+        {files.length > 0 && (
+          <div className="space-y-2 mb-5">
+            {files.map((f: any, i: number) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg bg-white/60 border border-amber-100 px-4 py-3">
+                <Lock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{f.title || "Private Document"}</p>
+                  <p className="text-xs text-amber-600 capitalize">{f.type}</p>
+                </div>
+                <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Locked</span>
               </div>
-              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Locked</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Request Access flow */}
         {mode === "idle" && (
@@ -1364,7 +1370,7 @@ function LockedFilesSection({
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 text-white py-3 px-6 text-sm font-semibold hover:bg-gray-800 transition-colors"
           >
             <Lock className="w-4 h-4" />
-            Request Access
+            Request Download Access
           </button>
         )}
 
@@ -2206,8 +2212,8 @@ function PropertyPresentation({
         <DocumentsSection media={regularDocs} />
       )}
 
-      {/* Locked Files — Request Access (Google Drive model) */}
-      {lockedMedia.length > 0 && (
+      {/* Download Access — view-only mode, request to download */}
+      {(lockedMedia.length > 0 || (mediaAccessRequired && !accessApproved)) && (
         <LockedFilesSection
           files={lockedMedia}
           token={token}
