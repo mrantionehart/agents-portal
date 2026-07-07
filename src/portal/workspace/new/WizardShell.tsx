@@ -24,7 +24,10 @@ import { prevStep, WIZARD_STEPS, type StepId } from "./wizard-steps";
 import {
   stepValidators,
   validateStep,
+  isStepComplete,
   type StepValidator,
+  type StepValidation,
+  type WizardFieldErrors,
 } from "./wizard-validation";
 import TransactionTypeStep from "./TransactionTypeStep";
 import PropertyStep from "./PropertyStep";
@@ -50,9 +53,17 @@ function CreatePlaceholder() {
   );
 }
 
-/** Dispatch the current step to its component. `package` is terminal and never
- *  a current step, so it has no body here. */
-function StepBody({ current, wiz }: { current: StepId; wiz: UseWizardSession }) {
+/** Dispatch the current step to its component, threading the current step's
+ *  field errors. `package` is terminal and never a current step. */
+function StepBody({
+  current,
+  wiz,
+  fieldErrors,
+}: {
+  current: StepId;
+  wiz: UseWizardSession;
+  fieldErrors: WizardFieldErrors;
+}) {
   const { session } = wiz;
   switch (current) {
     case "type":
@@ -61,13 +72,18 @@ function StepBody({ current, wiz }: { current: StepId; wiz: UseWizardSession }) 
           <TransactionTypeStep
             value={session.transaction_type}
             onSelect={wiz.setType}
+            error={fieldErrors.transaction_type}
           />
         </div>
       );
     case "property":
       return (
         <div data-testid="wizard-step-property">
-          <PropertyStep property={session.property} onChange={wiz.patchProperty} />
+          <PropertyStep
+            property={session.property}
+            onChange={wiz.patchProperty}
+            errors={fieldErrors.property}
+          />
         </div>
       );
     case "parties":
@@ -76,6 +92,7 @@ function StepBody({ current, wiz }: { current: StepId; wiz: UseWizardSession }) 
           <ClientsPartiesStep
             parties={session.parties}
             onChange={wiz.replaceParties}
+            errors={fieldErrors.parties}
           />
         </div>
       );
@@ -86,6 +103,7 @@ function StepBody({ current, wiz }: { current: StepId; wiz: UseWizardSession }) 
             dates={session.dates}
             transactionType={session.transaction_type}
             onChange={wiz.patchDates}
+            errors={fieldErrors.dates}
           />
         </div>
       );
@@ -111,7 +129,8 @@ export default function WizardShell({
   validators = stepValidators,
 }: WizardShellProps) {
   const wiz = useWizardSession();
-  const [errors, setErrors] = useState<string[]>([]);
+  // Structured validation result for the CURRENT step (null until a failed Next).
+  const [validation, setValidation] = useState<StepValidation | null>(null);
 
   // Avoid a flash of the wrong step before localStorage restore completes.
   if (!wiz.hydrated) {
@@ -129,45 +148,42 @@ export default function WizardShell({
   const handleNext = () => {
     const result = validateStep(current, wiz.session, validators);
     if (!result.valid) {
-      setErrors(result.errors);
+      setValidation(result);
       return;
     }
-    setErrors([]);
+    setValidation(null);
     // On the terminal `create` step there is no next node; the create →
     // navigate orchestration is wired in 3.3B.3D. Here Next simply advances
     // through the data steps.
     wiz.goNext();
   };
 
-  const handleBack = () => {
-    // Back NEVER validates.
-    setErrors([]);
-    wiz.goBack();
+  const clearAndGo = (fn: () => void) => {
+    // Back / step-select NEVER validate.
+    setValidation(null);
+    fn();
   };
 
-  const handleStepSelect = (step: StepId) => {
-    // Stepper only offers already-visited steps → treated as Back (no validate).
-    setErrors([]);
-    wiz.goToStep(step);
-  };
+  const handleBack = () => clearAndGo(wiz.goBack);
+  const handleStepSelect = (step: StepId) => clearAndGo(() => wiz.goToStep(step));
+  const handleCancel = () => wiz.cancel();
 
-  const handleCancel = () => {
-    wiz.cancel();
-  };
+  const fieldErrors: WizardFieldErrors = validation?.fieldErrors ?? {};
 
   return (
     <WizardLayout
       current={current}
       stepLabel={stepLabel(current)}
       onStepSelect={handleStepSelect}
+      isStepComplete={(step) => isStepComplete(step, wiz.session, validators)}
       onBack={handleBack}
       onNext={handleNext}
       onCancel={handleCancel}
       canBack={canBack}
       nextLabel={isCreateStep ? "Create" : "Next"}
-      errors={errors}
+      messages={validation?.messages ?? []}
     >
-      <StepBody current={current} wiz={wiz} />
+      <StepBody current={current} wiz={wiz} fieldErrors={fieldErrors} />
     </WizardLayout>
   );
 }

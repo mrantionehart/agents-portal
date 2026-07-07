@@ -41,6 +41,20 @@ function FieldLabel({
   );
 }
 
+/** Inline field error text, linked to its input via aria-describedby. */
+function FieldError({ id, error }: { id: string; error?: string }) {
+  if (!error) return null;
+  return (
+    <p id={id} className="mt-1 text-xs text-red-400">
+      {error}
+    </p>
+  );
+}
+
+/** Ring/border tint when a field has an error. */
+const ERROR_RING =
+  "border-red-500/50 focus:ring-red-500/30 focus:border-red-500/60";
+
 export interface TextFieldProps {
   label: string;
   value: string;
@@ -49,6 +63,7 @@ export interface TextFieldProps {
   type?: "text" | "email" | "tel" | "date" | "number";
   placeholder?: string;
   required?: boolean;
+  error?: string;
 }
 
 export function TextField({
@@ -59,9 +74,11 @@ export function TextField({
   type = "text",
   placeholder,
   required,
+  error,
 }: TextFieldProps) {
   const auto = useId();
   const fieldId = id ?? auto;
+  const errId = `${fieldId}-error`;
   return (
     <div>
       <FieldLabel htmlFor={fieldId} required={required}>
@@ -74,8 +91,11 @@ export function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-required={required || undefined}
-        className={WIZARD_INPUT_CLASS}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errId : undefined}
+        className={`${WIZARD_INPUT_CLASS}${error ? ` ${ERROR_RING}` : ""}`}
       />
+      <FieldError id={errId} error={error} />
     </div>
   );
 }
@@ -98,6 +118,7 @@ export interface SelectFieldProps {
   id?: string;
   placeholder?: string;
   required?: boolean;
+  error?: string;
 }
 
 export function SelectField({
@@ -108,9 +129,11 @@ export function SelectField({
   id,
   placeholder,
   required,
+  error,
 }: SelectFieldProps) {
   const auto = useId();
   const fieldId = id ?? auto;
+  const errId = `${fieldId}-error`;
   return (
     <div>
       <FieldLabel htmlFor={fieldId} required={required}>
@@ -121,7 +144,9 @@ export function SelectField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-required={required || undefined}
-        className={WIZARD_INPUT_CLASS}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errId : undefined}
+        className={`${WIZARD_INPUT_CLASS}${error ? ` ${ERROR_RING}` : ""}`}
       >
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map((o) => (
@@ -130,6 +155,7 @@ export function SelectField({
           </option>
         ))}
       </select>
+      <FieldError id={errId} error={error} />
     </div>
   );
 }

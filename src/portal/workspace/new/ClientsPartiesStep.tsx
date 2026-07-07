@@ -10,15 +10,17 @@
 
 "use client";
 
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, AlertCircle } from "lucide-react";
 
 import { TextField, SelectField, CheckboxField } from "./fields";
 import { PARTY_ROLE_OPTIONS } from "./party-roles";
 import type { WizardPartyDraft } from "./wizard-session";
+import type { PartyRowErrors } from "./wizard-validation";
 
 export interface ClientsPartiesStepProps {
   parties: WizardPartyDraft[];
   onChange: (parties: WizardPartyDraft[]) => void;
+  errors?: { form?: string; rows?: PartyRowErrors[] };
 }
 
 const EMPTY_PARTY: WizardPartyDraft = { signature_required: true };
@@ -26,6 +28,7 @@ const EMPTY_PARTY: WizardPartyDraft = { signature_required: true };
 export default function ClientsPartiesStep({
   parties,
   onChange,
+  errors,
 }: ClientsPartiesStepProps) {
   const addParty = () => onChange([...parties, { ...EMPTY_PARTY }]);
 
@@ -37,6 +40,16 @@ export default function ClientsPartiesStep({
 
   return (
     <div className="space-y-4">
+      {errors?.form && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 text-sm text-red-400"
+        >
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          {errors.form}
+        </p>
+      )}
+
       {parties.length === 0 && (
         <div className="rounded-lg border border-dashed border-[#252538] py-8 text-center">
           <Users className="mx-auto h-6 w-6 text-[#52525b]" />
@@ -47,7 +60,9 @@ export default function ClientsPartiesStep({
         </div>
       )}
 
-      {parties.map((party, i) => (
+      {parties.map((party, i) => {
+        const rowErr = errors?.rows?.[i];
+        return (
         <div
           key={i}
           className="rounded-lg border border-[#1a1a2e] bg-[#0b0b10] p-4"
@@ -76,12 +91,14 @@ export default function ClientsPartiesStep({
                 onChange={(v) => updateParty(i, { role: v })}
                 options={PARTY_ROLE_OPTIONS.map((r) => ({ value: r.id, label: r.label }))}
                 placeholder="Select a role…"
+                error={rowErr?.role}
               />
               <TextField
                 label="Name"
                 value={party.name ?? ""}
                 onChange={(v) => updateParty(i, { name: v })}
                 placeholder="Full name"
+                error={rowErr?.name}
               />
             </div>
 
@@ -99,6 +116,7 @@ export default function ClientsPartiesStep({
                 value={party.email ?? ""}
                 onChange={(v) => updateParty(i, { email: v })}
                 placeholder="party@email.com"
+                error={rowErr?.email}
               />
               <TextField
                 label="Phone"
@@ -116,7 +134,8 @@ export default function ClientsPartiesStep({
             />
           </div>
         </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"

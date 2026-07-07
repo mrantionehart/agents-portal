@@ -22,8 +22,6 @@ jest.mock("next/navigation", () => ({
 import { useRouter, useSearchParams } from "next/navigation";
 import WizardShell from "../WizardShell";
 import { WIZARD_SESSION_KEY, emptySession, setStep, mergeProperty } from "../wizard-session";
-import { stepValidators, type StepValidator } from "../wizard-validation";
-import type { StepId } from "../wizard-steps";
 
 const mockUseRouter = useRouter as unknown as jest.Mock;
 const mockUseSearchParams = useSearchParams as unknown as jest.Mock;
@@ -50,11 +48,6 @@ function seed(over: Partial<ReturnType<typeof emptySession>>) {
   );
 }
 
-/** A validator registry that fails one named step. */
-function failing(step: StepId, error: string): Record<StepId, StepValidator> {
-  return { ...stepValidators, [step]: () => ({ valid: false, errors: [error] }) };
-}
-
 describe("WizardShell — mount / portal shell", () => {
   it("renders the wizard chrome on the first step", async () => {
     render(<WizardShell />);
@@ -69,10 +62,11 @@ describe("WizardShell — mount / portal shell", () => {
 });
 
 describe("WizardShell — navigation", () => {
-  it("Next advances and syncs the ?step= URL", async () => {
+  it("Next advances and syncs the ?step= URL (after the step validates)", async () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
 
+    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ })); // type valid
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
 
     expect(await screen.findByTestId("wizard-step-property")).toBeInTheDocument();
@@ -83,6 +77,7 @@ describe("WizardShell — navigation", () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
 
+    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
     fireEvent.click(screen.getByRole("button", { name: /Back/ })); // → type
@@ -93,6 +88,7 @@ describe("WizardShell — navigation", () => {
   it("the Stepper jumps back to a visited step", async () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
+    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
 
@@ -101,35 +97,52 @@ describe("WizardShell — navigation", () => {
   });
 });
 
-describe("WizardShell — validation gate", () => {
-  it("Next validates the current step and BLOCKS on failure", async () => {
-    render(<WizardShell validators={failing("type", "Pick a type")} />);
+describe("WizardShell — validation gate (real rules)", () => {
+  it("blocks Next on the type step until a type is chosen", async () => {
+    render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
 
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
 
-    // Stays on type, shows the error, does NOT navigate forward.
+    // Stays on type; message shown (banner + inline); no forward navigation.
     expect(screen.getByTestId("wizard-step-type")).toBeInTheDocument();
-    expect(screen.getByText("Pick a type")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Select a transaction type.").length
+    ).toBeGreaterThan(0);
     expect(mockReplace).not.toHaveBeenCalledWith("/workspace/new?step=property");
   });
 
-  it("Back NEVER validates (bypasses a failing current step)", async () => {
-    // property fails; navigate type → property via Next (type passes), then Back.
-    render(<WizardShell validators={failing("property", "Address required")} />);
+  it("blocks Next on property when the address is empty", async () => {
+    render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
-
-    fireEvent.click(screen.getByRole("button", { name: /Next/ })); // type ok → property
+    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
 
-    // Next on property is blocked...
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    expect(screen.getByText("Address required")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Next/ })); // blocked
+    expect(screen.getByTestId("wizard-step-property")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Property address is required.").length
+    ).toBeGreaterThan(0);
+  });
 
-    // ...but Back still works and clears the error.
-    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+  it("Back NEVER validates (bypasses a failing current step) and clears errors", async () => {
+    render(<WizardShell />);
+    await screen.findByTestId("wizard-step-type");
+    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property (empty)
+    await screen.findByTestId("wizard-step-property");
+
+    fireEvent.click(screen.getByRole("button", { name: /Next/ })); // blocked
+    expect(
+      screen.getAllByText("Property address is required.").length
+    ).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Back/ })); // Back bypasses
     expect(await screen.findByTestId("wizard-step-type")).toBeInTheDocument();
-    expect(screen.queryByText("Address required")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Property address is required.")
+    ).not.toBeInTheDocument();
   });
 });
 

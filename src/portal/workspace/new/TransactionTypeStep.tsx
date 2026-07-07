@@ -18,11 +18,13 @@ import {
 export interface TransactionTypeStepProps {
   value: string | null;
   onSelect: (type: CanonicalTransactionType) => void;
+  error?: string;
 }
 
 export default function TransactionTypeStep({
   value,
   onSelect,
+  error,
 }: TransactionTypeStepProps) {
   return (
     <fieldset>
@@ -32,6 +34,8 @@ export default function TransactionTypeStep({
       <div
         role="radiogroup"
         aria-label="Transaction type"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? "transaction-type-error" : undefined}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
       >
         {TRANSACTION_TYPE_OPTIONS.map((t) => {
@@ -77,6 +81,11 @@ export default function TransactionTypeStep({
           );
         })}
       </div>
+      {error && (
+        <p id="transaction-type-error" className="mt-2 text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }

@@ -17,12 +17,19 @@ export interface ImportantDatesStepProps {
   dates: WizardDatesDraft;
   transactionType: string | null;
   onChange: (patch: Partial<WizardDatesDraft>) => void;
+  errors?: {
+    contract_date?: string;
+    closing_date?: string;
+    lease_start?: string;
+    lease_end?: string;
+  };
 }
 
 export default function ImportantDatesStep({
   dates,
   transactionType,
   onChange,
+  errors,
 }: ImportantDatesStepProps) {
   const lease = isLeaseType(transactionType);
 
@@ -34,11 +41,13 @@ export default function ImportantDatesStep({
             label="Lease Start"
             value={dates.lease_start ?? ""}
             onChange={(v) => onChange({ lease_start: v })}
+            error={errors?.lease_start}
           />
           <DateField
             label="Lease End"
             value={dates.lease_end ?? ""}
             onChange={(v) => onChange({ lease_end: v })}
+            error={errors?.lease_end}
           />
         </>
       ) : (
@@ -47,11 +56,13 @@ export default function ImportantDatesStep({
             label="Contract Date"
             value={dates.contract_date ?? ""}
             onChange={(v) => onChange({ contract_date: v })}
+            error={errors?.contract_date}
           />
           <DateField
             label="Closing Date"
             value={dates.closing_date ?? ""}
             onChange={(v) => onChange({ closing_date: v })}
+            error={errors?.closing_date}
           />
         </>
       )}

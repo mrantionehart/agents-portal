@@ -21,9 +21,15 @@ export interface StepperProps {
   current: StepId;
   /** Invoked when the agent clicks an already-visited (≤ current) step. */
   onStepSelect?: (step: StepId) => void;
+  /** When provided, a visited step is only marked "complete" if it validates. */
+  isComplete?: (step: StepId) => boolean;
 }
 
-export default function Stepper({ current, onStepSelect }: StepperProps) {
+export default function Stepper({
+  current,
+  onStepSelect,
+  isComplete,
+}: StepperProps) {
   const currentIdx = stepIndex(current);
 
   return (
@@ -35,13 +41,15 @@ export default function Stepper({ current, onStepSelect }: StepperProps) {
         // `package` (navigable:false) has stepIndex -1 → always upcoming.
         const idx = stepIndex(step.id);
         const isCurrent = step.id === current;
-        const isComplete = idx >= 0 && currentIdx >= 0 && idx < currentIdx;
+        const positionallyPast = idx >= 0 && currentIdx >= 0 && idx < currentIdx;
+        const complete =
+          positionallyPast && (isComplete ? isComplete(step.id) : true);
         const canSelect =
           !!onStepSelect && step.navigable && idx >= 0 && idx <= currentIdx && !isCurrent;
 
         const tone = isCurrent
           ? "bg-[#C9A84C]/15 text-[#E8D5A3] border-[#C9A84C]/40"
-          : isComplete
+          : complete
           ? "text-[#F1F1F3] border-[#252538] bg-white/[0.03]"
           : "text-[#71717A] border-transparent";
 
@@ -53,13 +61,13 @@ export default function Stepper({ current, onStepSelect }: StepperProps) {
                 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold
                 ${isCurrent
                   ? "bg-[#C9A84C] text-[#0b0b10]"
-                  : isComplete
+                  : complete
                   ? "bg-[#C9A84C]/25 text-[#E8D5A3]"
                   : "bg-white/[0.06] text-[#71717A]"
                 }
               `}
             >
-              {isComplete ? <Check className="h-2.5 w-2.5" /> : i + 1}
+              {complete ? <Check className="h-2.5 w-2.5" /> : i + 1}
             </span>
             {step.label}
           </>

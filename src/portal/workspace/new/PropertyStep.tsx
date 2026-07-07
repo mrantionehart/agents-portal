@@ -14,9 +14,14 @@ import type { WizardPropertyDraft } from "./wizard-session";
 export interface PropertyStepProps {
   property: WizardPropertyDraft;
   onChange: (patch: Partial<WizardPropertyDraft>) => void;
+  errors?: { address?: string };
 }
 
-export default function PropertyStep({ property, onChange }: PropertyStepProps) {
+export default function PropertyStep({
+  property,
+  onChange,
+  errors,
+}: PropertyStepProps) {
   return (
     <div className="space-y-4">
       <TextField
@@ -25,6 +30,7 @@ export default function PropertyStep({ property, onChange }: PropertyStepProps) 
         onChange={(v) => onChange({ address: v })}
         placeholder="123 Main Street"
         required
+        error={errors?.address}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

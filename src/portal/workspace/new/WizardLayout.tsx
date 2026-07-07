@@ -18,12 +18,15 @@ export interface WizardLayoutProps {
   current: StepId;
   stepLabel: string;
   onStepSelect: (step: StepId) => void;
+  /** Predicate for stepper "completed" display (visited AND valid). */
+  isStepComplete?: (step: StepId) => boolean;
   onBack: () => void;
   onNext: () => void;
   onCancel: () => void;
   canBack: boolean;
   nextLabel: string;
-  errors: string[];
+  /** Flattened banner messages for the current step's validation. */
+  messages: string[];
   children: React.ReactNode;
 }
 
@@ -31,12 +34,13 @@ export default function WizardLayout({
   current,
   stepLabel,
   onStepSelect,
+  isStepComplete,
   onBack,
   onNext,
   onCancel,
   canBack,
   nextLabel,
-  errors,
+  messages,
   children,
 }: WizardLayoutProps) {
   return (
@@ -51,17 +55,21 @@ export default function WizardLayout({
         <p className="text-sm text-[#A1A1AA] mt-1">{stepLabel}</p>
       </header>
 
-      <Stepper current={current} onStepSelect={onStepSelect} />
+      <Stepper
+        current={current}
+        onStepSelect={onStepSelect}
+        isComplete={isStepComplete}
+      />
 
       <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-6">
-        {errors.length > 0 && (
+        {messages.length > 0 && (
           <div
             role="alert"
             className="mb-5 flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3"
           >
             <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400 mt-0.5" />
             <ul className="text-sm text-red-400 space-y-0.5">
-              {errors.map((e, i) => (
+              {messages.map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
             </ul>
