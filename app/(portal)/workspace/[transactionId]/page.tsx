@@ -27,11 +27,7 @@ import {
   loadClientIntelligenceForTransaction,
   type ClientIntelligenceResult,
 } from "@/src/portal/workspace/client-intelligence";
-import {
-  findCardById,
-  vaultPaperworkUrl,
-  vaultTransactionUrl,
-} from "@/src/portal/workspace/transaction-helpers";
+import { findCardById } from "@/src/portal/workspace/transaction-helpers";
 
 import WorkspaceShell from "@/src/portal/workspace/tabs/WorkspaceShell";
 import OverviewTab from "@/src/portal/workspace/tabs/OverviewTab";
@@ -241,7 +237,9 @@ export default async function TransactionWorkspacePage({
       ? `HTTP ${documentsResult.status}`
       : null;
 
-  const paperworkPackageUrl = vaultPaperworkUrl(resolvedCard.transaction_id, vaultBase);
+  // Transaction OS 3.3E — agents stay in the portal. The "paperwork package"
+  // link targets the in-portal Paperwork tab, never Vault.
+  const paperworkPackageUrl = `/workspace/${resolvedCard.transaction_id}?tab=documents`;
 
   // ── Compose ComplianceBanner state (Workflow 3.2.C.1) ──────────────
   // Pure derivation from already-loaded signals. No commission amounts,
@@ -546,16 +544,6 @@ function ErrorShell({
         Workspace pulls from Vault. Broker confirmation is required for any change.
       </p>
       <div className="space-y-4">{children}</div>
-      <div className="mt-6 text-[11px] text-[#71717A]">
-        <a
-          href={vaultTransactionUrl(transactionId, vaultBase)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#A1A1AA] hover:text-[#F1F1F3] inline-flex items-center gap-1"
-        >
-          Open in Vault
-        </a>
-      </div>
     </div>
   );
 }

@@ -189,14 +189,12 @@ function Footer({ paperworkPackageUrl }: { paperworkPackageUrl: string }) {
         Read-only view. Vault owns the audit log; every event here is a
         safe presentation of a Vault record.
       </p>
-      <a
+      <Link
         href={paperworkPackageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
         className="mt-2 inline-flex items-center gap-1 text-[#E8D5A3] hover:underline"
       >
-        <FileText className="h-3 w-3" /> Open paperwork package in Vault
-      </a>
+        <FileText className="h-3 w-3" /> View paperwork
+      </Link>
     </div>
   );
 }

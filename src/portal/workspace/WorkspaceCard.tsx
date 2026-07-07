@@ -15,8 +15,6 @@ import {
   riskLabel,
   stageLabel,
   typeLabel,
-  vaultPaperworkUrl,
-  vaultTransactionUrl,
 } from "./helpers";
 import type { WorkspaceCard as WorkspaceCardData, CardLifecycle, DeadlineSummary } from "./types";
 import { hasLifecycle, lifecycleChipVM } from "./lifecycle-view";
@@ -96,22 +94,18 @@ export default function WorkspaceCard({ card, vaultBase }: Props) {
         >
           Continue
         </Link>
-        <a
-          href={vaultTransactionUrl(card.transaction_id, vaultBase)}
+        <Link
+          href={`/workspace/${card.transaction_id}`}
           className="text-[#A1A1AA] hover:text-[#F1F1F3] inline-flex items-center gap-1"
-          target="_blank"
-          rel="noopener noreferrer"
         >
           <ExternalLink className="h-3 w-3" /> Open Transaction
-        </a>
-        <a
-          href={vaultPaperworkUrl(card.transaction_id, vaultBase)}
+        </Link>
+        <Link
+          href={`/workspace/${card.transaction_id}?tab=documents`}
           className="text-[#A1A1AA] hover:text-[#F1F1F3] inline-flex items-center gap-1"
-          target="_blank"
-          rel="noopener noreferrer"
         >
           <FileText className="h-3 w-3" /> Open Paperwork
-        </a>
+        </Link>
         <Link
           href={`/workspace/${card.transaction_id}#ai-assistant`}
           className="text-[#A1A1AA] hover:text-[#F1F1F3] inline-flex items-center gap-1"

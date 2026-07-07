@@ -5,12 +5,13 @@
 // Renders header counts + a per-form row list. Read-only —
 // NO generate / download / send / approve / edit / attestation request.
 //
-// All "Open in Vault" links open the same Vault paperwork detail page
-// anchored on form_id; the broker-tier actions live on that page.
+// Agents stay in the portal: each per-form row is an in-portal drawer link
+// (?form=<form_id>) and the footer opens the in-portal Package review.
+// Broker-tier actions (generate / send / approve) are handled by the broker.
 // ============================================================================
 
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock, ExternalLink, FileText, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, FileText, Lock } from "lucide-react";
 
 import type { DocumentRow } from "./types";
 import {
@@ -33,8 +34,8 @@ export interface DocumentsPanelProps {
   /** Set when the upstream fetch failed; renders a banner instead of
    *  collapsing the section to an empty list. */
   error: string | null;
-  /** Vault deep-link for the paperwork package — shown once at the
-   *  bottom of the panel as a single "Open paperwork package" CTA. */
+  /** Retained for caller compatibility. No longer consumed — the footer
+   *  CTA now links to the in-portal Package review built from transactionId. */
   paperworkPackageUrl: string;
   /** Transaction id used to build per-form drawer hrefs.
    *  Workflow 3.2.A — rows become clickable Links that set ?form=<form_id>. */
@@ -46,7 +47,6 @@ export interface DocumentsPanelProps {
 export default function DocumentsPanel({
   documents,
   error,
-  paperworkPackageUrl,
   transactionId,
   activeFormId,
 }: DocumentsPanelProps) {
@@ -105,16 +105,15 @@ export default function DocumentsPanel({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#71717A]">
         <span>
-          Read-only view. Send, approve, generate, and edit live in Vault.
+          Read-only view. Send, approve, generate, and edit are handled by
+          the broker.
         </span>
-        <a
-          href={paperworkPackageUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href={`/workspace/${transactionId}?tab=package`}
           className="text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
         >
-          <FileText className="h-3 w-3" /> Open paperwork package in Vault
-        </a>
+          <FileText className="h-3 w-3" /> Open package review
+        </Link>
       </div>
     </section>
   );
@@ -213,27 +212,18 @@ function DocumentRowItem({
           <ChevronRight className="h-4 w-4 text-[#71717A] shrink-0 self-center" />
         </div>
       </Link>
-      {/* Open-in-Vault anchor lives outside the row Link so opening
-          Vault doesn't also pop the drawer. Absolutely positioned on
-          the right edge. */}
-      <div className="absolute top-3 right-4 flex items-center gap-2">
-        {d.downloadable && d.form_instance_id && (
+      {/* Download button lives outside the row Link so triggering a
+          download doesn't also pop the drawer. Absolutely positioned on
+          the right edge. The row itself is the in-portal drawer link. */}
+      {d.downloadable && d.form_instance_id && (
+        <div className="absolute top-3 right-4 flex items-center gap-2">
           <AgentDocumentDownloadButton
             transactionId={transactionId}
             formInstanceId={d.form_instance_id}
             formId={d.form_id}
           />
-        )}
-        <a
-          href={d.open_in_vault_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
-          aria-label={`Open ${d.form_id} in Vault`}
-        >
-          <ExternalLink className="h-3 w-3" /> Open in Vault
-        </a>
-      </div>
+        </div>
+      )}
       {d.updated_at && (
         <div className="absolute bottom-3 right-4 text-[10px] text-[#71717A]">
           updated {relativeUpdated(d.updated_at)}

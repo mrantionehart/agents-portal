@@ -24,8 +24,6 @@ import {
   riskLabel,
   stageLabel,
   transactionTypeLabel,
-  vaultPaperworkUrl,
-  vaultTransactionUrl,
 } from "../transaction-helpers";
 
 export interface LeftRailDealPortal {
@@ -117,24 +115,20 @@ export default function LeftRail({
         </div>
       )}
 
-      {/* Vault + Deal Portal deep links */}
+      {/* In-portal quick links + Deal Portal */}
       <div className="pt-2 border-t border-[#1a1a2e] space-y-1.5">
-        <a
-          href={vaultTransactionUrl(card.transaction_id, vaultBase)}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href={`/workspace/${card.transaction_id}`}
           className="block text-[11px] text-[#A1A1AA] hover:text-[#F1F1F3] inline-flex items-center gap-1"
         >
-          <ExternalLink className="h-3 w-3" /> Open in Vault
-        </a>
-        <a
-          href={vaultPaperworkUrl(card.transaction_id, vaultBase)}
-          target="_blank"
-          rel="noopener noreferrer"
+          <ExternalLink className="h-3 w-3" /> Open transaction
+        </Link>
+        <Link
+          href={`/workspace/${card.transaction_id}?tab=documents`}
           className="block text-[11px] text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
         >
-          <FileText className="h-3 w-3" /> Open paperwork package
-        </a>
+          <FileText className="h-3 w-3" /> Open paperwork
+        </Link>
         {dp.kind === "linked" && dp.url ? (
           <Link
             href={dp.url}

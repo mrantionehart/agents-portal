@@ -307,19 +307,7 @@ export default function FormDetailDrawer({
 
       {/* Footer */}
       <footer className="sticky bottom-0 bg-[#0b0b10] border-t border-[#1a1a2e] px-5 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <a
-            href={document.open_in_vault_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="
-              text-[11px] text-[#E8D5A3] hover:underline
-              inline-flex items-center gap-1
-            "
-          >
-            <ExternalLink className="h-3 w-3" />
-            Open form in Vault
-          </a>
+        <div className="flex items-center justify-end gap-2">
           <Link
             href={closeHref}
             className="
@@ -331,8 +319,8 @@ export default function FormDetailDrawer({
           </Link>
         </div>
         <p className="mt-2 text-[10px] text-[#71717A] leading-relaxed">
-          Read-only view. Edits, generation, send, and approval live in
-          Vault. Broker confirmation is required for every change.
+          Read-only view. Edits, generation, send, and approval are handled
+          by the broker. Broker confirmation is required for every change.
         </p>
       </footer>
     </aside>

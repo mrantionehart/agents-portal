@@ -72,14 +72,12 @@ export default function ComplianceTab({ state, transactionId }: ComplianceTabPro
           Read-only view. Compliance enforcement and commission release live
           in Vault. Broker confirmation is required for every change.
         </p>
-        <a
+        <Link
           href={state.paperworkPackageUrl}
-          target="_blank"
-          rel="noopener noreferrer"
           className="mt-2 inline-flex items-center gap-1 text-[#E8D5A3] hover:underline"
         >
-          <FileText className="h-3 w-3" /> Open paperwork package in Vault
-        </a>
+          <FileText className="h-3 w-3" /> View paperwork
+        </Link>
       </div>
     </div>
   );

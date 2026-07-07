@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  ExternalLink,
+  FileText,
   Lock,
   Milestone,
   Receipt,
@@ -287,14 +287,12 @@ function Footer({ state }: { state: CommissionWorkspaceState }) {
         Read-only view. Vault owns commission state. Payout is handled by the
         broker in Vault.
       </p>
-      <a
+      <Link
         href={state.drillLinks.paperworkPackage}
-        target="_blank"
-        rel="noopener noreferrer"
         className="inline-flex items-center gap-1 text-[#E8D5A3] hover:underline"
       >
-        <ExternalLink className="h-3 w-3" /> Open paperwork package in Vault
-      </a>
+        <FileText className="h-3 w-3" /> View paperwork
+      </Link>
     </div>
   );
 }

@@ -25,9 +25,15 @@
 //   • blocker === true                   → red palette
 //   • blocker === false                  → amber palette
 //
+// Navigation: the "Open" control uses client-side router.push + refresh so
+// the target tab reliably re-renders even when only the ?tab= query changes
+// (a bare <Link> soft-nav to the same pathname can leave the view stale).
+// drill_url is always an in-portal /workspace/[id]?tab=… route — never Vault.
 // ============================================================================
 
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
@@ -67,6 +73,7 @@ export interface CoachStripProps {
 }
 
 export default function CoachStrip({ recommendation }: CoachStripProps) {
+  const router = useRouter();
   if (!recommendation) return null;
 
   const Icon = iconForKind(recommendation.kind);
@@ -124,12 +131,18 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
             </div>
           )}
         </div>
-        <Link
-          href={recommendation.drill_url}
-          className="text-xs text-[#C9A84C] hover:text-[#dbb86a] inline-flex items-center gap-1 shrink-0 mt-0.5"
+        <button
+          type="button"
+          onClick={() => {
+            // In-portal navigation. push moves to the target tab; refresh
+            // forces the server component to re-render with the new ?tab=.
+            router.push(recommendation.drill_url);
+            router.refresh();
+          }}
+          className="text-xs text-[#C9A84C] hover:text-[#dbb86a] inline-flex items-center gap-1 shrink-0 mt-0.5 cursor-pointer"
         >
           Open <ArrowRight className="h-3 w-3" />
-        </Link>
+        </button>
       </div>
     </div>
   );

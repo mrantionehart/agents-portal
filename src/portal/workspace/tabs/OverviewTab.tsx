@@ -17,7 +17,6 @@ import {
   nextActionLabel,
   readinessLanguage,
   statusExplanation,
-  vaultPaperworkUrl,
 } from "../transaction-helpers";
 import { tabHref } from "./tab-config";
 // Transaction OS 3.3E — reuse the grid card's pure view helpers so the detail
@@ -161,14 +160,12 @@ export default function OverviewTab({ card, vaultBase }: OverviewTabProps) {
               tone={card.pending_envelopes_count > 0 ? "info" : "muted"}
             />
           </div>
-          <a
-            href={vaultPaperworkUrl(card.transaction_id, vaultBase)}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href={tabHref(card.transaction_id, "documents")}
             className="text-xs text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
           >
-            <FileText className="h-3 w-3" /> Open the paperwork package in Vault
-          </a>
+            <FileText className="h-3 w-3" /> View paperwork
+          </Link>
         </section>
       </div>
 
