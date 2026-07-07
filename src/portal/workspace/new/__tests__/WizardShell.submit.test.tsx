@@ -82,7 +82,7 @@ it("submits successfully → creates txn + party, redirects, clears the draft", 
 
   fireEvent.click(screen.getByRole("button", { name: /Create/ }));
 
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/workspace/txn-1"));
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/workspace/new/txn-1/review"));
   // draft cleared on success (finish)
   expect(window.localStorage.getItem(WIZARD_SESSION_KEY)).toBeNull();
 });
