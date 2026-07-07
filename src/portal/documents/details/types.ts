@@ -145,16 +145,24 @@ export interface EditableField {
   /** Full transaction path (e.g. "facts.condo" or "terms.lease.rent.monthly_amount"). */
   transaction_path: string;
   /** Which PATCH endpoint this writes to. */
-  endpoint: "facts" | "terms";
+  endpoint: "facts" | "terms" | "party";
   /** Set when endpoint === 'facts'; the fact key without the "facts." prefix. */
   key?: string;
   /** Set when endpoint === 'terms'; the path WITHOUT the "terms." prefix
    *  (matches Vault TERMS_PATH_ALLOWLIST regex). */
   termPath?: string;
+  /** Set when endpoint === 'party'; the party role selected from the
+   *  transaction_path (e.g. "buyer" from "parties[role=buyer].phone"). */
+  partyRole?: string;
+  /** Set when endpoint === 'party'; the contact column to write. */
+  partyField?: "name" | "email" | "phone" | "mailing_address";
   /** Display label. */
   label: string;
   /** InlineEditableField input variant. */
-  inputType: "text" | "number" | "boolean" | "date";
+  inputType: "text" | "number" | "boolean" | "date" | "select";
+  /** Set when inputType === 'select'; the fixed value/label options. The
+   *  stored `value` is the canonical token the rule engine expects. */
+  options?: ReadonlyArray<{ value: string; label: string }>;
   /** Echoed from the rule-engine spec for tone/badging. */
   severity: string;
   /** Echoed from the rule-engine spec for tone/badging. */
@@ -169,6 +177,15 @@ export interface TransactionSnapshot {
   facts: Record<string, unknown> | null;
   /** transactions.terms JSONB — nested object */
   terms: Record<string, unknown> | null;
+  /** transaction_parties rows — seeds current values for editable party
+   *  contact fields (e.g. parties[role=buyer].phone). */
+  parties?: Array<{
+    role?: string | null;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mailing_address?: string | null;
+  }> | null;
   /** broker_review_status — drives UPL L4 lock on the editor. */
   broker_review_status: "draft" | "submitted" | "approved" | "revisions_required" | string | null;
 }

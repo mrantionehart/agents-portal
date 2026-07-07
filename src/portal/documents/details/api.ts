@@ -202,6 +202,7 @@ async function safeFetchTransactionSnapshot(
         terms?: Record<string, unknown> | null;
         broker_review_status?: string | null;
       };
+      parties?: Array<Record<string, unknown>> | null;
     };
     const txn = body?.transaction ?? null;
     return {
@@ -209,6 +210,7 @@ async function safeFetchTransactionSnapshot(
       value: {
         facts: (txn?.facts as Record<string, unknown> | null) ?? null,
         terms: (txn?.terms as Record<string, unknown> | null) ?? null,
+        parties: (body?.parties ?? null) as TransactionSnapshot["parties"],
         broker_review_status: (txn?.broker_review_status as TransactionSnapshot["broker_review_status"]) ?? null,
       },
     };

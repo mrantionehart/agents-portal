@@ -21,6 +21,23 @@ export function formStatusLabel(formId: string, status: FormStatusMap): string {
   return status[formId]?.status_label ?? "Not added";
 }
 
+/** Terminal / complete statuses — a form here needs no field completion. */
+const COMPLETE_FORM_STATUSES: ReadonlySet<string> = new Set([
+  "ready",
+  "signed",
+  "sent",
+  "voided",
+]);
+
+/** True when a required form still needs agent-fillable fields before it can
+ *  be prepared — drives the "Complete required fields" CTA. A form with no
+ *  instance yet ("Not added") also needs completion. */
+export function formNeedsCompletion(formId: string, status: FormStatusMap): boolean {
+  const s = status[formId]?.status;
+  if (!s) return true;
+  return !COMPLETE_FORM_STATUSES.has(s);
+}
+
 /** Badge tone for a form's live status (falls back to muted). */
 export function formStatusTone(formId: string, status: FormStatusMap): StatusTone {
   const s = status[formId]?.status;

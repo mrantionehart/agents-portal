@@ -35,6 +35,19 @@ export function resolveCurrentValue(
     return v === undefined ? null : v;
   }
 
+  // Party contact fields — seed from the transaction's parties. Matches the
+  // first party of the selected role (buyer contact is the only agent-editable
+  // party field today; see editable-fields classifyField).
+  const partyMatch = path.match(/^parties\[role=([a-z_]+)\]\.([a-z_]+)$/);
+  if (partyMatch) {
+    const role = partyMatch[1];
+    const partyField = partyMatch[2];
+    const party = (snapshot.parties ?? []).find((p) => p?.role === role);
+    if (!party) return null;
+    const v = (party as Record<string, unknown>)[partyField];
+    return v === undefined ? null : v;
+  }
+
   // facts_hearsay and other prefixes intentionally return null in the
   // 3.2.B.1 editor. The drawer header surfaces statutory state separately.
   return null;

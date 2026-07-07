@@ -59,6 +59,15 @@ export function useFormFieldPatch(
             path: field.termPath,
             value,
           });
+        } else if (field.endpoint === "party") {
+          if (!field.partyRole || !field.partyField) {
+            throw new Error("Editable field missing party role/field.");
+          }
+          await paperworkApi.patchTransactionParty(opts.transactionId, {
+            role: field.partyRole,
+            field: field.partyField,
+            value,
+          });
         } else {
           throw new Error(`Unknown editable endpoint: ${field.endpoint}`);
         }

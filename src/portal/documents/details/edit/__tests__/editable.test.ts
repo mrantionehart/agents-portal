@@ -19,11 +19,10 @@ import {
 import { resolveCurrentValue } from "../value-resolver";
 
 describe("TERMS_PATH_ALLOWLIST_MIRROR — matches Vault byte-for-byte", () => {
-  it("has exactly 7 regexes (same as Vault TERMS_PATH_ALLOWLIST)", () => {
-    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(7);
-  });
-
-  it("matches Vault's allowlist source on every regex string", async () => {
+  // Parse the ENTIRE Vault TERMS_PATH_ALLOWLIST array (any prefix — lease,
+  // buyer_rep, …) and compare regex sources. Generalized so new allowlist
+  // families (e.g. buyer_rep) don't require test edits beyond the data.
+  async function vaultAllowlistSources(): Promise<string[]> {
     const fs = await import("fs");
     const path = await import("path");
     const vaultSrc = fs.readFileSync(
@@ -38,17 +37,26 @@ describe("TERMS_PATH_ALLOWLIST_MIRROR — matches Vault byte-for-byte", () => {
       ),
       "utf-8"
     );
-    // Extract the regex bodies from Vault.
-    const vaultRegexes = Array.from(
-      vaultSrc.matchAll(/\/\^(lease\\\.[^/]+)\$\//g)
-    ).map((m) => m[1]);
-    const mirrorRegexes = TERMS_PATH_ALLOWLIST_MIRROR.map((re) => {
-      const s = re.source;
-      const m = s.match(/^\^(lease\\\.[^$]+)\$$/);
-      return m ? m[1] : s;
-    });
-    // Both should have 7 entries with the same bodies.
-    expect(mirrorRegexes.sort()).toEqual(vaultRegexes.sort());
+    const block = vaultSrc.match(
+      /TERMS_PATH_ALLOWLIST:\s*ReadonlyArray<RegExp>\s*=\s*\[([\s\S]*?)\];/
+    );
+    if (!block) throw new Error("Could not locate Vault TERMS_PATH_ALLOWLIST");
+    return block[1]
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("/"))
+      .map((l) => l.replace(/^\//, "").replace(/\/,?$/, ""));
+  }
+
+  it("has the same number of regexes as Vault", async () => {
+    const vault = await vaultAllowlistSources();
+    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(vault.length);
+  });
+
+  it("matches Vault's allowlist source on every regex string", async () => {
+    const vault = await vaultAllowlistSources();
+    const mirror = TERMS_PATH_ALLOWLIST_MIRROR.map((re) => re.source);
+    expect(mirror.sort()).toEqual(vault.sort());
   });
 });
 

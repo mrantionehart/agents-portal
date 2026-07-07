@@ -90,8 +90,9 @@ export default function FormEditableSection({
 
       <p className="mt-2 text-[10px] text-[#71717A] leading-relaxed">
         Vault enforces statutory, broker-only, and review-lock rules. Saves
-        write to existing PATCH /facts and PATCH /terms endpoints — broker
-        confirmation is still required for the full transaction package.
+        write to the existing PATCH /facts, /terms, and party-contact
+        endpoints — broker confirmation is still required for the full
+        transaction package.
       </p>
     </section>
   );
@@ -149,6 +150,12 @@ function EditableRow({
       next = boolDraft;
     } else if (field.inputType === "date") {
       next = draft.trim() === "" ? null : draft;
+    } else if (field.inputType === "select") {
+      if (draft.trim() === "") {
+        setError("Please choose an option");
+        return;
+      }
+      next = draft;
     } else {
       next = draft;
     }
@@ -182,6 +189,21 @@ function EditableRow({
                 >
                   <option value="true">Yes</option>
                   <option value="false">No</option>
+                </select>
+              ) : field.inputType === "select" ? (
+                <select
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  disabled={isSaving}
+                  aria-label={field.label}
+                  className="w-full rounded-md border border-[#1a1a2e] bg-[#11111a] text-[#F1F1F3] text-xs px-2 py-1.5"
+                >
+                  <option value="">Select…</option>
+                  {(field.options ?? []).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               ) : (
                 <input
@@ -227,7 +249,10 @@ function EditableRow({
           ) : (
             <div className="mt-1 flex items-center justify-between gap-2">
               <div className="text-[#A1A1AA] text-xs">
-                {formatForDisplay(currentValue, field.inputType)}
+                {field.inputType === "select"
+                  ? field.options?.find((o) => o.value === currentValue)?.label ??
+                    formatForDisplay(currentValue, field.inputType)
+                  : formatForDisplay(currentValue, field.inputType)}
               </div>
               <button
                 type="button"

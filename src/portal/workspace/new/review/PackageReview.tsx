@@ -25,6 +25,7 @@ import {
   Send,
   Eye,
   Link2,
+  Pencil,
 } from "lucide-react";
 
 import type { PackageForm, PackageReviewData } from "./types";
@@ -33,6 +34,7 @@ import {
   filterSearchable,
   formStatusLabel,
   formStatusTone,
+  formNeedsCompletion,
   gatesView,
   actionLabel,
   type StatusTone,
@@ -75,15 +77,18 @@ function FormRow({
   selectable,
   checked,
   onToggle,
+  transactionId,
 }: {
   form: PackageForm;
   data: PackageReviewData;
   selectable: boolean;
   checked: boolean;
   onToggle?: () => void;
+  transactionId: string;
 }) {
   const tone = formStatusTone(form.form_id, data.form_status);
   const statusLabel = formStatusLabel(form.form_id, data.form_status);
+  const needsCompletion = formNeedsCompletion(form.form_id, data.form_status);
   return (
     <div className="flex items-start gap-3 rounded-lg border border-[#1a1a2e] bg-[#0b0b10] p-3">
       {selectable ? (
@@ -125,6 +130,14 @@ function FormRow({
           <StatusBadge tone={tone} label={statusLabel} />
         </div>
         <p className="mt-1 text-xs text-[#A1A1AA]">{form.reason}</p>
+        {needsCompletion && (
+          <Link
+            href={`/workspace/${transactionId}?tab=documents&form=${form.form_id}`}
+            className="mt-2 inline-flex items-center gap-1 text-[11px] text-[#E8D5A3] hover:underline"
+          >
+            <Pencil className="h-3 w-3" /> Complete required fields
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -318,7 +331,14 @@ export default function PackageReview({ data, transactionId }: PackageReviewProp
           <p className="text-xs text-[#71717A]">No required forms for this transaction.</p>
         ) : (
           plan.required_forms.map((f) => (
-            <FormRow key={f.form_id} form={f} data={data} selectable={false} checked />
+            <FormRow
+              key={f.form_id}
+              form={f}
+              data={data}
+              selectable={false}
+              checked
+              transactionId={transactionId}
+            />
           ))
         )}
       </Section>
@@ -339,6 +359,7 @@ export default function PackageReview({ data, transactionId }: PackageReviewProp
               selectable
               checked={optionalSelected.has(f.form_id)}
               onToggle={() => toggle(optionalSelected, setOptionalSelected, f.form_id)}
+              transactionId={transactionId}
             />
           ))
         )}
@@ -360,6 +381,7 @@ export default function PackageReview({ data, transactionId }: PackageReviewProp
               selectable
               checked={riderSelected.has(f.form_id)}
               onToggle={() => toggle(riderSelected, setRiderSelected, f.form_id)}
+              transactionId={transactionId}
             />
           ))
         )}

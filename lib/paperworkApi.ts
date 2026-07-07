@@ -111,6 +111,26 @@ export const paperworkApi = {
     return unwrap<PatchTermResponse>(res);
   },
 
+  async patchTransactionParty(
+    transactionId: string,
+    body: {
+      field: "name" | "email" | "phone" | "mailing_address";
+      value: unknown;
+      role?: string;
+      party_id?: string;
+    }
+  ): Promise<{ party: unknown; forms_recomputed: boolean; transaction_id: string }> {
+    const res = await authFetch(
+      `${PAPERWORK_BASE}/agents/transactions/${transactionId}/parties`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    return unwrap<{ party: unknown; forms_recomputed: boolean; transaction_id: string }>(res);
+  },
+
   async submitTransactionForReview(transactionId: string): Promise<SubmitReviewResponse> {
     const res = await authFetch(`${PAPERWORK_BASE}/transactions/${transactionId}/submit-review`, {
       method: "POST",

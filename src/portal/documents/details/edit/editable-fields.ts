@@ -26,6 +26,35 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^lease\.utilities\.(paid_by_tenant|paid_by_landlord|notes)$/,
   /^lease\.restrictions\.(smoking_allowed|business_use_allowed|subletting_allowed|alterations_allowed)$/,
   /^lease\.is_contract_to_lease$/,
+  /^buyer_rep\.(effective_date|expiration_date|geographic_area|compensation_pct|compensation_flat_fee|brokerage_relationship)$/,
+];
+
+/** Roles whose contact fields the AGENT may complete in-portal via the
+ *  per-form editor. Buyer-side only: broker identity is auto-derived from
+ *  the brokerage, and seller/landlord/tenant contact is party-portal work. */
+const AGENT_EDITABLE_PARTY_ROLES: ReadonlySet<string> = new Set([
+  "buyer",
+  "co_buyer",
+]);
+/** Contact columns the agent party-contact PATCH accepts. */
+const AGENT_EDITABLE_PARTY_FIELDS: ReadonlySet<string> = new Set([
+  "name",
+  "email",
+  "phone",
+  "mailing_address",
+]);
+
+/** Canonical brokerage-relationship tokens (FL norm + rule-engine values).
+ *  Rendered as a fixed select — never free text. NOTE: these values are not
+ *  yet bound to an EBBA-8sa XFA field, so they may not print on the generated
+ *  PDF until the EBBA-8sa template mapping is extended (future TEMPLATES phase). */
+export const BROKERAGE_RELATIONSHIP_OPTIONS: ReadonlyArray<{
+  value: string;
+  label: string;
+}> = [
+  { value: "single_agent", label: "Single Agent" },
+  { value: "transaction_broker", label: "Transaction Broker" },
+  { value: "no_brokerage_relationship", label: "No Brokerage Relationship" },
 ];
 
 export function isAllowedTermsPathMirror(path: string): boolean {
@@ -59,6 +88,7 @@ export function inferInputType(
   if (
     leaf.endsWith("_amount") ||
     leaf.endsWith("_fee") ||
+    leaf.endsWith("_pct") ||
     leaf.endsWith("_days") ||
     leaf.endsWith("_months") ||
     leaf === "due_day_of_month" ||
@@ -145,13 +175,20 @@ export function classifyField(
       // Vault would 400 — show as read-only to avoid a guaranteed-bad PATCH.
       return { editable: null, reason: "unknown" };
     }
+    // buyer_rep.brokerage_relationship is a fixed enum — render a select of
+    // the canonical rule-engine tokens (never free text).
+    const isBrokerageRelationship =
+      termPath === "buyer_rep.brokerage_relationship";
     return {
       editable: {
         transaction_path: path,
         endpoint: "terms",
         termPath,
         label: spec?.label ?? pathLabel(path),
-        inputType: inferInputType(path),
+        inputType: isBrokerageRelationship ? "select" : inferInputType(path),
+        options: isBrokerageRelationship
+          ? BROKERAGE_RELATIONSHIP_OPTIONS
+          : undefined,
         severity,
         completer_role: completer,
       },
@@ -161,6 +198,35 @@ export function classifyField(
 
   if (path.startsWith("txn.")) {
     return { editable: null, reason: "txn_col" };
+  }
+
+  // Party contact fields: "parties[role=<role>].<field>". Agent-completable
+  // buyer-side contact (name/email/phone/mailing_address) writes via the
+  // party-contact PATCH; every other role/field stays read-only.
+  const partyMatch = path.match(/^parties\[role=([a-z_]+)\]\.([a-z_]+)$/);
+  if (partyMatch) {
+    const role = partyMatch[1];
+    const partyField = partyMatch[2];
+    if (
+      completer === "agent" &&
+      AGENT_EDITABLE_PARTY_ROLES.has(role) &&
+      AGENT_EDITABLE_PARTY_FIELDS.has(partyField)
+    ) {
+      return {
+        editable: {
+          transaction_path: path,
+          endpoint: "party",
+          partyRole: role,
+          partyField: partyField as "name" | "email" | "phone" | "mailing_address",
+          label: spec?.label ?? pathLabel(path),
+          inputType: inferInputType(partyField),
+          severity,
+          completer_role: completer,
+        },
+        reason: null,
+      };
+    }
+    return { editable: null, reason: "party_field" };
   }
   if (path.startsWith("parties.")) {
     return { editable: null, reason: "party_field" };
