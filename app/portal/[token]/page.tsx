@@ -44,6 +44,7 @@ interface PortalMedia {
   url: string;
   title?: string;
   description?: string;
+  is_public?: boolean;
 }
 
 interface PortalAgent {
@@ -74,6 +75,9 @@ interface PortalData {
   agent: PortalAgent;
   deal_id?: string;
   existing_feedback?: PropertyFeedbackItem[];
+  media_access_required?: boolean;
+  access_approved?: boolean;
+  has_locked_files?: boolean;
 }
 
 interface PropertyFeedbackItem {
@@ -635,25 +639,30 @@ function PhotoGallery({ media }: { media: PortalMedia[] }) {
       <SectionHeading>Photo Gallery</SectionHeading>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {photos.map((photo) => (
-          <a
+          <div
             key={photo.id}
-            href={photo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 aspect-[4/3]"
+            className="group relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 aspect-[4/3] select-none"
+            onContextMenu={(e) => e.preventDefault()}
+            onDragStart={(e) => e.preventDefault()}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo.url}
               alt={photo.title || "Property photo"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+              draggable={false}
             />
             {photo.title && (
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                 <p className="text-white text-sm">{photo.title}</p>
               </div>
             )}
-          </a>
+            {/* View-only overlay */}
+            <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1">
+              <Eye className="w-3 h-3 text-white/80" />
+              <span className="text-[10px] text-white/80 font-medium">View Only</span>
+            </div>
+          </div>
         ))}
       </div>
     </section>
@@ -1279,10 +1288,12 @@ function LockedFilesSection({
   files,
   token,
   portalTitle,
+  allMediaLocked,
 }: {
   files: any[];
   token: string;
   portalTitle: string;
+  allMediaLocked?: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "form" | "sending" | "success">("idle");
   const [name, setName] = useState("");
@@ -1321,9 +1332,13 @@ function LockedFilesSection({
             <Lock className="w-5 h-5 text-amber-700" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Private Documents</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {allMediaLocked ? "Documents & Media" : "Private Documents"}
+            </h3>
             <p className="text-sm text-gray-600">
-              {files.length} file{files.length !== 1 ? "s" : ""} require{files.length === 1 ? "s" : ""} access approval
+              {allMediaLocked
+                ? `${files.length} file${files.length !== 1 ? "s" : ""} — request access to view`
+                : `${files.length} file${files.length !== 1 ? "s" : ""} require${files.length === 1 ? "s" : ""} access approval`}
             </p>
           </div>
         </div>
@@ -2029,12 +2044,17 @@ function PropertyPresentation({
     ? parsePropertySections(property.description)
     : [];
 
-  // Separate public vs locked (private) media
-  const publicMedia = media.filter((m: any) => m.is_public !== false);
-  const lockedMedia = media.filter((m: any) => m.is_public === false && !m.url);
-  const unlockedPrivateMedia = media.filter((m: any) => m.is_public === false && m.url);
-  // Combine public + unlocked-private for display
-  const visibleMedia = [...publicMedia, ...unlockedPrivateMedia];
+  // ── Media access model ───────────────────────────────────────────
+  // media_access_required (Google Drive model): ALL media locked unless
+  // the viewer has an approved access request. The API already handles
+  // not returning URLs — we just need to separate viewable vs locked.
+  const mediaAccessRequired = data.media_access_required ?? true;
+  const accessApproved = data.access_approved ?? false;
+
+  // Media WITH a URL = viewable (API only sends URLs when authorized)
+  // Media WITHOUT a URL = locked
+  const visibleMedia = media.filter((m: any) => !!m.url);
+  const lockedMedia = media.filter((m: any) => !m.url);
 
   const idxMedia = visibleMedia.filter(
     (m) =>
@@ -2186,12 +2206,13 @@ function PropertyPresentation({
         <DocumentsSection media={regularDocs} />
       )}
 
-      {/* Locked Files — Request Access */}
+      {/* Locked Files — Request Access (Google Drive model) */}
       {lockedMedia.length > 0 && (
         <LockedFilesSection
           files={lockedMedia}
           token={token}
           portalTitle={property.title}
+          allMediaLocked={mediaAccessRequired && !accessApproved}
         />
       )}
 
@@ -2340,6 +2361,9 @@ export default function PortalPage({
           brokerage_name: p.brokerage_name,
         },
         existing_feedback: raw.existing_feedback || undefined,
+        media_access_required: p.media_access_required ?? true,
+        access_approved: p.access_approved ?? false,
+        has_locked_files: p.has_locked_files ?? false,
       };
 
       setPortalData(data);
