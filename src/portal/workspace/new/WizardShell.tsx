@@ -26,24 +26,80 @@ import {
   validateStep,
   type StepValidator,
 } from "./wizard-validation";
+import TransactionTypeStep from "./TransactionTypeStep";
+import PropertyStep from "./PropertyStep";
+import ClientsPartiesStep from "./ClientsPartiesStep";
+import ImportantDatesStep from "./ImportantDatesStep";
+import ReviewStep from "./ReviewStep";
+import type { UseWizardSession } from "./useWizardSession";
 
 function stepLabel(step: StepId): string {
   return WIZARD_STEPS.find((s) => s.id === step)?.label ?? "";
 }
 
-/** Placeholder body for a step. Replaced by concrete step forms in 3.3B.3B. */
-function StepPlaceholder({ step }: { step: StepId }) {
+/** Placeholder body for the terminal `create` step — the create → parties →
+ *  recompute → navigate orchestration is wired in 3.3B.3D. */
+function CreatePlaceholder() {
   return (
-    <div
-      data-testid={`wizard-step-${step}`}
-      className="py-8 text-center"
-    >
-      <p className="text-sm font-medium text-[#F1F1F3]">{stepLabel(step)}</p>
+    <div data-testid="wizard-step-create" className="py-8 text-center">
+      <p className="text-sm font-medium text-[#F1F1F3]">Ready to create</p>
       <p className="mt-1 text-xs text-[#71717A]">
-        This step&rsquo;s form is added in a later phase.
+        Transaction creation is wired in a later phase.
       </p>
     </div>
   );
+}
+
+/** Dispatch the current step to its component. `package` is terminal and never
+ *  a current step, so it has no body here. */
+function StepBody({ current, wiz }: { current: StepId; wiz: UseWizardSession }) {
+  const { session } = wiz;
+  switch (current) {
+    case "type":
+      return (
+        <div data-testid="wizard-step-type">
+          <TransactionTypeStep
+            value={session.transaction_type}
+            onSelect={wiz.setType}
+          />
+        </div>
+      );
+    case "property":
+      return (
+        <div data-testid="wizard-step-property">
+          <PropertyStep property={session.property} onChange={wiz.patchProperty} />
+        </div>
+      );
+    case "parties":
+      return (
+        <div data-testid="wizard-step-parties">
+          <ClientsPartiesStep
+            parties={session.parties}
+            onChange={wiz.replaceParties}
+          />
+        </div>
+      );
+    case "dates":
+      return (
+        <div data-testid="wizard-step-dates">
+          <ImportantDatesStep
+            dates={session.dates}
+            transactionType={session.transaction_type}
+            onChange={wiz.patchDates}
+          />
+        </div>
+      );
+    case "review":
+      return (
+        <div data-testid="wizard-step-review">
+          <ReviewStep session={session} />
+        </div>
+      );
+    case "create":
+      return <CreatePlaceholder />;
+    default:
+      return null;
+  }
 }
 
 export interface WizardShellProps {
@@ -111,7 +167,7 @@ export default function WizardShell({
       nextLabel={isCreateStep ? "Create" : "Next"}
       errors={errors}
     >
-      <StepPlaceholder step={current} />
+      <StepBody current={current} wiz={wiz} />
     </WizardLayout>
   );
 }

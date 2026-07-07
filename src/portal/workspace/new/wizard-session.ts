@@ -36,6 +36,8 @@ export interface WizardPartyDraft {
   company?: string;
   email?: string;
   phone?: string;
+  /** Whether this party must sign (collected in the wizard; used downstream). */
+  signature_required?: boolean;
 }
 
 export interface WizardDatesDraft {
