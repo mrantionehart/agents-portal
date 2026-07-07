@@ -8,7 +8,7 @@
 // forward it.
 // ============================================================================
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_API_URL } from './vault-client'
 
@@ -38,6 +38,43 @@ export async function resolveAccessToken(request: NextRequest): Promise<string |
   } catch {
     return null
   }
+}
+
+/**
+ * TRANSACTION OS 3.3D — generic thin proxy to a Vault agent endpoint.
+ * Resolves the caller's token, forwards method + optional JSON body, and passes
+ * Vault's status + JSON straight back. No business logic. Routes still carry
+ * their own `requireAuth` marker (the check-api-routes guard scans each file).
+ */
+export async function proxyToVault(
+  request: NextRequest,
+  method: 'GET' | 'POST',
+  vaultPath: string,
+  body?: unknown
+): Promise<NextResponse> {
+  const token = await resolveAccessToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let res: Response
+  try {
+    res = await fetch(`${VAULT_API_URL}${vaultPath}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      cache: 'no-store',
+    })
+  } catch (err) {
+    console.error('[vault-forward] proxyToVault failed:', err)
+    return NextResponse.json({ error: 'vault_unreachable' }, { status: 502 })
+  }
+
+  const payload = await res.json().catch(() => null)
+  return NextResponse.json(payload ?? {}, { status: res.status })
 }
 
 export interface EnsureVaultFormsResult {

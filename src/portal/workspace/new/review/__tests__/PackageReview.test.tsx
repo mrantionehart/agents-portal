@@ -8,6 +8,11 @@
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 
+jest.mock("next/navigation", () => ({
+  __esModule: true,
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
+
 import PackageReview from "../PackageReview";
 import type { PackageForm, PackageReviewData } from "../types";
 

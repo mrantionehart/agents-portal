@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Lock,
   Plus,
@@ -21,6 +22,9 @@ import {
   ShieldCheck,
   AlertCircle,
   ArrowLeft,
+  Send,
+  Eye,
+  Link2,
 } from "lucide-react";
 
 import type { PackageForm, PackageReviewData } from "./types";
@@ -33,6 +37,14 @@ import {
   actionLabel,
   type StatusTone,
 } from "./package-view";
+import {
+  generatePackage,
+  sendPackage,
+  getConnectUrl,
+  getPreviewUrl,
+  type SelectedForm,
+  type FormOutcome,
+} from "./generate-send-orchestrator";
 
 const TONE_CLASS: Record<StatusTone, string> = {
   ok: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -41,6 +53,13 @@ const TONE_CLASS: Record<StatusTone, string> = {
   danger: "bg-red-500/15 text-red-300 border-red-500/30",
   muted: "bg-white/[0.04] text-[#A1A1AA] border-white/[0.08]",
 };
+
+/** Merge fresh outcomes over prior ones, keyed by form_id. */
+function mergeOutcomes(prev: FormOutcome[], next: FormOutcome[]): FormOutcome[] {
+  const byId = new Map(prev.map((o) => [o.form_id, o]));
+  for (const o of next) byId.set(o.form_id, o);
+  return [...byId.values()];
+}
 
 function StatusBadge({ tone, label }: { tone: StatusTone; label: string }) {
   return (
@@ -174,6 +193,69 @@ export default function PackageReview({ data, transactionId }: PackageReviewProp
     () => filterSearchable(plan.searchable_forms, query),
     [plan.searchable_forms, query]
   );
+
+  // ── Generate & Send (3.3D) ────────────────────────────────────────────────
+  const router = useRouter();
+  const [busy, setBusy] = useState<null | "generating" | "sending">(null);
+  const [outcomes, setOutcomes] = useState<FormOutcome[]>([]);
+  const [needsConnect, setNeedsConnect] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+
+  /** The forms in the package (required ∪ selected optional/riders/search),
+   *  resolving each form_instance_id from live status or a prior generate. */
+  const buildForms = (): SelectedForm[] =>
+    blueprint.all_selected.map((fid) => {
+      const st = data.form_status[fid];
+      const prior = outcomes.find((o) => o.form_id === fid);
+      return {
+        form_id: fid,
+        form_instance_id: prior?.form_instance_id ?? st?.form_instance_id,
+        generatable: st?.generatable,
+        disposition: st?.disposition,
+      };
+    });
+
+  const handleGenerate = async () => {
+    setBusy("generating");
+    setBanner(null);
+    const res = await generatePackage(transactionId, buildForms());
+    setOutcomes(res);
+    setBusy(null);
+    const failed = res.filter((o) => !o.ok);
+    if (failed.length) setBanner(`${failed.length} form(s) could not be generated.`);
+  };
+
+  const handleSend = async () => {
+    setBusy("sending");
+    setBanner(null);
+    setNeedsConnect(false);
+    const { results, needsConnect: nc } = await sendPackage(transactionId, buildForms());
+    setBusy(null);
+    setOutcomes((prev) => mergeOutcomes(prev, results));
+    if (nc) {
+      setNeedsConnect(true);
+      setBanner("Connect your DocuSign account to send for signature.");
+      return;
+    }
+    const failed = results.filter((o) => !o.ok && !o.skipped);
+    if (failed.length) {
+      setBanner(`${failed.length} form(s) could not be sent.`);
+      return;
+    }
+    router.push(`/workspace/${transactionId}`);
+  };
+
+  const handleConnect = async () => {
+    const url = await getConnectUrl();
+    if (url) window.location.href = url;
+    else setBanner("Could not start the DocuSign connection.");
+  };
+
+  const handlePreview = async (o: FormOutcome) => {
+    if (!o.form_instance_id) return;
+    const url = await getPreviewUrl(transactionId, o.form_instance_id);
+    if (url) window.open(url, "_blank", "noopener");
+  };
 
   return (
     <div className="mx-auto max-w-[860px] space-y-5" data-testid="package-review">
@@ -337,24 +419,91 @@ export default function PackageReview({ data, transactionId }: PackageReviewProp
         </div>
       </section>
 
-      {/* Generate — exposed + gated; generation is 3.3D. */}
-      <footer className="flex flex-col items-end gap-1 pb-8">
-        <button
-          type="button"
-          disabled={!gates.can_prepare_package}
-          title={
-            gates.can_prepare_package
-              ? "Generate the package"
-              : "Complete the required forms before generating"
-          }
-          className="inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40 bg-[#C9A84C]/15 px-4 py-2 text-sm font-medium text-[#E8D5A3] hover:bg-[#C9A84C]/25 transition-colors disabled:pointer-events-none disabled:opacity-40"
-        >
-          <FileText className="h-4 w-4" />
-          Generate Package
-        </button>
-        <p className="text-[11px] text-[#71717A]">
-          Document generation arrives in the next phase.
-        </p>
+      {/* Generate & Send (3.3D) — orchestrates the existing engines. */}
+      <footer className="space-y-3 pb-8" data-testid="package-actions">
+        {banner && (
+          <div
+            role="alert"
+            className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+          >
+            {banner}
+          </div>
+        )}
+
+        {outcomes.length > 0 && (
+          <ul className="space-y-1.5" data-testid="generate-outcomes">
+            {outcomes.map((o) => (
+              <li
+                key={o.form_id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a2e] bg-[#0b0b10] px-3 py-2 text-sm"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  {o.ok ? (
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-400" />
+                  )}
+                  <span className="truncate text-[#F1F1F3]">{o.form_id}</span>
+                  {!o.ok && o.error && (
+                    <span className="truncate text-xs text-red-400">{o.error}</span>
+                  )}
+                </span>
+                {o.ok && o.form_instance_id && (
+                  <button
+                    type="button"
+                    onClick={() => handlePreview(o)}
+                    className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-[#252538] px-2 py-1 text-xs text-[#A1A1AA] hover:text-[#F1F1F3]"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    Preview
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {needsConnect && (
+          <button
+            type="button"
+            onClick={handleConnect}
+            className="inline-flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-sm font-medium text-sky-300 hover:bg-sky-500/25 transition-colors"
+          >
+            <Link2 className="h-4 w-4" />
+            Connect DocuSign
+          </button>
+        )}
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!gates.can_prepare_package || busy !== null}
+            title={
+              gates.can_prepare_package
+                ? "Materialize + generate the package PDFs"
+                : "Complete the required forms before generating"
+            }
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#252538] px-4 py-2 text-sm font-medium text-[#F1F1F3] hover:bg-white/[0.04] transition-colors disabled:pointer-events-none disabled:opacity-40"
+          >
+            <FileText className="h-4 w-4" />
+            {busy === "generating" ? "Generating…" : "Generate Package"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!gates.can_send_for_signature || busy !== null}
+            title={
+              gates.can_send_for_signature
+                ? "Send the package for signature"
+                : "The package isn't ready to send yet"
+            }
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40 bg-[#C9A84C]/15 px-4 py-2 text-sm font-medium text-[#E8D5A3] hover:bg-[#C9A84C]/25 transition-colors disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+            {busy === "sending" ? "Sending…" : "Send for Signature"}
+          </button>
+        </div>
       </footer>
     </div>
   );
