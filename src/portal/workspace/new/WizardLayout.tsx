@@ -27,6 +27,8 @@ export interface WizardLayoutProps {
   nextLabel: string;
   /** Flattened banner messages for the current step's validation. */
   messages: string[];
+  /** Disables the footer + shows a spinner on the primary button (submitting). */
+  busy?: boolean;
   children: React.ReactNode;
 }
 
@@ -41,6 +43,7 @@ export default function WizardLayout({
   canBack,
   nextLabel,
   messages,
+  busy = false,
   children,
 }: WizardLayoutProps) {
   return (
@@ -83,7 +86,8 @@ export default function WizardLayout({
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-sm text-[#A1A1AA] hover:bg-white/[0.04] hover:text-[#F1F1F3] transition-colors duration-[180ms]"
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-sm text-[#A1A1AA] hover:bg-white/[0.04] hover:text-[#F1F1F3] transition-colors duration-[180ms] disabled:pointer-events-none disabled:opacity-40"
         >
           <X className="h-4 w-4" />
           Cancel
@@ -93,7 +97,7 @@ export default function WizardLayout({
           <button
             type="button"
             onClick={onBack}
-            disabled={!canBack}
+            disabled={!canBack || busy}
             className="inline-flex items-center gap-1.5 rounded-md border border-[#252538] px-3 py-1.5 text-sm text-[#F1F1F3] hover:bg-white/[0.04] transition-colors duration-[180ms] disabled:pointer-events-none disabled:opacity-40"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -102,10 +106,20 @@ export default function WizardLayout({
           <button
             type="button"
             onClick={onNext}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40 bg-[#C9A84C]/15 px-3 py-1.5 text-sm font-medium text-[#E8D5A3] hover:bg-[#C9A84C]/25 transition-colors duration-[180ms]"
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40 bg-[#C9A84C]/15 px-3 py-1.5 text-sm font-medium text-[#E8D5A3] hover:bg-[#C9A84C]/25 transition-colors duration-[180ms] disabled:pointer-events-none disabled:opacity-60"
           >
-            {nextLabel}
-            <ArrowRight className="h-4 w-4" />
+            {busy ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#E8D5A3]/40 border-t-[#E8D5A3]" />
+                Creating…
+              </>
+            ) : (
+              <>
+                {nextLabel}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </div>
       </footer>

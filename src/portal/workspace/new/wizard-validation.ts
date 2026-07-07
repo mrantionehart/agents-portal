@@ -186,3 +186,24 @@ export function isStepComplete(
 ): boolean {
   return validateStep(step, session, validators).valid;
 }
+
+/** The data steps that carry validation rules, in order. */
+const VALIDATED_STEPS: ReadonlyArray<StepId> = [
+  "type",
+  "property",
+  "parties",
+  "dates",
+];
+
+/** First data step that fails validation, or null when all pass. Used as a
+ *  pre-submit guard so the wizard never creates a transaction from invalid
+ *  data (e.g. after a refresh that lands on a later step). */
+export function firstInvalidStep(
+  session: WizardSession,
+  validators: Record<StepId, StepValidator> = stepValidators
+): StepId | null {
+  for (const step of VALIDATED_STEPS) {
+    if (!validateStep(step, session, validators).valid) return step;
+  }
+  return null;
+}

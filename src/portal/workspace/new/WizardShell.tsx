@@ -25,10 +25,12 @@ import {
   stepValidators,
   validateStep,
   isStepComplete,
+  firstInvalidStep,
   type StepValidator,
   type StepValidation,
   type WizardFieldErrors,
 } from "./wizard-validation";
+import { submitWizard } from "./submit-orchestrator";
 import TransactionTypeStep from "./TransactionTypeStep";
 import PropertyStep from "./PropertyStep";
 import ClientsPartiesStep from "./ClientsPartiesStep";
@@ -40,15 +42,31 @@ function stepLabel(step: StepId): string {
   return WIZARD_STEPS.find((s) => s.id === step)?.label ?? "";
 }
 
-/** Placeholder body for the terminal `create` step — the create → parties →
- *  recompute → navigate orchestration is wired in 3.3B.3D. */
-function CreatePlaceholder() {
+/** The terminal `create` step. The Create button (footer) runs the submit
+ *  orchestration; this body confirms + surfaces any submit error with a retry. */
+function CreateStep({
+  submitting,
+  submitError,
+}: {
+  submitting: boolean;
+  submitError: string | null;
+}) {
   return (
-    <div data-testid="wizard-step-create" className="py-8 text-center">
+    <div data-testid="wizard-step-create" className="py-6 text-center">
       <p className="text-sm font-medium text-[#F1F1F3]">Ready to create</p>
       <p className="mt-1 text-xs text-[#71717A]">
-        Transaction creation is wired in a later phase.
+        {submitting
+          ? "Creating your transaction and adding parties…"
+          : "Select Create to save this transaction and continue to Package Review."}
       </p>
+      {submitError && (
+        <p
+          role="alert"
+          className="mx-auto mt-4 max-w-sm rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+        >
+          {submitError}
+        </p>
+      )}
     </div>
   );
 }
@@ -59,10 +77,14 @@ function StepBody({
   current,
   wiz,
   fieldErrors,
+  submitting,
+  submitError,
 }: {
   current: StepId;
   wiz: UseWizardSession;
   fieldErrors: WizardFieldErrors;
+  submitting: boolean;
+  submitError: string | null;
 }) {
   const { session } = wiz;
   switch (current) {
@@ -114,7 +136,7 @@ function StepBody({
         </div>
       );
     case "create":
-      return <CreatePlaceholder />;
+      return <CreateStep submitting={submitting} submitError={submitError} />;
     default:
       return null;
   }
@@ -131,6 +153,8 @@ export default function WizardShell({
   const wiz = useWizardSession();
   // Structured validation result for the CURRENT step (null until a failed Next).
   const [validation, setValidation] = useState<StepValidation | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Avoid a flash of the wrong step before localStorage restore completes.
   if (!wiz.hydrated) {
@@ -145,28 +169,60 @@ export default function WizardShell({
   const canBack = prevStep(current) !== null;
   const isCreateStep = current === "create";
 
+  // Submit orchestration for the terminal `create` step (3.3B.3D). Composes the
+  // existing create + party endpoints; idempotency lives in the session anchors.
+  const handleCreate = async () => {
+    // Pre-submit guard: never create a transaction from invalid data.
+    const bad = firstInvalidStep(wiz.session, validators);
+    if (bad) {
+      setValidation(validateStep(bad, wiz.session, validators));
+      wiz.goToStep(bad);
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    const result = await submitWizard(wiz.session, {
+      onTransactionCreated: wiz.setDraftTransactionId,
+      onPartyCreated: wiz.addCreatedPartyId,
+    });
+    setSubmitting(false);
+    if (!result.ok) {
+      setSubmitError(result.error ?? "Something went wrong. Please retry.");
+      return;
+    }
+    // Success — clear the draft and hand off to Package Review (owned by 3.3C;
+    // interim landing is the transaction workspace).
+    wiz.finish(result.redirectTo ?? `/workspace/${result.transactionId}`);
+  };
+
   const handleNext = () => {
+    if (isCreateStep) {
+      void handleCreate();
+      return;
+    }
     const result = validateStep(current, wiz.session, validators);
     if (!result.valid) {
       setValidation(result);
       return;
     }
     setValidation(null);
-    // On the terminal `create` step there is no next node; the create →
-    // navigate orchestration is wired in 3.3B.3D. Here Next simply advances
-    // through the data steps.
     wiz.goNext();
   };
 
   const clearAndGo = (fn: () => void) => {
+    if (submitting) return; // don't navigate mid-submit
     // Back / step-select NEVER validate.
     setValidation(null);
+    setSubmitError(null);
     fn();
   };
 
   const handleBack = () => clearAndGo(wiz.goBack);
   const handleStepSelect = (step: StepId) => clearAndGo(() => wiz.goToStep(step));
-  const handleCancel = () => wiz.cancel();
+  const handleCancel = () => {
+    if (submitting) return;
+    wiz.cancel();
+  };
 
   const fieldErrors: WizardFieldErrors = validation?.fieldErrors ?? {};
 
@@ -182,8 +238,15 @@ export default function WizardShell({
       canBack={canBack}
       nextLabel={isCreateStep ? "Create" : "Next"}
       messages={validation?.messages ?? []}
+      busy={submitting}
     >
-      <StepBody current={current} wiz={wiz} fieldErrors={fieldErrors} />
+      <StepBody
+        current={current}
+        wiz={wiz}
+        fieldErrors={fieldErrors}
+        submitting={submitting}
+        submitError={submitError}
+      />
     </WizardLayout>
   );
 }

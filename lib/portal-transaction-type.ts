@@ -36,6 +36,56 @@ export interface MappedTransactionType {
   supported: boolean
 }
 
+/**
+ * TRANSACTION OS 3.3B.3D — enum-safe stored type.
+ *
+ * `transactions.type` is a Postgres ENUM whose live members are:
+ *   buyer · seller · lease · referral · wholesale · double_close · listing · buyer_rep
+ * (verified against production). The wizard's canonical vocabulary adds
+ * `purchase` and `commercial`, which are NOT enum members. This maps a canonical
+ * (or already-legacy) type onto a value the enum accepts, WITHOUT a migration.
+ *
+ * NOTE (tech debt): `purchase` and `commercial` both fold to `buyer` because the
+ * enum can't represent them yet. The correct FAR-BAR rule set is still derived at
+ * create time via `mapPortalTransactionTypeToVaultType(canonical)` (purchase →
+ * buyer). But the checklist READ-path re-derives from the stored `buyer`, which
+ * the mapper resolves to `buyer_rep` (BRA) — so FAR-BAR is not persistently
+ * re-derived. Fully fixing this needs a future `ALTER TYPE transaction_type
+ * ADD VALUE 'purchase'` (+ 'commercial') migration and mapper update.
+ */
+const CANONICAL_TO_ENUM_TYPE: Record<string, string> = {
+  purchase: 'buyer', // enum has no 'purchase' → buyer-side (FAR-BAR via mapper)
+  commercial: 'buyer', // enum has no 'commercial' → buyer-side fallback
+  listing: 'listing',
+  buyer_rep: 'buyer_rep',
+  lease: 'lease',
+  wholesale: 'wholesale',
+  referral: 'referral',
+}
+
+/** Live enum members of `transactions.type` (no migration path from the portal). */
+export const TRANSACTION_TYPE_ENUM_VALUES = [
+  'buyer',
+  'seller',
+  'lease',
+  'referral',
+  'wholesale',
+  'double_close',
+  'listing',
+  'buyer_rep',
+] as const
+
+/**
+ * Resolve a canonical (or legacy) transaction type to a value the
+ * `transactions.type` enum accepts. Legacy values that are already enum members
+ * pass through unchanged; canonical `purchase`/`commercial` fold to `buyer`.
+ */
+export function toEnumTransactionType(raw: string | null | undefined): string {
+  const t = (raw ?? '').trim()
+  if ((TRANSACTION_TYPE_ENUM_VALUES as readonly string[]).includes(t)) return t
+  return CANONICAL_TO_ENUM_TYPE[t] ?? 'buyer'
+}
+
 export function mapPortalTransactionTypeToVaultType(
   portalType: string | null | undefined
 ): MappedTransactionType {

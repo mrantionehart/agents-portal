@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { userClient } from '@/lib/security'
 import { ensureVaultForms } from '@/lib/vault-forward'
-import { mapPortalTransactionTypeToVaultType } from '@/lib/portal-transaction-type'
+import {
+  mapPortalTransactionTypeToVaultType,
+  toEnumTransactionType,
+} from '@/lib/portal-transaction-type'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -95,10 +98,19 @@ export async function POST(request: NextRequest) {
     if (!type) return NextResponse.json({ error: 'Transaction type is required' }, { status: 400 })
     if (!property_address?.trim()) return NextResponse.json({ error: 'Property address is required' }, { status: 400 })
 
-    const validTypes = ['buyer', 'seller', 'lease', 'referral', 'wholesale', 'double_close']
+    // Transaction OS 3.3B.3D: accept the legacy 6 (from /transactions/new) AND
+    // the 7 canonical wizard types. Canonical `purchase`/`commercial` are stored
+    // enum-safe (→ 'buyer') via toEnumTransactionType below; the FAR-BAR rule set
+    // is still derived from the canonical `type` at create time.
+    const validTypes = [
+      'buyer', 'seller', 'lease', 'referral', 'wholesale', 'double_close', // legacy
+      'purchase', 'listing', 'buyer_rep', 'commercial', // canonical wizard
+    ]
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 })
     }
+    // Enum-safe value actually written to transactions.type (no migration).
+    const storedType = toEnumTransactionType(type)
 
     // Determine agent_id: broker/admin can assign to any agent
     let targetAgentId = user.id
@@ -121,7 +133,7 @@ export async function POST(request: NextRequest) {
       .from('transactions')
       .insert({
         agent_id: targetAgentId,
-        type,
+        type: storedType,
         status: 'draft',
         property_address: property_address.trim(),
         city: city?.trim() || '',

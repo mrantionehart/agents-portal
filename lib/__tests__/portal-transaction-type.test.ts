@@ -5,7 +5,11 @@
 // AGENT.SIGN.1B.5 — portal→Vault transaction-type mapping tests
 // ============================================================================
 
-import { mapPortalTransactionTypeToVaultType } from '../portal-transaction-type'
+import {
+  mapPortalTransactionTypeToVaultType,
+  toEnumTransactionType,
+  TRANSACTION_TYPE_ENUM_VALUES,
+} from '../portal-transaction-type'
 
 describe('mapPortalTransactionTypeToVaultType — supported types', () => {
   it('buyer → buyer_rep (buyer representation, NOT purchase)', () => {
@@ -57,6 +61,34 @@ describe('mapPortalTransactionTypeToVaultType — unsupported legacy types', () 
   it('never maps any input to a raw "purchase" Vault token', () => {
     for (const t of ['buyer', 'seller', 'lease', 'purchase', 'referral', 'wholesale', 'x']) {
       expect(mapPortalTransactionTypeToVaultType(t).vaultType).not.toBe('purchase')
+    }
+  })
+})
+
+describe('toEnumTransactionType — enum-safe stored type (3.3B.3D)', () => {
+  it('canonical purchase / commercial fold to buyer (enum has neither)', () => {
+    expect(toEnumTransactionType('purchase')).toBe('buyer')
+    expect(toEnumTransactionType('commercial')).toBe('buyer')
+  })
+
+  it('canonical types that ARE enum members pass through', () => {
+    expect(toEnumTransactionType('listing')).toBe('listing')
+    expect(toEnumTransactionType('buyer_rep')).toBe('buyer_rep')
+    expect(toEnumTransactionType('lease')).toBe('lease')
+    expect(toEnumTransactionType('wholesale')).toBe('wholesale')
+    expect(toEnumTransactionType('referral')).toBe('referral')
+  })
+
+  it('legacy enum members pass through unchanged', () => {
+    for (const t of TRANSACTION_TYPE_ENUM_VALUES) {
+      expect(toEnumTransactionType(t)).toBe(t)
+    }
+  })
+
+  it('every result is a valid enum member', () => {
+    const inputs = ['purchase', 'commercial', 'listing', 'buyer_rep', 'lease', 'wholesale', 'referral', 'buyer', 'seller', 'double_close', 'nonsense', '']
+    for (const t of inputs) {
+      expect(TRANSACTION_TYPE_ENUM_VALUES).toContain(toEnumTransactionType(t) as any)
     }
   })
 })

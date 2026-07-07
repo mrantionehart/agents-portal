@@ -27,12 +27,14 @@ import {
   type StepId,
 } from "./wizard-steps";
 import {
+  addCreatedPartyId,
   clearSession,
   emptySession,
   loadSession,
   mergeDates,
   mergeProperty,
   saveSession,
+  setDraftTransactionId,
   setParties,
   setStep,
   setTransactionType,
@@ -58,6 +60,11 @@ export interface UseWizardSession {
   patchProperty: (patch: Partial<WizardPropertyDraft>) => void;
   replaceParties: (parties: WizardPartyDraft[]) => void;
   patchDates: (patch: Partial<WizardDatesDraft>) => void;
+  /** Idempotency anchors set by the submit orchestrator (3.3B.3D). */
+  setDraftTransactionId: (id: string) => void;
+  addCreatedPartyId: (id: string) => void;
+  /** Clear the draft (localStorage) and navigate to a target (submit success). */
+  finish: (href: string) => void;
 }
 
 export function useWizardSession(): UseWizardSession {
@@ -69,6 +76,9 @@ export function useWizardSession(): UseWizardSession {
   const [session, setSession] = useState<WizardSession>(() => emptySession());
   const [hydrated, setHydrated] = useState(false);
   const didRestore = useRef(false);
+  // Once finished (submit success), stop persisting so the cleared draft stays
+  // cleared even as trailing state updates flush.
+  const finished = useRef(false);
 
   // Mount: restore from localStorage + reconcile with the URL step (once).
   useEffect(() => {
@@ -89,9 +99,9 @@ export function useWizardSession(): UseWizardSession {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist every change after the initial restore.
+  // Persist every change after the initial restore (but never after finish()).
   useEffect(() => {
-    if (hydrated) saveSession(session);
+    if (hydrated && !finished.current) saveSession(session);
   }, [session, hydrated]);
 
   const goToStep = useCallback(
@@ -121,6 +131,7 @@ export function useWizardSession(): UseWizardSession {
   }, [router]);
 
   const cancel = useCallback(() => {
+    finished.current = true;
     clearSession();
     router.push(WIZARD_EXIT_HREF);
   }, [router]);
@@ -143,6 +154,23 @@ export function useWizardSession(): UseWizardSession {
     []
   );
 
+  const setDraftId = useCallback(
+    (id: string) => setSession((s) => setDraftTransactionId(s, id)),
+    []
+  );
+  const addPartyId = useCallback(
+    (id: string) => setSession((s) => addCreatedPartyId(s, id)),
+    []
+  );
+  const finish = useCallback(
+    (href: string) => {
+      finished.current = true;
+      clearSession();
+      router.push(href);
+    },
+    [router]
+  );
+
   return {
     session,
     hydrated,
@@ -154,5 +182,8 @@ export function useWizardSession(): UseWizardSession {
     patchProperty,
     replaceParties,
     patchDates,
+    setDraftTransactionId: setDraftId,
+    addCreatedPartyId: addPartyId,
+    finish,
   };
 }
