@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { ArrowRight, FileText } from "lucide-react";
 
-import type { WorkspaceCard } from "../types";
+import type { WorkspaceCard, LifecycleTone } from "../types";
 import {
   nextActionLabel,
   readinessLanguage,
@@ -20,6 +20,97 @@ import {
   vaultPaperworkUrl,
 } from "../transaction-helpers";
 import { tabHref } from "./tab-config";
+// Transaction OS 3.3E — reuse the grid card's pure view helpers so the detail
+// Overview shows Transaction Stage (3.1) + Deadline (3.2). No recreated logic.
+import { hasLifecycle, lifecycleChipVM } from "../lifecycle-view";
+import { hasDeadlineSummary, deadlineChipVM } from "../deadline-view";
+
+const TONE_CLASS: Record<LifecycleTone, string> = {
+  ok: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  info: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  warn: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  muted: "bg-white/[0.04] text-[#A1A1AA] border-white/[0.08]",
+};
+
+function ToneBadge({ tone, children }: { tone: LifecycleTone; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${TONE_CLASS[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+function StageDeadlineRow({ card }: { card: WorkspaceCard }) {
+  const showStage = hasLifecycle(card.lifecycle);
+  const showDeadline = hasDeadlineSummary(card.deadline_summary);
+  if (!showStage && !showDeadline) return null;
+
+  const lc = showStage ? lifecycleChipVM(card.lifecycle!) : null;
+  const dl = showDeadline ? deadlineChipVM(card.deadline_summary!) : null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {lc && (
+        <section
+          data-testid="overview-transaction-stage"
+          className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5"
+        >
+          <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">
+            {lc.section_label}
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[#F1F1F3] text-base font-medium">
+              {lc.current_stage_label}
+            </span>
+            {lc.next_stage_label && (
+              <span className="text-xs text-[#71717A]">→ {lc.next_stage_label}</span>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ToneBadge tone={lc.readiness_tone}>{lc.readiness_label}</ToneBadge>
+            <ToneBadge tone={lc.priority_tone}>{lc.priority}</ToneBadge>
+            {lc.blocker_count > 0 && (
+              <span className="text-xs text-amber-400">{lc.blocker_count} blocker{lc.blocker_count === 1 ? "" : "s"}</span>
+            )}
+          </div>
+          {lc.next_action_label && (
+            <p className="mt-2 text-xs text-[#A1A1AA]">{lc.next_action_label}</p>
+          )}
+        </section>
+      )}
+
+      {dl && (
+        <section
+          data-testid="overview-deadline"
+          className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5"
+        >
+          <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">
+            {dl.section_label}
+          </h2>
+          {dl.next_deadline_label ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[#F1F1F3] text-base font-medium">
+                  {dl.next_deadline_label}
+                </span>
+                {dl.due_date_label && (
+                  <span className="text-xs text-[#71717A]">{dl.due_date_label}</span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {dl.days_label && <ToneBadge tone={dl.days_tone}>{dl.days_label}</ToneBadge>}
+                {dl.overdue_count > 0 && <ToneBadge tone="warn">{dl.overdue_count} overdue</ToneBadge>}
+                {dl.at_risk_count > 0 && <ToneBadge tone="warn">{dl.at_risk_count} at risk</ToneBadge>}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-[#71717A]">No upcoming deadline.</p>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
 
 export interface OverviewTabProps {
   card: WorkspaceCard;
@@ -29,6 +120,8 @@ export interface OverviewTabProps {
 export default function OverviewTab({ card, vaultBase }: OverviewTabProps) {
   return (
     <div className="space-y-4">
+      <StageDeadlineRow card={card} />
+
       {/* Next Action + Forms Summary side-by-side on lg+ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <section className="lg:col-span-1 rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">

@@ -173,11 +173,11 @@ export async function submitWizard(
   }
 
   // ── 3. Recompute is inside the party endpoint (fail-open). Redirect. ──────
-  // Transaction OS 3.3C: hand off to Package Review (the wizard's next step).
+  // Transaction OS 3.3E: hand off to Package Review, now a workspace tab.
   return {
     ok: true,
     transactionId,
     createdParties,
-    redirectTo: `/workspace/new/${transactionId}/review`,
+    redirectTo: `/workspace/${transactionId}?tab=package`,
   };
 }

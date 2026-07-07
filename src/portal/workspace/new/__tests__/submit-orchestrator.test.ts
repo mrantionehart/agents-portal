@@ -88,7 +88,7 @@ describe("submitWizard — happy path", () => {
     );
     expect(r.ok).toBe(true);
     expect(r.transactionId).toBe("txn-1");
-    expect(r.redirectTo).toBe("/workspace/new/txn-1/review");
+    expect(r.redirectTo).toBe("/workspace/txn-1?tab=package");
     expect(r.createdParties).toBe(2);
     expect(cb.txn).toEqual(["txn-1"]);
     expect(cb.parties).toEqual(["p0", "p1"]);
@@ -161,7 +161,7 @@ describe("submitWizard — idempotency / resume", () => {
       { fetchImpl }
     );
     expect(r.ok).toBe(true);
-    expect(r.redirectTo).toBe("/workspace/new/txn-9/review");
+    expect(r.redirectTo).toBe("/workspace/txn-9?tab=package");
     expect(cb.txn).toEqual([]); // not re-created
     expect(calls.some((c) => c.url === "/api/transactions/create")).toBe(false);
   });

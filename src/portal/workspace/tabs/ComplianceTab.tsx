@@ -45,12 +45,16 @@ import type {
 } from "../compliance/types";
 import { categoryLabel, statusLabel, statusTone } from "../../documents/helpers";
 import { humanSeverity, severityTone } from "../../documents/details/helpers";
+// Transaction OS 3.3E — in-workspace Submit for Review action.
+import SubmitForReviewButton from "../compliance/SubmitForReviewButton";
 
 export interface ComplianceTabProps {
   state: ComplianceTabState;
+  /** Transaction OS 3.3E — enables the in-workspace Submit for Review action. */
+  transactionId: string;
 }
 
-export default function ComplianceTab({ state }: ComplianceTabProps) {
+export default function ComplianceTab({ state, transactionId }: ComplianceTabProps) {
   return (
     <div className="space-y-5">
       <ReadinessHeader state={state} />
@@ -58,7 +62,7 @@ export default function ComplianceTab({ state }: ComplianceTabProps) {
       <WarningsSection items={state.warnings} />
       <RequiredFormsSection items={state.requiredForms} />
       <StatutorySection items={state.statutory} />
-      <BrokerReviewSection state={state.brokerReview} />
+      <BrokerReviewSection state={state.brokerReview} transactionId={transactionId} />
       <EnvelopeSection summary={state.envelope} />
       <GatesSection items={state.gates} degraded={state.payoutReadinessDegraded} />
 
@@ -302,18 +306,25 @@ function StatutorySection({ items }: { items: StatutoryItemSummary[] }) {
 
 function BrokerReviewSection({
   state,
+  transactionId,
 }: {
   state: ComplianceTabState["brokerReview"];
+  transactionId: string;
 }) {
+  // Agent may submit unless already awaiting review or approved.
+  const canSubmit = !["submitted", "approved"].includes(state.status);
   return (
     <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
       <h3 className="text-xs uppercase tracking-wider text-[#71717A] mb-3 inline-flex items-center gap-1.5">
         <Hourglass className="h-3.5 w-3.5 text-[#71717A]" />
         Broker review
       </h3>
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-[#A1A1AA] text-xs">Status</span>
-        <Pill tone={state.pill.tone}>{state.pill.label}</Pill>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-[#A1A1AA] text-xs">Status</span>
+          <Pill tone={state.pill.tone}>{state.pill.label}</Pill>
+        </div>
+        {canSubmit && <SubmitForReviewButton transactionId={transactionId} />}
       </div>
     </section>
   );

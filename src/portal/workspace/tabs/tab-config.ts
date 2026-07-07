@@ -9,6 +9,7 @@
 
 export type TabId =
   | "overview"
+  | "package"
   | "documents"
   | "timeline"
   | "client"
@@ -23,6 +24,7 @@ export interface TabSpec {
   /** Lucide icon name (resolved in TabStrip). */
   icon:
     | "layout-dashboard"
+    | "package"
     | "file-text"
     | "clock"
     | "user-circle-2"
@@ -32,12 +34,13 @@ export interface TabSpec {
     | "sparkles";
 }
 
-/** Tab order is fixed. Do NOT reorder — agents bookmark `?tab=…` and
- *  external surfaces (R6 Home, R3A Clients, /workspace card) deep-link
- *  to specific tabs. */
+/** Tab order is fixed. Do NOT reorder existing tabs — agents bookmark `?tab=…`
+ *  and external surfaces (R6 Home, R3A Clients, /workspace card) deep-link to
+ *  specific tabs. Transaction OS 3.3E added `package`; ids are otherwise stable. */
 export const WORKSPACE_TABS: ReadonlyArray<TabSpec> = [
   { id: "overview",   label: "Overview",   icon: "layout-dashboard" },
-  { id: "documents",  label: "Documents",  icon: "file-text" },
+  { id: "package",    label: "Package",    icon: "package" },
+  { id: "documents",  label: "Paperwork",  icon: "file-text" },
   { id: "timeline",   label: "Timeline",   icon: "clock" },
   { id: "client",     label: "Client",     icon: "user-circle-2" },
   { id: "offers",     label: "Offers",     icon: "handshake" },

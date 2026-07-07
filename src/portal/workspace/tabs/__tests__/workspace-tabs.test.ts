@@ -14,12 +14,13 @@ import {
 } from "../tab-config";
 
 describe("WORKSPACE_TABS config", () => {
-  it("ships exactly 8 tabs", () => {
-    expect(WORKSPACE_TABS.length).toBe(8);
+  it("ships exactly 9 tabs", () => {
+    expect(WORKSPACE_TABS.length).toBe(9);
   });
-  it("has the 8 documented tab ids in order", () => {
+  it("has the documented tab ids in order (Transaction OS 3.3E added package)", () => {
     expect(WORKSPACE_TABS.map((t) => t.id)).toEqual([
       "overview",
+      "package",
       "documents",
       "timeline",
       "client",
@@ -45,6 +46,7 @@ describe("WORKSPACE_TABS config", () => {
 describe("parseTab", () => {
   it.each<[string, TabId]>([
     ["overview", "overview"],
+    ["package", "package"],
     ["documents", "documents"],
     ["timeline", "timeline"],
     ["client", "client"],

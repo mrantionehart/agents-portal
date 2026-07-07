@@ -12,6 +12,7 @@ import {
   FileText,
   Handshake,
   LayoutDashboard,
+  Package,
   ShieldCheck,
   Sparkles,
   UserCircle2,
@@ -22,6 +23,7 @@ import { WORKSPACE_TABS, tabHref, type TabId } from "./tab-config";
 
 const ICON_MAP = {
   "layout-dashboard": LayoutDashboard,
+  package: Package,
   "file-text": FileText,
   clock: Clock,
   "user-circle-2": UserCircle2,

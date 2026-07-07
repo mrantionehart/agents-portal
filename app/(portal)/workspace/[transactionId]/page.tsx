@@ -42,6 +42,10 @@ import OffersTab from "@/src/portal/workspace/tabs/OffersTab";
 import ComplianceTab from "@/src/portal/workspace/tabs/ComplianceTab";
 import CommissionTab from "@/src/portal/workspace/tabs/CommissionTab";
 import AITab from "@/src/portal/workspace/tabs/AITab";
+// Transaction OS 3.3E — Package Review moves into the workspace as a tab.
+import PackageReview from "@/src/portal/workspace/new/review/PackageReview";
+import { fetchPackageReview } from "@/src/portal/workspace/new/review/api";
+import type { PackageReviewData } from "@/src/portal/workspace/new/review/types";
 import { parseTab, type TabId } from "@/src/portal/workspace/tabs/tab-config";
 import { fetchFormDetail } from "@/src/portal/documents/details/api";
 import { parseFormId } from "@/src/portal/documents/details/helpers";
@@ -369,11 +373,40 @@ export default async function TransactionWorkspacePage({
     }
   }
 
+  // ── Package Review (3.3E) — fetched only on the package tab ─────────
+  let packageData: PackageReviewData | null = null;
+  let packageError: string | null = null;
+  if (activeTab === "package") {
+    const pkg = await fetchPackageReview({
+      accessToken: session.access_token,
+      transactionId,
+    });
+    if (pkg.ok === true) {
+      packageData = pkg.data;
+    } else {
+      // Read defensively — the isolated type-check mis-narrows this cross-module
+      // discriminated union (same as the 3.3C review page).
+      const err = pkg as { status: number; message: string };
+      packageError = `Couldn't load the package (${err.status}). ${err.message}`;
+    }
+  }
+
   // ── Tab dispatch ──────────────────────────────────────────────────
   const tabContent = (() => {
     switch (activeTab) {
       case "overview":
         return <OverviewTab card={resolvedCard} vaultBase={vaultBase} />;
+      case "package":
+        return packageData ? (
+          <PackageReview data={packageData} transactionId={resolvedCard.transaction_id} />
+        ) : (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400"
+          >
+            {packageError ?? "Package unavailable."}
+          </div>
+        );
       case "documents":
         return (
           <DocumentsTab
@@ -400,7 +433,9 @@ export default async function TransactionWorkspacePage({
       case "offers":
         return <OffersTab />;
       case "compliance":
-        return complianceState ? <ComplianceTab state={complianceState} /> : null;
+        return complianceState ? (
+          <ComplianceTab state={complianceState} transactionId={resolvedCard.transaction_id} />
+        ) : null;
       case "commission":
         return commissionState ? <CommissionTab state={commissionState} /> : null;
       case "ai":
