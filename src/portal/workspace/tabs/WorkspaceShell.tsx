@@ -15,6 +15,7 @@ import TabStrip from "./TabStrip";
 import type { TabId } from "./tab-config";
 import type { ComposedBannerState } from "../banner/compose-banner-state";
 import CoachStrip from "../components/CoachStrip";
+import CoordinatorPanel from "../components/CoordinatorPanel";
 
 export interface WorkspaceShellProps {
   card: WorkspaceCard;
@@ -53,6 +54,13 @@ export default function WorkspaceShell({
           Renders nothing when the Coach has no actionable recommendation
           (null / nothing_urgent / composer error). */}
       <CoachStrip recommendation={card.coach_recommendation} />
+
+      {/* TXN-OS 3.4D — Transaction Coordinator strip. Loads independently
+          (client-side, session Bearer → Vault 3.4C endpoint); the server
+          workspace never waits on it and still renders if it's unavailable.
+          Presentation only — renders the Vault-produced TransactionDirective;
+          its CTA only navigates. */}
+      <CoordinatorPanel transactionId={card.transaction_id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-4">
         {/* Left rail */}
