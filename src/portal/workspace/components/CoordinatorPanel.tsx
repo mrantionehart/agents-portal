@@ -45,20 +45,30 @@ const TONE_CLASS: Record<LifecycleTone, string> = {
   muted: "bg-white/[0.04] text-[#A1A1AA] border-white/[0.08]",
 };
 
-/** Default session-token getter — lazily imports the browser Supabase client so
- *  tests (which inject `getToken`) never load it. */
+/** Hard ceiling on the whole load (token retrieval + fetch). If either exceeds
+ *  this, the strip degrades to "unavailable" instead of spinning forever. The
+ *  token helper is itself bounded (~2s) and the endpoint answers in ~4s, so this
+ *  is generous headroom, not the expected path — it's a hang backstop. */
+const COORDINATOR_LOAD_TIMEOUT_MS = 10_000;
+
+/** Default session-token getter — reuses the app's approved lock-free
+ *  access-token helper (getAccessToken from lib/supabase). It deliberately
+ *  avoids the lock-based session read that hangs indefinitely on the navigator
+ *  LockManager (documented in lib/supabase.ts). Lazily imported so tests (which
+ *  inject `getToken`) never load the Supabase client. */
 async function defaultGetToken(): Promise<string | null> {
-  const { supabase } = await import("@/lib/supabase");
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const { getAccessToken } = await import("@/lib/supabase");
+  return (await getAccessToken()) ?? null;
 }
 
 export interface CoordinatorPanelProps {
   transactionId: string;
   /** Injected in tests. Defaults to the global fetch. */
   fetchImpl?: typeof fetch;
-  /** Injected in tests. Defaults to the Supabase session access token. */
+  /** Injected in tests. Defaults to the app's lock-free access-token helper. */
   getToken?: () => Promise<string | null>;
+  /** Injected in tests. Overall load timeout (token + fetch), in ms. */
+  timeoutMs?: number;
 }
 
 type LoadState =
@@ -80,6 +90,7 @@ export default function CoordinatorPanel({
   transactionId,
   fetchImpl,
   getToken,
+  timeoutMs = COORDINATOR_LOAD_TIMEOUT_MS,
 }: CoordinatorPanelProps) {
   const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -89,7 +100,9 @@ export default function CoordinatorPanel({
     const doFetch = fetchImpl ?? fetch;
     const readToken = getToken ?? defaultGetToken;
 
-    (async () => {
+    // The load: read a token (lock-free helper), fetch, project. Returns the
+    // next LoadState; never throws (its own failures resolve to "unavailable").
+    const load = (async (): Promise<LoadState> => {
       try {
         const token = await readToken();
         const res = await doFetch(
@@ -100,26 +113,38 @@ export default function CoordinatorPanel({
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           }
         );
-        if (!res.ok) {
-          if (!cancelled) setState({ status: "unavailable" });
-          return;
-        }
+        if (!res.ok) return { status: "unavailable" };
         const body = (await res.json()) as CoordinatorResponse;
-        if (!body?.directive?.next_action) {
-          if (!cancelled) setState({ status: "unavailable" });
-          return;
-        }
-        if (!cancelled) setState({ status: "loaded", vm: coordinatorPanelVM(body, transactionId) });
+        if (!body?.directive?.next_action) return { status: "unavailable" };
+        return { status: "loaded", vm: coordinatorPanelVM(body, transactionId) };
       } catch {
         // Isolated failure — the workspace has already rendered; degrade quietly.
-        if (!cancelled) setState({ status: "unavailable" });
+        return { status: "unavailable" };
       }
     })();
 
+    // Hang backstop — the spinner must ALWAYS terminate. If token retrieval or
+    // the fetch hangs (e.g. a token-helper/LockManager stall), the timeout wins
+    // the race and the strip shows "unavailable" instead of loading forever.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<LoadState>((resolve) => {
+      timer = setTimeout(() => resolve({ status: "unavailable" }), timeoutMs);
+    });
+
+    Promise.race([load, timeout])
+      .then((next) => {
+        if (!cancelled) setState(next);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "unavailable" });
+      })
+      .finally(() => clearTimeout(timer));
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [transactionId, fetchImpl, getToken]);
+  }, [transactionId, fetchImpl, getToken, timeoutMs]);
 
   // ── loading ────────────────────────────────────────────────────────────────
   if (state.status === "loading") {

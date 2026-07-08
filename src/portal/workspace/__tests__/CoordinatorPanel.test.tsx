@@ -7,7 +7,9 @@
 // Covers: loading, loaded, blocked, ready, CTA navigation (push + refresh),
 // recommended-tab navigation, degraded collector (subtle, count-only),
 // confidence display, unavailable state (non-200 / throw → workspace unblocked),
-// and leak safety (raw collection error message never rendered).
+// leak safety (raw collection error message never rendered), the P1 fix (default
+// token path uses the lock-free getAccessToken helper, NOT getSession), and the
+// hang backstop (token/fetch timeout → unavailable; spinner always terminates).
 //
 // The panel fetches independently; we inject `fetchImpl` + `getToken` (the
 // established SubmitForReview injectable-fetch idiom) and mock next/navigation.
@@ -15,6 +17,8 @@
 
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 const mockPush = jest.fn();
 const mockRefresh = jest.fn();
@@ -28,6 +32,7 @@ import type { CoordinatorResponse, TransactionDirective } from "../coordinator-v
 
 const SECRET = "SENTINEL-DB-ERROR-do-not-leak";
 const getToken = async () => "test-token";
+const NEVER = () => new Promise<never>(() => {}); // resolves never — simulates a hang
 
 function directive(over: Partial<TransactionDirective> = {}): TransactionDirective {
   return {
@@ -165,5 +170,56 @@ describe("CoordinatorPanel", () => {
   it("unavailable — a thrown fetch degrades quietly (no crash)", async () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={throwFetch()} getToken={getToken} />);
     expect(await screen.findByText(/Coordinator temporarily unavailable/)).toBeInTheDocument();
+  });
+
+  // ── P1 FIX: hang backstop — the spinner must always terminate ───────────────
+  it("token retrieval hangs → timeout → unavailable (spinner terminates)", async () => {
+    render(
+      <CoordinatorPanel transactionId="txn-1" getToken={NEVER} fetchImpl={okFetch(response())} timeoutMs={50} />
+    );
+    expect(await screen.findByText(/Coordinator temporarily unavailable/)).toBeInTheDocument();
+    expect(screen.queryByText(/Loading coordinator/)).not.toBeInTheDocument();
+  });
+
+  it("fetch hangs → timeout → unavailable (spinner terminates)", async () => {
+    const hangingFetch = (jest.fn(() => new Promise(() => {})) as unknown) as typeof fetch;
+    render(
+      <CoordinatorPanel transactionId="txn-1" getToken={getToken} fetchImpl={hangingFetch} timeoutMs={50} />
+    );
+    expect(await screen.findByText(/Coordinator temporarily unavailable/)).toBeInTheDocument();
+    expect(screen.queryByText(/Loading coordinator/)).not.toBeInTheDocument();
+  });
+
+  it("a fast success beats the timeout → directive still renders (no false unavailable)", async () => {
+    render(
+      <CoordinatorPanel transactionId="txn-1" getToken={getToken} fetchImpl={okFetch(response())} timeoutMs={5000} />
+    );
+    expect(await screen.findByText("Complete required fields")).toBeInTheDocument();
+    expect(screen.queryByText(/temporarily unavailable/)).not.toBeInTheDocument();
+  });
+});
+
+// ── P1 FIX source contract ──────────────────────────────────────────────────
+// The default token path lazily import()s "@/lib/supabase", which is NOT
+// resolvable under the jest `@/`→src alias (lib/ is at the repo root), so the
+// default path can't be exercised at runtime here. Assert the fix at the source
+// level instead (mirrors the SubmitForReview forward-route source contract):
+// the panel MUST use the lock-free getAccessToken helper and MUST NOT call the
+// hanging supabase.auth.getSession().
+describe("CoordinatorPanel — token retrieval source contract (P1 fix)", () => {
+  const src = readFileSync(join(__dirname, "../components/CoordinatorPanel.tsx"), "utf8");
+
+  it("uses the lock-free getAccessToken helper", () => {
+    expect(src).toMatch(/getAccessToken/);
+    expect(src).toMatch(/import\(["']@\/lib\/supabase["']\)/);
+  });
+
+  it("never calls supabase.auth.getSession()", () => {
+    expect(src).not.toMatch(/getSession/);
+  });
+
+  it("bounds the load with a timeout so the spinner always terminates", () => {
+    expect(src).toMatch(/setTimeout/);
+    expect(src).toMatch(/timeoutMs/);
   });
 });
