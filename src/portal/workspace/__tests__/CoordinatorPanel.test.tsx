@@ -47,7 +47,7 @@ function directive(over: Partial<TransactionDirective> = {}): TransactionDirecti
       is_blocked: false,
     },
     priority: "high",
-    readiness: { tier: "in_progress", score: 0.6, can_prepare_package: false, can_send_for_signature: false },
+    readiness: { tier: "in_progress", score: 80, can_prepare_package: false, can_send_for_signature: false },
     blockers: [],
     risks: [],
     recommended_tab: "documents",
@@ -100,7 +100,7 @@ describe("CoordinatorPanel", () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
     expect(await screen.findByText("Complete required fields")).toBeInTheDocument();
     expect(screen.getByText("Collecting information")).toBeInTheDocument();
-    expect(screen.getByText(/Readiness: In progress · 60%/)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness: In progress · 80%/)).toBeInTheDocument();
   });
 
   it("confidence display — shows the confidence chip", async () => {

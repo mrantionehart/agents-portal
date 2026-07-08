@@ -140,10 +140,12 @@ export function confidenceLabel(c: CoordinatorConfidence): string {
   return `${pct}% · ${c.level}`;
 }
 
-/** Readiness as "In progress · 60%" — prefers the tier, appends percent. */
+/** Readiness as "In progress · 60%" — prefers the tier, appends percent.
+ *  NOTE: readiness.score is already on a 0–100 scale (unlike confidence.score,
+ *  which is 0–1), so it is displayed as-is — NOT multiplied by 100. */
 export function readinessLabel(r: CoordinatorReadiness): string {
   const tier = r.tier ? humanize(r.tier) : null;
-  const pct = typeof r.score === "number" && Number.isFinite(r.score) ? `${Math.round(r.score * 100)}%` : null;
+  const pct = typeof r.score === "number" && Number.isFinite(r.score) ? `${Math.round(r.score)}%` : null;
   if (tier && pct) return `${tier} · ${pct}`;
   return tier ?? pct ?? "—";
 }

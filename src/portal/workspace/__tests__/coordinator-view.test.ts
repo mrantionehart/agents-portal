@@ -42,7 +42,7 @@ function directive(over: Partial<TransactionDirective> = {}): TransactionDirecti
       is_blocked: false,
     },
     priority: "high",
-    readiness: { tier: "in_progress", score: 0.6, can_prepare_package: false, can_send_for_signature: false },
+    readiness: { tier: "in_progress", score: 80, can_prepare_package: false, can_send_for_signature: false },
     blockers: [],
     risks: [],
     recommended_tab: "documents",
@@ -78,12 +78,23 @@ describe("coordinator-view — labels & tones", () => {
     expect(confidenceTone("high")).toBe("ok");
     expect(confidenceTone("medium")).toBe("info");
     expect(confidenceTone("low")).toBe("warn");
+    // confidence.score is 0–1, so it IS multiplied by 100.
     expect(confidenceLabel({ level: "high", score: 0.83, reasons: [] })).toBe("83% · high");
+    expect(confidenceLabel({ level: "high", score: 1, reasons: [] })).toBe("100% · high");
   });
 
-  it("readiness label prefers tier + percent", () => {
-    expect(readinessLabel({ tier: "in_progress", score: 0.6, can_prepare_package: false, can_send_for_signature: false })).toBe("In progress · 60%");
+  it("readiness label prefers tier + percent (score is already 0–100, not ×100)", () => {
+    // readiness.score is on a 0–100 scale — 80 must render "80%", NOT "8000%".
+    expect(readinessLabel({ tier: "in_progress", score: 80, can_prepare_package: false, can_send_for_signature: false })).toBe("In progress · 80%");
+    expect(readinessLabel({ tier: "complete", score: 100, can_prepare_package: false, can_send_for_signature: false })).toBe("Complete · 100%");
+    expect(readinessLabel({ tier: "in_progress", score: 0, can_prepare_package: false, can_send_for_signature: false })).toBe("In progress · 0%");
+  });
+
+  it("readiness label handles null/undefined score gracefully", () => {
     expect(readinessLabel({ tier: null, score: null, can_prepare_package: false, can_send_for_signature: false })).toBe("—");
+    expect(readinessLabel({ tier: "in_progress", score: null, can_prepare_package: false, can_send_for_signature: false })).toBe("In progress");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(readinessLabel({ tier: null, score: undefined as any, can_prepare_package: false, can_send_for_signature: false })).toBe("—");
   });
 });
 
@@ -115,7 +126,7 @@ describe("coordinator-view — panel VM", () => {
     expect(vm.workflow_state_label).toBe("Collecting information");
     expect(vm.priority).toBe("high");
     expect(vm.priority_tone).toBe("warn");
-    expect(vm.readiness_label).toBe("In progress · 60%");
+    expect(vm.readiness_label).toBe("In progress · 80%");
     expect(vm.confidence_label).toBe("83% · high");
     expect(vm.confidence_tone).toBe("ok");
     expect(vm.cta.label).toBe("Complete Required Fields");
