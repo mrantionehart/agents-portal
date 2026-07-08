@@ -14,7 +14,7 @@
 // engine") removed — all 3 pills now show real signals.
 // ============================================================================
 
-import { AlertCircle, Hourglass, Lock, ShieldCheck } from "lucide-react";
+import { Hourglass, Lock, ShieldCheck } from "lucide-react";
 
 import type { ComposedBannerState, PillTone } from "../banner/compose-banner-state";
 
@@ -22,14 +22,15 @@ export interface ComplianceBannerProps {
   state: ComposedBannerState;
 }
 
+// 3.5 Phase 3A — compact single-row gate status. The three pills stay
+// (Compliance · Broker Review · Commission); the secondary detail line and the
+// Vault disclaimer were removed to lift the Coordinator hero higher. Signals +
+// composition are unchanged (presentation only).
 export default function ComplianceBanner({ state }: ComplianceBannerProps) {
   return (
     <section
       aria-label="Compliance and commission status"
-      className="
-        rounded-lg border border-[#1a1a2e] bg-[#11111a]
-        px-4 py-3 mb-4
-      "
+      className="rounded-lg border border-[#1a1a2e] bg-[#11111a] px-4 py-2 mb-3"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         <PillRow
@@ -44,20 +45,10 @@ export default function ComplianceBanner({ state }: ComplianceBannerProps) {
         />
         <PillRow
           icon={<Lock className="h-3.5 w-3.5 text-[#71717A]" />}
-          label="Commission eligibility"
+          label="Commission"
           pill={state.commission}
         />
       </div>
-
-      {/* Detail line(s): show the first non-empty detail (priority:
-          compliance → review → commission) so the banner stays compact. */}
-      <DetailLine state={state} />
-
-      <p className="mt-2 text-[10px] text-[#71717A] leading-relaxed inline-flex items-start gap-1">
-        <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
-        Broker confirmation required for every change. Compliance enforcement
-        and commission release live in Vault.
-      </p>
     </section>
   );
 }
@@ -80,16 +71,6 @@ function PillRow({
       <Pill tone={pill.tone}>{pill.label}</Pill>
     </span>
   );
-}
-
-function DetailLine({ state }: { state: ComposedBannerState }) {
-  const first =
-    state.compliance.detail ??
-    state.brokerReview.detail ??
-    state.commission.detail ??
-    null;
-  if (!first) return null;
-  return <p className="mt-1.5 text-[11px] text-[#71717A] leading-relaxed">{first}</p>;
 }
 
 function Pill({ tone, children }: { tone: PillTone; children: React.ReactNode }) {

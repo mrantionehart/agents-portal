@@ -49,18 +49,18 @@ export default function WorkspaceShell({
 
       <ComplianceBanner state={bannerState} />
 
-      {/* W3.4.6.4 — AI Transaction Coach strip. Sourced verbatim from
-          Vault's W3.4.6.3 workspace endpoint (`card.coach_recommendation`).
-          Renders nothing when the Coach has no actionable recommendation
-          (null / nothing_urgent / composer error). */}
-      <CoachStrip recommendation={card.coach_recommendation} />
-
-      {/* TXN-OS 3.4D — Transaction Coordinator strip. Loads independently
-          (client-side, session Bearer → Vault 3.4C endpoint); the server
-          workspace never waits on it and still renders if it's unavailable.
-          Presentation only — renders the Vault-produced TransactionDirective;
-          its CTA only navigates. */}
+      {/* TXN-OS 3.4D — Transaction Coordinator strip = the hero. Loads
+          independently (client-side, session Bearer → Vault 3.4C endpoint);
+          the server workspace never waits on it and still renders if it's
+          unavailable. Presentation only — renders the Vault-produced
+          TransactionDirective; its CTA only navigates. */}
       <CoordinatorPanel transactionId={card.transaction_id} />
+
+      {/* W3.4.6.4 — AI Transaction Coach strip. 3.5 Phase 3A: demoted BELOW the
+          Coordinator as contextual "how" guidance (Coordinator answers "what",
+          Coach answers "how"). Sourced verbatim from `card.coach_recommendation`;
+          renders nothing when the Coach has no actionable recommendation. */}
+      <CoachStrip recommendation={card.coach_recommendation} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-4">
         {/* Left rail */}

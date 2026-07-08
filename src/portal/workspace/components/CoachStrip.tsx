@@ -78,53 +78,37 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
 
   const Icon = iconForKind(recommendation.kind);
 
-  // Palette is purely a function of the blocker flag — the Vault
-  // payload's `blocker` boolean is the single source of truth. We
-  // never re-derive urgency from amounts, status, or anything else.
-  const palette = recommendation.blocker
-    ? {
-        wrap: "bg-[#3a1a1a] border-[#7a2a2a]",
-        accent: "text-[#ef4444]",
-        badge:
-          "bg-[#7a2a2a]/40 text-[#fca5a5] border border-[#7a2a2a]",
-      }
-    : {
-        wrap: "bg-[#3a2e1a] border-[#7a5a2a]",
-        accent: "text-[#C9A84C]",
-        badge:
-          "bg-[#7a5a2a]/40 text-[#facc15] border border-[#7a5a2a]",
-      };
-
+  // 3.5 Phase 3A — Coach is DEMOTED to contextual "how" guidance beneath the
+  // Coordinator hero. A single muted/neutral palette (no red/amber alert box, no
+  // Blocker badge, no gold "Open") so it never visually competes with the
+  // Coordinator. Content is UNCHANGED (title/reason/action from the Vault
+  // payload); this is presentation only.
   return (
     <div
       role="status"
-      aria-label="AI Transaction Coach recommendation"
-      className={`rounded-lg border ${palette.wrap} px-3 py-2.5 mb-3`}
+      aria-label="AI Transaction Coach guidance"
+      className="rounded-lg border border-[#171720] bg-[#0d0d13] px-3 py-2 mb-3"
     >
-      <div className="flex items-start gap-3">
-        <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${palette.accent}`} />
+      <div className="flex items-start gap-2.5">
+        <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[#71717A]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-[#F1F1F3]">
-              {/* AGENT.SIGN.1E.2 — prefer the kind-level title; fall back to label. */}
-              {recommendation.title ?? recommendation.label}
-            </span>
-            <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${palette.badge}`}>
-              {recommendation.blocker ? "Blocker" : "Next step"}
-            </span>
+            <span className="text-[10px] uppercase tracking-wider text-[#71717A]">Coach</span>
+            {/* AGENT.SIGN.1E.2 — prefer the kind-level title; fall back to label. */}
+            <span className="text-xs text-[#A1A1AA]">{recommendation.title ?? recommendation.label}</span>
           </div>
-          <div className="text-xs text-[#A1A1AA] mt-0.5 leading-relaxed">
+          <div className="text-[11px] text-[#71717A] mt-0.5 leading-relaxed">
             {recommendation.reason}
           </div>
           {/* AGENT.SIGN.1E.2 — recommended action + estimated time hint. */}
           {(recommendation.recommended_action || recommendation.estimated_time) && (
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-[#C9A84C]">
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-[#71717A]">
               {recommendation.recommended_action && (
-                <span className="font-medium">{recommendation.recommended_action}</span>
+                <span>{recommendation.recommended_action}</span>
               )}
               {recommendation.estimated_time &&
                 recommendation.estimated_time !== "—" && (
-                  <span className="inline-flex items-center gap-1 text-[#71717A]">
+                  <span className="inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" /> {recommendation.estimated_time}
                   </span>
                 )}
@@ -139,7 +123,7 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
             router.push(recommendation.drill_url);
             router.refresh();
           }}
-          className="text-xs text-[#C9A84C] hover:text-[#dbb86a] inline-flex items-center gap-1 shrink-0 mt-0.5 cursor-pointer"
+          className="text-[11px] text-[#71717A] hover:text-[#A1A1AA] inline-flex items-center gap-1 shrink-0 mt-0.5 cursor-pointer"
         >
           Open <ArrowRight className="h-3 w-3" />
         </button>

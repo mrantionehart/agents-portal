@@ -214,10 +214,10 @@ export default function CoordinatorPanel({
           {/* primary directive */}
           <div className="text-sm font-medium text-[#F1F1F3] mt-0.5">{vm.primary_directive}</div>
 
-          {/* meta chips: priority · readiness · confidence */}
+          {/* meta chips: priority · confidence. Readiness moved to the LeftRail
+              (3.5 Phase 3A) — shown once, not repeated here. */}
           <div className="mt-1.5 flex items-center gap-2 flex-wrap">
             <Chip tone={vm.priority_tone}>{vm.priority}</Chip>
-            <span className="text-[11px] text-[#A1A1AA]">Readiness: {vm.readiness_label}</span>
             <Chip tone={vm.confidence_tone}>Confidence {vm.confidence_label}</Chip>
             {vm.can_prepare_package && (
               <span className="text-[10px] text-[#71717A]">· can prepare package</span>

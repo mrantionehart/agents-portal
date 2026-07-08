@@ -75,6 +75,14 @@ describe("OverviewTab — Transaction Stage + Deadline (3.3E)", () => {
     expect(screen.getByTestId("overview-deadline")).toBeInTheDocument();
     expect(screen.getByText("Deadline")).toBeInTheDocument();
     expect(screen.getByText("Final Walkthrough")).toBeInTheDocument();
+
+    // 3.5 Phase 3A — Transaction Stage is orientation-only: no readiness %,
+    // no blocker count. And the "Priority Blockers" section is gone (the
+    // Coordinator is the authoritative blocker presentation).
+    const stage = screen.getByTestId("overview-transaction-stage");
+    expect(stage.textContent).not.toMatch(/% ready/);
+    expect(stage.textContent).not.toMatch(/blocker/i);
+    expect(screen.queryByText("Priority Blockers")).not.toBeInTheDocument();
   });
 
   it("hides both when the card lacks lifecycle + deadline", () => {

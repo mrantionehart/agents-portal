@@ -101,11 +101,13 @@ describe("CoordinatorPanel", () => {
     expect(screen.queryByText(/Loading coordinator/)).not.toBeInTheDocument();
   });
 
-  it("loaded — renders the directive fields", async () => {
+  it("loaded — renders the directive fields (readiness moved to LeftRail, not shown here)", async () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
     expect(await screen.findByText("Complete required fields")).toBeInTheDocument();
     expect(screen.getByText("Collecting information")).toBeInTheDocument();
-    expect(screen.getByText(/Readiness: In progress · 80%/)).toBeInTheDocument();
+    // 3.5 Phase 3A — readiness lives in the LeftRail now; the Coordinator meta
+    // row no longer repeats it.
+    expect(screen.queryByText(/Readiness:/)).not.toBeInTheDocument();
   });
 
   it("confidence display — shows the level word only, no percentage", async () => {

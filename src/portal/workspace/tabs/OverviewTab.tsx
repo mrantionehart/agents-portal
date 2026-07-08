@@ -52,6 +52,10 @@ function StageDeadlineRow({ card }: { card: WorkspaceCard }) {
           <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">
             {lc.section_label}
           </h2>
+          {/* 3.5 Phase 3A — orientation only: current → next stage. Readiness %,
+              priority, blocker count, and next-action were removed — the
+              Coordinator owns workflow signals and readiness lives in the
+              LeftRail. Transaction Stage answers only "where is this deal?". */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[#F1F1F3] text-base font-medium">
               {lc.current_stage_label}
@@ -60,16 +64,6 @@ function StageDeadlineRow({ card }: { card: WorkspaceCard }) {
               <span className="text-xs text-[#71717A]">→ {lc.next_stage_label}</span>
             )}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <ToneBadge tone={lc.readiness_tone}>{lc.readiness_label}</ToneBadge>
-            <ToneBadge tone={lc.priority_tone}>{lc.priority}</ToneBadge>
-            {lc.blocker_count > 0 && (
-              <span className="text-xs text-amber-400">{lc.blocker_count} blocker{lc.blocker_count === 1 ? "" : "s"}</span>
-            )}
-          </div>
-          {/* next_action_label intentionally removed (3.5 Phase 1) — the
-              Coordinator owns the single workflow next action. Stage keeps
-              current → next stage + readiness only. */}
         </section>
       )}
 
@@ -146,31 +140,8 @@ export default function OverviewTab({ card, vaultBase }: OverviewTabProps) {
         </Link>
       </section>
 
-      {/* Priority blockers — placeholder for 3.3 compliance-summary */}
-      <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
-        <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-3">
-          Priority Blockers
-        </h2>
-        {card.blocked_forms_count > 0 ? (
-          <p className="text-sm text-[#A1A1AA]">
-            {card.blocked_forms_count} form
-            {card.blocked_forms_count === 1 ? "" : "s"} blocked. See the{" "}
-            <Link
-              href={tabHref(card.transaction_id, "documents")}
-              className="text-[#E8D5A3] hover:underline"
-            >
-              Documents tab
-            </Link>{" "}
-            for details.
-          </p>
-        ) : (
-          <p className="text-sm text-[#A1A1AA]">
-            No active blockers reported by the workspace card. The full
-            compliance-blocker list arrives with the Compliance engine in
-            Workflow 3.3.
-          </p>
-        )}
-      </section>
+      {/* Priority Blockers section removed (3.5 Phase 3A) — the Coordinator is
+          the authoritative blocker presentation (owner/severity, ranked). */}
 
       {/* Recent Activity — placeholder for 3.4 timeline */}
       <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
