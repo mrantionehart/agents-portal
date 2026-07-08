@@ -123,7 +123,7 @@ describe("CoordinatorPanel", () => {
     expect(cta.className).toMatch(/bg-\[#C9A84C\]/);
   });
 
-  it("blocked transaction — surfaces blockers + risks", async () => {
+  it("blocked transaction — single blocker: severity + owner chips, resolution, risk, no toggle", async () => {
     const res = response({
       workflow_state: "blocked",
       priority: "critical",
@@ -134,7 +134,52 @@ describe("CoordinatorPanel", () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(res)} getToken={getToken} />);
     expect(await screen.findByText(/3 required fields are missing/)).toBeInTheDocument();
     expect(screen.getByText(/Complete them in Paperwork/)).toBeInTheDocument();
-    expect(screen.getByText(/Envelope sent 9 days ago/)).toBeInTheDocument();
+    expect(screen.getByText("High")).toBeInTheDocument();   // severity chip
+    expect(screen.getByText("Agent")).toBeInTheDocument();  // owner chip
+    expect(screen.getByText(/Envelope sent 9 days ago/)).toBeInTheDocument(); // risk unaffected
+    // single blocker → no collapse toggle
+    expect(screen.queryByText(/more blocker/)).not.toBeInTheDocument();
+  });
+
+  it("multi-blocker — collapsed shows only the top (owner-ordered) blocker + '+ N more'", async () => {
+    const res = response({
+      workflow_state: "blocked",
+      blockers: [
+        { category: "broker_review", owner: "broker", severity: "critical", reason: "Broker must approve", resolution: "Await broker" },
+        { category: "missing_fields", owner: "agent", severity: "high", reason: "Fields missing", resolution: "Complete them" },
+        { category: "missing_signatures", owner: "client", severity: "medium", reason: "Signatures pending", resolution: "Nudge client" },
+      ],
+      risks: [],
+    });
+    render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(res)} getToken={getToken} />);
+    // Top blocker is the agent one (owner-first), NOT the critical broker one.
+    expect(await screen.findByText(/Fields missing/)).toBeInTheDocument();
+    expect(screen.getByText("Agent")).toBeInTheDocument();
+    // Others hidden while collapsed.
+    expect(screen.queryByText(/Broker must approve/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Signatures pending/)).not.toBeInTheDocument();
+    // Toggle shows the remaining count.
+    expect(screen.getByRole("button", { name: /\+ 2 more blockers/ })).toBeInTheDocument();
+  });
+
+  it("multi-blocker — expand reveals the rest (owner-ordered) + 'Show less'", async () => {
+    const res = response({
+      workflow_state: "blocked",
+      blockers: [
+        { category: "broker_review", owner: "broker", severity: "critical", reason: "Broker must approve", resolution: "Await broker" },
+        { category: "missing_fields", owner: "agent", severity: "high", reason: "Fields missing", resolution: "Complete them" },
+        { category: "missing_signatures", owner: "client", severity: "medium", reason: "Signatures pending", resolution: "Nudge client" },
+      ],
+      risks: [],
+    });
+    render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(res)} getToken={getToken} />);
+    fireEvent.click(await screen.findByRole("button", { name: /\+ 2 more blockers/ }));
+    // Now all three visible, and the broker (critical) is ordered LAST.
+    expect(screen.getByText(/Fields missing/)).toBeInTheDocument();
+    expect(screen.getByText(/Signatures pending/)).toBeInTheDocument();
+    expect(screen.getByText(/Broker must approve/)).toBeInTheDocument();
+    expect(screen.getByText("Broker")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Show less/ })).toBeInTheDocument();
   });
 
   it("ready transaction — no blockers, CTA reflects the ready action", async () => {

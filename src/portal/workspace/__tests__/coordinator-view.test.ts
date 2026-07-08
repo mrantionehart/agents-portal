@@ -22,9 +22,13 @@ import {
   ctaHref,
   isDegraded,
   degradedNotice,
+  orderBlockers,
+  ownerLabel,
+  severityLabel,
   COORDINATOR_LABEL,
   type CoordinatorResponse,
   type TransactionDirective,
+  type CoordinatorBlocker,
 } from "../coordinator-view";
 
 const SECRET = "SENTINEL-DB-ERROR-do-not-leak";
@@ -145,17 +149,18 @@ describe("coordinator-view — panel VM", () => {
     expect(vm.cta.href).toBe("/workspace/txn-1?tab=package");
   });
 
-  it("blocked transaction surfaces top blockers + risks (truncated)", () => {
+  it("blocked transaction: presentation-ordered (owner group → severity), owner/severity carried, risks capped", () => {
     const vm = coordinatorPanelVM(
       response({
         workflow_state: "blocked",
         priority: "critical",
         next_action: { key: "resolve_deadline", label: "Resolve overdue deadline", owner: "agent", cta_label: "Review Deadlines", tab: "timeline", is_blocked: true },
         blockers: [
-          { category: "missing_fields", owner: "agent", severity: "high", reason: "3 required fields are missing", resolution: "Complete them in Paperwork", count: 3 },
+          // deliberately NOT in presentation order: broker first, agent last
+          { category: "broker_review", owner: "broker", severity: "critical", reason: "Broker must approve", resolution: "Await broker" },
           { category: "missing_signatures", owner: "client", severity: "high", reason: "2 signatures pending", resolution: "Follow up with the client" },
+          { category: "missing_fields", owner: "agent", severity: "high", reason: "3 required fields are missing", resolution: "Complete them in Paperwork", count: 3 },
           { category: "deadline_breach", owner: "agent", severity: "critical", reason: "Inspection deadline passed", resolution: "Resolve or extend" },
-          { category: "broker_review", owner: "broker", severity: "medium", reason: "extra blocker beyond the cap", resolution: "n/a" },
         ],
         risks: [
           { category: "stale_sent", severity: "medium", reason: "Envelope sent 9 days ago" },
@@ -166,10 +171,23 @@ describe("coordinator-view — panel VM", () => {
       "txn-1"
     );
     expect(vm.has_blockers_section).toBe(true);
-    expect(vm.blockers).toHaveLength(3); // capped
-    expect(vm.risks).toHaveLength(2); // capped
-    expect(vm.blockers[0].count).toBe(3);
-    expect(vm.blockers[1].count).toBeNull();
+    expect(vm.total_blockers).toBe(4);
+    expect(vm.blockers).toHaveLength(4); // ≤ MAX_BLOCKERS=6
+    expect(vm.risks).toHaveLength(2); // capped at 2
+    // Owner-first, severity within group: agent(critical) → agent(high) → client(high) → broker(critical).
+    expect(vm.blockers.map((b) => b.reason)).toEqual([
+      "Inspection deadline passed",   // agent, critical
+      "3 required fields are missing", // agent, high
+      "2 signatures pending",          // client, high
+      "Broker must approve",           // broker, critical — NOT on top despite critical
+    ]);
+    expect(vm.blockers[0].owner_label).toBe("Agent");
+    expect(vm.blockers[0].severity_label).toBe("Critical");
+    expect(vm.blockers[0].severity_tone).toBe("warn");
+    expect(vm.blockers[2].owner_label).toBe("Client");
+    expect(vm.blockers[3].owner_label).toBe("Broker");
+    expect(vm.blockers[1].count).toBe(3);
+    expect(vm.blockers[0].count).toBeNull();
     expect(vm.cta.is_blocked).toBe(true);
   });
 
@@ -180,6 +198,57 @@ describe("coordinator-view — panel VM", () => {
     );
     expect(vm.has_blockers_section).toBe(false);
     expect(vm.blockers).toHaveLength(0);
+  });
+});
+
+describe("coordinator-view — orderBlockers (presentation only)", () => {
+  const B = (owner: string, severity: string, reason: string): CoordinatorBlocker =>
+    ({ category: "x", owner, severity: severity as CoordinatorBlocker["severity"], reason, resolution: "r" });
+
+  it("orders by owner group: agent → client → broker → third party → system", () => {
+    const input = [B("system", "critical", "sys"), B("broker", "critical", "brk"), B("third_party", "critical", "3p"), B("client", "critical", "cli"), B("agent", "critical", "agt")];
+    expect(orderBlockers(input).map((b) => b.reason)).toEqual(["agt", "cli", "brk", "3p", "sys"]);
+  });
+
+  it("orders by severity within a group: critical → high → medium → low", () => {
+    const input = [B("agent", "low", "lo"), B("agent", "critical", "cr"), B("agent", "medium", "me"), B("agent", "high", "hi")];
+    expect(orderBlockers(input).map((b) => b.reason)).toEqual(["cr", "hi", "me", "lo"]);
+  });
+
+  it("owner group beats severity: a low agent blocker leads a critical broker blocker", () => {
+    const input = [B("broker", "critical", "brk-crit"), B("agent", "low", "agt-low")];
+    expect(orderBlockers(input).map((b) => b.reason)).toEqual(["agt-low", "brk-crit"]);
+  });
+
+  it("party maps into the Client group and is stable within it", () => {
+    const input = [B("broker", "high", "brk"), B("party", "high", "party"), B("client", "high", "client")];
+    // client + party share group 2; stable tie-break preserves input order (party before client here)
+    expect(orderBlockers(input).map((b) => b.reason)).toEqual(["party", "client", "brk"]);
+    expect(ownerLabel("party")).toBe("Client");
+    expect(ownerLabel("client")).toBe("Client");
+  });
+
+  it("is a stable sort and does NOT mutate the input array", () => {
+    const input = [B("agent", "high", "a1"), B("agent", "high", "a2"), B("client", "high", "c1")];
+    const snapshot = input.map((b) => b.reason);
+    const out = orderBlockers(input);
+    expect(out.map((b) => b.reason)).toEqual(["a1", "a2", "c1"]); // stable within agent/high
+    expect(input.map((b) => b.reason)).toEqual(snapshot); // input untouched
+    expect(out).not.toBe(input);
+  });
+
+  it("unknown owner sorts last; severityLabel/ownerLabel capitalize", () => {
+    const input = [B("mystery", "critical", "unk"), B("agent", "low", "agt")];
+    expect(orderBlockers(input).map((b) => b.reason)).toEqual(["agt", "unk"]);
+    expect(severityLabel("high")).toBe("High");
+    expect(ownerLabel("third_party")).toBe("Third Party");
+  });
+
+  it("VM caps blockers at 6 and reports the true total for '+N more'", () => {
+    const many = Array.from({ length: 9 }, (_, i) => B("agent", "high", `b${i}`));
+    const vm = coordinatorPanelVM(response({ blockers: many }), "txn-1");
+    expect(vm.total_blockers).toBe(9);
+    expect(vm.blockers).toHaveLength(6);
   });
 });
 

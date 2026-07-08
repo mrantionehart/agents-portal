@@ -205,7 +205,12 @@ export interface CoordinatorCtaVM {
 export interface CoordinatorBlockerVM {
   reason: string;
   resolution: string;
-  tone: LifecycleTone;
+  /** Severity carries the color. */
+  severity: CoordinatorPriority;
+  severity_label: string;
+  severity_tone: LifecycleTone;
+  /** Owner stays neutral (who must act): Agent / Client / Broker / Third Party / System. */
+  owner_label: string;
   count: number | null;
 }
 
@@ -227,15 +232,69 @@ export interface CoordinatorPanelVM {
   confidence_tone: LifecycleTone;
   cta: CoordinatorCtaVM;
   recommended_tab: TabId;
+  /** Presentation-ordered (owner group → severity), capped at MAX_BLOCKERS. */
   blockers: CoordinatorBlockerVM[];
+  /** True (pre-cap) count of directive blockers — drives "+ N more". */
+  total_blockers: number;
   risks: CoordinatorRiskVM[];
   has_blockers_section: boolean;
   degraded: boolean;
   degraded_notice: string | null;
 }
 
-const MAX_BLOCKERS = 3;
+// 3.5 Phase 2 — presentation ordering. The panel answers "what can I act on
+// first?", so blockers are grouped by owner (agent → client → broker → third
+// party → system), then by severity within each group. This is PRESENTATION
+// ONLY: it sorts a COPY and never mutates the coordinator's blocker order.
+const MAX_BLOCKERS = 6;
 const MAX_RISKS = 2;
+
+const OWNER_GROUP: Record<string, number> = {
+  agent: 1,
+  client: 2,
+  party: 2, // Decision 3: party maps to the Client group + chip
+  broker: 3,
+  third_party: 4,
+  system: 5,
+};
+function ownerGroup(owner: string): number {
+  return OWNER_GROUP[owner] ?? 6; // unknown owners sort last
+}
+
+const OWNER_LABEL: Record<string, string> = {
+  agent: "Agent",
+  client: "Client",
+  party: "Client",
+  broker: "Broker",
+  third_party: "Third Party",
+  system: "System",
+};
+export function ownerLabel(owner: string): string {
+  return OWNER_LABEL[owner] ?? (owner ? humanize(owner) : "—");
+}
+
+const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+function severityRank(sev: string): number {
+  return SEVERITY_RANK[sev] ?? 4;
+}
+export function severityLabel(sev: string): string {
+  return sev ? sev.charAt(0).toUpperCase() + sev.slice(1) : "—";
+}
+
+/** Presentation-only stable sort: owner group → severity → original order.
+ *  Never mutates the input (maps to an index-tagged copy first). */
+export function orderBlockers(blockers: CoordinatorBlocker[]): CoordinatorBlocker[] {
+  return blockers
+    .map((b, i) => ({ b, i }))
+    .sort((x, y) => {
+      const g = ownerGroup(x.b.owner) - ownerGroup(y.b.owner);
+      if (g !== 0) return g;
+      const s = severityRank(x.b.severity) - severityRank(y.b.severity);
+      if (s !== 0) return s;
+      return x.i - y.i; // stable tie-break preserves coordinator order
+    })
+    .map((x) => x.b);
+}
 
 export function coordinatorPanelVM(
   res: CoordinatorResponse,
@@ -244,12 +303,18 @@ export function coordinatorPanelVM(
   const d = res.directive;
   const recommendedTab = d.recommended_tab || d.next_action.tab;
 
-  const blockers: CoordinatorBlockerVM[] = (d.blockers ?? []).slice(0, MAX_BLOCKERS).map((b) => ({
-    reason: b.reason,
-    resolution: b.resolution,
-    tone: priorityTone(b.severity),
-    count: typeof b.count === "number" ? b.count : null,
-  }));
+  const allBlockers = d.blockers ?? [];
+  const blockers: CoordinatorBlockerVM[] = orderBlockers(allBlockers)
+    .slice(0, MAX_BLOCKERS)
+    .map((b) => ({
+      reason: b.reason,
+      resolution: b.resolution,
+      severity: b.severity,
+      severity_label: severityLabel(b.severity),
+      severity_tone: priorityTone(b.severity),
+      owner_label: ownerLabel(b.owner),
+      count: typeof b.count === "number" ? b.count : null,
+    }));
 
   const risks: CoordinatorRiskVM[] = (d.risks ?? []).slice(0, MAX_RISKS).map((r) => ({
     reason: r.reason,
@@ -275,6 +340,7 @@ export function coordinatorPanelVM(
     },
     recommended_tab: mapCoordinatorTab(recommendedTab),
     blockers,
+    total_blockers: allBlockers.length,
     risks,
     has_blockers_section: blockers.length > 0 || risks.length > 0,
     degraded: isDegraded(res),

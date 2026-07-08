@@ -94,6 +94,9 @@ export default function CoordinatorPanel({
 }: CoordinatorPanelProps) {
   const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  // 3.5 Phase 2 — blocker list collapse (presentation only). Default collapsed:
+  // show the single highest-priority blocker after presentation ordering.
+  const [blockersExpanded, setBlockersExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,12 +232,15 @@ export default function CoordinatorPanel({
             <div className="mt-1 text-[11px] text-[#71717A]">{vm.degraded_notice}</div>
           )}
 
-          {/* blockers + risks (only when present) */}
+          {/* blockers + risks (only when present) — collapsed shows the single
+              highest-priority blocker; the rest reveal on expand (3.5 Phase 2).
+              Severity carries the color; owner stays neutral. */}
           {vm.has_blockers_section && (
             <div className="mt-2 space-y-1.5">
-              {vm.blockers.map((b, i) => (
+              {(blockersExpanded ? vm.blockers : vm.blockers.slice(0, 1)).map((b, i) => (
                 <div key={`b-${i}`} className="flex items-start gap-2">
-                  <Chip tone={b.tone}>Blocker</Chip>
+                  <Chip tone={b.severity_tone}>{b.severity_label}</Chip>
+                  <Chip tone="muted">{b.owner_label}</Chip>
                   <div className="min-w-0 text-[11px] leading-relaxed">
                     <span className="text-[#E4E4E7]">
                       {b.reason}
@@ -244,6 +250,28 @@ export default function CoordinatorPanel({
                   </div>
                 </div>
               ))}
+
+              {/* collapse/expand toggle */}
+              {vm.blockers.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setBlockersExpanded((v) => !v)}
+                  className="text-[11px] text-[#71717A] hover:text-[#A1A1AA] cursor-pointer"
+                >
+                  {blockersExpanded
+                    ? "Show less"
+                    : `+ ${vm.total_blockers - 1} more blocker${vm.total_blockers - 1 === 1 ? "" : "s"}`}
+                </button>
+              )}
+
+              {/* when expanded but capped at MAX_BLOCKERS, note the remainder */}
+              {blockersExpanded && vm.total_blockers > vm.blockers.length && (
+                <div className="text-[11px] text-[#71717A]">
+                  + {vm.total_blockers - vm.blockers.length} more blocker
+                  {vm.total_blockers - vm.blockers.length === 1 ? "" : "s"}
+                </div>
+              )}
+
               {vm.risks.map((r, i) => (
                 <div key={`r-${i}`} className="flex items-start gap-2">
                   <Chip tone={r.tone}>Risk</Chip>
