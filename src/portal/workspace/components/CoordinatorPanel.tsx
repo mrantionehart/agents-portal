@@ -24,7 +24,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Compass, Loader2 } from "lucide-react";
+import { ArrowRight, Compass } from "lucide-react";
 
 import type { LifecycleTone } from "../types";
 import {
@@ -146,16 +146,34 @@ export default function CoordinatorPanel({
     };
   }, [transactionId, fetchImpl, getToken, timeoutMs]);
 
-  // ── loading ────────────────────────────────────────────────────────────────
+  // ── loading (height-preserving skeleton — no layout shift) ──────────────────
+  // Mirrors the loaded panel's structure (header line, primary directive line,
+  // meta row, one blocker row) so the hero reserves its space and the primary
+  // answer doesn't jump the page when it resolves (~2s client load).
   if (state.status === "loading") {
     return (
-      <div
+      <section
         role="status"
         aria-label="Transaction Coordinator loading"
-        className="rounded-lg border border-[#1a1a2e] bg-[#11111a] px-3 py-2.5 mb-3 flex items-center gap-2 text-xs text-[#71717A]"
+        aria-busy="true"
+        data-testid="coordinator-skeleton"
+        className="rounded-lg border border-[#1a1a2e] bg-[#11111a] px-4 py-3 mb-3"
       >
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading coordinator…
-      </div>
+        <div className="flex items-start gap-3 animate-pulse">
+          <div className="h-4 w-4 mt-0.5 shrink-0 rounded-full bg-white/[0.06]" />
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <div className="h-2.5 w-40 rounded bg-white/[0.06]" />
+            <div className="h-4 w-3/5 rounded bg-white/[0.08]" />
+            <div className="flex gap-2">
+              <div className="h-4 w-14 rounded bg-white/[0.06]" />
+              <div className="h-4 w-28 rounded bg-white/[0.06]" />
+              <div className="h-4 w-24 rounded bg-white/[0.06]" />
+            </div>
+            <div className="h-3 w-4/5 rounded bg-white/[0.04]" />
+          </div>
+          <div className="h-8 w-40 shrink-0 rounded-md bg-white/[0.06]" />
+        </div>
+      </section>
     );
   }
 
@@ -236,20 +254,17 @@ export default function CoordinatorPanel({
           )}
         </div>
 
-        {/* CTA — NAVIGATION ONLY. Never performs the action. */}
+        {/* CTA — the primary gold button. NAVIGATION ONLY (never performs the
+            action; it routes to the recommended tab). */}
         <button
           type="button"
           onClick={() => {
             router.push(vm.cta.href);
             router.refresh();
           }}
-          className={`text-xs inline-flex items-center gap-1 shrink-0 mt-0.5 cursor-pointer ${
-            vm.cta.is_blocked
-              ? "text-[#A1A1AA] hover:text-[#d4d4d8]"
-              : "text-[#C9A84C] hover:text-[#dbb86a]"
-          }`}
+          className="shrink-0 mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-[#C9A84C] px-3 py-1.5 text-xs font-semibold text-[#0b0b10] hover:bg-[#dbb86a] cursor-pointer"
         >
-          {vm.cta.label} <ArrowRight className="h-3 w-3" />
+          {vm.cta.label} <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </section>

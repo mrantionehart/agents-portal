@@ -13,11 +13,6 @@ import Link from "next/link";
 import { ArrowRight, FileText } from "lucide-react";
 
 import type { WorkspaceCard, LifecycleTone } from "../types";
-import {
-  nextActionLabel,
-  readinessLanguage,
-  statusExplanation,
-} from "../transaction-helpers";
 import { tabHref } from "./tab-config";
 // Transaction OS 3.3E — reuse the grid card's pure view helpers so the detail
 // Overview shows Transaction Stage (3.1) + Deadline (3.2). No recreated logic.
@@ -72,9 +67,9 @@ function StageDeadlineRow({ card }: { card: WorkspaceCard }) {
               <span className="text-xs text-amber-400">{lc.blocker_count} blocker{lc.blocker_count === 1 ? "" : "s"}</span>
             )}
           </div>
-          {lc.next_action_label && (
-            <p className="mt-2 text-xs text-[#A1A1AA]">{lc.next_action_label}</p>
-          )}
+          {/* next_action_label intentionally removed (3.5 Phase 1) — the
+              Coordinator owns the single workflow next action. Stage keeps
+              current → next stage + readiness only. */}
         </section>
       )}
 
@@ -121,53 +116,35 @@ export default function OverviewTab({ card, vaultBase }: OverviewTabProps) {
     <div className="space-y-4">
       <StageDeadlineRow card={card} />
 
-      {/* Next Action + Forms Summary side-by-side on lg+ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <section className="lg:col-span-1 rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
-          <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-3">
-            Next Action
-          </h2>
-          <div className="text-[#E8D5A3] text-base font-medium mb-2">
-            {nextActionLabel(card.next_action)}
-          </div>
-          <p className="text-sm text-[#A1A1AA] leading-relaxed mb-2">
-            {card.suggested_prompt}
-          </p>
-          <p className="text-xs text-[#A1A1AA] leading-relaxed">
-            {statusExplanation(card)}
-          </p>
-          <p className="mt-3 text-[11px] text-[#71717A]">
-            {readinessLanguage(card)}
-          </p>
-        </section>
-
-        <section className="lg:col-span-2 rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
-          <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-3">
-            Forms Summary
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
-            <Stat label="Required" value={card.required_forms_count} tone="muted" />
-            <Stat label="Ready" value={card.ready_forms_count} tone="info" />
-            <Stat label="Signed" value={card.signed_forms_count} tone="ok" />
-            <Stat
-              label="Blocked"
-              value={card.blocked_forms_count}
-              tone={card.blocked_forms_count > 0 ? "warn" : "muted"}
-            />
-            <Stat
-              label="Pending Env"
-              value={card.pending_envelopes_count}
-              tone={card.pending_envelopes_count > 0 ? "info" : "muted"}
-            />
-          </div>
-          <Link
-            href={tabHref(card.transaction_id, "documents")}
-            className="text-xs text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
-          >
-            <FileText className="h-3 w-3" /> View paperwork
-          </Link>
-        </section>
-      </div>
+      {/* Forms Summary — full width. The standalone "Next Action" section was
+          removed (3.5 Phase 1); the Coordinator strip is the single workflow
+          next action. */}
+      <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">
+        <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-3">
+          Forms Summary
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+          <Stat label="Required" value={card.required_forms_count} tone="muted" />
+          <Stat label="Ready" value={card.ready_forms_count} tone="info" />
+          <Stat label="Signed" value={card.signed_forms_count} tone="ok" />
+          <Stat
+            label="Blocked"
+            value={card.blocked_forms_count}
+            tone={card.blocked_forms_count > 0 ? "warn" : "muted"}
+          />
+          <Stat
+            label="Pending Env"
+            value={card.pending_envelopes_count}
+            tone={card.pending_envelopes_count > 0 ? "info" : "muted"}
+          />
+        </div>
+        <Link
+          href={tabHref(card.transaction_id, "documents")}
+          className="text-xs text-[#E8D5A3] hover:underline inline-flex items-center gap-1"
+        >
+          <FileText className="h-3 w-3" /> View paperwork
+        </Link>
+      </section>
 
       {/* Priority blockers — placeholder for 3.3 compliance-summary */}
       <section className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-5">

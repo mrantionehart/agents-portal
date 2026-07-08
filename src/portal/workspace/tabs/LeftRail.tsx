@@ -19,8 +19,6 @@ import {
 
 import type { WorkspaceCard } from "../types";
 import {
-  nextActionLabel,
-  readinessLanguage,
   riskLabel,
   stageLabel,
   transactionTypeLabel,
@@ -91,16 +89,9 @@ export default function LeftRail({
         </div>
       </div>
 
-      {/* Next action */}
-      <div className="pt-2 border-t border-[#1a1a2e]">
-        <div className="text-[10px] uppercase tracking-wider text-[#71717A] mb-1">
-          Next action
-        </div>
-        <div className="text-xs text-[#E8D5A3]">{nextActionLabel(card.next_action)}</div>
-        <p className="mt-1 text-[11px] text-[#71717A] leading-relaxed line-clamp-3">
-          {readinessLanguage(card)}
-        </p>
-      </div>
+      {/* Next action intentionally removed (3.5 Phase 1): the Coordinator strip
+          is the single source of the workflow next action. The left rail keeps
+          identity + readiness + stage only. */}
 
       {/* Agent */}
       {agentName && (

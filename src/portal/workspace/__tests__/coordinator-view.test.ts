@@ -78,9 +78,10 @@ describe("coordinator-view — labels & tones", () => {
     expect(confidenceTone("high")).toBe("ok");
     expect(confidenceTone("medium")).toBe("info");
     expect(confidenceTone("low")).toBe("warn");
-    // confidence.score is 0–1, so it IS multiplied by 100.
-    expect(confidenceLabel({ level: "high", score: 0.83, reasons: [] })).toBe("83% · high");
-    expect(confidenceLabel({ level: "high", score: 1, reasons: [] })).toBe("100% · high");
+    // 3.5 Phase 1: confidence is the level word only — no percentages.
+    expect(confidenceLabel({ level: "high", score: 0.83, reasons: [] })).toBe("High");
+    expect(confidenceLabel({ level: "medium", score: 0.5, reasons: [] })).toBe("Medium");
+    expect(confidenceLabel({ level: "low", score: 0.2, reasons: [] })).toBe("Low");
   });
 
   it("readiness label prefers tier + percent (score is already 0–100, not ×100)", () => {
@@ -127,7 +128,7 @@ describe("coordinator-view — panel VM", () => {
     expect(vm.priority).toBe("high");
     expect(vm.priority_tone).toBe("warn");
     expect(vm.readiness_label).toBe("In progress · 80%");
-    expect(vm.confidence_label).toBe("83% · high");
+    expect(vm.confidence_label).toBe("High");
     expect(vm.confidence_tone).toBe("ok");
     expect(vm.cta.label).toBe("Complete Required Fields");
     expect(vm.cta.href).toBe("/workspace/txn-1?tab=documents");

@@ -90,10 +90,15 @@ beforeEach(() => {
 });
 
 describe("CoordinatorPanel", () => {
-  it("loading — shows a loading strip before the fetch resolves", () => {
+  it("loading — shows a height-preserving skeleton (no spinner text, no layout-shift copy)", () => {
     const pending = (jest.fn(() => new Promise(() => {})) as unknown) as typeof fetch;
-    render(<CoordinatorPanel transactionId="txn-1" fetchImpl={pending} getToken={getToken} />);
-    expect(screen.getByText(/Loading coordinator/)).toBeInTheDocument();
+    const { container } = render(<CoordinatorPanel transactionId="txn-1" fetchImpl={pending} getToken={getToken} />);
+    // Skeleton present, aria-busy, and reserves the panel container.
+    expect(screen.getByTestId("coordinator-skeleton")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /Transaction Coordinator loading/ })).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector(".animate-pulse")).toBeTruthy();
+    // No text spinner copy anymore.
+    expect(screen.queryByText(/Loading coordinator/)).not.toBeInTheDocument();
   });
 
   it("loaded — renders the directive fields", async () => {
@@ -103,9 +108,19 @@ describe("CoordinatorPanel", () => {
     expect(screen.getByText(/Readiness: In progress · 80%/)).toBeInTheDocument();
   });
 
-  it("confidence display — shows the confidence chip", async () => {
+  it("confidence display — shows the level word only, no percentage", async () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
-    expect(await screen.findByText(/Confidence 83% · high/)).toBeInTheDocument();
+    expect(await screen.findByText(/Confidence High/)).toBeInTheDocument();
+    // Confidence no longer carries a percentage (readiness still may).
+    expect(screen.queryByText(/Confidence \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/100% · high/)).not.toBeInTheDocument();
+  });
+
+  it("CTA is a primary gold button (navigation only)", async () => {
+    render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
+    const cta = await screen.findByRole("button", { name: /Complete Required Fields/ });
+    // Filled gold primary button (not a text link).
+    expect(cta.className).toMatch(/bg-\[#C9A84C\]/);
   });
 
   it("blocked transaction — surfaces blockers + risks", async () => {

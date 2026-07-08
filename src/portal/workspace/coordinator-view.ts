@@ -134,10 +134,11 @@ export function confidenceTone(level: string): LifecycleTone {
   return CONFIDENCE_TONE[level] ?? "muted";
 }
 
-/** Confidence as a subtle "82% · high" style string. */
+/** Confidence as the level word only — High / Medium / Low. No percentages
+ *  (3.5 Phase 1: the numeric read as false precision). */
 export function confidenceLabel(c: CoordinatorConfidence): string {
-  const pct = Math.round((Number.isFinite(c.score) ? c.score : 0) * 100);
-  return `${pct}% · ${c.level}`;
+  const lvl = c.level ?? "";
+  return lvl ? lvl.charAt(0).toUpperCase() + lvl.slice(1) : "—";
 }
 
 /** Readiness as "In progress · 60%" — prefers the tier, appends percent.

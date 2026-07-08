@@ -86,7 +86,9 @@ describe("OverviewTab — Transaction Stage + Deadline (3.3E)", () => {
     );
     expect(screen.queryByTestId("overview-transaction-stage")).not.toBeInTheDocument();
     expect(screen.queryByTestId("overview-deadline")).not.toBeInTheDocument();
-    // existing content still renders
-    expect(screen.getByText("Next Action")).toBeInTheDocument();
+    // Remaining content still renders. The standalone "Next Action" section was
+    // removed in 3.5 Phase 1 (the Coordinator owns the single next action).
+    expect(screen.getByText("Forms Summary")).toBeInTheDocument();
+    expect(screen.queryByText("Next Action")).not.toBeInTheDocument();
   });
 });
