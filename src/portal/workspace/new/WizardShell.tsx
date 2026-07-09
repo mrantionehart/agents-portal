@@ -16,7 +16,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import WizardLayout from "./WizardLayout";
 import { useWizardSession } from "./useWizardSession";
@@ -155,6 +155,10 @@ export default function WizardShell({
   const [validation, setValidation] = useState<StepValidation | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Synchronous re-entrancy lock. `submitting` is React state (async), so a
+  // same-frame double-click could pass the state guard twice; this ref blocks
+  // the second call immediately. Released only on failure (success unmounts).
+  const submitLock = useRef(false);
 
   // Avoid a flash of the wrong step before localStorage restore completes.
   if (!wiz.hydrated) {
@@ -172,6 +176,11 @@ export default function WizardShell({
   // Submit orchestration for the terminal `create` step (3.3B.3D). Composes the
   // existing create + party endpoints; idempotency lives in the session anchors.
   const handleCreate = async () => {
+    // Re-entrancy guard — block a second submit synchronously (double-click /
+    // in-flight). The disabled button also prevents this, but the ref closes
+    // the same-frame race the async `submitting` state cannot.
+    if (submitLock.current) return;
+
     // Pre-submit guard: never create a transaction from invalid data.
     const bad = firstInvalidStep(wiz.session, validators);
     if (bad) {
@@ -179,19 +188,27 @@ export default function WizardShell({
       wiz.goToStep(bad);
       return;
     }
+    submitLock.current = true;
     setSubmitError(null);
     setSubmitting(true);
     const result = await submitWizard(wiz.session, {
       onTransactionCreated: wiz.setDraftTransactionId,
       onPartyCreated: wiz.addCreatedPartyId,
     });
-    setSubmitting(false);
     if (!result.ok) {
+      // Reset ONLY on failure so the agent can retry.
+      submitLock.current = false;
+      setSubmitting(false);
       setSubmitError(result.error ?? "Something went wrong. Please retry.");
       return;
     }
-    // Success — clear the draft and hand off to Package Review (owned by 3.3C;
-    // interim landing is the transaction workspace).
+    // Success — hand off to Package Review (owned by 3.3C). Keep `submitting`
+    // TRUE and the lock held: the button stays disabled and the step keeps
+    // showing "Creating…" straight through the route transition (the wizard
+    // unmounts on navigation). Do NOT reset submitting here — that competing
+    // re-render races router.push in the App Router and can DROP the
+    // navigation, stranding the user on an active Create button (the
+    // duplicate-transaction hazard this fixes).
     wiz.finish(result.redirectTo ?? `/workspace/${result.transactionId}`);
   };
 

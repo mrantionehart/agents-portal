@@ -87,6 +87,52 @@ it("submits successfully → creates txn + party, redirects, clears the draft", 
   expect(window.localStorage.getItem(WIZARD_SESSION_KEY)).toBeNull();
 });
 
+it("keeps the Create button disabled after success (no active-button / duplicate-click window)", async () => {
+  seedValidCreate();
+  mockFetch((url) => {
+    if (url === "/api/transactions/create") return { ok: true, status: 201, data: { transaction: { id: "txn-1" } } };
+    if (url.endsWith("/parties")) return { ok: true, status: 201, data: { party: { id: "p0" } } };
+    return { ok: false, status: 404, data: {} };
+  });
+
+  render(<WizardShell />);
+  await screen.findByTestId("wizard-step-create");
+  fireEvent.click(screen.getByRole("button", { name: /Create/ }));
+
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/workspace/txn-1?tab=package"));
+  // `submitting` is NOT reset on success → the primary button stays in its
+  // disabled "Creating…" state through the (mocked) navigation. It never
+  // reverts to an active "Create" button, so no second submit is possible.
+  const creatingBtn = screen.getByRole("button", { name: /Creating/ });
+  expect(creatingBtn).toBeDisabled();
+  expect(screen.queryByRole("button", { name: /^Create$/ })).not.toBeInTheDocument();
+  expect(screen.getByText(/Creating your transaction/)).toBeInTheDocument();
+  expect(mockPush).toHaveBeenCalledTimes(1);
+});
+
+it("double-click Create submits exactly once (re-entrancy lock → no duplicate transaction)", async () => {
+  seedValidCreate();
+  let createCalls = 0;
+  mockFetch((url) => {
+    if (url === "/api/transactions/create") {
+      createCalls += 1;
+      return { ok: true, status: 201, data: { transaction: { id: "txn-1" } } };
+    }
+    if (url.endsWith("/parties")) return { ok: true, status: 201, data: { party: { id: "p0" } } };
+    return { ok: false, status: 404, data: {} };
+  });
+
+  render(<WizardShell />);
+  await screen.findByTestId("wizard-step-create");
+  const btn = screen.getByRole("button", { name: /Create/ });
+  fireEvent.click(btn); // first click sets the synchronous lock
+  fireEvent.click(btn); // same-frame second click — must be ignored
+
+  await waitFor(() => expect(mockPush).toHaveBeenCalled());
+  expect(createCalls).toBe(1); // exactly one create POST
+  expect(mockPush).toHaveBeenCalledTimes(1);
+});
+
 it("surfaces a create failure with a retry (no redirect, draft kept)", async () => {
   seedValidCreate();
   mockFetch((url) => {
