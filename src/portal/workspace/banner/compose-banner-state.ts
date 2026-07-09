@@ -85,7 +85,10 @@ export function complianceStatus(s: BannerSignals): BannerPillState {
   if (blocked > 0 && statOpen > 0) {
     return {
       tone: "warn",
-      label: `${statOpen} statutory · ${blocked} blocked`,
+      // "forms blocked" (not bare "blocked") disambiguates this FORM count from
+      // the Coordinator's "blockers" (workflow reasons). Copy-only; counts and
+      // the singular/plural rule mirror the blocked-only branch below.
+      label: `${statOpen} statutory · ${blocked} form${blocked === 1 ? "" : "s"} blocked`,
       detail: "Forms blocked on missing required fields or attestations.",
     };
   }

@@ -32,11 +32,15 @@ function base(over: Partial<BannerSignals> = {}): BannerSignals {
 }
 
 describe("complianceStatus", () => {
-  it("warn — blocked + statutory open", () => {
+  it("warn — blocked + statutory open (label says 'forms blocked', not bare 'blocked')", () => {
     const r = complianceStatus(base({ blocked_forms_count: 2, statutory_count: 3 }));
     expect(r.tone).toBe("warn");
-    expect(r.label).toContain("statutory");
-    expect(r.label).toContain("blocked");
+    expect(r.label).toBe("3 statutory · 2 forms blocked");
+  });
+
+  it("warn — blocked + statutory open, singular form", () => {
+    const r = complianceStatus(base({ blocked_forms_count: 1, statutory_count: 3 }));
+    expect(r.label).toBe("3 statutory · 1 form blocked");
   });
 
   it("warn — blocked only", () => {
