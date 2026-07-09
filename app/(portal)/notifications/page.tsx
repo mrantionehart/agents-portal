@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/supabase";
 import { useAuth } from "@/app/providers";
 import {
   applyFilters,
@@ -35,6 +35,34 @@ import {
   type NotificationRow,
   type StatusFilter,
 } from "@/src/portal/notifications/notifications-helpers";
+
+// ── PORTAL — lock-free data access ───────────────────────────────────────────
+// The inbox reads the `notifications` table (RLS-scoped by the user's JWT), but
+// via a DIRECT Supabase REST call using the cached access token — NOT the
+// browser client's supabase.from(), which transitively calls getSession() and
+// intermittently HANGS on the navigator LockManager (same root cause as the
+// Coordinator P1). getAccessToken() is push-cached + lock-free. Every request
+// is also bounded by a timeout so the spinner can never hang forever.
+const REST_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/rest/v1`;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const FETCH_TIMEOUT_MS = 8000;
+
+async function authHeaders(): Promise<Record<string, string> | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  return { apikey: ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
+/** fetch() with a bounded timeout so a stalled request can't hang the UI. */
+async function timedFetch(url: string, init: RequestInit): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export default function PortalNotificationsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -56,22 +84,29 @@ export default function PortalNotificationsPage() {
     if (!user) return;
     setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from("notifications")
-        .select(
-          "id, user_id, title, body, type, read_at, created_at, action_url, related_type, related_id"
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (err) {
-        setError(err.message);
+      const headers = await authHeaders();
+      if (!headers) {
+        setError("Your sign-in has expired — please refresh the page.");
         setRows([]);
         return;
       }
-      setRows((data ?? []) as NotificationRow[]);
+      const select =
+        "id,user_id,title,body,type,read_at,created_at,action_url,related_type,related_id";
+      const url =
+        `${REST_BASE}/notifications?select=${select}` +
+        `&user_id=eq.${encodeURIComponent(user.id)}` +
+        `&order=created_at.desc&limit=100`;
+      const res = await timedFetch(url, { headers });
+      if (!res.ok) {
+        setError(`Failed to load notifications (${res.status})`);
+        setRows([]);
+        return;
+      }
+      const data = (await res.json()) as NotificationRow[];
+      setRows(data ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load notifications");
+      const timedOut = e instanceof Error && e.name === "AbortError";
+      setError(timedOut ? "Loading timed out — please retry." : e instanceof Error ? e.message : "Failed to load notifications");
       setRows([]);
     }
   }, [user]);
@@ -88,13 +123,15 @@ export default function PortalNotificationsPage() {
     setRows((prev) =>
       prev ? prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? nowIso } : n)) : prev
     );
-    const { error: err } = await supabase
-      .from("notifications")
-      .update({ read_at: nowIso })
-      .eq("id", id)
-      .is("read_at", null);
-    if (err) {
-      // Soft revert — refetch authoritative state.
+    try {
+      const headers = await authHeaders();
+      if (!headers) return;
+      const res = await timedFetch(
+        `${REST_BASE}/notifications?id=eq.${encodeURIComponent(id)}&read_at=is.null`,
+        { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify({ read_at: nowIso }) }
+      );
+      if (!res.ok) void fetchNotifications(); // soft revert to authoritative state
+    } catch {
       void fetchNotifications();
     }
   }
@@ -107,12 +144,17 @@ export default function PortalNotificationsPage() {
     setBusy(true);
     const nowIso = new Date().toISOString();
     setRows((prev) => (prev ? prev.map((n) => ({ ...n, read_at: n.read_at ?? nowIso })) : prev));
-    const { error: err } = await supabase
-      .from("notifications")
-      .update({ read_at: nowIso })
-      .eq("user_id", user.id)
-      .is("read_at", null);
-    if (err) void fetchNotifications();
+    try {
+      const headers = await authHeaders();
+      if (!headers) { setBusy(false); return; }
+      const res = await timedFetch(
+        `${REST_BASE}/notifications?user_id=eq.${encodeURIComponent(user.id)}&read_at=is.null`,
+        { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify({ read_at: nowIso }) }
+      );
+      if (!res.ok) void fetchNotifications();
+    } catch {
+      void fetchNotifications();
+    }
     setBusy(false);
   }
 
