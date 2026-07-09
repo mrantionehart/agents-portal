@@ -268,7 +268,10 @@ describe("HOTFIX.1 — boundary checks", () => {
       path.join(process.cwd(), "app/(portal)/notifications/page.tsx"),
       "utf-8"
     );
-    const selectMatch = src.match(/\.select\(\s*["']([^"']+)["']\s*\)/);
+    // The page now reads via a lock-free Supabase REST call (getAccessToken +
+    // timedFetch), so the column list lives in a `const select = "..."` used to
+    // build `?select=`, not a `.select("...")` client call. Same intent.
+    const selectMatch = src.match(/select\s*=\s*["']([^"']+)["']/);
     expect(selectMatch).not.toBeNull();
     const cols = selectMatch![1];
     expect(cols.includes("metadata")).toBe(false);
@@ -296,7 +299,7 @@ describe("AP2.1F boundary lint — no realtime / no new APIs / no migrations / s
     expect(src).not.toMatch(/\.channel\(|onPostgresChanges|subscribe\(/);
   });
 
-  it("page reuses the legacy safe mark-read pattern only — no new mutation surface", async () => {
+  it("page marks read via a lock-free REST PATCH to notifications only — no new mutation surface", async () => {
     const fs = await import("fs");
     const path = await import("path");
     const src = fs.readFileSync(
@@ -305,20 +308,22 @@ describe("AP2.1F boundary lint — no realtime / no new APIs / no migrations / s
     );
     // No realtime subscriptions.
     expect(src).not.toMatch(/\.channel\(|onPostgresChanges|supabase\.channel/);
-    // No POST to /api/portal/* — the page may UPDATE the notifications
-    // table directly via Supabase (legacy pattern); that's the only
-    // allowed write.
+    // No POST to /api/portal/* — the page writes the notifications table
+    // directly via a lock-free Supabase REST call; that's the only write.
     expect(src).not.toMatch(/fetch\(\s*['"]\/api\/portal/);
-    // Mark-read updates must hit ONLY the notifications table — no
-    // insert/upsert/delete/rpc anywhere.
+    // Mark-read must hit ONLY the notifications table — no insert/upsert/
+    // delete/rpc mutation surface. (The page's doc comment references the old
+    // supabase.from() path it replaced, so we don't string-match on that.)
     expect(src.includes(".insert(")).toBe(false);
     expect(src.includes(".upsert(")).toBe(false);
     expect(src.includes(".delete(")).toBe(false);
     expect(src.includes(".rpc(")).toBe(false);
-    // The two updates that ARE permitted (single + all) both target the
-    // `notifications` table.
-    const updates = src.match(/\.update\(\s*\{\s*read_at/g) ?? [];
-    expect(updates.length).toBeGreaterThanOrEqual(1);
+    // The permitted writes (mark single + mark all) are PATCHes that set
+    // read_at on the notifications table via the Supabase REST endpoint.
+    expect(src).toMatch(/method:\s*['"]PATCH['"]/);
+    const patchWrites = src.match(/JSON\.stringify\(\s*\{\s*read_at/g) ?? [];
+    expect(patchWrites.length).toBeGreaterThanOrEqual(1);
+    expect(src).toMatch(/notifications\?[^`'"]*read_at=is\.null/);
     // No paperwork-engine imports.
     expect(src).not.toMatch(/from\s+['"][^'"]*paperwork[^'"]*['"]/);
     // No push / email / SMS / cron client imports.
