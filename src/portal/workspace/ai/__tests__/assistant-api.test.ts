@@ -63,6 +63,30 @@ describe("askAssistant — happy path", () => {
     const body = JSON.parse(init.body as string);
     expect(body).toEqual({ message: "what's next?", history: [{ role: "user", content: "hi" }], mode: "explain" });
   });
+
+  it("includes draft_type in the body when a draft is requested (4.0E.2)", async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      calls.push({ init });
+      return okResponse(ENVELOPE);
+    }) as unknown as typeof fetch;
+
+    await askAssistant({ transactionId: "txn-1", message: "Buyer follow-up", history: [], draftType: "buyer_follow_up", fetchImpl, getToken });
+    const body = JSON.parse(calls[0].init.body as string);
+    expect(body.draft_type).toBe("buyer_follow_up");
+    expect(body.message).toBe("Buyer follow-up"); // non-empty (Vault rejects empty)
+  });
+
+  it("omits draft_type when not drafting", async () => {
+    const calls: Array<{ init: RequestInit }> = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      calls.push({ init });
+      return okResponse(ENVELOPE);
+    }) as unknown as typeof fetch;
+    await askAssistant({ transactionId: "txn-1", message: "hi", history: [], fetchImpl, getToken });
+    const body = JSON.parse(calls[0].init.body as string);
+    expect("draft_type" in body).toBe(false);
+  });
 });
 
 describe("askAssistant — error mapping (never leaks raw errors)", () => {

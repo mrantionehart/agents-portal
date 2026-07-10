@@ -15,6 +15,7 @@ import type {
   AssistantEnvelope,
   AssistantMode,
   AssistantResult,
+  DraftType,
 } from "./assistant-types";
 import { mapAssistantError } from "./assistant-view";
 
@@ -39,6 +40,9 @@ export interface AskAssistantInput {
   message: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
   mode?: AssistantMode;
+  /** 4.0E.2 — explicit draft type from the picker. Vault forces mode=draft and
+   *  applies the registered guidance + HartFelt voice. */
+  draftType?: DraftType | null;
   /** Injected in tests. Defaults to global fetch. */
   fetchImpl?: typeof fetch;
   /** Injected in tests. Defaults to the lock-free access-token helper. */
@@ -53,6 +57,7 @@ export async function askAssistant(input: AskAssistantInput): Promise<AssistantR
     message,
     history,
     mode = "auto",
+    draftType = null,
     fetchImpl,
     getToken,
     timeoutMs = ASSISTANT_CLIENT_TIMEOUT_MS,
@@ -79,7 +84,7 @@ export async function askAssistant(input: AskAssistantInput): Promise<AssistantR
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message, history, mode }),
+        body: JSON.stringify(draftType ? { message, history, mode, draft_type: draftType } : { message, history, mode }),
         signal: controller.signal,
       }
     );

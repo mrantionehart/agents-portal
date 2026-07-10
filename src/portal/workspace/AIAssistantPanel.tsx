@@ -30,16 +30,22 @@ import type {
   AssistantEnvelope,
   AssistantMessage,
   AssistantSuggestedAction,
+  DraftAudience,
+  DraftType,
 } from "./ai/assistant-types";
 import {
   confidenceLabel,
   confidenceTone,
+  draftTypeAudience,
+  draftTypeLabel,
   friendlySource,
+  inferAudienceFromMessage,
   isNavigableTab,
   tabHref,
   type Tone,
 } from "./ai/assistant-view";
 import AssistantDraftCard from "./ai/AssistantDraftCard";
+import DraftPicker from "./ai/DraftPicker";
 
 const INTRO =
   "I know this transaction's full status. Ask me what to do next, why something's blocked, or who we're waiting on. I can also draft a message for you to review — I never send anything.";
@@ -89,7 +95,7 @@ export default function AIAssistantPanel({
   const busyRef = useRef(false);
   const autoSentRef = useRef(false);
 
-  async function send(raw: string) {
+  async function send(raw: string, opts?: { draftType?: DraftType; expectedAudience?: DraftAudience }) {
     const msg = raw.trim();
     if (!msg || busyRef.current) return; // re-entrancy guard → no duplicate requests
     busyRef.current = true;
@@ -99,16 +105,35 @@ export default function AIAssistantPanel({
     setMessages((m) => [...m, { role: "user", content: msg }]);
     setInput("");
 
-    const result = await askAssistant({ transactionId, message: msg, history, fetchImpl, getToken, timeoutMs });
+    const result = await askAssistant({
+      transactionId,
+      message: msg,
+      history,
+      draftType: opts?.draftType ?? null,
+      fetchImpl,
+      getToken,
+      timeoutMs,
+    });
+
+    // expectedAudience feeds the presentation-only audience fallback: an explicit
+    // draft type carries its audience; free-text infers only when clearly stated.
+    const expectedAudience = opts?.expectedAudience ?? inferAudienceFromMessage(msg);
 
     setMessages((m) => [
       ...m,
       result.ok
-        ? { role: "assistant", kind: "answer", envelope: result.envelope }
+        ? { role: "assistant", kind: "answer", envelope: result.envelope, expectedAudience }
         : { role: "assistant", kind: "error", error: result.error },
     ]);
     busyRef.current = false;
     setBusy(false);
+  }
+
+  // Picker → send the EXPLICIT draft_type. Vault rejects an empty message, so we
+  // send the draft's label as a minimal (non-faked) message; the draft_type is
+  // what actually drives generation.
+  function sendDraft(type: DraftType) {
+    void send(draftTypeLabel(type), { draftType: type, expectedAudience: draftTypeAudience(type) });
   }
 
   // Auto-send the chip prompt exactly once, then strip ?prompt= from the URL
@@ -175,7 +200,7 @@ export default function AIAssistantPanel({
               </div>
             );
           }
-          return <AnswerBlock key={i} envelope={m.envelope} transactionId={transactionId} router={router} writeClipboard={writeClipboard} />;
+          return <AnswerBlock key={i} envelope={m.envelope} expectedAudience={m.expectedAudience} transactionId={transactionId} router={router} writeClipboard={writeClipboard} />;
         })}
 
         {busy && (
@@ -185,7 +210,12 @@ export default function AIAssistantPanel({
         )}
       </div>
 
-      <form onSubmit={onSubmit} className="border-t border-[#1a1a2e] p-3 flex gap-2">
+      {/* draft picker — complements the prompt chips; sends an explicit draft_type */}
+      <div className="border-t border-[#1a1a2e] px-3 py-2">
+        <DraftPicker onSelect={sendDraft} disabled={busy} />
+      </div>
+
+      <form onSubmit={onSubmit} className="border-t border-[#1a1a2e] px-3 pb-3 pt-0 flex gap-2">
         <input
           type="text"
           value={input}
@@ -216,11 +246,13 @@ export default function AIAssistantPanel({
 
 function AnswerBlock({
   envelope,
+  expectedAudience,
   transactionId,
   router,
   writeClipboard,
 }: {
   envelope: AssistantEnvelope;
+  expectedAudience?: DraftAudience;
   transactionId: string;
   router: ReturnType<typeof useRouter>;
   writeClipboard?: (text: string) => Promise<void>;
@@ -277,7 +309,7 @@ function AnswerBlock({
       )}
 
       {/* draft — review-only card */}
-      {envelope.draft && <AssistantDraftCard draft={envelope.draft} writeClipboard={writeClipboard} />}
+      {envelope.draft && <AssistantDraftCard draft={envelope.draft} expectedAudience={expectedAudience} writeClipboard={writeClipboard} />}
 
       {/* evidence — collapsed by default */}
       {hasEvidence && (

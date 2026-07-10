@@ -35,11 +35,33 @@ export interface AssistantSuggestedAction {
   tab?: AssistantTab;
 }
 
+export type DraftAudience = "buyer" | "seller" | "broker" | "internal";
+export type DraftChannel = "note" | "email";
+
+/** The 10 registered draft types (mirror of the Vault registry). */
+export type DraftType =
+  | "buyer_follow_up"
+  | "seller_follow_up"
+  | "broker_update"
+  | "internal_note"
+  | "deadline_reminder"
+  | "missing_document_reminder"
+  | "signature_reminder"
+  | "statutory_disclosure_reminder"
+  | "closing_prep_checklist"
+  | "transaction_summary_for_agent";
+
+/** 4.0E rich draft (mirror of the Vault envelope). facts_used reuses the
+ *  evidence shape; confidence/warnings are server-derived. */
 export interface AssistantDraft {
-  channel: "note" | "email";
-  audience: "buyer" | "seller" | "broker" | "internal";
+  title: string;
+  audience: DraftAudience;
+  channel: DraftChannel;
   subject?: string;
   body: string;
+  facts_used: AssistantEvidence[];
+  confidence: AssistantConfidence;
+  warnings: string[];
 }
 
 /** The full grounded envelope returned by
@@ -73,9 +95,10 @@ export type AssistantResult =
   | { ok: true; envelope: AssistantEnvelope; error?: undefined }
   | { ok: false; error: AssistantError; envelope?: undefined };
 
-/** One conversation turn held in memory only (no persistence). */
+/** One conversation turn held in memory only (no persistence). `expectedAudience`
+ *  (when a draft was requested) drives the presentation-only audience fallback. */
 export type AssistantMessage =
   | { role: "user"; content: string }
-  | { role: "assistant"; kind: "answer"; envelope: AssistantEnvelope }
+  | { role: "assistant"; kind: "answer"; envelope: AssistantEnvelope; expectedAudience?: DraftAudience }
   | { role: "assistant"; kind: "error"; error: AssistantError }
   | { role: "assistant"; kind: "intro"; content: string };

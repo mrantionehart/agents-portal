@@ -106,16 +106,66 @@ describe("send + grounded render", () => {
     expect(screen.getByTestId("assistant-warnings")).toHaveTextContent("Deadline data was unavailable");
   });
 
-  it("renders a review-only draft card when a draft is returned", async () => {
-    const env = envelope({ draft: { channel: "email", audience: "buyer", subject: "Update", body: "Hi there." } });
+  it("renders a rich review-only draft card when a draft is returned", async () => {
+    const env = envelope({
+      draft: {
+        title: "Buyer follow-up",
+        channel: "email",
+        audience: "buyer",
+        subject: "Update",
+        body: "Hi there.",
+        facts_used: [{ source: "Coordinator", fact: "awaiting_party_attestation" }],
+        confidence: "high",
+        warnings: [],
+      },
+    });
     render(<AIAssistantPanel transactionId="txn-1" fetchImpl={okFetch(env)} getToken={getToken} />);
     await type("draft an email to the buyer");
     fireEvent.click(screen.getByTestId("assistant-send"));
     await screen.findByTestId("msg-answer");
     const card = screen.getByTestId("assistant-draft-card");
-    expect(card).toBeInTheDocument();
+    expect(within(card).getByTestId("assistant-draft-title")).toHaveTextContent("Buyer follow-up");
+    expect(within(card).getByTestId("assistant-draft-facts-toggle")).toBeInTheDocument();
     // the draft card itself has NO send/email/notify control
-    expect(within(card).queryByRole("button", { name: /send|email|notify/i })).toBeNull();
+    expect(within(card).queryByRole("button", { name: /send|email|notify|sms/i })).toBeNull();
+  });
+});
+
+describe("draft picker (4.0E.2)", () => {
+  it("selecting a draft type sends an explicit draft_type in exactly one request", async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        envelope({
+          draft: { title: "Buyer follow-up", channel: "email", audience: "buyer", subject: "Hi", body: "Hello Jordan.", facts_used: [{ source: "Coordinator", fact: "x" }], confidence: "high", warnings: [] },
+        }),
+    })) as unknown as typeof fetch;
+
+    render(<AIAssistantPanel transactionId="txn-1" fetchImpl={fetchImpl} getToken={getToken} />);
+    fireEvent.click(screen.getByTestId("draft-picker-button"));
+    fireEvent.click(screen.getByTestId("draft-option-buyer_follow_up"));
+
+    await screen.findByTestId("assistant-draft-card");
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // one request only
+    const body = JSON.parse((fetchImpl as jest.Mock).mock.calls[0][1].body);
+    expect(body.draft_type).toBe("buyer_follow_up");
+    expect(body.message).toBe("Buyer follow-up"); // non-empty label, not a faked prompt
+    // user bubble shows the label
+    expect(screen.getByTestId("msg-user")).toHaveTextContent("Buyer follow-up");
+  });
+
+  it("audience fallback: Vault internal + buyer draft type → card shows buyer", async () => {
+    const fetchImpl = okFetch(
+      envelope({
+        draft: { title: "Buyer follow-up", channel: "email", audience: "internal", subject: "Hi", body: "Hello.", facts_used: [{ source: "Coordinator", fact: "x" }], confidence: "high", warnings: [] },
+      })
+    );
+    render(<AIAssistantPanel transactionId="txn-1" fetchImpl={fetchImpl} getToken={getToken} />);
+    fireEvent.click(screen.getByTestId("draft-picker-button"));
+    fireEvent.click(screen.getByTestId("draft-option-buyer_follow_up"));
+    await screen.findByTestId("assistant-draft-card");
+    expect(screen.getByTestId("assistant-draft-meta")).toHaveTextContent("to buyer");
   });
 });
 

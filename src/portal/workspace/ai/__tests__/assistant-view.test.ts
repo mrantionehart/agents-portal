@@ -4,14 +4,44 @@
 
 import {
   ASSISTANT_PROMPT_CHIPS,
+  DRAFT_MENU,
   confidenceLabel,
   confidenceTone,
+  displayAudience,
+  draftTypeAudience,
+  draftTypeLabel,
   friendlySource,
+  inferAudienceFromMessage,
   isNavigableTab,
   mapAssistantError,
   shouldFlagUncertainty,
   tabHref,
 } from "../assistant-view";
+
+describe("draft menu + audience helpers (4.0E.2)", () => {
+  it("DRAFT_MENU groups all 10 types under Client/Brokerage/Internal", () => {
+    expect(DRAFT_MENU.map((g) => g.group)).toEqual(["Client", "Brokerage", "Internal"]);
+    expect(DRAFT_MENU.reduce((n, g) => n + g.items.length, 0)).toBe(10);
+    expect(draftTypeLabel("statutory_disclosure_reminder")).toBe("Statutory reminder");
+  });
+  it("draftTypeAudience maps types to their expected audience", () => {
+    expect(draftTypeAudience("buyer_follow_up")).toBe("buyer");
+    expect(draftTypeAudience("broker_update")).toBe("broker");
+    expect(draftTypeAudience("statutory_disclosure_reminder")).toBe("seller");
+    expect(draftTypeAudience("internal_note")).toBe("internal");
+  });
+  it("inferAudienceFromMessage only infers when clearly stated", () => {
+    expect(inferAudienceFromMessage("email to the buyer")).toBe("buyer");
+    expect(inferAudienceFromMessage("note for the broker")).toBe("broker");
+    expect(inferAudienceFromMessage("a quick reminder")).toBe("internal");
+  });
+  it("displayAudience: internal→inferred, but explicit Vault audience is never overridden", () => {
+    expect(displayAudience("internal", "buyer")).toBe("buyer");
+    expect(displayAudience("internal", "internal")).toBe("internal");
+    expect(displayAudience("seller", "buyer")).toBe("seller"); // explicit wins
+    expect(displayAudience("buyer", undefined)).toBe("buyer");
+  });
+});
 
 describe("confidence", () => {
   it("labels are High/Medium/Low — never percentages", () => {
