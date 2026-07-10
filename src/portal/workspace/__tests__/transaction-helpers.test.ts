@@ -153,6 +153,7 @@ describe("V9 / V12 / V13 boundary lint", () => {
     const path = await import("path");
     const files = [
       "src/portal/workspace/AIAssistantPanel.tsx",
+      "src/portal/workspace/ai/assistant-api.ts",
       "src/portal/workspace/transaction-helpers.ts",
       "app/(portal)/workspace/[transactionId]/page.tsx",
     ];
@@ -171,15 +172,25 @@ describe("V9 / V12 / V13 boundary lint", () => {
       expect(src.toLowerCase()).not.toMatch(/<button[^>]*>\s*approve/);
     }
 
-    // The AI panel posts to /ai/chat. Confirm that's the ONLY POST verb
-    // in the per-transaction surface.
-    const aiSrc = fs.readFileSync(
+    // TXN-ASSISTANT 4.0D — the panel now delegates the request to the thin
+    // assistant-api client; the panel itself issues NO POST. The single AI
+    // POST lives in assistant-api.ts and targets the grounded Vault endpoint
+    // /platform/transactions/[id]/assistant (NOT the legacy /ai/chat).
+    const panelSrc = fs.readFileSync(
       path.join(process.cwd(), "src/portal/workspace/AIAssistantPanel.tsx"),
       "utf-8"
     );
-    const posts = aiSrc.match(/method:\s*['"]POST['"]/g) ?? [];
-    expect(posts.length).toBe(1);
-    expect(aiSrc).toMatch(/\/ai\/chat/);
+    expect(panelSrc).not.toMatch(/method:\s*['"]POST['"]/); // no direct POST in the panel
+    expect(panelSrc).not.toMatch(/\/ai\/chat/); // legacy endpoint fully removed
+
+    const apiSrc = fs.readFileSync(
+      path.join(process.cwd(), "src/portal/workspace/ai/assistant-api.ts"),
+      "utf-8"
+    );
+    const posts = apiSrc.match(/method:\s*['"]POST['"]/g) ?? [];
+    expect(posts.length).toBe(1); // exactly one AI POST
+    expect(apiSrc).toMatch(/\/platform\/transactions\/\$\{transactionId\}\/assistant/);
+    expect(apiSrc).not.toMatch(/\/ai\/chat/);
 
     // Page source has zero POSTs.
     const pageSrc = fs.readFileSync(

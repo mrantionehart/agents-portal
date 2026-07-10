@@ -16,6 +16,7 @@ import type { TabId } from "./tab-config";
 import type { ComposedBannerState } from "../banner/compose-banner-state";
 import CoachStrip from "../components/CoachStrip";
 import CoordinatorPanel from "../components/CoordinatorPanel";
+import AssistantPromptChips from "../components/AssistantPromptChips";
 
 export interface WorkspaceShellProps {
   card: WorkspaceCard;
@@ -55,6 +56,12 @@ export default function WorkspaceShell({
           unavailable. Presentation only — renders the Vault-produced
           TransactionDirective; its CTA only navigates. */}
       <CoordinatorPanel transactionId={card.transaction_id} />
+
+      {/* TXN-ASSISTANT 4.0D — one-tap suggested prompts. Beneath the Coordinator
+          hero, above the Coach. Each chip deep-links to ?tab=ai&prompt=… ; the
+          AI panel auto-sends it once. Navigation only — never calls the
+          assistant itself, never moves the Coordinator or Coach. */}
+      <AssistantPromptChips transactionId={card.transaction_id} />
 
       {/* W3.4.6.4 — AI Transaction Coach strip. 3.5 Phase 3A: demoted BELOW the
           Coordinator as contextual "how" guidance (Coordinator answers "what",

@@ -63,12 +63,19 @@ export default async function TransactionWorkspacePage({
   searchParams,
 }: {
   params: Promise<{ transactionId: string }>;
-  searchParams: Promise<{ tab?: string; form?: string }>;
+  searchParams: Promise<{ tab?: string; form?: string; prompt?: string }>;
 }) {
   const { transactionId } = await params;
   const sp = await searchParams;
   const activeTab: TabId = parseTab(sp.tab);
   const rawFormParam = typeof sp.form === "string" ? sp.form : null;
+  // TXN-ASSISTANT 4.0D — suggested-prompt chip payload. Passed to the AI tab,
+  // which auto-sends it once and strips it from the URL. Bounded to avoid an
+  // oversized query string; the panel trims/validates too.
+  const initialPrompt =
+    typeof sp.prompt === "string" && sp.prompt.trim().length > 0
+      ? sp.prompt.slice(0, 500)
+      : null;
 
   // ── Auth + session ────────────────────────────────────────────────
   const cookieStore = await cookies();
@@ -437,7 +444,7 @@ export default async function TransactionWorkspacePage({
       case "commission":
         return commissionState ? <CommissionTab state={commissionState} /> : null;
       case "ai":
-        return <AITab transactionId={resolvedCard.transaction_id} />;
+        return <AITab transactionId={resolvedCard.transaction_id} initialPrompt={initialPrompt} />;
     }
   })();
 

@@ -1,31 +1,26 @@
 // ============================================================================
-// AGENT PORTAL 3.0 — Workflow 3.1 — AI tab
+// AGENT PORTAL 3.0 — Transaction Assistant tab (4.0D)
 // ============================================================================
-// Wraps the existing AIAssistantPanel byte-for-byte. No new tools, no
-// new endpoints. Preserves the broker-confirmation language and the
-// existing /api/ai/chat contract (Vault P10C/D/E shipped 3 tools).
-// New Copilot tools (summarize_transaction, explain_compliance,
-// explain_blocker, explain_commission_status, etc.) ship in Workflow 3.7.
+// Wraps the grounded AIAssistantPanel. Forwards an optional initialPrompt
+// (from ?prompt=, set by the suggested-prompt chips) so the panel can auto-send
+// it exactly once. No new endpoints, no new chat surface.
 // ============================================================================
 
 import AIAssistantPanel from "@/src/portal/workspace/AIAssistantPanel";
 
 export interface AITabProps {
   transactionId: string;
+  initialPrompt?: string | null;
 }
 
-export default function AITab({ transactionId }: AITabProps) {
+export default function AITab({ transactionId, initialPrompt }: AITabProps) {
   return (
     <section>
-      <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">
-        AI Assistant
-      </h2>
-      <AIAssistantPanel transactionId={transactionId} />
+      <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">AI Assistant</h2>
+      <AIAssistantPanel transactionId={transactionId} initialPrompt={initialPrompt} />
       <p className="mt-3 text-[10px] text-[#71717A] leading-relaxed">
-        Broker confirmation is required for every change. The Copilot
-        never auto-sends envelopes, never auto-approves, and never
-        overrides statutory paths. Read tools surface state; write tools
-        require explicit confirmation.
+        The assistant explains this transaction&apos;s status and can draft messages for your review. It never
+        sends envelopes, never approves, and never changes anything — every action stays in your hands.
       </p>
     </section>
   );
