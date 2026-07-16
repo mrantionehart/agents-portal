@@ -21,6 +21,7 @@ import { AlertCircle, GraduationCap } from "lucide-react";
 import TrainingHubClient from "@/src/portal/training/TrainingHubClient";
 import { loadTrainingHub } from "@/src/portal/training/loader";
 import type { HubTab } from "@/src/portal/training/types";
+import { BrokerCertPreviewSection } from "@/src/portal/tour/BrokerCertPreviewSection";
 
 export default async function TrainingHubPage({
   searchParams,
@@ -62,6 +63,16 @@ export default async function TrainingHubPage({
     callerId: session.user.id,
   });
 
+  // Own-row profile read for role — used ONLY to gate the broker-preview
+  // section below. Server rejects unauthorized preview requests
+  // regardless.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  const role = (profile as { role?: string } | null)?.role ?? null;
+
   return (
     <Shell>
       <TrainingHubClient
@@ -72,6 +83,7 @@ export default async function TrainingHubPage({
         initialTab={initialTab}
         error={result.kind === "error" ? result.message : null}
       />
+      <BrokerCertPreviewSection role={role} userId={session.user.id} />
     </Shell>
   );
 }

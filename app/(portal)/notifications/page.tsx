@@ -175,7 +175,7 @@ export default function PortalNotificationsPage() {
   }
 
   return (
-    <div>
+    <div data-training-id="portal.notifications.inbox">
       <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">

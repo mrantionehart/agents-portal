@@ -92,14 +92,16 @@ export default async function SettingsHubPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ── 1. Profile ─────────────────────────────────────────── */}
-        <Card title="Profile" icon={UserCircle2} description="Manage your agent profile — name, contact info, license details, and avatar.">
-          {result.kind === "ok" ? (
-            <ProfileSummary profile={result.profile} />
-          ) : (
-            <SignInHint />
-          )}
-          <CardLink href="/profile" label="Manage your agent profile" />
-        </Card>
+        <div data-training-id="portal.settings.profile">
+          <Card title="Profile" icon={UserCircle2} description="Manage your agent profile — name, contact info, license details, and avatar.">
+            {result.kind === "ok" ? (
+              <ProfileSummary profile={result.profile} />
+            ) : (
+              <SignInHint />
+            )}
+            <CardLink href="/profile" label="Manage your agent profile" />
+          </Card>
+        </div>
 
         {/* ── 2. Business Card ───────────────────────────────────── */}
         <Card title="Business Card" icon={IdCard} description="Your public-facing business card — branding, links, and contact details prospects see when you share your card.">
