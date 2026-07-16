@@ -282,7 +282,7 @@ function HomeShell({
   const greeting = greetingFor(now.getHours());
   const today = formatToday(now);
   return (
-    <div>
+    <div data-training-id="portal.home.dashboard">
       <header className="mb-2">
         <div className="text-xs text-[#71717A]">{today}</div>
         <h1 className="text-2xl font-semibold text-[#F1F1F3] mt-1">

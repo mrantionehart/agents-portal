@@ -65,6 +65,7 @@ export default function Sidebar({ role, open = false, onDismiss }: SidebarProps)
       )}
 
       <aside
+        data-training-id="portal.navigation.sidebar"
         className={`
           fixed top-0 left-0 z-30 h-screen w-[240px]
           border-r border-[#1a1a2e] bg-[#0b0b10] text-[#A1A1AA]
@@ -119,6 +120,16 @@ export default function Sidebar({ role, open = false, onDismiss }: SidebarProps)
   );
 }
 
+// The four ids below are the pilot's tour-target anchors on nav rows.
+// Adding more nav-item anchors requires extending the allowlist in
+// src/portal/tour/anchors.ts.
+const NAV_TRAINING_ANCHORS: Record<string, string> = {
+  home: "portal.navigation.home",
+  transactions: "portal.navigation.workspace",
+  notifications: "portal.navigation.notifications",
+  settings: "portal.navigation.settings",
+};
+
 function SidebarLink({
   item,
   active,
@@ -129,12 +140,14 @@ function SidebarLink({
   onClick?: () => void;
 }) {
   const Icon = ICONS[item.icon];
+  const trainingId = NAV_TRAINING_ANCHORS[item.id];
   return (
     <Link
       href={item.href}
       onClick={onClick}
       className={`${cls.navItem} ${active ? cls.navItemActive : ""}`}
       aria-current={active ? "page" : undefined}
+      data-training-id={trainingId}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden />
       <span>{item.label}</span>
