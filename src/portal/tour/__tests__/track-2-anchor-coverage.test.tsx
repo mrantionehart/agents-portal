@@ -150,130 +150,294 @@ describe("Track 2 — DraftPicker anchor coverage", () => {
   });
 });
 
-// ─── 5. AssistantDraftCard family ───────────────────────────────────────────
+// ─── 5. AssistantDraftCard — anchor-gate + eligibility semantics ────────────
+//
+// The four draft-card training anchors are emitted ONLY when the parent
+// passes `trainingAnchorEnabled={true}`. When the flag is false or
+// omitted, the card renders identically in every other respect but
+// carries no training anchors. Uniqueness of the four anchors in the
+// live DOM is guaranteed by having exactly one card in the AI history
+// receive the flag.
 
-describe("Track 2 — AssistantDraftCard anchor coverage", () => {
-  it("plants `portal.workspace.ai.draft-card` on the card root", () => {
-    const draft = makeDraft();
-    const { container } = render(
-      <AssistantDraftCard draft={draft} expectedAudience="buyer" />,
-    );
-    const el = container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]');
-    expect(el).toBeTruthy();
-  });
-
-  it("plants `portal.workspace.ai.draft-card.confidence` on the confidence chip", () => {
-    const draft = makeDraft();
-    const { container } = render(
-      <AssistantDraftCard draft={draft} expectedAudience="buyer" />,
-    );
-    const el = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.confidence"]');
-    expect(el).toBeTruthy();
-    expect(el?.textContent ?? "").toMatch(/Confidence/);
-  });
-
-  it("plants `portal.workspace.ai.draft-card.warnings` ONLY when warnings exist", () => {
-    const noWarnings = makeDraft({ warnings: [] });
-    const withWarnings = makeDraft({ warnings: ["Missing party address."] });
-
-    const { container: a } = render(
-      <AssistantDraftCard draft={noWarnings} expectedAudience="buyer" />,
-    );
-    expect(a.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeNull();
-
-    const { container: b } = render(
-      <AssistantDraftCard draft={withWarnings} expectedAudience="buyer" />,
-    );
-    expect(b.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeTruthy();
-  });
-
-  it("plants `portal.workspace.ai.draft-card.facts-used` ONLY when facts exist", () => {
-    const noFacts = makeDraft({ facts_used: [] });
-    const withFacts = makeDraft({
+describe("Track 2 — AssistantDraftCard emits training anchors only when the parent enables them", () => {
+  it("plants all four anchors when trainingAnchorEnabled=true and both warnings + facts_used are present", () => {
+    const draft = makeDraft({
+      warnings: ["Missing party address."],
       facts_used: [{ source: "transaction", fact: "Closing date is 2026-08-15." }] as any,
     });
-
-    const { container: a } = render(
-      <AssistantDraftCard draft={noFacts} expectedAudience="buyer" />,
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
     );
-    expect(a.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeNull();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.confidence"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeTruthy();
+  });
 
-    const { container: b } = render(
-      <AssistantDraftCard draft={withFacts} expectedAudience="buyer" />,
+  it("does NOT plant any of the four anchors when trainingAnchorEnabled is false (default)", () => {
+    const draft = makeDraft({
+      warnings: ["Missing party address."],
+      facts_used: [{ source: "transaction", fact: "Closing date is 2026-08-15." }] as any,
+    });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" />,
     );
-    expect(b.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]')).toBeNull();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.confidence"]')).toBeNull();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeNull();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeNull();
+  });
+
+  it("even when trainingAnchorEnabled=true, the warnings anchor is absent when warnings are empty", () => {
+    const draft = makeDraft({ warnings: [] });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeNull();
+    // Card + confidence should still be present.
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.confidence"]')).toBeTruthy();
+  });
+
+  it("even when trainingAnchorEnabled=true, the facts-used anchor is absent when facts_used is empty", () => {
+    const draft = makeDraft({ facts_used: [] });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeNull();
+  });
+
+  it("a non-training card still renders full user-facing content (title, subject, body, copy controls)", () => {
+    const draft = makeDraft({
+      title: "Follow-up email",
+      subject: "Next steps",
+      body: "Hi — here's what's next.",
+    });
+    const { container, getByText } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" />,
+    );
+    // Title, subject, body present.
+    expect(getByText("Follow-up email")).toBeInTheDocument();
+    expect(getByText("Next steps")).toBeInTheDocument();
+    expect(getByText("Hi — here's what's next.")).toBeInTheDocument();
+    // Copy button visible (existing data-testids preserved).
+    expect(container.querySelector('[data-testid="assistant-draft-copy"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="assistant-draft-edit"]')).toBeTruthy();
+    // No training anchor.
+    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]')).toBeNull();
   });
 });
 
-// ─── 6. Repeated draft-card resolver strategy ───────────────────────────────
+// ─── 6. Parent selects exactly ONE eligible draft — no engine dependency ────
+//
+// The eligibility rule lives in AIAssistantPanel: the FIRST message in
+// chronological order that is an assistant answer with a non-null
+// envelope.draft is the training-anchored card. Every other draft
+// renders unanchored. These tests render AssistantDraftCard directly
+// with parent-computed `trainingAnchorEnabled` values to simulate the
+// selection logic without dragging AIAssistantPanel's full render
+// dependencies into jsdom.
 
-describe("Track 2 — repeated draft-card resolver behavior (documented tradeoff)", () => {
-  // The resolver uses `document.querySelector` — returns the FIRST match
-  // in DOM order. This is intentional for the pilot: QA fixtures ensure
-  // one draft per fixture transaction, so a first-match-wins strategy is
-  // deterministic. The engine is NOT modified.
-  it("first-match wins when two draft cards are rendered", () => {
-    const a = makeDraft({ title: "Draft A" });
-    const b = makeDraft({ title: "Draft B" });
+describe("Track 2 — deterministic single-anchor selection across multiple cards", () => {
+  it("only the first eligible card carries the four training anchors", () => {
+    const first = makeDraft({ title: "First eligible draft" });
+    const second = makeDraft({ title: "Second draft" });
+    const third = makeDraft({ title: "Third draft" });
+
+    // Simulate what AIAssistantPanel does: only i === firstDraftIndex gets true.
     const { container } = render(
       <div>
-        <AssistantDraftCard draft={a} expectedAudience="buyer" />
-        <AssistantDraftCard draft={b} expectedAudience="buyer" />
+        <AssistantDraftCard draft={first} expectedAudience="buyer" trainingAnchorEnabled />
+        <AssistantDraftCard draft={second} expectedAudience="buyer" />
+        <AssistantDraftCard draft={third} expectedAudience="buyer" />
       </div>,
     );
-    // Attach to document so resolveAnchor's document.querySelector works.
+
+    // Uniqueness — each anchor appears exactly once, on the first card.
+    const cards = container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card"]');
+    expect(cards.length).toBe(1);
+    expect(cards[0].textContent).toMatch(/First eligible draft/);
+
+    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.confidence"]').length).toBe(1);
+    // warnings + facts-used are also absent when their data is empty; but
+    // in this fixture the fields are empty on all three, so no warnings/
+    // facts-used anchors exist anywhere.
+    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.warnings"]').length).toBe(0);
+    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.facts-used"]').length).toBe(0);
+  });
+
+  it("`resolveAnchor` returns the single anchored card (no hidden-first hazard)", () => {
+    const first = makeDraft({ title: "Anchored draft" });
+    const second = makeDraft({ title: "Later draft" });
+
+    const { container } = render(
+      <div>
+        <AssistantDraftCard draft={first} expectedAudience="buyer" trainingAnchorEnabled />
+        <AssistantDraftCard draft={second} expectedAudience="buyer" />
+      </div>,
+    );
     document.body.appendChild(container);
-    const first = resolveAnchor("portal.workspace.ai.draft-card");
+    const el = resolveAnchor("portal.workspace.ai.draft-card");
     document.body.removeChild(container);
-    expect(first).toBeTruthy();
-    // First-in-DOM-order — Draft A precedes Draft B.
-    expect(first?.textContent).toMatch(/Draft A/);
+    expect(el).toBeTruthy();
+    expect(el?.textContent).toMatch(/Anchored draft/);
   });
 
-  it("all repeated matches are queryable (documents the querySelectorAll count)", () => {
-    const a = makeDraft();
-    const b = makeDraft();
+  it("querySelectorAll finds at most ONE instance of each draft-card training anchor", () => {
+    const a = makeDraft({
+      warnings: ["a warning"],
+      facts_used: [{ source: "transaction", fact: "fact 1" }] as any,
+    });
+    const b = makeDraft({
+      warnings: ["another warning"],
+      facts_used: [{ source: "transaction", fact: "fact 2" }] as any,
+    });
+    const c = makeDraft({
+      warnings: ["yet another"],
+      facts_used: [{ source: "transaction", fact: "fact 3" }] as any,
+    });
+
     const { container } = render(
       <div>
-        <AssistantDraftCard draft={a} expectedAudience="buyer" />
+        <AssistantDraftCard draft={a} expectedAudience="buyer" trainingAnchorEnabled />
         <AssistantDraftCard draft={b} expectedAudience="buyer" />
+        <AssistantDraftCard draft={c} expectedAudience="buyer" />
       </div>,
     );
-    const all = container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card"]');
-    expect(all.length).toBe(2);
+
+    for (const anchor of [
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.warnings",
+      "portal.workspace.ai.draft-card.facts-used",
+    ]) {
+      const all = container.querySelectorAll(`[data-training-id="${anchor}"]`);
+      expect(all.length).toBeLessThanOrEqual(1);
+    }
+    // And the anchored card is the FIRST one (the caller's selection).
+    // Assert via the card's visible warning content — that's rendered
+    // uncollapsed by default in the current AssistantDraftCard.
+    const card = container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]');
+    expect(card?.textContent).toContain("a warning");
+    expect(card?.textContent).not.toContain("another warning");
+    expect(card?.textContent).not.toContain("yet another");
   });
 
-  // Documented tradeoff: the resolver does NOT skip hidden/zero-sized
-  // matches. QA fixture strategy compensates by ensuring one draft per
-  // fixture transaction. If a hidden draft precedes a visible one in
-  // DOM order, the resolver returns the hidden one. This is a known
-  // engine limitation flagged in the Track 2 architecture design;
-  // engine refactor is out of scope for this task.
-  it("resolver returns the FIRST match even when it is display:none — engine limitation, NOT fixed here", () => {
-    const a = makeDraft({ title: "Hidden Draft" });
-    const b = makeDraft({ title: "Visible Draft" });
+  it("no record identifier or sensitive value is embedded in any anchor", () => {
+    // Render a draft with fields that COULD leak PII if the anchor value
+    // were derived from data — property address, client name, etc.
+    const draft = makeDraft({
+      title: "Draft targeting a specific address",
+      subject: "Follow-up — 200 Test Rd",
+      body: "For QA Buyer Two at 200 Test Rd.",
+      warnings: ["A warning containing 300 Oak Ln"],
+      facts_used: [{ source: "transaction", fact: "Property at 400 Elm Rd is under contract." }] as any,
+    });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+
+    // Enumerate every element that carries any data-training-id and
+    // confirm none of its values reference the draft content.
+    const anchored = container.querySelectorAll("[data-training-id]");
+    for (const el of Array.from(anchored)) {
+      const value = el.getAttribute("data-training-id") ?? "";
+      expect(value).not.toContain("QA Buyer");
+      expect(value).not.toContain("200 Test");
+      expect(value).not.toContain("300 Oak");
+      expect(value).not.toContain("400 Elm");
+      expect(value).not.toContain("@");
+      expect(value).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      // Only lowercase, dots, hyphens.
+      expect(value).toMatch(/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/);
+    }
+  });
+
+  it("hidden or off-screen unanchored cards do NOT introduce a competing anchor", () => {
+    // Simulates: a hidden or scrolled-off older draft. Because it is
+    // NOT the parent's selected first eligible card, it carries no
+    // training anchor, so it cannot compete with the anchored one.
+    const older = makeDraft({ title: "Older hidden draft" });
+    const current = makeDraft({ title: "Current anchored draft" });
+
     const { container } = render(
       <div>
         <div style={{ display: "none" }}>
-          <AssistantDraftCard draft={a} expectedAudience="buyer" />
+          <AssistantDraftCard draft={older} expectedAudience="buyer" />
         </div>
-        <AssistantDraftCard draft={b} expectedAudience="buyer" />
+        <AssistantDraftCard draft={current} expectedAudience="buyer" trainingAnchorEnabled />
       </div>,
     );
+
     document.body.appendChild(container);
-    const first = resolveAnchor("portal.workspace.ai.draft-card");
+    const el = resolveAnchor("portal.workspace.ai.draft-card");
     document.body.removeChild(container);
-    expect(first).toBeTruthy();
-    // Documented behavior: resolver returns the FIRST match regardless
-    // of visibility. Track 2 QA fixtures must ensure only ONE draft per
-    // fixture transaction to avoid this hazard. If a future task
-    // upgrades the resolver to skip unusable matches, this test flips
-    // to `Visible Draft` and this comment can be removed.
-    expect(first?.textContent).toMatch(/Hidden Draft/);
+    expect(el).toBeTruthy();
+    expect(el?.textContent).toMatch(/Current anchored draft/);
   });
 });
 
-// ─── 7. STATIC coverage — heavy components ─────────────────────────────────
+// ─── 7. Parent-eligibility rule — pure computation ─────────────────────────
+//
+// AIAssistantPanel selects the anchored card as:
+//   messages.findIndex(m => role==="assistant" && kind==="answer" && envelope.draft != null)
+// The tests below are pure computations against the discriminated
+// union; they do not render the panel (which pulls the full assistant
+// fetch layer, router, and clipboard integrations that would require
+// heavy mocking to render in jsdom).
+
+describe("Track 2 — parent eligibility rule", () => {
+  type M =
+    | { role: "user"; content: string }
+    | { role: "assistant"; kind: "answer"; envelope: { draft?: unknown } }
+    | { role: "assistant"; kind: "error" }
+    | { role: "assistant"; kind: "intro"; content: string };
+
+  function firstEligible(messages: M[]): number {
+    return messages.findIndex(
+      (m) =>
+        m.role === "assistant" &&
+        m.kind === "answer" &&
+        (m as { envelope: { draft?: unknown } }).envelope?.draft != null,
+    );
+  }
+
+  it("picks the first assistant answer with a draft, skipping intro / user / error / draftless answers", () => {
+    const messages: M[] = [
+      { role: "assistant", kind: "intro", content: "Welcome" },
+      { role: "user", content: "Hi" },
+      { role: "assistant", kind: "answer", envelope: {} }, // no draft
+      { role: "assistant", kind: "error" },
+      { role: "assistant", kind: "answer", envelope: { draft: { title: "First draft" } } }, // ← first eligible
+      { role: "assistant", kind: "answer", envelope: { draft: { title: "Second draft" } } },
+    ];
+    expect(firstEligible(messages)).toBe(4);
+  });
+
+  it("returns -1 when no message carries a draft (no card gets the anchor)", () => {
+    const messages: M[] = [
+      { role: "assistant", kind: "intro", content: "Welcome" },
+      { role: "user", content: "Hi" },
+      { role: "assistant", kind: "answer", envelope: {} },
+      { role: "assistant", kind: "error" },
+    ];
+    expect(firstEligible(messages)).toBe(-1);
+  });
+
+  it("selection is stable across identical arrays (purely positional)", () => {
+    const messages: M[] = [
+      { role: "user", content: "Draft me a note" },
+      { role: "assistant", kind: "answer", envelope: { draft: { title: "A" } } },
+      { role: "user", content: "Another" },
+      { role: "assistant", kind: "answer", envelope: { draft: { title: "B" } } },
+    ];
+    expect(firstEligible(messages)).toBe(1);
+    // No mutation.
+    expect(firstEligible(messages)).toBe(1);
+  });
+});
+
+// ─── 8. STATIC coverage — heavy components ─────────────────────────────────
 
 describe("Track 2 — static file coverage for heavy components", () => {
   // These components are too coupled to server-side data + external
