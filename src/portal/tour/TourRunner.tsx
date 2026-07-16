@@ -58,8 +58,17 @@ function CompletionCard() {
       role="alertdialog"
       aria-modal="true"
       data-tour-completion
+      // `pointer-events-auto` is retained defensively; the inline style
+      // below is what actually restores interactivity in production
+      // (Tailwind purges the `.pointer-events-auto` utility from the
+      // shipped CSS bundle in this build).
       className="pointer-events-auto absolute bg-[#0f1218] border border-emerald-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-5 w-[400px] max-w-[92vw]"
-      style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+      style={{
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        pointerEvents: "auto",
+      }}
     >
       <h2 className="text-[15px] font-semibold text-emerald-200 mb-2">
         {tour.mode === "preview"
@@ -90,7 +99,14 @@ function PreviewBanner() {
   return (
     <div
       role="status"
+      data-tour-preview-banner
+      // Inline pointerEvents restores interactivity because Tailwind's
+      // `.pointer-events-auto` utility is purged from the production
+      // CSS bundle. The parent tour runner is intentionally
+      // pointer-events-none so highlighted app targets remain
+      // clickable.
       className="pointer-events-auto absolute top-2 left-1/2 -translate-x-1/2 bg-[#C9A84C] text-black text-xs font-semibold tracking-wide uppercase rounded px-3 py-1 shadow"
+      style={{ pointerEvents: "auto" }}
     >
       Preview — progress will not be saved
     </div>
@@ -263,8 +279,13 @@ function Tooltip({
       aria-labelledby={titleId}
       aria-describedby={descId}
       data-tour-tooltip
+      // Inline pointerEvents restores interactivity because Tailwind's
+      // `.pointer-events-auto` utility is purged from the production
+      // CSS bundle. The parent tour runner is intentionally
+      // pointer-events-none so highlighted app targets remain
+      // clickable.
       className="pointer-events-auto absolute bg-[#0f1218] border border-[#2b2f3a] text-[#F1F1F3] rounded-lg shadow-xl p-4 w-[360px] max-w-[92vw] text-sm"
-      style={style}
+      style={{ ...style, pointerEvents: "auto" }}
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <h2 id={titleId} className="text-[15px] font-semibold leading-tight">
@@ -403,8 +424,13 @@ function MissingTargetCard({ step }: { step: TourStep }) {
       aria-labelledby={headingId}
       aria-describedby={descId}
       data-tour-missing-target
+      // Inline pointerEvents restores interactivity because Tailwind's
+      // `.pointer-events-auto` utility is purged from the production
+      // CSS bundle. The parent tour runner is intentionally
+      // pointer-events-none so highlighted app targets remain
+      // clickable.
       className="pointer-events-auto absolute bg-[#1a1210] border border-red-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-4 w-[400px] max-w-[92vw] text-sm"
-      style={style}
+      style={{ ...style, pointerEvents: "auto" }}
     >
       <h2 id={headingId} className="text-[15px] font-semibold text-red-200 mb-2">
         Element not found on this screen
