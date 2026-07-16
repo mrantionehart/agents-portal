@@ -155,10 +155,28 @@ export default function AIAssistantPanel({
     void send(input);
   }
 
+  // ── Track 2 draft-anchor eligibility ────────────────────────────────
+  //
+  // Exactly ONE `AssistantDraftCard` in the AI history must carry the
+  // `portal.workspace.ai.draft-card*` semantic anchors. The eligible
+  // card is the FIRST message in chronological render order that is an
+  // assistant answer whose envelope contains a draft. Non-draft
+  // messages (user prompts, intro, errors, and answers without a
+  // draft) are skipped by construction. Selection is purely positional
+  // — no record ID, address, client name, tenant, email, or draft ID
+  // is examined or referenced.
+  const trainingAnchorDraftIndex = messages.findIndex(
+    (m) =>
+      m.role === "assistant" &&
+      m.kind === "answer" &&
+      m.envelope?.draft != null,
+  );
+
   return (
     <div
       id="ai-assistant"
       data-testid="assistant-panel"
+      data-training-id="portal.workspace.ai.panel"
       className="rounded-lg border border-[#1a1a2e] bg-[#11111a] flex flex-col h-[560px]"
     >
       <header className="px-4 py-3 border-b border-[#1a1a2e] flex items-center gap-2">
@@ -200,7 +218,17 @@ export default function AIAssistantPanel({
               </div>
             );
           }
-          return <AnswerBlock key={i} envelope={m.envelope} expectedAudience={m.expectedAudience} transactionId={transactionId} router={router} writeClipboard={writeClipboard} />;
+          return (
+            <AnswerBlock
+              key={i}
+              envelope={m.envelope}
+              expectedAudience={m.expectedAudience}
+              transactionId={transactionId}
+              router={router}
+              writeClipboard={writeClipboard}
+              trainingAnchorEnabled={i === trainingAnchorDraftIndex}
+            />
+          );
         })}
 
         {busy && (
@@ -250,12 +278,17 @@ function AnswerBlock({
   transactionId,
   router,
   writeClipboard,
+  trainingAnchorEnabled = false,
 }: {
   envelope: AssistantEnvelope;
   expectedAudience?: DraftAudience;
   transactionId: string;
   router: ReturnType<typeof useRouter>;
   writeClipboard?: (text: string) => Promise<void>;
+  /** Track 2 anchor gate — forwarded from the parent's
+   *  eligibility computation. Only set true for the first draft-bearing
+   *  answer in chronological render order. */
+  trainingAnchorEnabled?: boolean;
 }) {
   const [showEvidence, setShowEvidence] = useState(false);
   const hasEvidence = envelope.evidence.length > 0 || envelope.sources.length > 0;
@@ -309,7 +342,14 @@ function AnswerBlock({
       )}
 
       {/* draft — review-only card */}
-      {envelope.draft && <AssistantDraftCard draft={envelope.draft} expectedAudience={expectedAudience} writeClipboard={writeClipboard} />}
+      {envelope.draft && (
+        <AssistantDraftCard
+          draft={envelope.draft}
+          expectedAudience={expectedAudience}
+          writeClipboard={writeClipboard}
+          trainingAnchorEnabled={trainingAnchorEnabled}
+        />
+      )}
 
       {/* evidence — collapsed by default */}
       {hasEvidence && (

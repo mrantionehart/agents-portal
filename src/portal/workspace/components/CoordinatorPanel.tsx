@@ -212,7 +212,12 @@ export default function CoordinatorPanel({
           </div>
 
           {/* primary directive */}
-          <div className="text-sm font-medium text-[#F1F1F3] mt-0.5">{vm.primary_directive}</div>
+          <div
+            data-training-id="portal.workspace.coordinator.directive"
+            className="text-sm font-medium text-[#F1F1F3] mt-0.5"
+          >
+            {vm.primary_directive}
+          </div>
 
           {/* meta chips: priority · confidence. Readiness moved to the LeftRail
               (3.5 Phase 3A) — shown once, not repeated here. */}
@@ -236,7 +241,10 @@ export default function CoordinatorPanel({
               highest-priority blocker; the rest reveal on expand (3.5 Phase 2).
               Severity carries the color; owner stays neutral. */}
           {vm.has_blockers_section && (
-            <div className="mt-2 space-y-1.5">
+            <div
+              data-training-id="portal.workspace.coordinator.blockers"
+              className="mt-2 space-y-1.5"
+            >
               {(blockersExpanded ? vm.blockers : vm.blockers.slice(0, 1)).map((b, i) => (
                 <div key={`b-${i}`} className="flex items-start gap-2">
                   <Chip tone={b.severity_tone}>{b.severity_label}</Chip>
@@ -286,6 +294,7 @@ export default function CoordinatorPanel({
             action; it routes to the recommended tab). */}
         <button
           type="button"
+          data-training-id="portal.workspace.coordinator.cta"
           onClick={() => {
             router.push(vm.cta.href);
             router.refresh();

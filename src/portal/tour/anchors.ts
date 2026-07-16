@@ -5,8 +5,8 @@
 // They are stable across UI refactors (rename a component; the anchor id
 // stays); NEVER CSS selectors.
 //
-// This module is the ONE authoritative allowlist for the three-lesson
-// pilot. Adding a new anchor requires:
+// This module is the ONE authoritative allowlist for the guided-training
+// tracks. Adding a new anchor requires:
 //   1. Extend TRAINING_ANCHORS below.
 //   2. Plant `data-training-id={anchor}` on the corresponding AP2
 //      component's root DOM element.
@@ -14,6 +14,7 @@
 // ============================================================================
 
 export const TRAINING_ANCHORS = {
+  // Track 1 — Portal Foundations (pcert-l01/l02/l03).
   navSidebar: "portal.navigation.sidebar",
   navHome: "portal.navigation.home",
   navWorkspace: "portal.navigation.workspace",
@@ -22,6 +23,33 @@ export const TRAINING_ANCHORS = {
   homeDashboard: "portal.home.dashboard",
   notificationsInbox: "portal.notifications.inbox",
   settingsProfile: "portal.settings.profile",
+
+  // Track 2 — Transaction Intelligence (pcert-l06/l07/l08/l09/l10).
+  // Anchors span the transaction workspace hero (Coordinator + Coach),
+  // the assistant prompt-chips row, the AI tab pill, and the AI panel
+  // family (panel · draft picker · draft card and its sub-regions).
+  //
+  // Repetition notes:
+  //   * All anchors below are unique per rendered page EXCEPT the
+  //     `workspaceAiDraftCard*` family. Multiple drafts in the AI
+  //     history render multiple `AssistantDraftCard` instances; the
+  //     resolver returns the first-match in DOM order (see resolver
+  //     doc below). Track 2 QA fixtures ensure one draft per fixture
+  //     transaction; tour scripts must NOT depend on a specific draft
+  //     when multiple could render.
+  workspaceCoordinator: "portal.workspace.coordinator",
+  workspaceCoordinatorDirective: "portal.workspace.coordinator.directive",
+  workspaceCoordinatorBlockers: "portal.workspace.coordinator.blockers",
+  workspaceCoordinatorCta: "portal.workspace.coordinator.cta",
+  workspaceCoachStrip: "portal.workspace.coach.strip",
+  workspaceAssistantPromptChips: "portal.workspace.assistant.prompt-chips",
+  workspaceTabAi: "portal.workspace.tab.ai",
+  workspaceAiPanel: "portal.workspace.ai.panel",
+  workspaceAiDraftPicker: "portal.workspace.ai.draft-picker",
+  workspaceAiDraftCard: "portal.workspace.ai.draft-card",
+  workspaceAiDraftCardConfidence: "portal.workspace.ai.draft-card.confidence",
+  workspaceAiDraftCardWarnings: "portal.workspace.ai.draft-card.warnings",
+  workspaceAiDraftCardFactsUsed: "portal.workspace.ai.draft-card.facts-used",
 } as const;
 
 export type TrainingAnchorKey = keyof typeof TRAINING_ANCHORS;

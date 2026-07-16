@@ -23,6 +23,17 @@ export interface AssistantDraftCardProps {
   expectedAudience?: DraftAudience;
   /** Injected in tests; defaults to the browser clipboard. */
   writeClipboard?: (text: string) => Promise<void>;
+  /**
+   * Track 2 guided-training anchor gate. When `true`, this card emits
+   * the four `data-training-id` values Track 2 lessons target
+   * (`portal.workspace.ai.draft-card` and its confidence / warnings /
+   * facts-used sub-anchors). When false or omitted, no training
+   * anchors are emitted — the card renders identically in every other
+   * respect. Exactly one card in the AI history should receive
+   * `true`; the parent (`AIAssistantPanel`) is authoritative for that
+   * selection.
+   */
+  trainingAnchorEnabled?: boolean;
 }
 
 const TONE_CLASS: Record<Tone, string> = {
@@ -40,7 +51,12 @@ async function defaultWriteClipboard(text: string): Promise<void> {
 
 type CopyKind = "body" | "full" | "subject";
 
-export default function AssistantDraftCard({ draft, expectedAudience, writeClipboard }: AssistantDraftCardProps) {
+export default function AssistantDraftCard({
+  draft,
+  expectedAudience,
+  writeClipboard,
+  trainingAnchorEnabled = false,
+}: AssistantDraftCardProps) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(draft.body);
   const [copied, setCopied] = useState<CopyKind | null>(null);
@@ -64,6 +80,7 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
   return (
     <div
       data-testid="assistant-draft-card"
+      data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card" : undefined}
       className="mt-2 rounded-md border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] p-3"
     >
       {/* header: title + meta + review-only */}
@@ -78,6 +95,7 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
         </span>
         <span
           data-testid="assistant-draft-confidence"
+          data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card.confidence" : undefined}
           className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${TONE_CLASS[confidenceTone(draft.confidence)]}`}
         >
           Confidence {confidenceLabel(draft.confidence)}
@@ -86,7 +104,11 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
 
       {/* warnings — only when present */}
       {draft.warnings.length > 0 && (
-        <div data-testid="assistant-draft-warnings" className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1">
+        <div
+          data-testid="assistant-draft-warnings"
+          data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card.warnings" : undefined}
+          className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1"
+        >
           {draft.warnings.map((w, i) => (
             <div key={i} className="flex items-start gap-1.5">
               <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -131,7 +153,10 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
 
       {/* facts used — collapsed by default, friendly source names */}
       {draft.facts_used.length > 0 && (
-        <div className="mt-2">
+        <div
+          data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card.facts-used" : undefined}
+          className="mt-2"
+        >
           <button
             type="button"
             onClick={() => setShowFacts((v) => !v)}

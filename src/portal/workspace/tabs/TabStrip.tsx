@@ -21,6 +21,13 @@ import {
 
 import { WORKSPACE_TABS, tabHref, type TabId } from "./tab-config";
 
+// Track 2 guided-training anchor allowlist for tab pills. Only tabs
+// that a Track 2 lesson deep-links to carry a `data-training-id`.
+// Currently just the AI tab (pcert-l08 Transaction Assistant).
+const TAB_TRAINING_ANCHORS: Partial<Record<TabId, string>> = {
+  ai: "portal.workspace.tab.ai",
+};
+
 const ICON_MAP = {
   "layout-dashboard": LayoutDashboard,
   package: Package,
@@ -55,6 +62,7 @@ export default function TabStrip({ transactionId, active }: TabStripProps) {
             key={t.id}
             href={tabHref(transactionId, t.id)}
             aria-current={isActive ? "page" : undefined}
+            data-training-id={TAB_TRAINING_ANCHORS[t.id]}
             className={`
               inline-flex items-center gap-1.5 px-3 py-1.5 rounded
               transition-colors duration-[180ms]
