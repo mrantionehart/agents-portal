@@ -30,6 +30,7 @@ import {
   fetchTourScript,
   submitTourCompletion,
   TourApiError,
+  TourResponseShapeError,
 } from "./api";
 import {
   clearLearnerResume,
@@ -103,8 +104,31 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TourState>(INITIAL_STATE);
   const userIdRef = useRef<string | null>(null);
 
+  // Issue 4 — preserve the user's original preview intent throughout the
+  // session. When the user starts with `opts.preview === true`, we anchor
+  // completion-write gating to that intent, NOT to the server's response
+  // mode. This prevents a publish-flip race where the server responds
+  // `mode: "learner"` mid-preview and the client would otherwise POST a
+  // real completion.
+  const previewIntentRef = useRef<boolean>(false);
+
+  // Issue 2 — track whether the most recent navigation was a Back
+  // (rewind). The route_change auto-advance effect must NOT fire when
+  // rewinding onto a completed route_change step whose expectedRoute
+  // already matches the current pathname. If it did, Back would
+  // immediately re-forward the user.
+  //
+  // The flag is set by `back()` and cleared by `next()`, `start()`,
+  // `retry()`, `reset()`, and by the auto-advance effect itself (once
+  // it's honored a rewind by skipping). This means: after a Back,
+  // subsequent forward navigations (Next / start / retry) re-arm
+  // auto-advance — the guard is per-rewind, not permanent.
+  const justRewoundRef = useRef<boolean>(false);
+
   const start = useCallback(async (opts: StartOpts) => {
     userIdRef.current = opts.userId ?? null;
+    previewIntentRef.current = opts.preview === true;
+    justRewoundRef.current = false;
     setState((s) => ({
       ...INITIAL_STATE,
       loading: true,
@@ -119,10 +143,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         preview: opts.preview,
       });
     } catch (e) {
-      const msg =
-        e instanceof TourApiError
-          ? `Unable to load tour (HTTP ${e.status}).`
-          : "Unable to load tour.";
+      let msg: string;
+      if (e instanceof TourResponseShapeError) {
+        // Issue 3 — a malformed response reaches this branch. Surface a
+        // clear, non-crashing error to the user. TourRunner renders
+        // nothing when `script` is null; the launcher / calling surface
+        // should observe `tour.error` and display it.
+        msg = "This tour cannot be loaded — the server returned an unexpected response. Please try again or contact support.";
+      } else if (e instanceof TourApiError) {
+        msg = `Unable to load tour (HTTP ${e.status}).`;
+      } else {
+        msg = "Unable to load tour.";
+      }
       setState({ ...INITIAL_STATE, error: msg });
       return;
     }
@@ -134,11 +166,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       opts.userId ?? null,
     );
 
+    // Issue 4 — user's `opts.preview` intent WINS over the server's
+    // response.mode for state.mode. This governs UI (banner) AND is what
+    // finish() gates writes on. If the caller opted into preview, the
+    // session stays a preview regardless of what the server currently
+    // thinks the module status is.
+    const clientMode: TourClientMode = opts.preview ? "preview" : response.mode;
+
     setState({
       script,
       currentIndex: initialIndex,
       currentStep: script.steps[initialIndex] ?? null,
-      mode: response.mode,
+      mode: clientMode,
       loading: false,
       submitting: false,
       error: null,
@@ -149,20 +188,26 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   // Route-change auto-advance for `route_change` interactions.
   //
-  // Deps intentionally include both `pathname` AND `state.currentStep`
-  // so the effect fires when:
-  //   * pathname changes (normal navigation), OR
-  //   * the tour advances INTO a `route_change` step whose expectedRoute
-  //     already equals the current pathname (previously would stall).
+  // Fires when either the pathname changes OR the current step changes
+  // to a `route_change` step whose expectedRoute already equals the
+  // pathname (this covers "started with route already matched" AND
+  // "advanced into route_change while pathname was already correct").
   //
-  // The advance is guarded by a match check so re-firing on unrelated
-  // step changes is a no-op — no infinite loop, no duplicate advancement.
+  // Issue 2 — do NOT auto-advance when the current step change was
+  // caused by `back()` and the expectedRoute already matches (Back onto
+  // a completed route_change would immediately re-forward). The
+  // `justRewoundRef` flag is set by `back()` and consumed here (once).
+  // Subsequent forward navigations re-arm the auto-advance.
   useEffect(() => {
     setState((s) => {
       if (!s.script || !s.currentStep) return s;
       const step = s.currentStep;
       if (step.interaction.kind !== "route_change") return s;
       if (pathname !== step.interaction.expectedRoute) return s;
+      if (justRewoundRef.current) {
+        justRewoundRef.current = false;
+        return s;
+      }
       return advance(s);
     });
   }, [pathname, state.currentStep]);
@@ -209,8 +254,14 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.script, state.currentStep, state.currentIndex, state.mode]);
 
-  const next = useCallback(() => setState((s) => advance(s)), []);
-  const back = useCallback(() => setState((s) => rewind(s)), []);
+  const next = useCallback(() => {
+    justRewoundRef.current = false;
+    setState((s) => advance(s));
+  }, []);
+  const back = useCallback(() => {
+    justRewoundRef.current = true;
+    setState((s) => rewind(s));
+  }, []);
 
   const goToStep = useCallback((stepId: string) => {
     setState((s) => {
@@ -239,6 +290,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const retry = useCallback(() => {
+    justRewoundRef.current = false;
     setState((s) => {
       if (!s.script) return s;
       return {
@@ -253,6 +305,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reset = useCallback(() => {
+    justRewoundRef.current = false;
     setState((s) => {
       if (!s.script) return s;
       if (s.mode === "preview") {
@@ -285,7 +338,12 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const finish = useCallback(async () => {
     const s = state;
     if (!s.script) return;
-    if (s.mode === "preview") {
+    // Issue 4 — gate on the persisted preview intent captured at start(),
+    // NOT on state.mode (which may have been derived from the server's
+    // response.mode). If the caller opted into preview, we NEVER submit
+    // a completion write regardless of what the server thinks.
+    // state.mode is a derived UI hint; previewIntentRef is the authority.
+    if (previewIntentRef.current || s.mode === "preview") {
       // Preview never writes. Just mark completed for UI purposes.
       setState((prev) => ({ ...prev, completed: true }));
       return;
