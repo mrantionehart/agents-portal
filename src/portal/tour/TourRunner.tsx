@@ -106,10 +106,15 @@ function TourStepView() {
 
   const isFinalStep = tour.currentIndex === script.steps.length - 1;
 
-  const anchorRect = useAnchorRect(step);
-  const anchorMissing = step.targetId !== null && anchorRect === null;
+  const resolution = useAnchorResolution(step);
+  const anchorRect = resolution.kind === "resolved" ? resolution.rect : null;
+  // "Missing" now means the bounded resolver has actually GIVEN UP after
+  // the timeout. During pending we render the tooltip in center-placement
+  // fallback rather than the alarming MissingTargetCard.
+  const anchorMissing = step.targetId !== null && resolution.kind === "missing";
 
-  // Report missing target once per (step, targetId).
+  // Report missing target once per (step, targetId), and only after the
+  // bounded resolution wait has confirmed it. Pending doesn't warn.
   useEffect(() => {
     if (!anchorMissing || !step.targetId) return;
     tour.registerMissingTarget({
@@ -378,19 +383,33 @@ function ExitConfirm({
 
 function MissingTargetCard({ step }: { step: TourStep }) {
   const tour = useTour();
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const headingId = `tour-missing-target-title-${step.id}`;
+  const descId = `tour-missing-target-desc-${step.id}`;
   const style = useTooltipPosition(null, "center");
+
+  useFocusTrap(cardRef);
+
+  // Escape → same exit path as the main tour card (opens the tour's
+  // exit method). Consistent with the primary flow — never silently
+  // dismisses.
+  useEscExit(cardRef, tour.exit);
+
   return (
     <div
+      ref={cardRef}
       role="alertdialog"
       aria-modal="true"
+      aria-labelledby={headingId}
+      aria-describedby={descId}
       data-tour-missing-target
       className="pointer-events-auto absolute bg-[#1a1210] border border-red-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-4 w-[400px] max-w-[92vw] text-sm"
       style={style}
     >
-      <h2 className="text-[15px] font-semibold text-red-200 mb-2">
+      <h2 id={headingId} className="text-[15px] font-semibold text-red-200 mb-2">
         Element not found on this screen
       </h2>
-      <p className="text-[13px] text-[#D4D4D8]">
+      <p id={descId} className="text-[13px] text-[#D4D4D8]">
         The tour expected to highlight <code className="text-[#C9A84C]">{step.targetId}</code>{" "}
         for step <strong>{step.title}</strong>, but no matching element is on
         this page. You can safely exit or retry.
@@ -452,33 +471,100 @@ function ContentNodeView({ node }: { node: TourContentNode }) {
 
 // ─── Positioning + a11y helpers ──────────────────────────────────────────────
 
-function useAnchorRect(step: TourStep): Rect | null {
-  const [rect, setRect] = useState<Rect | null>(null);
+/**
+ * Bounded window during which useAnchorRect will keep polling for a
+ * delayed-mount destination anchor before giving up and reporting
+ * missing. Chosen to comfortably cover most Next.js server-component
+ * paint + hydrate latency without becoming a stall for genuinely
+ * missing targets.
+ */
+export const ANCHOR_RESOLUTION_TIMEOUT_MS = 750 as const;
+
+/**
+ * Discriminated resolution state so callers (and tests) can distinguish
+ * "anchor confirmed missing after bounded wait" from "still resolving".
+ */
+export type AnchorResolution =
+  | { kind: "resolved"; rect: Rect }
+  | { kind: "pending" }
+  | { kind: "missing" };
+
+function useAnchorResolution(step: TourStep): AnchorResolution {
+  const [resolution, setResolution] = useState<AnchorResolution>(
+    step.targetId === null
+      ? ({ kind: "missing" } as AnchorResolution) // treated as no-spotlight, not fallback
+      : { kind: "pending" },
+  );
 
   useLayoutEffect(() => {
+    // Null targetId means "no spotlight" (center placement). Not a
+    // missing target — the tooltip renders in the center card.
     if (!step.targetId) {
-      setRect(null);
+      setResolution({ kind: "missing" });
       return;
     }
-    const compute = () => {
+
+    setResolution({ kind: "pending" });
+
+    let cancelled = false;
+    let rafId = 0;
+    const started = performance.now();
+
+    const compute = (): boolean => {
+      if (cancelled) return true;
       const el = resolveAnchor(step.targetId!);
-      if (!el) {
-        setRect(null);
-        return;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setResolution({
+          kind: "resolved",
+          rect: { top: r.top, left: r.left, width: r.width, height: r.height },
+        });
+        return true;
       }
-      const r = el.getBoundingClientRect();
-      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      return false;
     };
-    compute();
-    window.addEventListener("resize", compute);
-    window.addEventListener("scroll", compute, true);
+
+    // Try synchronously first — the common case.
+    if (compute()) {
+      // Fall through to attach resize/scroll listeners below.
+    } else {
+      // Bounded rAF poll for delayed mounts (typical Next.js server
+      // component paint). Stops on: found, step change, unmount,
+      // timeout.
+      const tick = () => {
+        if (cancelled) return;
+        if (compute()) return;
+        if (performance.now() - started >= ANCHOR_RESOLUTION_TIMEOUT_MS) {
+          if (!cancelled) setResolution({ kind: "missing" });
+          return;
+        }
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    }
+
+    const onWindow = () => {
+      compute();
+    };
+    window.addEventListener("resize", onWindow);
+    window.addEventListener("scroll", onWindow, true);
+
     return () => {
-      window.removeEventListener("resize", compute);
-      window.removeEventListener("scroll", compute, true);
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", onWindow);
+      window.removeEventListener("scroll", onWindow, true);
     };
   }, [step.id, step.targetId]);
 
-  return rect;
+  return resolution;
+}
+
+// Back-compat wrapper — most existing callsites expect the rect-or-null.
+// Callers that need the pending state can use useAnchorResolution.
+function useAnchorRect(step: TourStep): Rect | null {
+  const r = useAnchorResolution(step);
+  return r.kind === "resolved" ? r.rect : null;
 }
 
 function useTooltipPosition(

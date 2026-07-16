@@ -8,7 +8,7 @@
 //   * missing target renders the fallback + does NOT auto-advance
 // ============================================================================
 
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { TourProvider, useTour } from "../TourProvider";
 import { TourRunner } from "../TourRunner";
 
@@ -219,8 +219,17 @@ describe("TourRunner — missing target fallback", () => {
     await act(async () => fireEvent.click(screen.getByTestId("start")));
     await act(async () => fireEvent.click(screen.getByText("Next")));
 
-    // Missing-target fallback appears.
-    expect(screen.getByText(/Element not found on this screen/)).toBeInTheDocument();
+    // Missing-target fallback appears AFTER the bounded resolution
+    // timeout (~750ms) elapses. Before the timeout, the resolver is
+    // still pending and no fallback is shown.
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(/Element not found on this screen/),
+        ).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
     // Both Exit and Retry are reachable.
     expect(screen.getByText(/Exit tour/)).toBeInTheDocument();
     expect(screen.getByText(/Retry from step 1/)).toBeInTheDocument();

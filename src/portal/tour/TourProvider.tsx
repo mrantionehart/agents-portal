@@ -148,6 +148,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Route-change auto-advance for `route_change` interactions.
+  //
+  // Deps intentionally include both `pathname` AND `state.currentStep`
+  // so the effect fires when:
+  //   * pathname changes (normal navigation), OR
+  //   * the tour advances INTO a `route_change` step whose expectedRoute
+  //     already equals the current pathname (previously would stall).
+  //
+  // The advance is guarded by a match check so re-firing on unrelated
+  // step changes is a no-op — no infinite loop, no duplicate advancement.
   useEffect(() => {
     setState((s) => {
       if (!s.script || !s.currentStep) return s;
@@ -156,7 +165,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (pathname !== step.interaction.expectedRoute) return s;
       return advance(s);
     });
-  }, [pathname]);
+  }, [pathname, state.currentStep]);
 
   // Document-level click listener for `target_click` interactions.
   // Attached only while a target_click step is active.
