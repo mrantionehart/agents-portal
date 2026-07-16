@@ -159,6 +159,7 @@ export default function AIAssistantPanel({
     <div
       id="ai-assistant"
       data-testid="assistant-panel"
+      data-training-id="portal.workspace.ai.panel"
       className="rounded-lg border border-[#1a1a2e] bg-[#11111a] flex flex-col h-[560px]"
     >
       <header className="px-4 py-3 border-b border-[#1a1a2e] flex items-center gap-2">

@@ -53,6 +53,7 @@ export default function DraftPicker({ onSelect, disabled }: DraftPickerProps) {
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         data-testid="draft-picker-button"
+        data-training-id="portal.workspace.ai.draft-picker"
         aria-haspopup="menu"
         aria-expanded={open}
         className="inline-flex items-center gap-1 rounded-md border border-[#252538] bg-[#0b0b10] px-2.5 py-1.5 text-xs text-[#C7C7CC] hover:text-[#F1F1F3] hover:border-[#C9A84C]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

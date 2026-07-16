@@ -22,6 +22,7 @@ export default function AssistantPromptChips({ transactionId }: AssistantPromptC
     <div
       aria-label="Ask the assistant"
       data-testid="assistant-prompt-chips"
+      data-training-id="portal.workspace.assistant.prompt-chips"
       className="mb-3 flex flex-wrap items-center gap-2"
     >
       <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#71717A]">

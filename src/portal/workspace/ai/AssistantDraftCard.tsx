@@ -64,6 +64,7 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
   return (
     <div
       data-testid="assistant-draft-card"
+      data-training-id="portal.workspace.ai.draft-card"
       className="mt-2 rounded-md border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] p-3"
     >
       {/* header: title + meta + review-only */}
@@ -78,6 +79,7 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
         </span>
         <span
           data-testid="assistant-draft-confidence"
+          data-training-id="portal.workspace.ai.draft-card.confidence"
           className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${TONE_CLASS[confidenceTone(draft.confidence)]}`}
         >
           Confidence {confidenceLabel(draft.confidence)}
@@ -86,7 +88,11 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
 
       {/* warnings — only when present */}
       {draft.warnings.length > 0 && (
-        <div data-testid="assistant-draft-warnings" className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1">
+        <div
+          data-testid="assistant-draft-warnings"
+          data-training-id="portal.workspace.ai.draft-card.warnings"
+          className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1"
+        >
           {draft.warnings.map((w, i) => (
             <div key={i} className="flex items-start gap-1.5">
               <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -131,7 +137,10 @@ export default function AssistantDraftCard({ draft, expectedAudience, writeClipb
 
       {/* facts used — collapsed by default, friendly source names */}
       {draft.facts_used.length > 0 && (
-        <div className="mt-2">
+        <div
+          data-training-id="portal.workspace.ai.draft-card.facts-used"
+          className="mt-2"
+        >
           <button
             type="button"
             onClick={() => setShowFacts((v) => !v)}

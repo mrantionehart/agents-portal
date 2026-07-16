@@ -11,7 +11,7 @@ import {
 } from "../anchors";
 
 describe("anchors — vocabulary", () => {
-  it("contains all pilot-required anchors", () => {
+  it("contains all Track 1 pilot anchors", () => {
     for (const id of [
       "portal.navigation.sidebar",
       "portal.navigation.home",
@@ -23,6 +23,62 @@ describe("anchors — vocabulary", () => {
       "portal.settings.profile",
     ]) {
       expect(ALLOWED_TRAINING_ANCHOR_IDS).toContain(id);
+    }
+  });
+
+  it("contains all Track 2 (Transaction Intelligence) anchors", () => {
+    for (const id of [
+      "portal.workspace.coordinator",
+      "portal.workspace.coordinator.directive",
+      "portal.workspace.coordinator.blockers",
+      "portal.workspace.coordinator.cta",
+      "portal.workspace.coach.strip",
+      "portal.workspace.assistant.prompt-chips",
+      "portal.workspace.tab.ai",
+      "portal.workspace.ai.panel",
+      "portal.workspace.ai.draft-picker",
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.warnings",
+      "portal.workspace.ai.draft-card.facts-used",
+    ]) {
+      expect(ALLOWED_TRAINING_ANCHOR_IDS).toContain(id);
+    }
+  });
+
+  it("Track 2 anchor IDs are unique in the vocabulary (no duplicate string values)", () => {
+    const track2 = [
+      "portal.workspace.coordinator",
+      "portal.workspace.coordinator.directive",
+      "portal.workspace.coordinator.blockers",
+      "portal.workspace.coordinator.cta",
+      "portal.workspace.coach.strip",
+      "portal.workspace.assistant.prompt-chips",
+      "portal.workspace.tab.ai",
+      "portal.workspace.ai.panel",
+      "portal.workspace.ai.draft-picker",
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.warnings",
+      "portal.workspace.ai.draft-card.facts-used",
+    ];
+    const unique = new Set(track2);
+    expect(unique.size).toBe(track2.length);
+  });
+
+  it("no anchor value contains transaction IDs, UUIDs, addresses, emails, or PII", () => {
+    // Guard against a future contributor baking a runtime value into an
+    // anchor string. Anchor IDs are static dotted namespaces only.
+    for (const id of Object.values(TRAINING_ANCHORS)) {
+      // UUIDs
+      expect(id).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      // Email
+      expect(id).not.toMatch(/@/);
+      // Digits at all in an anchor value are a smell; the vocabulary uses
+      // lowercase-hyphenated tokens only.
+      expect(id).not.toMatch(/\d/);
+      // No slashes (no route paths embedded)
+      expect(id).not.toMatch(/\//);
     }
   });
 

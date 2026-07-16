@@ -87,6 +87,7 @@ export default function CoachStrip({ recommendation }: CoachStripProps) {
     <div
       role="status"
       aria-label="AI Transaction Coach guidance"
+      data-training-id="portal.workspace.coach.strip"
       className="rounded-lg border border-[#171720] bg-[#0d0d13] px-3 py-2 mb-3"
     >
       <div className="flex items-start gap-2.5">

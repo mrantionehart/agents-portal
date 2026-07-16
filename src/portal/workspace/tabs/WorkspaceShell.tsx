@@ -54,8 +54,15 @@ export default function WorkspaceShell({
           independently (client-side, session Bearer → Vault 3.4C endpoint);
           the server workspace never waits on it and still renders if it's
           unavailable. Presentation only — renders the Vault-produced
-          TransactionDirective; its CTA only navigates. */}
-      <CoordinatorPanel transactionId={card.transaction_id} />
+          TransactionDirective; its CTA only navigates.
+          The wrapper carries the Track 2 `portal.workspace.coordinator`
+          semantic anchor. It renders inline (no visual box), so the
+          panel below is styled and spaced identically to before. The
+          anchor survives all three internal panel states (loading,
+          unavailable, loaded) because the wrapper stays mounted. */}
+      <div data-training-id="portal.workspace.coordinator">
+        <CoordinatorPanel transactionId={card.transaction_id} />
+      </div>
 
       {/* TXN-ASSISTANT 4.0D — one-tap suggested prompts. Beneath the Coordinator
           hero, above the Coach. Each chip deep-links to ?tab=ai&prompt=… ; the
