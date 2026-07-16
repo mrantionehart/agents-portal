@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase, authFetch } from '@/lib/supabase'
+import { clearAllLearnerResumeForUser } from '@/src/portal/tour/persistence-learner'
 
 type TrainingGateInfo = {
   gateOpen: boolean
@@ -131,6 +132,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, role])
 
   const signOut = async () => {
+    // Wipe learner-mode guided-tour resume cache BEFORE the auth
+    // handshake so a partial failure never leaves stale state keyed
+    // to the outgoing user.
+    try {
+      clearAllLearnerResumeForUser(user?.id ?? null)
+    } catch {
+      // Storage may be unavailable (private mode, quota). Non-fatal.
+    }
     await supabase.auth.signOut()
     setUser(null)
     setRole(null)

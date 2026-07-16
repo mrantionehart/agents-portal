@@ -7,11 +7,17 @@
 // ============================================================================
 
 import { getAccessToken } from "@/lib/supabase";
-import { VAULT_BASE_URL } from "@/src/portal/workspace/api";
 import type {
   TourGetResponse,
   TourCompletionRequest,
 } from "./types";
+
+// Client-safe Vault base URL. Inlined here (not imported from
+// workspace/api.ts) because that module is `server-only` and this
+// module runs in the browser via TourProvider.
+const VAULT_BASE_URL =
+  process.env.NEXT_PUBLIC_VAULT_API_URL ??
+  "https://vault.hartfeltrealestate.com/api";
 
 interface FetchTourOptions {
   certificationId: string;

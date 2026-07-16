@@ -46,7 +46,40 @@ export function TourRunner() {
       aria-live="polite"
     >
       {tour.mode === "preview" && <PreviewBanner />}
-      <TourStepView />
+      {tour.completed ? <CompletionCard /> : <TourStepView />}
+    </div>
+  );
+}
+
+function CompletionCard() {
+  const tour = useTour();
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      data-tour-completion
+      className="pointer-events-auto absolute bg-[#0f1218] border border-emerald-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-5 w-[400px] max-w-[92vw]"
+      style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+    >
+      <h2 className="text-[15px] font-semibold text-emerald-200 mb-2">
+        {tour.mode === "preview"
+          ? "Preview complete. No progress was saved."
+          : "Lesson complete."}
+      </h2>
+      <p className="text-[13px] text-[#D4D4D8]">
+        {tour.mode === "preview"
+          ? "Nothing was written for your certification. Close this to return to the training hub."
+          : "Your progress has been recorded."}
+      </p>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={tour.exit}
+          className="text-[12px] px-3 py-1 rounded bg-[#C9A84C] text-black font-semibold"
+        >
+          Close
+        </button>
+      </div>
     </div>
   );
 }
