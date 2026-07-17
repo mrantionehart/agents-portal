@@ -69,7 +69,7 @@ describe("BrokerCertPreviewSection — role gating", () => {
   });
 
   it.each(["broker", "admin", "office_manager"])(
-    "renders 3 pilot launcher buttons for %s",
+    "renders 8 launcher buttons for %s (3 Portal Foundations + 5 Transaction Intelligence)",
     (role) => {
       render(
         <TourProvider>
@@ -77,15 +77,21 @@ describe("BrokerCertPreviewSection — role gating", () => {
         </TourProvider>,
       );
       const buttons = screen.getAllByRole("button");
-      // Exactly 3 preview buttons — one per pilot lesson.
       const previewButtons = buttons.filter((b) =>
         b.textContent?.startsWith("Preview pcert-l"),
       );
-      expect(previewButtons).toHaveLength(3);
+      expect(previewButtons).toHaveLength(8);
       const labels = previewButtons.map((b) => b.textContent);
+      // Track 1 pilot
       expect(labels).toContain("Preview pcert-l01");
       expect(labels).toContain("Preview pcert-l02");
       expect(labels).toContain("Preview pcert-l03");
+      // Track 2 authored lessons
+      expect(labels).toContain("Preview pcert-l06");
+      expect(labels).toContain("Preview pcert-l07");
+      expect(labels).toContain("Preview pcert-l08");
+      expect(labels).toContain("Preview pcert-l09");
+      expect(labels).toContain("Preview pcert-l10");
     },
   );
 

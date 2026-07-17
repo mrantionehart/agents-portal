@@ -18,6 +18,7 @@ import { BrokerPreviewLauncher } from "./BrokerPreviewLauncher";
 const BROKER_ROLES = new Set(["broker", "admin", "office_manager"]);
 
 const PILOT = [
+  // Track 1 — Portal Foundations
   {
     lessonId: "pcert-l01",
     title: "Welcome to the HartFelt Platform",
@@ -32,6 +33,34 @@ const PILOT = [
     lessonId: "pcert-l03",
     title: "Notifications and Profile",
     description: "7-step tour of the inbox and profile card.",
+  },
+  // Track 2 — Transaction Intelligence
+  {
+    lessonId: "pcert-l06",
+    title: "Transaction Coordinator",
+    description:
+      "7-step tour of the Coordinator card on '100 QA Training Way'.",
+  },
+  {
+    lessonId: "pcert-l07",
+    title: "Coach",
+    description:
+      "8-step tour of Coach across '200' and '300 QA Training Way'.",
+  },
+  {
+    lessonId: "pcert-l08",
+    title: "Transaction Assistant",
+    description: "7-step tour of the AI tab on '300 QA Training Way'.",
+  },
+  {
+    lessonId: "pcert-l09",
+    title: "Draft Intelligence",
+    description: "7-step tour of the draft card on '300 QA Training Way'.",
+  },
+  {
+    lessonId: "pcert-l10",
+    title: "Evidence, Facts Used & Confidence",
+    description: "7-step tour of confidence, facts, and evidence on '300 QA Training Way'.",
   },
 ] as const;
 
