@@ -15,6 +15,13 @@
 //      superficial substring scan — it targets the specific attribute
 //      that the tour engine queries, in the file the shell renders.
 //      A future PR that strips or renames the attribute will fail here.
+//
+// Scope note (Remaining Tour Authoring phase):
+//   Track 3 (pcert-l11..l15) reuses the Track 2 workspace anchors
+//   verbatim; Track 4 (pcert-l16..l22) introduces zero anchors because
+//   EASE runs outside the browser tour engine. No new coverage checks
+//   are required for either track — this file already covers everything
+//   in the allowlist.
 // ============================================================================
 
 import { render } from "@testing-library/react";

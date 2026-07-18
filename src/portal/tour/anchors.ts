@@ -13,8 +13,36 @@
 //   3. Update the anchor coverage test.
 // ============================================================================
 
+// Track scope (as of the Remaining Tour Authoring phase):
+//
+//   * Track 1 (Portal Foundations, pcert-l01/l02/l03/l04/l05):
+//       nav sidebar + nav rows (home/workspace/notifications/settings)
+//       + home dashboard + notifications inbox + settings profile.
+//       pcert-l04 uses only route-change to `/training/wizard` — no
+//       spotlight. pcert-l05 spotlights the Coordinator card.
+//   * Track 2 (Transaction Intelligence, pcert-l06..l10):
+//       Coordinator card + directive + blockers + CTA, Coach strip,
+//       assistant prompt-chips, AI tab pill, AI panel + draft picker
+//       + draft card + confidence/warnings/facts-used sub-regions.
+//   * Track 3 (Transaction Workflow, pcert-l11..l15):
+//       REUSES the Track 2 workspace anchors verbatim (Coordinator +
+//       Coach). Workspace tabs beyond `ai` are named in copy and
+//       advanced via `manual_confirmation` — the tab strip does NOT
+//       plant per-tab anchors today. Zero new anchors added.
+//   * Track 4 (EASE Foundations, pcert-l16..l22):
+//       Zero anchors. EASE is a native mobile app the browser tour
+//       engine cannot cross into — every step carries `targetId:null`
+//       with `informational` or `manual_confirmation` interaction.
+//   * Tracks 5 & 6:
+//       No tour requirement; no anchor scope.
+//
+// Extending this allowlist is a three-step process (unchanged):
+//   1. Add the constant here.
+//   2. Plant `data-training-id={anchor}` on the AP2 component root.
+//   3. Extend the anchor coverage test (see __tests__/anchor-coverage
+//      .test.tsx).
 export const TRAINING_ANCHORS = {
-  // Track 1 — Portal Foundations (pcert-l01/l02/l03).
+  // Track 1 — Portal Foundations (pcert-l01/l02/l03/l04/l05).
   navSidebar: "portal.navigation.sidebar",
   navHome: "portal.navigation.home",
   navWorkspace: "portal.navigation.workspace",
@@ -25,6 +53,8 @@ export const TRAINING_ANCHORS = {
   settingsProfile: "portal.settings.profile",
 
   // Track 2 — Transaction Intelligence (pcert-l06/l07/l08/l09/l10).
+  // Also reused verbatim by Track 3 (pcert-l11..l15) — the workspace
+  // Coordinator + Coach + AI anchors are the shared spotlight surface.
   // Anchors span the transaction workspace hero (Coordinator + Coach),
   // the assistant prompt-chips row, the AI tab pill, and the AI panel
   // family (panel · draft picker · draft card and its sub-regions).
