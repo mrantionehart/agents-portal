@@ -1,36 +1,30 @@
 // GET /api/broker/client-intelligence/[id]/str-recommendations
-// Proxy to Vault STR recommendation engine
-// Portal is presentation-only. All auth, scoring, and field-gating happen in Vault.
+// Authenticated proxy to Vault STR recommendations.
+//
+// SECURITY FIX (Release A): see str-directory/route.ts. Vault gates this
+// endpoint on a broker-tier session; the previous raw header forward supplied
+// an empty credential, so the request was rejected before reaching the data.
 
-import { NextRequest, NextResponse } from "next/server";
-import { VAULT_API_URL } from "@/lib/vault-client";
-
+import { NextRequest } from "next/server";
+import { proxyToVault } from "@/lib/vault-forward";
+import { requireAuth } from "@/lib/security";
 export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const authHeader = request.headers.get("authorization") || "";
+  // Portal-side gate (defense in depth). Vault re-verifies the token and
+  // resolves role/tenant itself; this stops an unauthenticated request before
+  // it ever leaves the portal.
+  const auth = await requireAuth(request);
+  if (auth.response) return auth.response;
 
-    const vaultUrl = `${VAULT_API_URL}/client-intelligence/${id}/str-recommendations`;
-
-    const response = await fetch(vaultUrl, {
-      headers: {
-        Authorization: authHeader,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-  } catch (error) {
-    console.error("Error proxying STR recommendations from Vault:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch STR recommendations" },
-      { status: 500 }
-    );
-  }
+  const { id } = await params;
+  const qs = new URL(request.url).searchParams.toString();
+  return proxyToVault(
+    request,
+    "GET",
+    `/client-intelligence/${encodeURIComponent(id)}/str-recommendations${qs ? `?${qs}` : ""}`
+  );
 }
