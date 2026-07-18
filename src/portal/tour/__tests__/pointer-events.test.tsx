@@ -106,6 +106,15 @@ function Starter({ preview = false }: { preview?: boolean }) {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  // Reset per-test storage. Track 2 mount-fix (2026-07-18) added a
+  // rehydration effect to TourProvider that reads sessionStorage /
+  // localStorage on mount. Without a clean slate between tests, a
+  // previous test's `start()` writes a persisted preview entry that the
+  // next test's fresh <TourProvider> would try to rehydrate, consuming
+  // the queued mockResolvedValueOnce and leaving the test's own start()
+  // call unresolved.
+  window.sessionStorage.clear();
+  window.localStorage.clear();
 });
 
 /**
