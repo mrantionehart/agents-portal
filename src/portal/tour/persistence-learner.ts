@@ -33,11 +33,30 @@ export interface LearnerResumeState {
   currentStepId: string;
   stepsCompleted: string[];
   updatedAt: string; // ISO
+  // Track 2 mount-fix: identifiers needed to rehydrate a learner-mode
+  // tour on a fresh mount (URL-bar / refresh / deep-link scenarios that
+  // reset React state). Optional for backward compatibility with older
+  // entries.
+  certificationId?: string;
+  lessonId?: string;
 }
 
 interface StoredEntry extends LearnerResumeState {
   scriptVersion: string;
 }
+
+/** Rehydration record surfaced by `findActiveLearnerResume()`. */
+export interface ActiveLearnerLocator {
+  scriptId: string;
+  scriptVersion: string;
+  currentStepId: string;
+  stepsCompleted: string[];
+  updatedAt: string;
+  certificationId: string;
+  lessonId: string;
+}
+
+const KEY_SUFFIX_RE = /^(.+)\.(\d+\.\d+\.\d+)$/;
 
 function opaqueSuffix(userId: string | null | undefined): string {
   if (!userId) return "anon";
@@ -133,7 +152,75 @@ export function readLearnerResume(
     currentStepId: parsed.currentStepId,
     stepsCompleted: parsed.stepsCompleted ?? [],
     updatedAt: parsed.updatedAt,
+    certificationId: parsed.certificationId,
+    lessonId: parsed.lessonId,
   };
+}
+
+/**
+ * Scan localStorage for the most-recently updated in-flight learner
+ * tour for `userId` that carries the mount-fix identifiers
+ * (`certificationId` + `lessonId`). Used exclusively by TourProvider's
+ * mount effect to rehydrate after a hard navigation.
+ *
+ * Older entries that predate the mount-fix (no cert/lesson stored) are
+ * silently skipped — they can still resume via the existing
+ * readLearnerResume() path once a client-side session is active.
+ *
+ * Returns null when no rehydratable entry exists, localStorage is
+ * unavailable, or a security/quota error occurs.
+ */
+export function findActiveLearnerResume(
+  userId: string | null | undefined,
+): ActiveLearnerLocator | null {
+  if (!isBrowser()) return null;
+  if (!isStorageUsable()) return null;
+  const userPrefix = `${PREFIX}.${opaqueSuffix(userId)}.`;
+  let best: ActiveLearnerLocator | null = null;
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k || !k.startsWith(userPrefix)) continue;
+      const suffix = k.slice(userPrefix.length);
+      const m = suffix.match(KEY_SUFFIX_RE);
+      if (!m) continue;
+      const scriptId = m[1];
+      const scriptVersion = m[2];
+      let raw: string | null;
+      try {
+        raw = window.localStorage.getItem(k);
+      } catch {
+        continue;
+      }
+      if (!raw) continue;
+      let parsed: StoredEntry;
+      try {
+        parsed = JSON.parse(raw) as StoredEntry;
+      } catch {
+        continue;
+      }
+      if (parsed.scriptVersion !== scriptVersion) continue;
+      if (typeof parsed.certificationId !== "string") continue;
+      if (typeof parsed.lessonId !== "string") continue;
+      if (typeof parsed.currentStepId !== "string") continue;
+      if (typeof parsed.updatedAt !== "string") continue;
+      if (!best || parsed.updatedAt > best.updatedAt) {
+        best = {
+          scriptId,
+          scriptVersion,
+          currentStepId: parsed.currentStepId,
+          stepsCompleted: parsed.stepsCompleted ?? [],
+          updatedAt: parsed.updatedAt,
+          certificationId: parsed.certificationId,
+          lessonId: parsed.lessonId,
+        };
+      }
+    }
+  } catch (err) {
+    warn("enumerate", err);
+    return null;
+  }
+  return best;
 }
 
 /**

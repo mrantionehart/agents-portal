@@ -34,11 +34,13 @@ import {
 } from "./api";
 import {
   clearLearnerResume,
+  findActiveLearnerResume,
   readLearnerResume,
   writeLearnerResume,
 } from "./persistence-learner";
 import {
   clearPreviewState,
+  findActivePreview,
   readPreviewState,
   writePreviewState,
 } from "./persistence-preview";
@@ -104,6 +106,27 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TourState>(INITIAL_STATE);
   const userIdRef = useRef<string | null>(null);
 
+  // Track 2 mount-fix (2026-07-18): remember the (certificationId,
+  // lessonId) of the CURRENTLY ACTIVE tour so the persistence-write
+  // effect can round-trip them into storage. Track 2 tours contain a
+  // `route_change` interaction targeting a specific workspace URL. When
+  // the broker reaches that URL via URL-bar navigation / refresh /
+  // deep-link, React unmounts the entire client tree and TourProvider
+  // remounts with INITIAL_STATE. Persisting cert+lesson lets the
+  // mount-time rehydration effect below rebuild the active tour without
+  // requiring a fresh launch from /training.
+  const activeCertIdRef = useRef<string | null>(null);
+  const activeLessonIdRef = useRef<string | null>(null);
+
+  // Track 2 mount-fix: guard against the rehydration effect firing more
+  // than once per provider lifecycle. useEffect with an empty deps array
+  // already runs once, but if start() completes and produces a script
+  // (state.script set) we must NOT trigger a second rehydration attempt
+  // when the effect re-runs on a strict-mode double-invoke or a state
+  // change. The ref is set once we've either dispatched a rehydration
+  // or explicitly determined there's nothing to rehydrate.
+  const rehydrationAttemptedRef = useRef<boolean>(false);
+
   // Issue 4 — preserve the user's original preview intent throughout the
   // session. When the user starts with `opts.preview === true`, we anchor
   // completion-write gating to that intent, NOT to the server's response
@@ -129,6 +152,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     userIdRef.current = opts.userId ?? null;
     previewIntentRef.current = opts.preview === true;
     justRewoundRef.current = false;
+    // Track 2 mount-fix: remember the launch identifiers so the
+    // persistence write effect can serialize them for a later rehydration.
+    activeCertIdRef.current = opts.certificationId;
+    activeLessonIdRef.current = opts.lessonId;
     setState((s) => ({
       ...INITIAL_STATE,
       loading: true,
@@ -233,10 +260,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, [state.currentStep]);
 
   // Persist resume state on every step change.
+  //
+  // Track 2 mount-fix: certificationId + lessonId are serialized
+  // alongside currentStepId so a fresh mount (URL-bar navigation /
+  // refresh / deep-link) can call findActivePreview() or
+  // findActiveLearnerResume() and rehydrate the active tour without
+  // needing the launcher to re-fire.
   useEffect(() => {
     if (!state.script || !state.currentStep) return;
     const step = state.currentStep;
     const script = state.script;
+    const certificationId = activeCertIdRef.current ?? undefined;
+    const lessonId = activeLessonIdRef.current ?? undefined;
 
     if (state.mode === "learner") {
       writeLearnerResume(userIdRef.current, script.id, script.scriptVersion, {
@@ -245,14 +280,80 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           .slice(0, state.currentIndex)
           .map((st) => st.id),
         updatedAt: new Date().toISOString(),
+        certificationId,
+        lessonId,
       });
     } else {
       writePreviewState(script.id, script.scriptVersion, {
         currentStepId: step.id,
         updatedAt: new Date().toISOString(),
+        certificationId,
+        lessonId,
       });
     }
   }, [state.script, state.currentStep, state.currentIndex, state.mode]);
+
+  // Track 2 mount-fix — MOUNT-TIME REHYDRATION.
+  //
+  // The (portal) route-group layout mounts <TourProvider> as a client
+  // component. React preserves that mount across CLIENT-SIDE navigations
+  // between /training, /home, /workspace, and /workspace/[id]. But a
+  // hard navigation (URL bar entry, F5 refresh, deep-link from an email
+  // or docs, or the tab launching straight into a fixture URL) tears
+  // down the entire client tree and remounts <TourProvider> with
+  // INITIAL_STATE. Preview state is still in sessionStorage and
+  // learner state is still in localStorage, but state.script is null,
+  // so <TourRunner /> returns null and the tour appears to have died.
+  //
+  // Fix: on mount, if we don't already hold an active script, look for
+  // the most-recently updated persisted preview (or learner-mode) tour
+  // that carries the mount-fix identifiers and re-fire start() with
+  // them. start() already uses pickInitialIndex() to consult persistence
+  // and jumps to the correct currentStepId, so the visible outcome is
+  // the tooltip reappearing exactly where the broker (or learner) left
+  // off. Empty-deps effect runs once per mount.
+  //
+  // The rehydration path is silent: any storage or fetch failure leaves
+  // TourProvider in its INITIAL_STATE. It never blocks unrelated UI.
+  useEffect(() => {
+    if (rehydrationAttemptedRef.current) return;
+    rehydrationAttemptedRef.current = true;
+    if (typeof window === "undefined") return;
+    // Prefer preview over learner: preview lives in sessionStorage
+    // (per-tab) and matches an active broker workflow — it's the more
+    // recent intent by construction. Learner is a fallback for a
+    // durable resume across tabs.
+    const previewHit = findActivePreview();
+    const learnerHit = previewHit
+      ? null
+      : findActiveLearnerResume(userIdRef.current);
+    const hit = previewHit ?? learnerHit;
+    if (!hit) return;
+    // Freshness gate: only rehydrate an entry updated within the last
+    // 15 minutes. A stale entry means the broker (or learner) closed
+    // the tab / walked away hours or days ago — we should NOT
+    // silently drop them mid-tour when they return; requiring them to
+    // click the launcher again is the safer default. Invalid ISO
+    // strings compare as NaN and are treated as stale.
+    const REHYDRATION_MAX_AGE_MS = 15 * 60 * 1000;
+    const updatedAtMs = Date.parse(hit.updatedAt);
+    if (!Number.isFinite(updatedAtMs)) return;
+    if (Date.now() - updatedAtMs > REHYDRATION_MAX_AGE_MS) return;
+    // Kick off start() asynchronously; do NOT await inside the effect
+    // so the render loop stays responsive. start() itself sets loading
+    // then resolves the script, using persistence to jump to the
+    // stored step. On error start() leaves TourProvider in a safe
+    // state (script null / error message set) — same behavior as any
+    // other failed load.
+    void start({
+      certificationId: hit.certificationId,
+      lessonId: hit.lessonId,
+      preview: previewHit != null,
+      userId: userIdRef.current,
+    });
+    // start() called above will populate activeCertIdRef / activeLessonIdRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const next = useCallback(() => {
     justRewoundRef.current = false;
@@ -287,6 +388,16 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       }
       return { ...INITIAL_STATE };
     });
+    // Track 2 mount-fix: forget the active launch ids so a subsequent
+    // fresh mount's rehydration effect will not accidentally re-start a
+    // tour the user just exited. (For preview mode the persistence key
+    // itself is gone as of the setState above, so findActivePreview()
+    // would already return null; this belt-and-braces clear covers
+    // learner mode too, which keeps its persistence for later resume
+    // but should still not auto-resume the exit-target within the same
+    // provider lifecycle.)
+    activeCertIdRef.current = null;
+    activeLessonIdRef.current = null;
   }, []);
 
   const retry = useCallback(() => {
