@@ -16,10 +16,14 @@
 
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
+
+import type { SubmitAdapter } from "../../training/wizard/submit-adapter";
+import { productionSubmitAdapter } from "../../training/wizard/submit-adapter";
 
 import WizardLayout from "./WizardLayout";
 import { useWizardSession } from "./useWizardSession";
+import type { UseWizardSessionConfig } from "./useWizardSession";
 import { prevStep, WIZARD_STEPS, type StepId } from "./wizard-steps";
 import {
   stepValidators,
@@ -30,7 +34,6 @@ import {
   type StepValidation,
   type WizardFieldErrors,
 } from "./wizard-validation";
-import { submitWizard } from "./submit-orchestrator";
 import TransactionTypeStep from "./TransactionTypeStep";
 import PropertyStep from "./PropertyStep";
 import ClientsPartiesStep from "./ClientsPartiesStep";
@@ -145,12 +148,36 @@ function StepBody({
 export interface WizardShellProps {
   /** Injectable per-step validators (defaults to the real registry). */
   validators?: Record<StepId, StepValidator>;
+  /**
+   * Persistence + navigation config forwarded to `useWizardSession`.
+   * When omitted, the wizard uses production defaults (localStorage +
+   * `/workspace/new` step URLs + `/workspace` exit).
+   * Injected by the training-mode route (V4 Training Mode).
+   */
+  wizardConfig?: UseWizardSessionConfig;
+  /**
+   * Terminal-action swap. When omitted the wizard runs the production
+   * submit orchestrator (create transaction + add parties). Training
+   * mode injects `createTrainingSubmitAdapter(...)` which POSTs to
+   * `/api/activity-sessions/[id]/complete` and NEVER creates a
+   * transaction row.
+   */
+  submitAdapter?: SubmitAdapter;
+  /**
+   * Optional banner rendered above the wizard layout. Training mode
+   * uses this to display the "TRAINING SESSION" indicator + lesson +
+   * countdown. Production leaves it null.
+   */
+  banner?: ReactNode;
 }
 
 export default function WizardShell({
   validators = stepValidators,
+  wizardConfig,
+  submitAdapter = productionSubmitAdapter,
+  banner = null,
 }: WizardShellProps) {
-  const wiz = useWizardSession();
+  const wiz = useWizardSession(wizardConfig);
   // Structured validation result for the CURRENT step (null until a failed Next).
   const [validation, setValidation] = useState<StepValidation | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -191,7 +218,7 @@ export default function WizardShell({
     submitLock.current = true;
     setSubmitError(null);
     setSubmitting(true);
-    const result = await submitWizard(wiz.session, {
+    const result = await submitAdapter(wiz.session, {
       onTransactionCreated: wiz.setDraftTransactionId,
       onPartyCreated: wiz.addCreatedPartyId,
     });
@@ -244,26 +271,29 @@ export default function WizardShell({
   const fieldErrors: WizardFieldErrors = validation?.fieldErrors ?? {};
 
   return (
-    <WizardLayout
-      current={current}
-      stepLabel={stepLabel(current)}
-      onStepSelect={handleStepSelect}
-      isStepComplete={(step) => isStepComplete(step, wiz.session, validators)}
-      onBack={handleBack}
-      onNext={handleNext}
-      onCancel={handleCancel}
-      canBack={canBack}
-      nextLabel={isCreateStep ? "Create" : "Next"}
-      messages={validation?.messages ?? []}
-      busy={submitting}
-    >
-      <StepBody
+    <>
+      {banner}
+      <WizardLayout
         current={current}
-        wiz={wiz}
-        fieldErrors={fieldErrors}
-        submitting={submitting}
-        submitError={submitError}
-      />
-    </WizardLayout>
+        stepLabel={stepLabel(current)}
+        onStepSelect={handleStepSelect}
+        isStepComplete={(step) => isStepComplete(step, wiz.session, validators)}
+        onBack={handleBack}
+        onNext={handleNext}
+        onCancel={handleCancel}
+        canBack={canBack}
+        nextLabel={isCreateStep ? "Create" : "Next"}
+        messages={validation?.messages ?? []}
+        busy={submitting}
+      >
+        <StepBody
+          current={current}
+          wiz={wiz}
+          fieldErrors={fieldErrors}
+          submitting={submitting}
+          submitError={submitError}
+        />
+      </WizardLayout>
+    </>
   );
 }
