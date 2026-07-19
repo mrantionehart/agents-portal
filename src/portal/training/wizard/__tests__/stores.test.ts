@@ -313,6 +313,280 @@ describe("createTrainingSessionApiStore.load", () => {
     const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect((init as RequestInit).method ?? "GET").toBe("GET");
   });
+
+  // ── PILOT-D-008 hotfix: runtime compatibility with pre-fix persisted state ──
+  //
+  // Sessions persisted BEFORE the PILOT-D-008 fix landed had NO
+  // `completed_steps` field on their state.wizard blob (the WizardSession
+  // interface did not yet declare it). When the fix's reconciler tried to
+  // `for … of wizard.completed_steps`, JS threw `Symbol.iterator is
+  // undefined` and every stuck session crashed into an error boundary
+  // before recovery could run. The hotfix normalizes `completed_steps`
+  // at the deserialization boundary (extractWizardSession) and
+  // defensively coalesces in reconcileCompletedSteps.
+
+  it("HOTFIX: legacy state.wizard with NO completed_steps field loads without throwing", async () => {
+    // Learner #1's exact stuck-session shape as it round-trips off the
+    // server: state.wizard is fully populated but has no completed_steps
+    // key at all (because it was written by a pre-fix client).
+    const legacyWizardMissingField = {
+      version: 1,
+      transaction_type: "purchase",
+      property: { address: "123 test" },
+      parties: [
+        { role: "buyer", name: "test", signature_required: true },
+        { role: "seller", name: "sell test", signature_required: true },
+      ],
+      dates: { contract_date: "2026-07-19", closing_date: "2026-07-30" },
+      current_step: "create",
+      draft_transaction_id: null,
+      created_party_ids: [],
+      // NB: `completed_steps` field intentionally absent.
+    };
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(
+        activeRow({
+          state: { wizard: legacyWizardMissingField },
+          completed_steps: [],
+        }),
+      ),
+    );
+    const store = createTrainingSessionApiStore({
+      sessionId: "s-1",
+      deps: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        getAccessTokenImpl: okToken,
+      },
+    });
+    // Must not throw. Must return the reconciled session, deriving all
+    // five canonical steps from state.wizard evidence.
+    const r = await store.load();
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok" && r.session) {
+      expect(Array.isArray(r.session.completed_steps)).toBe(true);
+      expect(r.session.completed_steps).toEqual([
+        "type",
+        "property",
+        "parties",
+        "dates",
+        "review",
+      ]);
+    }
+  });
+
+  it("HOTFIX: legacy state.wizard with completed_steps=null loads without throwing", async () => {
+    const legacyWizardNull = {
+      version: 1,
+      transaction_type: "purchase",
+      property: { address: "123 test" },
+      parties: [{ role: "buyer", name: "Alice" }],
+      dates: { contract_date: "2026-07-19" },
+      current_step: "review",
+      draft_transaction_id: null,
+      created_party_ids: [],
+      completed_steps: null as unknown as string[],
+    };
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(
+        activeRow({
+          state: { wizard: legacyWizardNull },
+          completed_steps: [],
+        }),
+      ),
+    );
+    const store = createTrainingSessionApiStore({
+      sessionId: "s-1",
+      deps: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        getAccessTokenImpl: okToken,
+      },
+    });
+    const r = await store.load();
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok" && r.session) {
+      expect(Array.isArray(r.session.completed_steps)).toBe(true);
+      // On review step, the derivation does NOT include "review"
+      // (review is only completed once the wizard has advanced past it).
+      expect(r.session.completed_steps).toEqual(["type", "property", "parties", "dates"]);
+    }
+  });
+
+  it("HOTFIX: malformed non-array completed_steps (string / object / number) coerces to []", async () => {
+    for (const bad of ["typeXproperty", { 0: "type" }, 42, true] as unknown[]) {
+      const wizard = {
+        version: 1,
+        transaction_type: "purchase",
+        property: {},
+        parties: [],
+        dates: {},
+        current_step: "type",
+        draft_transaction_id: null,
+        created_party_ids: [],
+        completed_steps: bad as unknown as string[],
+      };
+      const fetchImpl = jest.fn(async () =>
+        jsonResponse(
+          activeRow({ state: { wizard }, completed_steps: [] }),
+        ),
+      );
+      const store = createTrainingSessionApiStore({
+        sessionId: "s-1",
+        deps: {
+          fetchImpl: fetchImpl as unknown as typeof fetch,
+          getAccessTokenImpl: okToken,
+        },
+      });
+      const r = await store.load();
+      expect(r.kind).toBe("ok");
+      if (r.kind === "ok" && r.session) {
+        expect(Array.isArray(r.session.completed_steps)).toBe(true);
+        // Only "type" is derivable from transaction_type; the malformed
+        // client-side value must NEVER leak in.
+        expect(r.session.completed_steps).toEqual(["type"]);
+      }
+    }
+  });
+
+  it("HOTFIX: array containing unknown / non-string / non-canonical step ids is filtered by the StepId allowlist", async () => {
+    // Deliberately use a wizard where transaction_type + address are set
+    // (so 'type' + 'property' are evidence-derivable) but parties/dates
+    // are EMPTY so they cannot be evidence-derived. The persisted list
+    // then contains a mix of valid canonical StepIds, unknown strings,
+    // non-string junk, and duplicates. The reconciler should return
+    // only ['type', 'property'] — both derivable AND explicitly listed.
+    const wizard = {
+      version: 1,
+      transaction_type: "purchase",
+      property: { address: "123 test" },
+      // Deliberately empty so no evidence derivation for these.
+      parties: [],
+      dates: {},
+      current_step: "property",
+      draft_transaction_id: null,
+      created_party_ids: [],
+      completed_steps: [
+        "type",
+        // Unknown ids — must be filtered out.
+        "made_up_step",
+        "review; DROP TABLE",
+        "",
+        // Non-string entries — must be filtered out.
+        42,
+        null,
+        undefined,
+        { obj: 1 },
+        ["nested"],
+        // Duplicate valid entry — dedupe is applied by the reconciler.
+        "type",
+        // Valid canonical id — must survive.
+        "property",
+        // Junk canonical-looking uppercase — must be filtered out.
+        "TYPE",
+      ] as unknown as string[],
+    };
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(
+        activeRow({ state: { wizard }, completed_steps: [] }),
+      ),
+    );
+    const store = createTrainingSessionApiStore({
+      sessionId: "s-1",
+      deps: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        getAccessTokenImpl: okToken,
+      },
+    });
+    const r = await store.load();
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok" && r.session) {
+      // Only canonical navigable StepIds allowed through. Deduped +
+      // canonical journey order.
+      expect(r.session.completed_steps).toEqual(["type", "property"]);
+    }
+  });
+
+  it("HOTFIX: valid persisted completed_steps load intact and union with server + evidence", async () => {
+    const wizard = {
+      version: 1,
+      transaction_type: "purchase",
+      property: { address: "123 Main" },
+      parties: [{ role: "buyer", name: "Alice" }],
+      dates: { contract_date: "2026-07-19" },
+      current_step: "review",
+      draft_transaction_id: null,
+      created_party_ids: [],
+      completed_steps: ["type", "property"], // valid, canonical
+    };
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(
+        activeRow({
+          state: { wizard },
+          completed_steps: ["parties"], // server has an additional one
+        }),
+      ),
+    );
+    const store = createTrainingSessionApiStore({
+      sessionId: "s-1",
+      deps: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        getAccessTokenImpl: okToken,
+      },
+    });
+    const r = await store.load();
+    if (r.kind === "ok" && r.session) {
+      // Union: client (type,property) + server (parties) +
+      // evidence (type,property,parties,dates). "review" NOT included —
+      // current_step is `review`, so review is not yet advanced past.
+      // Canonical journey order.
+      expect(r.session.completed_steps).toEqual([
+        "type",
+        "property",
+        "parties",
+        "dates",
+      ]);
+    }
+  });
+
+  it("HOTFIX: reconciliation does not throw when server-side completed_steps is missing / null in the row", async () => {
+    // Guard against server-side JSON returning `completed_steps: undefined`
+    // or missing the key entirely (should not happen with the current
+    // Vault projection but defense-in-depth).
+    const wizard = {
+      version: 1,
+      transaction_type: "purchase",
+      property: { address: "1 A" },
+      parties: [{ role: "buyer", name: "B" }],
+      dates: { contract_date: "2026-07-19" },
+      current_step: "create",
+      draft_transaction_id: null,
+      created_party_ids: [],
+    };
+    // Simulate a row missing `completed_steps` entirely.
+    const rowMissing = activeRow({ state: { wizard } });
+    delete (rowMissing.session as unknown as { completed_steps?: unknown })
+      .completed_steps;
+    const fetchImpl = jest.fn(async () => jsonResponse(rowMissing));
+    const store = createTrainingSessionApiStore({
+      sessionId: "s-1",
+      deps: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        getAccessTokenImpl: okToken,
+      },
+    });
+    const r = await store.load();
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok" && r.session) {
+      // Derivation still runs; produces all 5 from the fully-populated
+      // state.wizard.
+      expect(r.session.completed_steps).toEqual([
+        "type",
+        "property",
+        "parties",
+        "dates",
+        "review",
+      ]);
+    }
+  });
 });
 
 describe("createTrainingSessionApiStore.save", () => {
