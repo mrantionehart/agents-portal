@@ -45,10 +45,26 @@ export const GET = withRateLimit<{ slug: string }>(
       )
     }
 
+    // SEC.PR1 — `email` and `role` are deliberately NOT selected.
+    //
+    // `profiles.email` is the LOGIN identifier. There is no separate
+    // public-contact column, so publishing it would publish the username half
+    // of every credential pair for any agent with a live card. It is treated
+    // as an authentication identifier unless explicitly designated a public
+    // business contact — which the schema cannot currently express.
+    //
+    // `role` was selected but never returned, filtered on, or otherwise used.
+    //
+    // This select is also the ANON GRANT CONTRACT. Anonymous SELECT on
+    // profiles is restricted to exactly these 14 columns, and a column-level
+    // grant makes a reference to ANY ungranted column fail the entire
+    // statement — so adding a column here without widening the grant returns
+    // 404 for every card. `card_slug` and `card_enabled` are filters, not
+    // output, and must stay granted for that reason.
     const { data: profile, error } = await supabase
       .from('profiles')
       .select(
-        'id, full_name, email, phone, title, role, avatar_url, business_card_url, card_slug, card_enabled, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle, bio'
+        'id, full_name, phone, title, avatar_url, business_card_url, card_slug, card_enabled, website, instagram_handle, facebook_url, linkedin_url, tiktok_handle, bio'
       )
       .eq('card_slug', slug)
       .eq('card_enabled', true)
@@ -68,7 +84,6 @@ export const GET = withRateLimit<{ slug: string }>(
         agent_id: profile.id,
         name: profile.full_name,
         title: profile.title || 'Real Estate Agent',
-        email: profile.email,
         phone: profile.phone,
         bio: profile.bio,
         avatar_url: profile.avatar_url,
