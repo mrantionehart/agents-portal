@@ -1,34 +1,45 @@
-// GET /api/broker/str-directory — Proxy to Vault STR directory API
+// ============================================================================
+// GET /api/broker/str-directory — Authenticated proxy to Vault STR directory
+// ============================================================================
 // Portal is presentation-only. All auth, rate limiting, logging, and
-// field-gating happen in Vault. Portal forwards query params and auth.
+// field-gating happen in Vault.
+//
+// ── SECURITY FIX (Release A) ───────────────────────────────────────────────
+// This route previously forwarded `request.headers.get("authorization") || ""`
+// verbatim. STRDirectoryScreen is a browser component that does not attach an
+// Authorization header — it relies on the Supabase session cookie — so the
+// forwarded value was the empty string and Vault answered from its
+// ANONYMOUS branch. Every agent in the portal was being served the public
+// response, and any tightening of that branch would have blanked the screen.
+//
+// `proxyToVault` resolves the caller's access token from the Bearer header
+// FIRST and falls back to the cookie session, returning 401 when neither
+// resolves. Identity, role, and tenant are then verified server-side inside
+// Vault from that token — never from a client-supplied header.
+//
+// This is the same helper already used by the transaction and paperwork
+// proxies in this repo; nothing new is introduced.
+// ============================================================================
 
-import { NextRequest, NextResponse } from "next/server";
-import { VAULT_API_URL } from "@/lib/vault-client";
+import { NextRequest } from "next/server";
+import { proxyToVault } from "@/lib/vault-forward";
+import { requireAuth } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const authHeader = request.headers.get("authorization") || "";
+  // Portal-side gate (defense in depth). Vault re-verifies the token and
+  // resolves role/tenant itself; this stops an unauthenticated request before
+  // it ever leaves the portal.
+  const auth = await requireAuth(request);
+  if (auth.response) return auth.response;
 
-    // Forward all query params to Vault as-is
-    const vaultUrl = `${VAULT_API_URL}/str-directory?${searchParams.toString()}`;
+  const { searchParams } = new URL(request.url);
+  const qs = searchParams.toString();
 
-    const response = await fetch(vaultUrl, {
-      headers: {
-        Authorization: authHeader,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-  } catch (error) {
-    console.error("Error proxying STR directory from Vault:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch STR directory" },
-      { status: 500 }
-    );
-  }
+  return proxyToVault(
+    request,
+    "GET",
+    `/str-directory${qs ? `?${qs}` : ""}`
+  );
 }
