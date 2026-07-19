@@ -7,7 +7,10 @@ interface CardData {
   agent_id: string
   name: string
   title: string
-  email: string
+  // SEC.PR1 — no `email`. The public card API does not return one, because
+  // profiles.email is the login identifier. Declaring it here would let a
+  // future edit reference card.email without a type error and silently
+  // render `undefined`.
   phone: string
   bio: string
   avatar_url: string
@@ -67,7 +70,8 @@ export default function PublicCardPage() {
       `FN:${card.name}`,
       `TITLE:${card.title}`,
       `ORG:HartFelt Real Estate`,
-      card.email ? `EMAIL:${card.email}` : '',
+      // SEC.PR1 — no EMAIL line. The public card no longer receives an email
+      // address; profiles.email is the login identifier and is not published.
       card.phone ? `TEL:${card.phone}` : '',
       card.social?.website ? `URL:${card.social.website}` : '',
       `NOTE:${card.bio || ''}`,
@@ -163,20 +167,12 @@ export default function PublicCardPage() {
             </a>
           )}
 
-          {card.email && (
-            <a
-              href={`mailto:${card.email}`}
-              className="flex items-center gap-3 w-full px-5 py-3.5 bg-[#0a0a1a] border border-[#1a1a2e] rounded-xl text-white hover:border-[#C9A84C] transition"
-            >
-              <svg className="w-5 h-5 text-[#C9A84C]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-              </svg>
-              <div>
-                <p className="text-sm font-medium">Email</p>
-                <p className="text-xs text-gray-400">{card.email}</p>
-              </div>
-            </a>
-          )}
+          {/*
+            SEC.PR1 — the email row and mailto: link are removed. The public
+            card API no longer returns an email address, because profiles.email
+            is the login identifier and there is no separate public-contact
+            column. Phone and social links remain the contact channels.
+          */}
 
           {card.phone && (
             <a
