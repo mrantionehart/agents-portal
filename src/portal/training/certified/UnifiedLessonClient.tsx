@@ -184,7 +184,24 @@ function RequirementDispatcher({
     );
   }
   const status = lessonProgress?.status ?? "not_started";
-  const tourAlreadyAttested = lessonProgress?.attested_at !== null && lessonProgress?.attested_at !== undefined;
+  // PILOT-D-009: consume Vault's kind-scoped attestation timestamps
+  // (`tour_attested_at`, `practical_attested_at`) instead of the legacy
+  // scalar `attested_at`. The scalar has always been driven by a Vault-
+  // side `completionMode` ternary and — for V4 requirements-only lessons
+  // (pcert-l04, l05, l11-l32) — falls back to the practical row's
+  // timestamp, which this client historically misread as tour signal.
+  //
+  // Fail-closed rule: `undefined` (older Vault response without the new
+  // fields) is treated as "not attested." Non-null string → attested.
+  // This client never infers a kind-specific signal from the legacy
+  // scalar; a stale Vault deployment yields "still needs to walk / do"
+  // rather than falsely surfacing "completed."
+  const tourAlreadyAttested =
+    lessonProgress?.tour_attested_at !== null &&
+    lessonProgress?.tour_attested_at !== undefined;
+  const practicalAlreadyAttested =
+    lessonProgress?.practical_attested_at !== null &&
+    lessonProgress?.practical_attested_at !== undefined;
   const quizAlreadyPassed = lessonProgress?.quiz_passed === true;
   const overallCompleted = status === "completed";
 
@@ -198,6 +215,7 @@ function RequirementDispatcher({
             userId,
             overallCompleted,
             tourAlreadyAttested,
+            practicalAlreadyAttested,
             quizAlreadyPassed,
             onProgressChange,
           })}
@@ -213,10 +231,11 @@ function renderRequirement(args: {
   userId: string | null;
   overallCompleted: boolean;
   tourAlreadyAttested: boolean;
+  practicalAlreadyAttested: boolean;
   quizAlreadyPassed: boolean;
   onProgressChange: () => void;
 }) {
-  const { kind, lesson, userId, overallCompleted, tourAlreadyAttested, quizAlreadyPassed, onProgressChange } = args;
+  const { kind, lesson, userId, overallCompleted, tourAlreadyAttested, practicalAlreadyAttested, quizAlreadyPassed, onProgressChange } = args;
   switch (kind) {
     case "tour":
       return (
@@ -239,13 +258,18 @@ function renderRequirement(args: {
         </div>
       );
     case "practical":
+      // PILOT-D-009: practical block's `alreadyCompleted` prop is now
+      // driven by BOTH the overall lesson status AND the kind-scoped
+      // `practical_attested_at` signal. This lets a practical-satisfied-
+      // but-tour-pending lesson (e.g. pcert-l04 mid-flow) render the
+      // practical block as done independently of the tour block.
       if (lesson.practical_ui_spec !== null) {
         return (
           <FamilyAGuidanceCard
             lessonId={lesson.id}
             spec={lesson.practical_ui_spec}
             onVerified={onProgressChange}
-            alreadyCompleted={overallCompleted}
+            alreadyCompleted={overallCompleted || practicalAlreadyAttested}
           />
         );
       }
@@ -255,7 +279,7 @@ function renderRequirement(args: {
             <WizardLaunchLink
               lessonId={lesson.id}
               spec={lesson.session_ui_spec}
-              alreadyCompleted={overallCompleted}
+              alreadyCompleted={overallCompleted || practicalAlreadyAttested}
             />
           );
         }
@@ -264,7 +288,7 @@ function renderRequirement(args: {
             <ChecklistLauncher
               lessonId={lesson.id}
               spec={lesson.session_ui_spec}
-              alreadyCompleted={overallCompleted}
+              alreadyCompleted={overallCompleted || practicalAlreadyAttested}
             />
           );
         }
