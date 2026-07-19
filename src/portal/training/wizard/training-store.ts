@@ -43,10 +43,25 @@ export interface CreateTrainingStoreOptions {
   };
 }
 
+const NAVIGABLE_STEPS_SET: ReadonlySet<string> = new Set(NAVIGABLE_STEPS);
+
 /**
  * Read the persisted WizardSession snapshot from an API session's
  * `state` JSONB payload. Returns null when `state.wizard` is absent —
  * that's a legitimate "first save hasn't happened yet" signal.
+ *
+ * PILOT-D-008 hotfix: pre-fix session blobs were persisted before
+ * `completed_steps` existed on the WizardSession contract. Their
+ * server-round-tripped shape has NO `completed_steps` key (or a null,
+ * or a non-array value). The reconciler's `for … of` iteration threw
+ * `Symbol.iterator is undefined` at mount, crashing every stuck session
+ * into an error boundary before recovery could run.
+ *
+ * We normalize here — at the SINGLE point deserialized state.wizard
+ * enters the app — so downstream code (reconciler, hook, WizardShell)
+ * can trust that `completed_steps` is always a well-typed StepId[].
+ * Filtered through the canonical navigable StepId allowlist to reject
+ * arbitrary strings from a corrupted blob.
  */
 function extractWizardSession(
   state: Record<string, unknown>,
@@ -55,10 +70,19 @@ function extractWizardSession(
   if (!wizard || typeof wizard !== "object" || Array.isArray(wizard)) {
     return null;
   }
-  return wizard as WizardSession;
+  const w = wizard as Partial<WizardSession> & Record<string, unknown>;
+  const raw = w.completed_steps;
+  const normalized: StepId[] = Array.isArray(raw)
+    ? (raw.filter(
+        (v): v is StepId =>
+          typeof v === "string" && NAVIGABLE_STEPS_SET.has(v),
+      ))
+    : [];
+  return {
+    ...(w as WizardSession),
+    completed_steps: normalized,
+  };
 }
-
-const NAVIGABLE_STEPS_SET: ReadonlySet<string> = new Set(NAVIGABLE_STEPS);
 
 /**
  * Reconcile the three sources of truth for `completed_steps` on load:
@@ -83,15 +107,28 @@ const NAVIGABLE_STEPS_SET: ReadonlySet<string> = new Set(NAVIGABLE_STEPS);
  */
 function reconcileCompletedSteps(
   wizard: WizardSession,
-  serverCompletedSteps: readonly string[],
+  serverCompletedSteps: readonly string[] | null | undefined,
 ): StepId[] {
   const union = new Set<string>();
-  for (const s of wizard.completed_steps) union.add(s);
-  for (const s of serverCompletedSteps) union.add(s);
+  // PILOT-D-008 hotfix: defensively coalesce each source. Even though
+  // extractWizardSession now normalizes state.wizard.completed_steps at
+  // the deserialization boundary, defense-in-depth here means a caller
+  // passing an unexpected shape (test fixture, future recovery path,
+  // etc.) doesn't crash the mount.
+  const clientSteps = Array.isArray(wizard.completed_steps)
+    ? wizard.completed_steps
+    : [];
+  const serverSteps = Array.isArray(serverCompletedSteps)
+    ? serverCompletedSteps
+    : [];
+  for (const s of clientSteps) union.add(s);
+  for (const s of serverSteps) union.add(s);
   for (const s of deriveCompletedFromState(wizard)) union.add(s);
   // Preserve canonical journey order + drop anything not in the
   // navigable set (defensive against a corrupt persisted list).
-  return NAVIGABLE_STEPS.filter((step) => union.has(step) && NAVIGABLE_STEPS_SET.has(step));
+  return NAVIGABLE_STEPS.filter(
+    (step) => union.has(step) && NAVIGABLE_STEPS_SET.has(step),
+  );
 }
 
 export function createTrainingSessionApiStore(
