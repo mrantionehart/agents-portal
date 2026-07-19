@@ -107,13 +107,19 @@ export async function fetchProgress(
   return (await res.json()) as CertifiedProgress;
 }
 
-// ─── Lesson complete (empty body → server evaluates practical) ─────────────
+// ─── Lesson complete (practical branch — server runs evaluator) ────────────
 
 /**
- * POST /api/platform/certifications/{cert}/lessons/{id}/complete
- * with an empty body. Server evaluates the lesson's declared criterion
- * (e.g. Family A signal check) and either advances the lesson or returns
- * an unmet-requirement envelope.
+ * POST /api/platform/certifications/{cert}/lessons/{id}/complete with
+ * the `practical_completion: true` sentinel.
+ *
+ * The Vault route uses this sentinel to enter the practical-verification
+ * branch: it looks up the lesson's declared `practicalCriterion`, runs
+ * the registered evaluator (e.g. `portal-onboarding-signal.v1` for Family A),
+ * writes the practical attestation on success, and returns the new
+ * lesson status. An empty body would fall through to a read-only
+ * eligibility recompute and NEVER invoke the evaluator — so the sentinel
+ * is required for Family A + any future practical wire.
  *
  * Do NOT use this for tour completion — the tour engine calls
  * `submitTourCompletion` in `src/portal/tour/api.ts` with the
@@ -126,7 +132,7 @@ export async function requestPracticalCompletion(opts: {
   const cert = opts.certificationId ?? HARTFELT_PLATFORM_CERTIFIED_ID;
   const res = await authedFetch(
     `/platform/certifications/${encodeURIComponent(cert)}/lessons/${encodeURIComponent(opts.lessonId)}/complete`,
-    { method: "POST", body: JSON.stringify({}) },
+    { method: "POST", body: JSON.stringify({ practical_completion: true }) },
   );
   if (!res.ok) await readErrorEnvelope(res, "requestPracticalCompletion");
   return (await res.json()) as {

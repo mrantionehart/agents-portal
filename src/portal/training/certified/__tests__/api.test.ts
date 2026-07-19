@@ -111,7 +111,11 @@ describe("fetchProgress", () => {
 // ─── requestPracticalCompletion ────────────────────────────────────────────
 
 describe("requestPracticalCompletion", () => {
-  it("POSTs an empty body — the server derives the criterion from the lesson", async () => {
+  // Regression: PILOT-D-004. The Vault route's practical-verification branch
+  // ONLY runs when the request body contains { practical_completion: true }.
+  // An empty body falls through to a read-only eligibility recompute that
+  // never invokes the evaluator and always returns `attestation_missing`.
+  it("POSTs { practical_completion: true } to trigger the Vault practical branch", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       jsonRes({ ok: true, lesson_id: "pcert-l03", status: "completed" }),
     );
@@ -119,7 +123,8 @@ describe("requestPracticalCompletion", () => {
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toContain("/lessons/pcert-l03/complete");
     expect(init.method).toBe("POST");
-    expect(init.body).toBe(JSON.stringify({}));
+    const parsed = JSON.parse(init.body as string);
+    expect(parsed).toEqual({ practical_completion: true });
     expect(res.lesson_id).toBe("pcert-l03");
   });
 
