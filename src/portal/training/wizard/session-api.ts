@@ -104,9 +104,25 @@ export class SessionApiError extends Error {
 }
 
 /**
- * Map a Vault response envelope + HTTP status to a StoreErrorCode. The
- * mapping is exhaustive for the codes documented in Vault §16; anything
- * unmatched falls through to `"unknown"`.
+ * Map a Vault response envelope + HTTP status to a StoreErrorCode.
+ *
+ * PILOT-D-008 (2026-07-19): the pre-fix mapping collapsed EVERY 409
+ * (including the validator's per-reason codes like `session_missing_step`
+ * and `session_invalid_state`) into a bare `session_not_active`, which
+ * then rendered to the learner as "This training session is no longer
+ * active." — the literal opposite of what the server said in the
+ * `session_missing_step` case, where the session is still active but the
+ * learner's completion payload was incomplete. This mapping now:
+ *
+ *   1. Preserves each explicitly-documented Vault code as its own
+ *      StoreErrorCode, so the UI can pick per-code recovery text.
+ *   2. Falls THROUGH — not down — for unknown 409 codes: returns
+ *      `"unknown"` so the UX renders a neutral fail-closed message
+ *      and the raw server code stays available on the SessionApiError
+ *      for diagnostics + runbook capture.
+ *
+ * We must never again silently downgrade an unknown server code into a
+ * concrete misleading UX state.
  */
 export function classifyApiFailure(
   httpStatus: number,
@@ -116,11 +132,36 @@ export function classifyApiFailure(
   if (httpStatus === 403) return "forbidden";
   if (httpStatus === 404) return "session_not_found";
   if (httpStatus === 409) {
-    if (apiCode === "session_expired") return "session_expired";
-    if (apiCode === "session_not_active") return "session_not_active";
-    if (apiCode === "session_revoked") return "session_not_active";
-    if (apiCode === "active_session_exists") return "session_not_active";
-    return "session_not_active";
+    switch (apiCode) {
+      case "session_expired":
+        return "session_expired";
+      case "session_not_active":
+        return "session_not_active";
+      // Vault's complete route surfaces `session_revoked` distinctly
+      // from `session_not_active`; both mean "session is terminal, not
+      // recoverable via the same session id" — surfacing as
+      // `session_not_active` gives the same UX affordance as either.
+      case "session_revoked":
+        return "session_not_active";
+      // The start route's concurrency guard (a DIFFERENT session for
+      // this lesson is already active). Surfacing as
+      // `session_not_active` is the right learner-facing shape — the
+      // start attempt cannot proceed until the old session is
+      // resolved.
+      case "active_session_exists":
+        return "session_not_active";
+      case "session_missing_step":
+        return "session_missing_step";
+      case "session_invalid_state":
+        return "session_invalid_state";
+      // Any other 409 (including future validator codes we haven't
+      // taught the UI yet). Do NOT collapse into a specific concrete
+      // state — return `unknown` so the UX shows a neutral fail-closed
+      // message and the raw `apiCode` remains on the SessionApiError
+      // for logs and runbook triage.
+      default:
+        return "unknown";
+    }
   }
   if (httpStatus >= 500) return "network_error";
   return "unknown";

@@ -49,6 +49,15 @@ export type StoreErrorCode =
   | "session_expired"
   // The session is no longer active (revoked / abandoned / completed).
   | "session_not_active"
+  // The session criterion validator reports at least one required step
+  // is not yet in `completed_steps`. Post-PILOT-D-008 this reaches the
+  // UI as an actionable "one or more steps didn't finish syncing" state.
+  | "session_missing_step"
+  // The session state is present but structurally invalid — e.g. wrong
+  // activity_type, `state.wizard` missing/malformed. Fail-closed:
+  // treated by the UI as "we can't complete this session" rather than
+  // silently retrying.
+  | "session_invalid_state"
   // The API refused the caller (auth expired, insufficient role).
   | "forbidden"
   // The learner is not authenticated.

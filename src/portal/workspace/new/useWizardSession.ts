@@ -40,6 +40,7 @@ import {
   type StepId,
 } from "./wizard-steps";
 import {
+  addCompletedStep,
   addCreatedPartyId,
   emptySession,
   mergeDates,
@@ -73,6 +74,27 @@ export interface UseWizardSession {
   /** Idempotency anchors set by the submit orchestrator (3.3B.3D). */
   setDraftTransactionId: (id: string) => void;
   addCreatedPartyId: (id: string) => void;
+  /**
+   * Explicitly persist the current session snapshot and await
+   * acknowledgement. Terminal actions (submit) call this to guarantee
+   * the server has the latest state + completed_steps before running
+   * the Vault validator, closing the "click-Create-before-save-flushed"
+   * race the useEffect-based background save cannot close on its own.
+   *
+   * Best-effort: on `error` the caller decides whether to proceed. See
+   * WizardShell.handleCreate.
+   */
+  flushSave: () => Promise<{ ok: boolean; detail?: string }>;
+  /**
+   * Merge a set of StepIds into `session.completed_steps` without
+   * navigating. Used by the training-mode bootstrap to reconcile a
+   * pre-existing session whose server-side `completed_steps` column
+   * was left empty by an older client (PILOT-D-008 recovery path).
+   * Each merged step MUST have supporting evidence in `state.wizard`;
+   * callers are expected to derive the input via
+   * `deriveCompletedFromState`, never synthesize it.
+   */
+  mergeCompletedSteps: (steps: readonly StepId[]) => void;
   /** Clear the draft (store) and navigate to a target (submit success). */
   finish: (href: string) => void;
 }
@@ -192,7 +214,14 @@ export function useWizardSession(
       const n = nextStep(s.current_step);
       if (!n) return s;
       router.replace(stepHrefRef.current(n));
-      return setStep(s, n);
+      // Mark the step being LEFT BEHIND as completed. Forward navigation
+      // is only ever triggered by WizardShell.handleNext, which runs
+      // per-step validation first — so reaching here proves the current
+      // step passed validation. Insert-only (dedupe via addCompletedStep).
+      // PILOT-D-008: this is the ONLY place a step is marked completed.
+      // goBack and goToStep MUST NOT touch completed_steps — an already
+      // completed step stays completed even after back-nav.
+      return setStep(addCompletedStep(s, s.current_step), n);
     });
   }, [router]);
 
@@ -247,6 +276,38 @@ export function useWizardSession(
     [router],
   );
 
+  // Latest session ref so flushSave can read the very-latest value even
+  // if a state update is still in-flight. `session` in closure would be
+  // stale during rapid Next → Create sequences.
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  const flushSave = useCallback(async (): Promise<{
+    ok: boolean;
+    detail?: string;
+  }> => {
+    // Do not touch storage after finish() — the cleared draft must stay
+    // cleared even if a trailing render tries to re-save.
+    if (finished.current) return { ok: true };
+    const result = await storeRef.current.save(sessionRef.current);
+    if (result.kind === "ok") return { ok: true };
+    onSaveErrorRef.current?.(result.code, result.detail);
+    return { ok: false, detail: result.detail };
+  }, []);
+
+  const mergeCompletedSteps = useCallback(
+    (steps: readonly StepId[]) => {
+      setSession((s) => {
+        let next = s;
+        for (const step of steps) {
+          next = addCompletedStep(next, step);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   return {
     session,
     hydrated,
@@ -260,6 +321,8 @@ export function useWizardSession(
     patchDates,
     setDraftTransactionId: setDraftId,
     addCreatedPartyId: addPartyId,
+    flushSave,
+    mergeCompletedSteps,
     finish,
   };
 }
