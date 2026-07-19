@@ -59,6 +59,22 @@ export function deriveModuleProgress(
   return out;
 }
 
+/**
+ * Route a module to its detail page. Volume 1-3 continue to open the legacy
+ * player at `/training-legacy#module-<id>`; Volume 4 opens the unified V4
+ * learner experience at `/training/certified/<trackId>`. Any other volume
+ * receives the inert `#` link (Next.js `Link` treats it as a no-op) so a
+ * future volume without a registered destination fails safely rather than
+ * silently routing to the legacy player.
+ */
+function moduleOpenUrl(m: TrainingModuleRow): string {
+  if (m.volume === 4) return `/training/certified/${encodeURIComponent(m.id)}`;
+  if (m.volume === 1 || m.volume === 2 || m.volume === 3) {
+    return `/training-legacy#module-${m.id}`;
+  }
+  return "#";
+}
+
 /** Map training modules + progress into the unified HubItem shape. */
 export function modulesToHubItems(
   modules: TrainingModuleRow[],
@@ -77,7 +93,7 @@ export function modulesToHubItems(
         description: `Module ${m.module_num}${
           p && p.total_videos > 0 ? ` · ${p.completed_videos}/${p.total_videos} videos` : ""
         }`,
-        open_url: `/training-legacy#module-${m.id}`,
+        open_url: moduleOpenUrl(m),
         progress_pct: p?.progress_pct,
         completed: p?.completed,
       };

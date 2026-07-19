@@ -10,7 +10,9 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    // Mirror tsconfig.json `paths` — `@/*` is rooted at the repo, not `src/`,
+    // because the AP has app/, lib/, and src/ side-by-side.
+    '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: [
     '**/__tests__/**/*.[jt]s?(x)',
