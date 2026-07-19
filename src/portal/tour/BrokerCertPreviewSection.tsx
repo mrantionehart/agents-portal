@@ -90,13 +90,13 @@ export function BrokerCertPreviewSection({
             id="broker-preview-heading"
             className="text-[15px] font-semibold text-[#F1F1F3]"
           >
-            Draft Certification — broker preview
+            Volume 4 — broker preview
           </h2>
           <p className="text-[13px] text-[#A1A1AA] mt-1 max-w-prose">
-            Volume 4 (Platform Certification) is in draft while the guided-tour
-            pilot is authored. As a broker/admin/office_manager you can walk
-            each pilot lesson end-to-end without earning progress. Agents do
-            not see any Volume 4 content.
+            As a broker/admin/office_manager you can walk each of these pilot
+            lessons end-to-end in preview mode — no progress is earned and no
+            attestation is written. Agents open the same lessons through their
+            own certified track pages under <code className="text-[11px]">/training/certified</code>.
           </p>
         </div>
       </div>
