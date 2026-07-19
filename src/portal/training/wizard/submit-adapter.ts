@@ -114,10 +114,15 @@ export function createTrainingSubmitAdapter(
 }
 
 /**
- * Convert a raw SessionApiError into a learner-facing message. The
- * Vault route surfaces two 501 codes for the fail-closed posture
- * (validator unavailable, criterion unsupported); both are equivalent
- * from the learner's perspective — the framework isn't wired up yet.
+ * Convert a raw SessionApiError into a learner-facing message.
+ *
+ * PILOT-D-008: added actionable text for `session_missing_step` and
+ * `session_invalid_state`, and switched the terminal fallback from a
+ * confidently-wrong sentence to a neutral fail-closed message that
+ * carries the raw server code + detail. The prior default
+ * (`err.message`) was fed to the learner even when it came from a
+ * completely different code path — see the ledger for the exact
+ * incident.
  */
 function mapTrainingSubmitError(err: SessionApiError): string {
   if (err.apiCode === "session_criterion_unsupported") {
@@ -132,11 +137,23 @@ function mapTrainingSubmitError(err: SessionApiError): string {
   if (err.code === "session_not_active") {
     return "This training session is no longer active.";
   }
+  if (err.code === "session_missing_step") {
+    return "Some wizard steps have not finished syncing. Review the incomplete steps and try again.";
+  }
+  if (err.code === "session_invalid_state") {
+    return "Training session cannot be completed — the wizard state is missing a required field.";
+  }
   if (err.code === "unauthorized") {
     return "Sign-in expired. Please refresh and try again.";
   }
   if (err.code === "network_error") {
     return "Network error. Please retry.";
   }
-  return err.message || "Session could not be completed.";
+  // Fail-closed neutral fallback. `err.apiCode` (raw Vault code, if any)
+  // is preserved so an operator reading the surfaced message can look
+  // up the exact server-side cause in the runbook. We intentionally
+  // avoid collapsing unknown validator codes into any of the specific
+  // sentences above.
+  const codeHint = err.apiCode ? ` (server code: ${err.apiCode})` : "";
+  return `Session could not be completed${codeHint}. Please retry or start a new session.`;
 }

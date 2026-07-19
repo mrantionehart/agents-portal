@@ -41,6 +41,31 @@ describe("classifyApiFailure", () => {
     expect(classifyApiFailure(409, "session_revoked")).toBe("session_not_active");
     expect(classifyApiFailure(409, "active_session_exists")).toBe("session_not_active");
   });
+  it("PILOT-D-008: maps 409 session_missing_step → session_missing_step", () => {
+    expect(classifyApiFailure(409, "session_missing_step")).toBe(
+      "session_missing_step",
+    );
+  });
+  it("PILOT-D-008: maps 409 session_invalid_state → session_invalid_state", () => {
+    expect(classifyApiFailure(409, "session_invalid_state")).toBe(
+      "session_invalid_state",
+    );
+  });
+  it("PILOT-D-008: unknown 409 codes fail-closed to 'unknown', NEVER to a misleading concrete code", () => {
+    // This is the anti-regression for the pre-fix bug where every
+    // unrecognized 409 collapsed into `session_not_active` and rendered
+    // as "This training session is no longer active." — even for
+    // errors like session_missing_step where the session was still
+    // active. Unknown codes must not masquerade.
+    expect(classifyApiFailure(409, "future_validator_code_we_dont_know")).toBe(
+      "unknown",
+    );
+    expect(classifyApiFailure(409, "session_criterion_unmet_something")).toBe(
+      "unknown",
+    );
+    // Null / missing code — same treatment (do not guess).
+    expect(classifyApiFailure(409, null)).toBe("unknown");
+  });
   it("maps 5xx → network_error", () => {
     expect(classifyApiFailure(500, null)).toBe("network_error");
     expect(classifyApiFailure(503, null)).toBe("network_error");

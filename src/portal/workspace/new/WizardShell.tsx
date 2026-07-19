@@ -218,6 +218,30 @@ export default function WizardShell({
     submitLock.current = true;
     setSubmitError(null);
     setSubmitting(true);
+    // PILOT-D-008: Flush the persistence layer before the terminal call.
+    // Vault's completion validator reads the SERVER-SIDE state +
+    // completed_steps at the moment of POST /complete. The wizard hook
+    // saves in a background useEffect, so a rapid Next → Create sequence
+    // can hit `submitAdapter` while the previous save is still in flight
+    // (or, if the user jumped from Review to Create in a single React
+    // batch, before the save has even fired). Awaiting `flushSave` here
+    // guarantees the server has the latest snapshot — including every
+    // step in `completed_steps` — before the validator runs.
+    //
+    // If the save fails we treat the submit as failed rather than
+    // silently POSTing against a stale server view. The learner can
+    // retry; the flush is idempotent.
+    const flushed = await wiz.flushSave();
+    if (!flushed.ok) {
+      submitLock.current = false;
+      setSubmitting(false);
+      setSubmitError(
+        flushed.detail
+          ? `Could not sync your progress before creating: ${flushed.detail}. Please retry.`
+          : "Could not sync your progress before creating. Please retry.",
+      );
+      return;
+    }
     const result = await submitAdapter(wiz.session, {
       onTransactionCreated: wiz.setDraftTransactionId,
       onPartyCreated: wiz.addCreatedPartyId,

@@ -55,6 +55,19 @@ export interface WizardSession {
   parties: WizardPartyDraft[];
   dates: WizardDatesDraft;
   current_step: StepId;
+  /**
+   * Canonical StepId set the learner has verifiably ADVANCED PAST via
+   * validated forward navigation. Insert-only during a session; never
+   * emptied by back-nav. Opening a step (via URL / stepper) does NOT add
+   * it — only a validated `goNext` from that step does. The training
+   * store lifts this array to the top-level `completed_steps` column
+   * where the Vault validator reads it (PILOT-D-008).
+   *
+   * NOTE: The Production wizard (`/workspace/new`) still runs off this
+   * same model but never READS this field — its submit orchestrator
+   * writes a real transaction and does not consult per-step markers.
+   */
+  completed_steps: StepId[];
   /** Set once the draft transaction is created (3.3B.3D). Idempotency anchor. */
   draft_transaction_id: string | null;
   /** Party ids already persisted (3.3B.3D). Prevents duplicate party inserts. */
@@ -70,6 +83,7 @@ export function emptySession(): WizardSession {
     parties: [],
     dates: {},
     current_step: DEFAULT_STEP,
+    completed_steps: [],
     draft_transaction_id: null,
     created_party_ids: [],
   };
@@ -107,6 +121,81 @@ export function mergeDates(
 
 export function setStep(s: WizardSession, current_step: StepId): WizardSession {
   return { ...s, current_step };
+}
+
+/**
+ * Record a StepId as completed. Insert-only + dedupe. Callers must only
+ * invoke this for a step the learner has ADVANCED PAST via a validated
+ * forward navigation — never merely opened via the URL / stepper. Passing
+ * a step that is already present returns the same session reference.
+ */
+export function addCompletedStep(
+  s: WizardSession,
+  step: StepId
+): WizardSession {
+  if (s.completed_steps.includes(step)) return s;
+  return { ...s, completed_steps: [...s.completed_steps, step] };
+}
+
+/**
+ * Reconciliation helper used by the training route on mount. Derives the
+ * canonical StepId set that a session's `state.wizard` content proves
+ * were actually completed (address filled → "property" was completed,
+ * parties present → "parties" was completed, etc.).
+ *
+ * The training route uses this ONLY when the server's persisted
+ * `completed_steps` column is missing entries that state.wizard proves —
+ * never to synthesize evidence. The exit criterion is: every returned id
+ * must have a supporting field populated in `s`. If the current_step
+ * itself has advanced past a step, that also counts as "completed past".
+ *
+ * Returns a canonical order-preserving list drawn from the fixed journey.
+ */
+export function deriveCompletedFromState(s: WizardSession): StepId[] {
+  const out: StepId[] = [];
+  // "type": transaction_type must be set to a canonical value string.
+  if (typeof s.transaction_type === "string" && s.transaction_type.length > 0) {
+    out.push("type");
+  }
+  // "property": address must be a non-empty string (matches Vault's
+  // propertyHasRequiredFields check).
+  if (
+    typeof s.property.address === "string" &&
+    s.property.address.trim().length > 0
+  ) {
+    out.push("property");
+  }
+  // "parties": at least one party with a non-empty role AND name.
+  if (
+    Array.isArray(s.parties) &&
+    s.parties.some(
+      (p) =>
+        typeof p.role === "string" &&
+        p.role.length > 0 &&
+        typeof p.name === "string" &&
+        p.name.trim().length > 0
+    )
+  ) {
+    out.push("parties");
+  }
+  // "dates": at least a contract_date OR a lease_start (per-type rules
+  // live server-side; here we only assert the learner filled in the
+  // dates step at least once).
+  if (
+    (typeof s.dates.contract_date === "string" &&
+      s.dates.contract_date.length > 0) ||
+    (typeof s.dates.lease_start === "string" &&
+      s.dates.lease_start.length > 0)
+  ) {
+    out.push("dates");
+  }
+  // "review": inferred ONLY from the current_step having advanced past
+  // review. The wizard only reaches `create` (or the terminal `package`
+  // node) after a validated goNext from review, so those are proof.
+  if (s.current_step === "create" || s.current_step === "package") {
+    out.push("review");
+  }
+  return out;
 }
 
 export function setDraftTransactionId(
@@ -156,6 +245,14 @@ export function loadSession(): WizardSession {
       property: { ...base.property, ...(parsed.property ?? {}) },
       dates: { ...base.dates, ...(parsed.dates ?? {}) },
       parties: Array.isArray(parsed.parties) ? parsed.parties : base.parties,
+      // Pre-PILOT-D-008 blobs did not carry completed_steps. Backfill
+      // with the empty array — the wizard hook fills it as the learner
+      // clicks Next through validated steps in the current mount.
+      completed_steps: Array.isArray(parsed.completed_steps)
+        ? (parsed.completed_steps.filter(
+            (v): v is StepId => typeof v === "string"
+          ) as StepId[])
+        : base.completed_steps,
       created_party_ids: Array.isArray(parsed.created_party_ids)
         ? parsed.created_party_ids
         : base.created_party_ids,

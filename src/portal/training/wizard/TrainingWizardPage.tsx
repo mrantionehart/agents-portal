@@ -89,6 +89,10 @@ function FailureScreen({
         return "Training session not found";
       case "session_not_active":
         return "Training session is no longer active";
+      case "session_missing_step":
+        return "Wizard steps are still syncing";
+      case "session_invalid_state":
+        return "Training session cannot be completed";
       case "unauthorized":
         return "Please sign in";
       case "forbidden":
