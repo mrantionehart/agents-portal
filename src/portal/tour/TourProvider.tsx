@@ -241,6 +241,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   // Document-level click listener for `target_click` interactions.
   // Attached only while a target_click step is active.
+  //
+  // PILOT-D-013 — the tour advance is deferred to the next microtask via
+  // queueMicrotask so the click event fully dispatches to the anchored
+  // element (including its React-synthetic onClick handlers such as
+  // Next.js Link's internal router.push) BEFORE React begins the
+  // reconciliation triggered by this state update. Without the deferral,
+  // a synchronous setState inside a native document-capture handler
+  // perturbs React's internal update pipeline between capture and
+  // synthetic-event delegation phases, dropping the target element's
+  // onClick — the tour advances but the underlying navigation (e.g.
+  // switching to the AI tab) never fires. Listener stays in capture
+  // phase; the microtask deferral is the entire fix.
   useEffect(() => {
     const step = state.currentStep;
     if (!step) return;
@@ -252,7 +264,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (!target) return;
       const anchorEl = target.closest?.(`[data-training-id="${targetId}"]`);
       if (!anchorEl) return;
-      setState((s) => advance(s));
+      queueMicrotask(() => {
+        setState((s) => advance(s));
+      });
     };
 
     document.addEventListener("click", handler, true);
