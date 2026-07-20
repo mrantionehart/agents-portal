@@ -9,12 +9,13 @@
 
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
-describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library)", () => {
-  it("ships the 9 documented items in order (Library added between Training and Settings)", () => {
+describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
+  it("ships the 10 documented items in order (Buildings added immediately after Clients)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
       "Clients",
+      "Buildings",
       "AI",
       "Calendar",
       "Notifications",
@@ -22,6 +23,19 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Library",
       "Settings",
     ]);
+  });
+
+  it("HOTFIX.AP.STR.001 — Buildings sits immediately after Clients", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    expect(labels.indexOf("Buildings")).toBe(labels.indexOf("Clients") + 1);
+  });
+
+  it("HOTFIX.AP.STR.001 — Buildings routes to /buildings, id 'buildings', icon 'building-2', agent-visible", () => {
+    const b = NAV_ITEMS.find((i) => i.id === "buildings")!;
+    expect(b).toBeDefined();
+    expect(b.href).toBe("/buildings");
+    expect(b.icon).toBe("building-2");
+    expect(b.brokerOnly).toBeUndefined();
   });
 
   it("Transactions points to /workspace (AP2.1B's dashboard URL)", () => {
@@ -70,6 +84,10 @@ describe("isBrokerTier", () => {
 describe("visibleNavItems (broker-only filter)", () => {
   it("agent sees only non-broker-only items", () => {
     expect(visibleNavItems("agent").length).toBe(NAV_ITEMS.length);
+  });
+
+  it("HOTFIX.AP.STR.001 — a standard agent sees the Buildings item", () => {
+    expect(visibleNavItems("agent").some((i) => i.id === "buildings")).toBe(true);
   });
 
   it("broker sees all items (including any future broker-only)", () => {

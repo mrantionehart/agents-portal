@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
+  Building2,
   Calendar,
   GraduationCap,
   Home,
@@ -32,6 +33,7 @@ const ICONS = {
   "home": Home,
   "list-checks": ListChecks,
   "users": Users,
+  "building-2": Building2,
   "sparkles": Sparkles,
   "calendar": Calendar,
   "bell": Bell,
