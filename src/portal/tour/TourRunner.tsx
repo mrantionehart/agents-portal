@@ -264,6 +264,20 @@ function Tooltip({
     (step.interaction.kind === "informational" ||
       step.interaction.kind === "manual_confirmation");
 
+  // PILOT-D-020 — when a `manual_confirmation` step defines
+  // `confirmLabel`, render that label on the advance button in place
+  // of the generic "Next". This surfaces the guardrail wording (e.g.
+  // pcert-l10 step 4's "I generated a draft and can see the draft
+  // card") so a distracted learner does not click through the same way
+  // they'd advance a normal informational step. `informational`,
+  // `target_click`, and `route_change` step labels are unaffected —
+  // their advance flow does not involve this button.
+  const nextButtonLabel =
+    step.interaction.kind === "manual_confirmation" &&
+    step.interaction.confirmLabel
+      ? step.interaction.confirmLabel
+      : "Next";
+
   const showAwaitingLabel =
     step.interaction.kind === "target_click" ||
     step.interaction.kind === "route_change";
@@ -348,7 +362,7 @@ function Tooltip({
                 onClick={tour.next}
                 className="text-[12px] px-3 py-1 rounded bg-[#C9A84C] text-black font-semibold hover:brightness-95"
               >
-                Next
+                {nextButtonLabel}
               </button>
             )}
             {showFinishButton && (

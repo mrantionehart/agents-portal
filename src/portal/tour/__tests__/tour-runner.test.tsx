@@ -387,3 +387,292 @@ describe("TourRunner — missing target fallback", () => {
     expect(screen.queryByText("Done")).toBeNull();
   });
 });
+
+// ─── PILOT-D-020 — confirmLabel surfacing for manual_confirmation ────────────
+//
+// TourRunner previously hardcoded "Next" as the advance-button label for
+// every non-final step regardless of interaction kind. This meant a
+// `manual_confirmation` step's authored `confirmLabel` (e.g. pcert-l10
+// step 4's "I generated a draft and can see the draft card") never
+// reached learners — the label was dead code, and users clicked "Next"
+// on the confirmation step as reflexively as they would on any
+// informational step. The downstream spotlights (pcert-l10 steps 5-7)
+// then failed with MissingTargetCard because the precondition the
+// author encoded in `confirmLabel` had never actually been performed.
+//
+// The fix: TourRunner's advance-button text derives from
+// `step.interaction.confirmLabel` when the interaction is
+// `manual_confirmation` and a label is present. Every other interaction
+// kind — `informational`, `target_click`, `route_change` — is
+// unaffected. Backward compatible: a manual_confirmation step with an
+// empty/absent confirmLabel still renders "Next".
+//
+// These tests pin the fix: (1) manual_confirmation with confirmLabel
+// renders the label; (2) manual_confirmation without confirmLabel falls
+// back to "Next"; (3-5) informational, target_click, route_change
+// button/label rendering unchanged; (6) keyboard accessibility
+// (focus-trap escape + tab order) unchanged.
+
+const MANUAL_CONFIRMATION_SCRIPT = {
+  id: "portal.foundations.manual",
+  lessonId: "pcert-lXX",
+  certificationId: "hartfelt-platform-certified",
+  scriptVersion: "1.0.0",
+  steps: [
+    {
+      id: "mc1",
+      order: 1,
+      targetId: null,
+      title: "Ask the Assistant for a draft.",
+      bodyContent: [{ type: "paragraph", text: "Do the thing." }],
+      placement: "center",
+      interaction: {
+        kind: "manual_confirmation",
+        confirmLabel: "I generated a draft and can see the draft card",
+      },
+      optional: false,
+    },
+    {
+      id: "mc2",
+      order: 2,
+      targetId: null,
+      title: "Recap",
+      bodyContent: [{ type: "paragraph", text: "Done." }],
+      placement: "center",
+      interaction: { kind: "informational" },
+      optional: false,
+    },
+  ],
+};
+
+const MANUAL_CONFIRMATION_NO_LABEL_SCRIPT = {
+  ...MANUAL_CONFIRMATION_SCRIPT,
+  steps: [
+    {
+      ...MANUAL_CONFIRMATION_SCRIPT.steps[0],
+      interaction: {
+        kind: "manual_confirmation",
+        // Empty label — the runtime fallback must render "Next".
+        confirmLabel: "",
+      },
+    },
+    MANUAL_CONFIRMATION_SCRIPT.steps[1],
+  ],
+};
+
+const ROUTE_CHANGE_SCRIPT = {
+  id: "portal.foundations.route",
+  lessonId: "pcert-lXX",
+  certificationId: "hartfelt-platform-certified",
+  scriptVersion: "1.0.0",
+  steps: [
+    {
+      id: "rc1",
+      order: 1,
+      targetId: null,
+      title: "Navigate",
+      bodyContent: [{ type: "paragraph", text: "Go somewhere." }],
+      placement: "center",
+      interaction: { kind: "route_change", expectedRoute: "/somewhere" },
+      optional: false,
+    },
+    {
+      id: "rc2",
+      order: 2,
+      targetId: null,
+      title: "Recap",
+      bodyContent: [{ type: "paragraph", text: "Done." }],
+      placement: "center",
+      interaction: { kind: "informational" },
+      optional: false,
+    },
+  ],
+};
+
+describe("TourRunner — PILOT-D-020 confirmLabel surfacing", () => {
+  it("(1) manual_confirmation WITH confirmLabel renders the custom label as the advance button", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: MANUAL_CONFIRMATION_SCRIPT as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    // The custom label is the advance button. The generic "Next" must NOT
+    // appear on this step.
+    expect(
+      screen.getByRole("button", {
+        name: "I generated a draft and can see the draft card",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+  });
+
+  it("(1a) clicking the custom-label button still advances the tour to step 2", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: MANUAL_CONFIRMATION_SCRIPT as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "I generated a draft and can see the draft card",
+        }),
+      ),
+    );
+
+    // Step 2 (informational recap) is now visible.
+    expect(screen.getByText("Recap")).toBeInTheDocument();
+    expect(screen.getByText(/2\/2/)).toBeInTheDocument();
+  });
+
+  it("(2) manual_confirmation WITHOUT confirmLabel falls back to 'Next'", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: MANUAL_CONFIRMATION_NO_LABEL_SCRIPT as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    // With no confirmLabel, the generic "Next" is the advance button.
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+  });
+
+  it("(3) informational step still renders 'Next' (unchanged)", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: SCRIPT_TARGET_CLICK as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    // SCRIPT_TARGET_CLICK step 1 is `informational` — must render "Next".
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+  });
+
+  it("(4) target_click step does not render a Next button at all (unchanged)", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: SCRIPT_TARGET_CLICK as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    const el = document.createElement("a");
+    el.setAttribute("data-training-id", "portal.navigation.home");
+    document.body.appendChild(el);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+    // Advance to the target_click step.
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Next" })));
+
+    // On a target_click step, the advance is via the anchor click —
+    // no Next button and no confirmLabel button. The awaiting-label
+    // banner is what's shown instead.
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "I generated a draft and can see the draft card",
+      }),
+    ).toBeNull();
+    expect(
+      screen.getByText(/Click the highlighted element to continue/),
+    ).toBeInTheDocument();
+  });
+
+  it("(5) route_change step does not render a Next button (unchanged)", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: ROUTE_CHANGE_SCRIPT as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    // route_change is waiting-for-route; no Next button.
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(
+      screen.getByText(/Waiting for you to reach the next surface/),
+    ).toBeInTheDocument();
+  });
+
+  it("(6) keyboard: the custom-label button is focusable, Escape opens Exit-tour confirm (a11y unchanged)", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: MANUAL_CONFIRMATION_SCRIPT as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+
+    const advanceBtn = screen.getByRole("button", {
+      name: "I generated a draft and can see the draft card",
+    });
+    // The button is a real <button> — accessible-name query above proved it.
+    // It carries type="button" and is not disabled — same as pre-fix Next.
+    expect(advanceBtn.tagName).toBe("BUTTON");
+    expect(advanceBtn.getAttribute("type")).toBe("button");
+    expect(advanceBtn).not.toBeDisabled();
+
+    // Escape still opens the Exit-tour confirmation panel.
+    const dialog = screen.getByRole("dialog");
+    await act(async () => fireEvent.keyDown(dialog, { key: "Escape" }));
+    // ExitConfirm surfaces a discard/keep pair (existing behavior — the
+    // exact copy is owned by ExitConfirm and not what this test guards;
+    // we only verify the advance button is no longer visible, i.e. the
+    // exit-confirm view took over).
+    expect(
+      screen.queryByRole("button", {
+        name: "I generated a draft and can see the draft card",
+      }),
+    ).toBeNull();
+  });
+});
