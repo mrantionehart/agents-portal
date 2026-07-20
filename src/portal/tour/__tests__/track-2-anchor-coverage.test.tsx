@@ -90,11 +90,45 @@ describe("Track 2 — CoachStrip anchor coverage", () => {
     expect(el).toBeTruthy();
   });
 
-  it("renders nothing (no anchor) when recommendation is null", () => {
+  it("keeps the anchor mounted (empty placeholder) when recommendation is null", () => {
+    // Batch D — CoachStrip now renders an always-mounted wrapper carrying
+    // the training anchor even when no recommendation is available, so
+    // the tour engine can resolve the anchor across recommendation states.
     const { container } = render(<CoachStrip recommendation={null} />);
     const el = container.querySelector('[data-training-id="portal.workspace.coach.strip"]');
-    expect(el).toBeNull();
-    expect(container.firstChild).toBeNull();
+    expect(el).toBeTruthy();
+    // The empty placeholder carries no user-visible content — no icon,
+    // no "Open" button, no coach copy.
+    expect(el?.textContent ?? "").toBe("");
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("keeps the anchor mounted (empty placeholder) when recommendation is undefined", () => {
+    const { container } = render(<CoachStrip recommendation={undefined} />);
+    const el = container.querySelector('[data-training-id="portal.workspace.coach.strip"]');
+    expect(el).toBeTruthy();
+    expect(el?.textContent ?? "").toBe("");
+  });
+
+  it("anchor identity is stable across null → recommendation transitions", () => {
+    const rec = {
+      kind: "complete_collection",
+      label: "Collect fields",
+      title: "Collect fields",
+      blocker: false,
+      reason: "A few fields are missing.",
+      recommended_action: "Open Overview",
+      estimated_time: "5m",
+      drill_url: "/workspace/test-txn?tab=overview",
+    } as any;
+    const { container, rerender } = render(<CoachStrip recommendation={null} />);
+    const emptyAnchor = container.querySelector('[data-training-id="portal.workspace.coach.strip"]');
+    expect(emptyAnchor).toBeTruthy();
+    rerender(<CoachStrip recommendation={rec} />);
+    const populatedAnchor = container.querySelector('[data-training-id="portal.workspace.coach.strip"]');
+    expect(populatedAnchor).toBeTruthy();
+    // Populated wrapper carries user-visible content again.
+    expect(populatedAnchor?.textContent ?? "").toMatch(/Coach/);
   });
 });
 

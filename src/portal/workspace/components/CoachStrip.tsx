@@ -74,7 +74,17 @@ export interface CoachStripProps {
 
 export default function CoachStrip({ recommendation }: CoachStripProps) {
   const router = useRouter();
-  if (!recommendation) return null;
+
+  // Always mount a wrapper that carries the `portal.workspace.coach.strip`
+  // training anchor — even when no coaching recommendation is currently
+  // available — so anchor identity is stable across recommendation states
+  // and the tour engine can always resolve this anchor. When there is
+  // nothing to render, the placeholder wrapper is visually empty (no
+  // border, no padding, no children), so the user-visible layout is
+  // identical to the previous return-null.
+  if (!recommendation) {
+    return <div data-training-id="portal.workspace.coach.strip" />;
+  }
 
   const Icon = iconForKind(recommendation.kind);
 
