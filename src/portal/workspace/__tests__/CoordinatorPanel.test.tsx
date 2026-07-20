@@ -101,6 +101,62 @@ describe("CoordinatorPanel", () => {
     expect(screen.queryByText(/Loading coordinator/)).not.toBeInTheDocument();
   });
 
+  // ── PILOT-D-012 Batch C: anchor stability across states ─────────────────────
+  //
+  // The three Coordinator sub-anchors (`.directive`, `.blockers`, `.cta`)
+  // must be resolvable via `document.querySelector` in EVERY panel state so
+  // tour steps that spotlight them don't misfire during loading, unavailable,
+  // or loaded-with-no-blockers renders.
+
+  it("loading — all three sub-anchors (.directive, .blockers, .cta) are in the DOM", () => {
+    const pending = (jest.fn(() => new Promise(() => {})) as unknown) as typeof fetch;
+    const { container } = render(<CoordinatorPanel transactionId="txn-1" fetchImpl={pending} getToken={getToken} />);
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.directive"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.blockers"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.cta"]')).toBeTruthy();
+  });
+
+  it("unavailable — all three sub-anchors are in the DOM (`.directive` carries the message)", async () => {
+    const { container } = render(<CoordinatorPanel transactionId="txn-1" fetchImpl={failFetch(500)} getToken={getToken} />);
+    await screen.findByText(/Coordinator temporarily unavailable/);
+    const directive = container.querySelector('[data-training-id="portal.workspace.coordinator.directive"]');
+    expect(directive).toBeTruthy();
+    expect(directive?.textContent).toMatch(/Coordinator temporarily unavailable/);
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.blockers"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.cta"]')).toBeTruthy();
+  });
+
+  it("loaded with zero blockers — .blockers anchor is still in the DOM (empty wrapper)", async () => {
+    const res = response({
+      workflow_state: "ready_to_send",
+      next_action: { key: "send_documents", label: "Send documents for signature", owner: "agent", cta_label: "Send Documents", tab: "package", is_blocked: false },
+      recommended_cta: "Send Documents",
+      recommended_tab: "package",
+      blockers: [],
+      risks: [],
+    });
+    const { container } = render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(res)} getToken={getToken} />);
+    await screen.findByText("Send documents for signature");
+    const blockers = container.querySelector('[data-training-id="portal.workspace.coordinator.blockers"]');
+    expect(blockers).toBeTruthy();
+    // Empty wrapper — no blocker chips inside.
+    expect(blockers?.textContent ?? "").toBe("");
+    // The other two anchors resolve too.
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.directive"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.cta"]')).toBeTruthy();
+  });
+
+  it("anchor identity is stable across loading → loaded transitions", async () => {
+    const { container } = render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
+    // Immediately (still loading), the anchors resolve on the skeleton bars.
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.directive"]')).toBeTruthy();
+    // After the fetch resolves, the anchors continue to resolve on the loaded content.
+    await screen.findByText("Complete required fields");
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.directive"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.blockers"]')).toBeTruthy();
+    expect(container.querySelector('[data-training-id="portal.workspace.coordinator.cta"]')).toBeTruthy();
+  });
+
   it("loaded — renders the directive fields (readiness moved to LeftRail, not shown here)", async () => {
     render(<CoordinatorPanel transactionId="txn-1" fetchImpl={okFetch(response())} getToken={getToken} />);
     expect(await screen.findByText("Complete required fields")).toBeInTheDocument();
