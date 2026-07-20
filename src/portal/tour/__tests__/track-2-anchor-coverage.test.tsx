@@ -188,23 +188,151 @@ describe("Track 2 — AssistantDraftCard emits training anchors only when the pa
     expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeNull();
   });
 
-  it("even when trainingAnchorEnabled=true, the warnings anchor is absent when warnings are empty", () => {
+  // PILOT-D-012 Batch E — the four training anchors are STRUCTURALLY stable
+  // when trainingAnchorEnabled=true. The wrappers are always mounted even
+  // when the underlying data arrays are empty. The Vault response contract
+  // makes `draft.warnings` and `draft.facts_used` mutually exclusive
+  // (warnings populated only when facts_used is empty); a tour that
+  // spotlights both cannot condition on either data-array being non-empty
+  // at any single instant.
+
+  it("with trainingAnchorEnabled=true, the warnings anchor is mounted even when warnings are empty (empty placeholder)", () => {
     const draft = makeDraft({ warnings: [] });
     const { container } = render(
       <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
     );
-    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]')).toBeNull();
-    // Card + confidence should still be present.
+    const anchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]');
+    expect(anchor).toBeTruthy();
+    // Empty placeholder — no visible content.
+    expect(anchor?.textContent ?? "").toBe("");
+    // Card + confidence remain present.
     expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card"]')).toBeTruthy();
     expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.confidence"]')).toBeTruthy();
   });
 
-  it("even when trainingAnchorEnabled=true, the facts-used anchor is absent when facts_used is empty", () => {
+  it("with trainingAnchorEnabled=true, the facts-used anchor is mounted even when facts_used is empty (empty placeholder)", () => {
     const draft = makeDraft({ facts_used: [] });
     const { container } = render(
       <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
     );
-    expect(container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]')).toBeNull();
+    const anchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]');
+    expect(anchor).toBeTruthy();
+    // Empty placeholder — no facts-used toggle button visible.
+    expect(anchor?.querySelector('[data-testid="assistant-draft-facts-toggle"]')).toBeNull();
+  });
+
+  // ─── Batch E — required test matrix ────────────────────────────────────────
+
+  it("grounded draft (facts_used > 0, warnings empty): all four anchors mounted; facts-used populated, warnings empty", () => {
+    const draft = makeDraft({
+      facts_used: [{ source: "Coordinator", fact: "Workflow state is awaiting_party_attestation" }] as any,
+      warnings: [],
+    });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    for (const id of [
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.facts-used",
+      "portal.workspace.ai.draft-card.warnings",
+    ]) {
+      expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+    }
+    // Facts-used populated — toggle button visible.
+    const factsAnchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]');
+    expect(factsAnchor?.querySelector('[data-testid="assistant-draft-facts-toggle"]')).toBeTruthy();
+    // Warnings placeholder — no visible content.
+    const warningsAnchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]');
+    expect(warningsAnchor?.textContent ?? "").toBe("");
+  });
+
+  it("ungrounded draft (facts_used empty, warnings > 0): all four anchors mounted; warnings populated, facts-used empty", () => {
+    const draft = makeDraft({
+      facts_used: [],
+      warnings: ["This draft could not be fully grounded — review carefully."],
+    });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    for (const id of [
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.facts-used",
+      "portal.workspace.ai.draft-card.warnings",
+    ]) {
+      expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+    }
+    // Warnings populated.
+    const warningsAnchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.warnings"]');
+    expect(warningsAnchor?.textContent).toMatch(/could not be fully grounded/);
+    // Facts-used placeholder — no visible toggle.
+    const factsAnchor = container.querySelector('[data-training-id="portal.workspace.ai.draft-card.facts-used"]');
+    expect(factsAnchor?.querySelector('[data-testid="assistant-draft-facts-toggle"]')).toBeNull();
+  });
+
+  it("empty draft (both facts_used and warnings empty): all four anchors still mounted as empty placeholders", () => {
+    const draft = makeDraft({ facts_used: [], warnings: [] });
+    const { container } = render(
+      <AssistantDraftCard draft={draft} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    for (const id of [
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.facts-used",
+      "portal.workspace.ai.draft-card.warnings",
+    ]) {
+      expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+    }
+  });
+
+  it("anchor identity is stable across empty → grounded → ungrounded transitions", () => {
+    const empty = makeDraft({ facts_used: [], warnings: [] });
+    const grounded = makeDraft({
+      facts_used: [{ source: "Coordinator", fact: "State" }] as any,
+      warnings: [],
+    });
+    const ungrounded = makeDraft({
+      facts_used: [],
+      warnings: ["Ungrounded"],
+    });
+    const IDS = [
+      "portal.workspace.ai.draft-card",
+      "portal.workspace.ai.draft-card.confidence",
+      "portal.workspace.ai.draft-card.facts-used",
+      "portal.workspace.ai.draft-card.warnings",
+    ];
+    const { container, rerender } = render(
+      <AssistantDraftCard draft={empty} expectedAudience="buyer" trainingAnchorEnabled />,
+    );
+    for (const id of IDS) expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+    rerender(<AssistantDraftCard draft={grounded} expectedAudience="buyer" trainingAnchorEnabled />);
+    for (const id of IDS) expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+    rerender(<AssistantDraftCard draft={ungrounded} expectedAudience="buyer" trainingAnchorEnabled />);
+    for (const id of IDS) expect(container.querySelector(`[data-training-id="${id}"]`)).toBeTruthy();
+  });
+
+  it("trainingAnchorEnabled=false is unchanged: no anchors regardless of data shape", () => {
+    // Legacy behavior for non-anchored cards is preserved.
+    const cases = [
+      makeDraft({ facts_used: [], warnings: [] }),
+      makeDraft({ facts_used: [{ source: "Coordinator", fact: "F" }] as any, warnings: [] }),
+      makeDraft({ facts_used: [], warnings: ["W"] }),
+    ];
+    for (const draft of cases) {
+      const { container, unmount } = render(
+        <AssistantDraftCard draft={draft} expectedAudience="buyer" />,
+      );
+      for (const id of [
+        "portal.workspace.ai.draft-card",
+        "portal.workspace.ai.draft-card.confidence",
+        "portal.workspace.ai.draft-card.facts-used",
+        "portal.workspace.ai.draft-card.warnings",
+      ]) {
+        expect(container.querySelector(`[data-training-id="${id}"]`)).toBeNull();
+      }
+      unmount();
+    }
   });
 
   it("a non-training card still renders full user-facing content (title, subject, body, copy controls)", () => {
@@ -259,11 +387,12 @@ describe("Track 2 — deterministic single-anchor selection across multiple card
     expect(cards[0].textContent).toMatch(/First eligible draft/);
 
     expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.confidence"]').length).toBe(1);
-    // warnings + facts-used are also absent when their data is empty; but
-    // in this fixture the fields are empty on all three, so no warnings/
-    // facts-used anchors exist anywhere.
-    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.warnings"]').length).toBe(0);
-    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.facts-used"]').length).toBe(0);
+    // PILOT-D-012 Batch E — warnings and facts-used anchors are structurally
+    // stable when trainingAnchorEnabled=true, so they appear exactly ONCE
+    // (on the first card) regardless of data. Uniqueness is preserved by
+    // AIAssistantPanel selecting exactly one anchored card.
+    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.warnings"]').length).toBe(1);
+    expect(container.querySelectorAll('[data-training-id="portal.workspace.ai.draft-card.facts-used"]').length).toBe(1);
   });
 
   it("`resolveAnchor` returns the single anchored card (no hidden-first hazard)", () => {
