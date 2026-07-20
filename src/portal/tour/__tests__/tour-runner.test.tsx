@@ -201,6 +201,155 @@ describe("TourRunner — target_click enforcement", () => {
   });
 });
 
+// ─── PILOT-D-013 — target_click microtask deferral ─────────────────────────
+//
+// A synchronous `setState` inside the native document-capture click handler
+// used to perturb React's internal update pipeline between capture and
+// synthetic-event delegation, dropping the target element's own onClick.
+// pcert-l09 step 3 (target_click on portal.workspace.tab.ai) advanced the
+// tour but never let Next.js Link's router.push execute, so the URL never
+// switched to `?tab=ai` and the next spotlight fired MissingTargetCard.
+//
+// The fix (TourProvider.tsx target_click useEffect): wrap the setState in
+// queueMicrotask so the click event completes its full dispatch — including
+// the target's React-synthetic onClick — BEFORE React reconciles the tour
+// state change.
+//
+// These tests prove that both effects occur on a single target_click:
+//   1. the target element's own onClick handler runs
+//   2. the tour advances
+// and that Option A's specific implementation (queueMicrotask + capture
+// phase listener) is preserved.
+
+describe("TourRunner — PILOT-D-013 target_click microtask deferral", () => {
+  it("target element's own onClick handler runs when target_click advances the tour", async () => {
+    mockFetch.mockResolvedValueOnce({
+      script: SCRIPT_TARGET_CLICK as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    // Plant a Link-like target: has the training anchor AND its own
+    // onClick that mutates observable state (analogous to Next.js Link's
+    // router.push). If the tour handler drops the click, this handler
+    // never fires.
+    let underlyingNavCalled = false;
+    let navCallCount = 0;
+    const target = document.createElement("a");
+    target.setAttribute("data-training-id", "portal.navigation.home");
+    target.setAttribute("href", "/home");
+    target.addEventListener("click", (ev) => {
+      // Simulate Next.js Link intercepting: preventDefault + soft-nav.
+      ev.preventDefault();
+      underlyingNavCalled = true;
+      navCallCount += 1;
+    });
+    document.body.appendChild(target);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+    await act(async () => fireEvent.click(screen.getByText("Next")));
+
+    expect(screen.getByText("Click Home")).toBeInTheDocument();
+
+    // The single click on the target should:
+    //   1. fire the target's own onClick (underlyingNavCalled === true)
+    //   2. advance the tour (Done step visible)
+    await act(async () => fireEvent.click(target));
+
+    expect(underlyingNavCalled).toBe(true);
+    expect(navCallCount).toBe(1);
+    expect(screen.getByText("Done")).toBeInTheDocument();
+    expect(screen.getByText(/3\/3/)).toBeInTheDocument();
+  });
+
+  it("target's onClick fires exactly once even though tour handler also processes the click", async () => {
+    // Regression guard: the tour handler must NOT invoke or re-fire the
+    // target's onClick — it only defers a setState. If the microtask
+    // callback somehow re-dispatches the click, this test would count > 1.
+    mockFetch.mockResolvedValueOnce({
+      script: SCRIPT_TARGET_CLICK as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    let count = 0;
+    const target = document.createElement("a");
+    target.setAttribute("data-training-id", "portal.navigation.home");
+    target.setAttribute("href", "/home");
+    target.addEventListener("click", (ev) => { ev.preventDefault(); count += 1; });
+    document.body.appendChild(target);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+    await act(async () => fireEvent.click(screen.getByText("Next")));
+
+    await act(async () => fireEvent.click(target));
+    expect(count).toBe(1);
+  });
+
+  it("advances even when the target's onClick calls preventDefault (Next.js Link idiom)", async () => {
+    // Next.js Link always calls preventDefault on the anchor's default nav
+    // to substitute soft-nav via router.push. The tour handler must still
+    // advance regardless of preventDefault having been called earlier in
+    // the same event.
+    mockFetch.mockResolvedValueOnce({
+      script: SCRIPT_TARGET_CLICK as unknown as Awaited<ReturnType<typeof mockFetch>>["script"],
+      mode: "preview",
+      moduleStatus: "draft",
+    } as Awaited<ReturnType<typeof mockFetch>>);
+
+    const target = document.createElement("a");
+    target.setAttribute("data-training-id", "portal.navigation.home");
+    target.setAttribute("href", "/home");
+    // Native listener attached BEFORE the tour handler; but the tour
+    // handler is on document in capture phase so it still fires first.
+    // preventDefault by ANY handler must not disrupt tour advance.
+    target.addEventListener("click", (ev) => { ev.preventDefault(); });
+    document.body.appendChild(target);
+
+    render(
+      <TourProvider>
+        <Launcher preview />
+        <TourRunner />
+      </TourProvider>,
+    );
+    await act(async () => fireEvent.click(screen.getByTestId("start")));
+    await act(async () => fireEvent.click(screen.getByText("Next")));
+
+    await act(async () => fireEvent.click(target));
+    expect(screen.getByText("Done")).toBeInTheDocument();
+  });
+
+  it("source contract: tour advance is wrapped in queueMicrotask (PILOT-D-013 shape)", () => {
+    // Guards against a well-meaning refactor removing the microtask
+    // deferral. Read the TourProvider source and assert the exact
+    // wrapping is present in the target_click handler.
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const src = fs.readFileSync(
+      path.resolve(__dirname, "..", "TourProvider.tsx"),
+      "utf8",
+    );
+    // The target_click useEffect must contain queueMicrotask wrapping
+    // the setState call.
+    expect(src).toMatch(/queueMicrotask\(\(\)\s*=>\s*\{[\s\S]{0,80}?setState\(\(s\)\s*=>\s*advance\(s\)\)/);
+    // Listener still registered in capture phase (Option A does not
+    // change phase).
+    expect(src).toMatch(/document\.addEventListener\("click",\s*handler,\s*true\)/);
+  });
+});
+
 describe("TourRunner — missing target fallback", () => {
   it("renders the fallback card and does NOT auto-advance", async () => {
     mockFetch.mockResolvedValueOnce({
