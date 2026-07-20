@@ -153,6 +153,11 @@ export default function CoordinatorPanel({
   // Mirrors the loaded panel's structure (header line, primary directive line,
   // meta row, one blocker row) so the hero reserves its space and the primary
   // answer doesn't jump the page when it resolves (~2s client load).
+  //
+  // PILOT-D-012 Batch C — the three sub-anchors (`.directive`, `.blockers`,
+  // `.cta`) are planted on the skeleton bars themselves so the tour engine
+  // can resolve every Coordinator anchor even while the panel is still
+  // fetching. Preserves anchor identity across loading → loaded transitions.
   if (state.status === "loading") {
     return (
       <section
@@ -166,21 +171,36 @@ export default function CoordinatorPanel({
           <div className="h-4 w-4 mt-0.5 shrink-0 rounded-full bg-white/[0.06]" />
           <div className="min-w-0 flex-1 space-y-2.5">
             <div className="h-2.5 w-40 rounded bg-white/[0.06]" />
-            <div className="h-4 w-3/5 rounded bg-white/[0.08]" />
+            <div
+              data-training-id="portal.workspace.coordinator.directive"
+              className="h-4 w-3/5 rounded bg-white/[0.08]"
+            />
             <div className="flex gap-2">
               <div className="h-4 w-14 rounded bg-white/[0.06]" />
               <div className="h-4 w-28 rounded bg-white/[0.06]" />
               <div className="h-4 w-24 rounded bg-white/[0.06]" />
             </div>
-            <div className="h-3 w-4/5 rounded bg-white/[0.04]" />
+            <div
+              data-training-id="portal.workspace.coordinator.blockers"
+              className="h-3 w-4/5 rounded bg-white/[0.04]"
+            />
           </div>
-          <div className="h-8 w-40 shrink-0 rounded-md bg-white/[0.06]" />
+          <div
+            data-training-id="portal.workspace.coordinator.cta"
+            className="h-8 w-40 shrink-0 rounded-md bg-white/[0.06]"
+          />
         </div>
       </section>
     );
   }
 
   // ── unavailable ──────────────────────────────────────────────────────────────
+  //
+  // PILOT-D-012 Batch C — the three sub-anchors are still planted in this
+  // state so tour steps that target them don't misfire when the Coordinator
+  // load fails. `.directive` carries the visible "unavailable" message;
+  // `.blockers` and `.cta` are empty (aria-hidden) placeholder spans with
+  // zero layout footprint.
   if (state.status === "unavailable") {
     return (
       <div
@@ -188,7 +208,12 @@ export default function CoordinatorPanel({
         aria-label="Transaction Coordinator unavailable"
         className="rounded-lg border border-[#1a1a2e] bg-[#11111a] px-3 py-2.5 mb-3 flex items-center gap-2 text-xs text-[#71717A]"
       >
-        <Compass className="h-3.5 w-3.5 shrink-0" /> Coordinator temporarily unavailable.
+        <Compass className="h-3.5 w-3.5 shrink-0" />
+        <span data-training-id="portal.workspace.coordinator.directive">
+          Coordinator temporarily unavailable.
+        </span>
+        <span data-training-id="portal.workspace.coordinator.blockers" aria-hidden="true" />
+        <span data-training-id="portal.workspace.coordinator.cta" aria-hidden="true" />
       </div>
     );
   }
@@ -239,12 +264,18 @@ export default function CoordinatorPanel({
 
           {/* blockers + risks (only when present) — collapsed shows the single
               highest-priority blocker; the rest reveal on expand (3.5 Phase 2).
-              Severity carries the color; owner stays neutral. */}
-          {vm.has_blockers_section && (
-            <div
-              data-training-id="portal.workspace.coordinator.blockers"
-              className="mt-2 space-y-1.5"
-            >
+              Severity carries the color; owner stays neutral.
+              PILOT-D-012 Batch C — the wrapper div is ALWAYS mounted so the
+              `.blockers` training anchor exists in the loaded state even when
+              the transaction has zero blockers to display. When empty, the
+              wrapper carries no children and no spacing class → no layout
+              footprint. */}
+          <div
+            data-training-id="portal.workspace.coordinator.blockers"
+            className={vm.has_blockers_section ? "mt-2 space-y-1.5" : ""}
+          >
+            {vm.has_blockers_section && (
+              <>
               {(blockersExpanded ? vm.blockers : vm.blockers.slice(0, 1)).map((b, i) => (
                 <div key={`b-${i}`} className="flex items-start gap-2">
                   <Chip tone={b.severity_tone}>{b.severity_label}</Chip>
@@ -286,8 +317,9 @@ export default function CoordinatorPanel({
                   <div className="min-w-0 text-[11px] leading-relaxed text-[#A1A1AA]">{r.reason}</div>
                 </div>
               ))}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* CTA — the primary gold button. NAVIGATION ONLY (never performs the
