@@ -4,9 +4,15 @@
 // Single declarative list of nav items. The Sidebar reads this — the
 // only place a route changes when we ship a new (portal) page.
 //
-// Final menu locked in by AP2.1H spec, updated by R5:
-//   Home / Transactions / Clients / AI / Calendar / Notifications /
-//   Training / Library / Settings
+// ── AP2 NAVIGATION SPEC OF RECORD ───────────────────────────────────────────
+// This comment IS the AP2 nav design spec of record (there is no separate
+// AP2.1H document in the repo). The locked 10-item order is:
+//
+//   Home / Transactions / Clients / Buildings / AI / Calendar /
+//   Notifications / Training / Library / Settings
+//
+// Future reordering, additions, or removals still require documented product
+// approval recorded here before the array below changes.
 //
 // R5 — Training Hub unifies the old Training + Script Library +
 // Resources surfaces under one (portal) destination at /training.
@@ -18,6 +24,12 @@
 // AGENT.DOCS.1 — Adds "Library" as a top-level nav item between
 // Training and Settings. Points at the blank-template library at
 // /library, gated server-side by the agent-scoped Vault endpoint.
+//
+// HOTFIX.AP.STR.001 — Adds "Buildings" immediately after Clients. Migration
+// rationale: the Airbnb-friendly building directory shipped only in the
+// legacy Portal 1.0 shell (app/components/SidebarNav.tsx -> /str-directory)
+// and was never carried into Portal 2.0, so agents lost the surface. This
+// entry restores it natively at /buildings (Vault-backed, unchanged proxy).
 // ============================================================================
 
 export type NavItem = {
@@ -28,6 +40,7 @@ export type NavItem = {
     | "home"
     | "list-checks"
     | "users"
+    | "building-2"
     | "sparkles"
     | "calendar"
     | "bell"
@@ -48,6 +61,7 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "home",         label: "Home",          icon: "home",            href: "/home" },
   { id: "transactions", label: "Transactions",  icon: "list-checks",     href: "/workspace" },
   { id: "clients",      label: "Clients",       icon: "users",           href: "/clients" },
+  { id: "buildings",    label: "Buildings",     icon: "building-2",      href: "/buildings" },
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },

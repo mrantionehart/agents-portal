@@ -33,4 +33,13 @@ describe("isActiveRoute (sidebar highlighting)", () => {
     expect(isActiveRoute("/settings/profile", "/settings")).toBe(true);
     expect(isActiveRoute("/settings", "/settings")).toBe(true);
   });
+
+  it("HOTFIX.AP.STR.001 — /buildings matches /buildings AND /buildings/<id>", () => {
+    expect(isActiveRoute("/buildings", "/buildings")).toBe(true);
+    expect(isActiveRoute("/buildings/setai-resort", "/buildings")).toBe(true);
+  });
+
+  it("HOTFIX.AP.STR.001 — /buildings does not match /buildings-other (false-prefix guard)", () => {
+    expect(isActiveRoute("/buildings-other", "/buildings")).toBe(false);
+  });
 });
