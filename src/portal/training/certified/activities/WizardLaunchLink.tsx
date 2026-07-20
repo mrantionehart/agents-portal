@@ -79,9 +79,32 @@ export default function WizardLaunchLink({
       </ul>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {alreadyCompleted ? (
-          <div className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs text-green-300">
-            ✅ Wizard practice completed
-          </div>
+          <>
+            <div className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs text-green-300">
+              ✅ Wizard practice completed
+            </div>
+            {/*
+              The completion pill is the primary signal — the practical is done
+              and the learner does NOT need to repeat it. Alongside it we keep a
+              visually secondary navigation link to the wizard so the learner
+              can still reach `/training/wizard` if they want to look again (a
+              natural review affordance) and so any downstream flow that
+              observes a route change to `/training/wizard` can still function.
+              The href + `data-cert-wizard-launch` attribute are unchanged
+              across both states so the anchor + route target stay stable
+              regardless of completion. Wizard start is idempotent server-side
+              (the practical attestation upsert is protected by a 5-column
+              unique constraint), so a repeat launch cannot introduce a
+              duplicate practical attestation.
+            */}
+            <Link
+              href={href}
+              className="text-xs text-[#71717A] underline hover:text-[#F1F1F3]"
+              data-cert-wizard-launch
+            >
+              Reopen wizard
+            </Link>
+          </>
         ) : (
           <Link
             href={href}
