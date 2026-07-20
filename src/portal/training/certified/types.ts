@@ -102,7 +102,42 @@ export interface LessonProgress {
   watched_seconds: number;
   watched_pct: number;
   quiz_passed: boolean | null;
+  /**
+   * LEGACY / AMBIGUOUS. ISO string of a projected attestation timestamp
+   * decided by Vault's legacy `completionMode`-driven ternary. For V4
+   * lessons that declare only `requirements` (no `completionMode`),
+   * Vault falls back to the practical row's timestamp — a value this
+   * client historically treated as tour-attested state, producing the
+   * PILOT-D-009 "Tour completed" chip on lessons whose practical had
+   * landed but tour had not.
+   *
+   * DO NOT USE for new requirement-specific UI. Use `tour_attested_at`
+   * or `practical_attested_at` below instead. Kept in the type so this
+   * client remains parseable against older Vault responses that predate
+   * the additive contract.
+   */
   attested_at: string | null;
+  /**
+   * ISO string when a `tour` attestation exists for this user + lesson,
+   * else null. Populated by Vault directly from the tour attestation
+   * row (kind-scoped, never projected). Optional in the type because
+   * responses served before the PILOT-D-009 additive contract will not
+   * include this field; consumers MUST fail closed (treat undefined as
+   * "unknown / not attested") rather than infer completion from the
+   * legacy scalar.
+   *
+   * PILOT-D-009.
+   */
+  tour_attested_at?: string | null;
+  /**
+   * ISO string when a `practical` attestation exists for this user +
+   * lesson, else null. Populated by Vault directly from the practical
+   * attestation row (kind-scoped, never projected). Optional for the
+   * same backward-compat reason as `tour_attested_at`.
+   *
+   * PILOT-D-009.
+   */
+  practical_attested_at?: string | null;
 }
 
 export interface ModuleProgress {

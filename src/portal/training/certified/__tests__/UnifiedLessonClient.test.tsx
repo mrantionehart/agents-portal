@@ -110,19 +110,48 @@ function catalog(lessons: CertifiedLesson[]): CertifiedCatalog {
 }
 
 function progress(
-  entries: Array<{ moduleId: string; lessonId: string; status: LessonStatus; attestedAt?: string | null; quizPassed?: boolean | null }>,
+  entries: Array<{
+    moduleId: string;
+    lessonId: string;
+    status: LessonStatus;
+    attestedAt?: string | null;
+    quizPassed?: boolean | null;
+    // PILOT-D-009: kind-scoped attestation timestamps. Optional so
+    // legacy tests remain unchanged; new tests opt in explicitly.
+    tourAttestedAt?: string | null;
+    practicalAttestedAt?: string | null;
+    // When true, the response fixture omits BOTH new fields entirely
+    // (undefined). Simulates a stale Vault deployment predating the
+    // additive contract, exercising the AP's fail-closed fallback.
+    omitKindScopedFields?: boolean;
+  }>,
 ): CertifiedProgress {
-  const byModule = new Map<string, Array<{ lesson_id: string; status: LessonStatus; watched_seconds: number; watched_pct: number; quiz_passed: boolean | null; attested_at: string | null }>>();
+  type ProgressRow = {
+    lesson_id: string;
+    status: LessonStatus;
+    watched_seconds: number;
+    watched_pct: number;
+    quiz_passed: boolean | null;
+    attested_at: string | null;
+    tour_attested_at?: string | null;
+    practical_attested_at?: string | null;
+  };
+  const byModule = new Map<string, ProgressRow[]>();
   for (const e of entries) {
     const arr = byModule.get(e.moduleId) ?? [];
-    arr.push({
+    const row: ProgressRow = {
       lesson_id: e.lessonId,
       status: e.status,
       watched_seconds: 0,
       watched_pct: 0,
       quiz_passed: e.quizPassed ?? null,
       attested_at: e.attestedAt ?? null,
-    });
+    };
+    if (!e.omitKindScopedFields) {
+      row.tour_attested_at = e.tourAttestedAt ?? null;
+      row.practical_attested_at = e.practicalAttestedAt ?? null;
+    }
+    arr.push(row);
     byModule.set(e.moduleId, arr);
   }
   return {
@@ -413,5 +442,208 @@ describe("UnifiedLessonClient — no lesson-id branching invariant", () => {
     // The checklist launcher rendered for a lesson id the renderer has
     // never heard of — proving it read only from the spec.
     expect(document.querySelector('[data-cert-activity="checklist-link"]')).not.toBeNull();
+  });
+});
+
+// ─── PILOT-D-009 — kind-scoped attestation signals ──────────────────────────
+//
+// Fixtures below use `pcert-l04` as the canonical requirements-only lesson
+// (`requirements: [tour, practical]`, no legacy `completionMode`) — the
+// exact production shape that produced the false "Tour completed" chip
+// on `pcert-l04` after PILOT-D-008 landed the practical attestation.
+//
+// Every assertion here targets the runtime that would have surfaced
+// D-009. If any of these regress in a future refactor, the AP is once
+// again mis-consuming Vault's progress projection.
+
+describe("UnifiedLessonClient — PILOT-D-009 kind-scoped attestation signals", () => {
+  function l04() {
+    return lesson({
+      id: "pcert-l04",
+      module_id: "pcert-t01",
+      requirements: ["tour", "practical"],
+      session_ui_spec: {
+        activity_type: "transaction_wizard",
+        required_steps: ["type", "property", "parties", "dates", "review"],
+        requires_reflection: false,
+        minimum_reflection_length: 0,
+      },
+    });
+  }
+
+  it("D-009 repro: practical_attested_at populated but tour_attested_at null → tour block shows Start, NOT 'Tour completed'", async () => {
+    // Exact production shape after PILOT-D-008: practical done, tour not.
+    // The legacy `attested_at` scalar still carries the practical
+    // timestamp (as Vault does for backward compat) but this client
+    // MUST NOT interpret that as tour signal.
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "in_progress",
+        attestedAt: "2026-07-19T22:08:22Z",       // legacy scalar (practical ts, leaked)
+        tourAttestedAt: null,                       // ← the assertion driver
+        practicalAttestedAt: "2026-07-19T22:08:22Z",
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    // Tour block renders in "start" state — NOT the completed chip.
+    expect(document.querySelector('[data-cert-tour-launcher="learner"]')).not.toBeNull();
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).toBeNull();
+    // No "Tour completed" text — the whole point of the fix.
+    expect(screen.queryByText(/tour completed/i)).toBeNull();
+  });
+
+  it("tour_attested_at populated → 'Tour completed' chip renders (no Start button)", async () => {
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "in_progress",
+        attestedAt: "2026-07-19T22:30:00Z",
+        tourAttestedAt: "2026-07-19T22:30:00Z",         // ← drives the chip
+        practicalAttestedAt: "2026-07-19T22:08:22Z",
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).not.toBeNull();
+    expect(screen.getByText(/tour completed/i)).toBeInTheDocument();
+    // Start button must be absent when the tour is genuinely completed.
+    expect(screen.queryByRole("button", { name: /start guided tour/i })).toBeNull();
+  });
+
+  it("both timestamps populated + status='in_progress' → both blocks render independently in a satisfied state, without inferring overall completion", async () => {
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "in_progress",                          // ← server says NOT completed (e.g., quiz still pending on some future lesson)
+        attestedAt: "2026-07-19T22:30:00Z",
+        tourAttestedAt: "2026-07-19T22:30:00Z",
+        practicalAttestedAt: "2026-07-19T22:08:22Z",
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    // Tour block shows completed chip.
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).not.toBeNull();
+    // Practical (wizard) block also shows completed — driven by
+    // practicalAlreadyAttested, not overallCompleted.
+    const wizardLink = document.querySelector('[data-cert-activity="wizard-link"]');
+    expect(wizardLink).not.toBeNull();
+    // The top-of-page status badge still reflects Vault's status
+    // (server-driven, NOT locally inferred).
+    expect(document.querySelector('[data-cert-status-badge]')?.getAttribute('data-cert-status-badge')).not.toBe('Completed');
+  });
+
+  it("both timestamps null + status='in_progress' → tour block shows Start and wizard block shows launch (fresh state)", async () => {
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "not_started",
+        attestedAt: null,
+        tourAttestedAt: null,
+        practicalAttestedAt: null,
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    expect(document.querySelector('[data-cert-tour-launcher="learner"]')).not.toBeNull();
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).toBeNull();
+    expect(document.querySelector('[data-cert-activity="wizard-link"]')).not.toBeNull();
+    expect(screen.queryByText(/tour completed/i)).toBeNull();
+  });
+
+  it("legacy-shape response (both kind-scoped fields ABSENT) + non-null attested_at scalar → tour block FAILS CLOSED (Start visible, NOT the false chip)", async () => {
+    // Simulates a hypothetical stale Vault deployment that predates
+    // the additive contract. The AP MUST NOT treat the ambiguous scalar
+    // as tour-completed evidence — that's the exact D-009 misread the
+    // fix eliminates.
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "in_progress",
+        attestedAt: "2026-07-19T22:08:22Z",
+        omitKindScopedFields: true,                    // ← simulates old Vault
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    // Fail-closed: the client renders the Start (learner) launcher, not
+    // the completed chip. A stale Vault deployment is treated as "unknown
+    // / not attested" for tour state.
+    expect(document.querySelector('[data-cert-tour-launcher="learner"]')).not.toBeNull();
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).toBeNull();
+    expect(screen.queryByText(/tour completed/i)).toBeNull();
+  });
+
+  it("lesson completion status comes from Vault status, NOT from kind-scoped fields (both signals true + status='in_progress' → status badge is not Completed)", async () => {
+    // Locks the invariant: the top-of-page status badge reads
+    // Vault's authoritative `status`. Even if both kind-scoped
+    // timestamps are populated, if Vault says `in_progress`, the
+    // badge MUST NOT say Completed.
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l04()]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l04",
+        status: "in_progress",   // Vault's authoritative status
+        attestedAt: "2026-07-19T22:30:00Z",
+        tourAttestedAt: "2026-07-19T22:30:00Z",
+        practicalAttestedAt: "2026-07-19T22:08:22Z",
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l04" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l04")[0]).toBeInTheDocument());
+    const badge = document.querySelector('[data-cert-status-badge]');
+    expect(badge?.getAttribute('data-cert-status-badge')).toBe('In progress');
+    expect(badge?.getAttribute('data-cert-status-badge')).not.toBe('Completed');
+  });
+
+  it("legacy tour-only lesson (pcert-l01) + Vault status='completed' + kind-scoped tour attested → still renders the completed chip (backward-compat with legacy completionMode-driven Vault projections)", async () => {
+    // pcert-l01's Vault definition uses legacy completionMode='tour'.
+    // Once its tour is walked, Vault sets tour_attested_at + attested_at
+    // (both to the tour timestamp) and status='completed'. This test
+    // proves the kind-scoped read path is compatible with legacy-shaped
+    // lessons — a single lesson type never diverges.
+    const l01 = lesson({ id: "pcert-l01", module_id: "pcert-t01", requirements: ["tour"] });
+    fetchCatalogMock.mockResolvedValueOnce(catalog([l01]));
+    fetchProgressMock.mockResolvedValueOnce(progress([
+      {
+        moduleId: "pcert-t01",
+        lessonId: "pcert-l01",
+        status: "completed",
+        attestedAt: "2026-07-19T11:42:54Z",
+        tourAttestedAt: "2026-07-19T11:42:54Z",
+        practicalAttestedAt: null,
+      },
+    ]));
+
+    render(<UnifiedLessonClient trackId="pcert-t01" lessonId="pcert-l01" />);
+
+    await waitFor(() => expect(screen.getAllByText("pcert-l01")[0]).toBeInTheDocument());
+    expect(document.querySelector('[data-cert-tour-launcher="learner-completed"]')).not.toBeNull();
+    expect(screen.getByText(/tour completed/i)).toBeInTheDocument();
   });
 });
