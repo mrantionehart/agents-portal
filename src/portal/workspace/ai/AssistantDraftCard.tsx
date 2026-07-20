@@ -102,12 +102,24 @@ export default function AssistantDraftCard({
         </span>
       </div>
 
-      {/* warnings — only when present */}
-      {draft.warnings.length > 0 && (
+      {/* warnings — wrapper is always mounted when trainingAnchorEnabled so
+          the `.warnings` training anchor exists regardless of whether the
+          draft's warnings array is populated. Vault's response contract makes
+          `draft.warnings` and `draft.facts_used` mutually exclusive (warnings
+          only populated when facts_used is empty), so a tour that spotlights
+          both cannot depend on either data-array being non-empty at any
+          instant. Empty wrapper carries no visual footprint. When
+          trainingAnchorEnabled is false, keep the pre-existing conditional
+          behavior — no anchor and no wrapper. */}
+      {trainingAnchorEnabled ? (
         <div
-          data-testid="assistant-draft-warnings"
-          data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card.warnings" : undefined}
-          className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1"
+          data-testid={draft.warnings.length > 0 ? "assistant-draft-warnings" : undefined}
+          data-training-id="portal.workspace.ai.draft-card.warnings"
+          className={
+            draft.warnings.length > 0
+              ? "mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1"
+              : ""
+          }
         >
           {draft.warnings.map((w, i) => (
             <div key={i} className="flex items-start gap-1.5">
@@ -116,6 +128,20 @@ export default function AssistantDraftCard({
             </div>
           ))}
         </div>
+      ) : (
+        draft.warnings.length > 0 && (
+          <div
+            data-testid="assistant-draft-warnings"
+            className="mb-1.5 rounded-md border border-amber-700/40 bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-200 space-y-1"
+          >
+            {draft.warnings.map((w, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span className="whitespace-pre-wrap">{w}</span>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {draft.subject && !editing && (
@@ -151,33 +177,71 @@ export default function AssistantDraftCard({
         </button>
       </div>
 
-      {/* facts used — collapsed by default, friendly source names */}
-      {draft.facts_used.length > 0 && (
+      {/* facts used — collapsed by default, friendly source names.
+          Wrapper is always mounted when trainingAnchorEnabled so the
+          `.facts-used` training anchor exists regardless of whether the
+          draft's facts_used array is populated. Vault's response contract
+          makes `draft.warnings` and `draft.facts_used` mutually exclusive
+          (see the warnings wrapper above), so a tour that spotlights both
+          cannot depend on either data-array being non-empty at any instant.
+          Empty wrapper carries no visible content and no `mt-2` spacing.
+          When trainingAnchorEnabled is false, keep the pre-existing
+          conditional behavior — no anchor and no wrapper. */}
+      {trainingAnchorEnabled ? (
         <div
-          data-training-id={trainingAnchorEnabled ? "portal.workspace.ai.draft-card.facts-used" : undefined}
-          className="mt-2"
+          data-training-id="portal.workspace.ai.draft-card.facts-used"
+          className={draft.facts_used.length > 0 ? "mt-2" : ""}
         >
-          <button
-            type="button"
-            onClick={() => setShowFacts((v) => !v)}
-            data-testid="assistant-draft-facts-toggle"
-            aria-expanded={showFacts}
-            className="inline-flex items-center gap-1 text-[11px] text-[#71717A] hover:text-[#A1A1AA]"
-          >
-            {showFacts ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            {showFacts ? "Hide facts used" : `Show facts used (${draft.facts_used.length})`}
-          </button>
-          {showFacts && (
-            <div data-testid="assistant-draft-facts" className="mt-1.5 space-y-1.5">
-              {draft.facts_used.map((f, i) => (
-                <div key={i} className="text-[11px] leading-relaxed">
-                  <span className="text-[#71717A]">{friendlySource(f.source)}: </span>
-                  <span className="text-[#C7C7CC] whitespace-pre-wrap">{f.fact}</span>
+          {draft.facts_used.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowFacts((v) => !v)}
+                data-testid="assistant-draft-facts-toggle"
+                aria-expanded={showFacts}
+                className="inline-flex items-center gap-1 text-[11px] text-[#71717A] hover:text-[#A1A1AA]"
+              >
+                {showFacts ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                {showFacts ? "Hide facts used" : `Show facts used (${draft.facts_used.length})`}
+              </button>
+              {showFacts && (
+                <div data-testid="assistant-draft-facts" className="mt-1.5 space-y-1.5">
+                  {draft.facts_used.map((f, i) => (
+                    <div key={i} className="text-[11px] leading-relaxed">
+                      <span className="text-[#71717A]">{friendlySource(f.source)}: </span>
+                      <span className="text-[#C7C7CC] whitespace-pre-wrap">{f.fact}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
+      ) : (
+        draft.facts_used.length > 0 && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setShowFacts((v) => !v)}
+              data-testid="assistant-draft-facts-toggle"
+              aria-expanded={showFacts}
+              className="inline-flex items-center gap-1 text-[11px] text-[#71717A] hover:text-[#A1A1AA]"
+            >
+              {showFacts ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              {showFacts ? "Hide facts used" : `Show facts used (${draft.facts_used.length})`}
+            </button>
+            {showFacts && (
+              <div data-testid="assistant-draft-facts" className="mt-1.5 space-y-1.5">
+                {draft.facts_used.map((f, i) => (
+                  <div key={i} className="text-[11px] leading-relaxed">
+                    <span className="text-[#71717A]">{friendlySource(f.source)}: </span>
+                    <span className="text-[#C7C7CC] whitespace-pre-wrap">{f.fact}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
       )}
     </div>
   );
