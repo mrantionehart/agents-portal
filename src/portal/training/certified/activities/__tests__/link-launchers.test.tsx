@@ -48,7 +48,18 @@ describe("WizardLaunchLink", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("shows a passive success chip when alreadyCompleted", () => {
+  it("shows the completion pill AND a persistent secondary navigation link when alreadyCompleted (PILOT-D-010)", () => {
+    // Prior behavior: completed state was a passive dead-end — the pill
+    // rendered, the link disappeared, and the learner had no way to reach
+    // `/training/wizard`. Any flow that observed the route change (the
+    // pcert-l04 tour among them) stalled.
+    //
+    // Post PILOT-D-010: the completion pill remains the primary signal
+    // (the practical is done and must not be re-done), and a visually
+    // secondary "Reopen wizard" link stays available as a stable
+    // navigation affordance. Same href, same data-cert-wizard-launch
+    // attribute — the anchor + route target no longer disappear based on
+    // completion state.
     render(
       <WizardLaunchLink
         lessonId="pcert-l04"
@@ -56,8 +67,56 @@ describe("WizardLaunchLink", () => {
         alreadyCompleted={true}
       />,
     );
+
+    // Completion pill still present.
     expect(screen.getByText(/wizard practice completed/i)).toBeInTheDocument();
-    expect(screen.queryByRole("link")).toBeNull();
+
+    // Navigation link present with the same href + attribute as the
+    // incomplete branch — proves the stable anchor is preserved.
+    const link = screen.getByRole("link", { name: /reopen wizard/i });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("/training/wizard?");
+    const q = new URLSearchParams(href.split("?")[1] ?? "");
+    expect(q.get("lesson")).toBe("pcert-l04");
+    expect(q.get("activity")).toBe("transaction_wizard");
+    expect(q.get("evaluator_key")).toBe("transaction_wizard.completed.v1");
+    expect(q.get("criterion_version")).toBe("1");
+    expect(q.get("certification")).toBe("hartfelt-platform-certified");
+    expect(link).toHaveAttribute("data-cert-wizard-launch");
+
+    // Not the primary yellow "Open the training wizard" button — a completed
+    // learner must not be nudged to redo the practical. The primary label
+    // MUST NOT appear when alreadyCompleted=true; only the secondary
+    // "Reopen wizard" label does.
+    expect(
+      screen.queryByRole("link", { name: /open the training wizard/i }),
+    ).toBeNull();
+
+    // Exactly one link rendered — no duplicate primary button under the
+    // completion pill.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("incomplete state remains unchanged after PILOT-D-010 (regression guard)", () => {
+    // Explicit re-assertion of the pre-PILOT-D-010 behavior for the
+    // NOT-completed branch. Locks the primary CTA in place.
+    render(
+      <WizardLaunchLink
+        lessonId="pcert-l04"
+        spec={wizardSpec}
+        alreadyCompleted={false}
+      />,
+    );
+    // Primary CTA present with the primary label.
+    const link = screen.getByRole("link", { name: /open the training wizard/i });
+    expect(link).toHaveAttribute("data-cert-wizard-launch");
+    // No completion pill — the practical is not done.
+    expect(screen.queryByText(/wizard practice completed/i)).toBeNull();
+    // No secondary "Reopen wizard" label — that's the completed-state
+    // affordance only.
+    expect(screen.queryByRole("link", { name: /reopen wizard/i })).toBeNull();
+    // Exactly one link.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });
 
