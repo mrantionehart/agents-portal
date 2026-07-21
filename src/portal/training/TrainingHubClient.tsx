@@ -371,40 +371,40 @@ function CategorizedTraining({
           className="
             rounded-lg border border-[#C9A84C]/40
             bg-gradient-to-br from-[#C9A84C]/10 via-[#C9A84C]/5 to-transparent
-            p-5 mb-6
+            p-7 sm:p-8 mb-8
           "
           data-testid="training-hero"
         >
-          <div className="text-[10px] uppercase tracking-wider text-[#E8D5A3] mb-1">
+          <div className="text-[11px] uppercase tracking-wider text-[#E8D5A3] mb-2">
             🏁 Begin Your HartFelt Journey
           </div>
-          <div className="flex items-start gap-3">
-            <Award className="h-6 w-6 text-[#C9A84C] shrink-0 mt-0.5" />
+          <div className="flex items-start gap-4">
+            <Award className="h-7 w-7 text-[#C9A84C] shrink-0 mt-1" />
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-[#F1F1F3]">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#F1F1F3]">
                 🏆 Platform Certification
               </h2>
-              <p className="text-sm text-[#A1A1AA] mt-1.5 max-w-prose">
+              <p className="text-sm sm:text-[15px] leading-relaxed text-[#A1A1AA] mt-3 max-w-prose">
                 Master the HartFelt platform through interactive tours,
-                simulations, practical exercises, and real-world workflows.
+                practical exercises, simulations, and real-world workflows.
               </p>
-              <div className="mt-2 text-[11px] text-[#71717A]">
-                {hero.length} {hero.length === 1 ? "module" : "modules"}
+              <div className="mt-4 text-[11px] uppercase tracking-wider text-[#71717A]">
+                {hero.length} {hero.length === 1 ? "Learning Track" : "Learning Tracks"} • 32 Interactive Lessons
                 {allV4Complete ? " · Completed" : anyV4Started ? " · In progress" : ""}
               </div>
               <a
                 href={heroEntry.open_url}
                 className="
-                  inline-flex mt-4 items-center gap-1.5 rounded-md
-                  bg-[#C9A84C] px-4 py-2 text-sm text-black font-semibold
-                  hover:brightness-95
+                  inline-flex mt-6 items-center gap-1.5 rounded-md
+                  bg-[#C9A84C] px-5 py-2.5 text-sm sm:text-[15px]
+                  text-black font-semibold hover:brightness-95
                 "
               >
                 {allV4Complete
-                  ? "Review certification"
+                  ? "Review Journey"
                   : anyV4Started
-                  ? "Continue certification →"
-                  : "Start certification →"}
+                  ? "Continue Journey →"
+                  : "Begin Your Journey →"}
               </a>
             </div>
           </div>
