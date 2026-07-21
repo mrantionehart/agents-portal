@@ -91,17 +91,47 @@ export async function POST(request: NextRequest) {
       .single()
 
     const role = profile?.role || 'agent'
-    // Phase 4: brokers/admins operate in Vault, not the Agent Portal.
-    const dashboardPath =
-      role === 'admin' || role === 'broker'
-        ? 'https://vault.hartfeltrealestate.com/dashboard'
-        : '/dashboard'
 
-    console.log(`✓ Login: ${email} (${role}) → ${dashboardPath}`)
+    // ── ONBOARD-001 — Onboarding-first landing decision ─────────────────
+    //
+    // Brokers and admins operate out of Vault, so their destination is
+    // unchanged. Agents are dispatched based on whether they have
+    // completed the onboarding milestone: the very first Platform
+    // Certification lesson (pcert-l01) writes a
+    // `training_progress { volume: 'volume-1', volume_completed: true }`
+    // row via the PILOT-D-021 bridge. That row is the single onboarding
+    // signal.
+    //   • Un-onboarded agent  → `/training` (Platform Certification hero,
+    //     "Begin Your Journey")
+    //   • Onboarded agent     → `/home` (Portal 2.0 dashboard)
+    //
+    // Important: this is a SOFT default-landing decision. Un-onboarded
+    // agents can still navigate to `/home`, `/clients`, etc. by clicking
+    // the sidebar — middleware no longer hard-blocks them (see
+    // middleware.ts). The onboarding experience is a nudge, not a lock.
+    //
+    // Reading the flag with the authenticated Supabase client relies on
+    // the standard `training_progress` RLS policy (own-row SELECT via
+    // `auth.uid() = user_id`), so no service-role client is needed.
+    let redirectPath: string
+    if (role === 'admin' || role === 'broker') {
+      redirectPath = 'https://vault.hartfeltrealestate.com/dashboard'
+    } else {
+      const { data: progress } = await supabase
+        .from('training_progress')
+        .select('volume_completed')
+        .eq('user_id', data.user.id)
+        .eq('volume', 'volume-1')
+        .maybeSingle()
+      const onboarded = progress?.volume_completed === true
+      redirectPath = onboarded ? '/home' : '/training'
+    }
+
+    console.log(`✓ Login: ${email} (${role}) → ${redirectPath}`)
 
     // Build the JSON response and apply all collected cookies
     const response = NextResponse.json(
-      { success: true, redirectPath: dashboardPath },
+      { success: true, redirectPath: redirectPath },
       { status: 200 }
     )
 

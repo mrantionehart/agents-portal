@@ -362,6 +362,34 @@ function CategorizedTraining({
   const anyV4Started = hero.some((m) => (m.progress_pct ?? 0) > 0);
   const allV4Complete = hero.length > 0 && hero.every((m) => m.completed);
 
+  // ── ONBOARD-001 — motivating progress display ─────────────────────────
+  //
+  // Present journey progress in a way that pulls the learner forward
+  // rather than counting down. Explicitly avoids raw lesson counts
+  // ("32 Interactive Lessons") because the goal is momentum, not a
+  // remaining-work tally. Three states:
+  //   • not started → "N LEARNING TRACKS · READY TO BEGIN"
+  //   • in progress → "N% COMPLETE · X OF Y TRACKS DONE"
+  //   • completed   → "CERTIFIED · ALL Y TRACKS COMPLETE"
+  //
+  // Percent aggregates progress_pct across all hero modules (equal
+  // weight — every V4 track is one step toward certification). Rounded
+  // to the nearest integer for display; never displays 0% (jumps
+  // straight to "READY TO BEGIN" copy) and never displays 100% below
+  // the "completed" threshold.
+  const heroCount = hero.length;
+  const completedTrackCount = hero.filter((m) => m.completed).length;
+  const heroProgressPct = heroCount > 0
+    ? Math.round(
+        hero.reduce((sum, m) => sum + (m.progress_pct ?? 0), 0) / heroCount,
+      )
+    : 0;
+  const heroProgressLabel = !anyV4Started
+    ? `${heroCount} ${heroCount === 1 ? "Learning Track" : "Learning Tracks"} · Ready to begin`
+    : allV4Complete
+    ? `Certified · All ${heroCount} tracks complete`
+    : `${heroProgressPct}% complete · ${completedTrackCount} of ${heroCount} tracks done`;
+
   const showHero = !searchActive && heroEntry != null;
 
   return (
@@ -388,9 +416,11 @@ function CategorizedTraining({
                 Master the HartFelt platform through interactive tours,
                 practical exercises, simulations, and real-world workflows.
               </p>
-              <div className="mt-4 text-[11px] uppercase tracking-wider text-[#71717A]">
-                {hero.length} {hero.length === 1 ? "Learning Track" : "Learning Tracks"} • 32 Interactive Lessons
-                {allV4Complete ? " · Completed" : anyV4Started ? " · In progress" : ""}
+              <div
+                className="mt-4 text-[11px] uppercase tracking-wider text-[#71717A]"
+                data-testid="training-hero-progress"
+              >
+                {heroProgressLabel}
               </div>
               <a
                 href={heroEntry.open_url}

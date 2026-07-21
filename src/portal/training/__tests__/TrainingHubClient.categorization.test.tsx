@@ -240,14 +240,19 @@ describe("PILOT-IA-1 — TrainingHubClient rendered structure", () => {
     ).toBeInTheDocument();
   });
 
-  it("hero metadata line shows learning tracks + interactive lessons counts", () => {
+  it("hero metadata line shows motivating onboarding progress — no raw lesson counts (ONBOARD-001)", () => {
     render(<TrainingHubClient {...baseProps} training={CANONICAL_MODULES} />);
-    // 6 V4 modules in the canonical fixture → "6 Learning Tracks". The
-    // 32-lesson total is a copy string per the IA-2 spec ("cannot be
-    // derived without meaningful engineering" — hardcoded intentionally).
+    // 6 V4 modules in the canonical fixture, all not started. The label
+    // must invite ("Ready to begin") rather than tally remaining work.
+    // Explicitly forbid the previous IA-2 phrasing and the "32 Interactive
+    // Lessons" copy — per ONBOARD-001 Q3, do NOT display raw lesson
+    // counts.
     expect(
-      screen.getByText(/6 Learning Tracks • 32 Interactive Lessons/),
+      screen.getByText(/6 Learning Tracks · Ready to begin/i),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/32 Interactive Lessons/),
+    ).not.toBeInTheDocument();
   });
 
   it("hero switches to 'Continue Journey' wording when any V4 module has progress", () => {
@@ -269,6 +274,40 @@ describe("PILOT-IA-1 — TrainingHubClient rendered structure", () => {
     );
     render(<TrainingHubClient {...baseProps} training={allDone} />);
     expect(screen.getByRole("link", { name: /Review Journey/ })).toBeInTheDocument();
+  });
+
+  // ── ONBOARD-001 progress display ──────────────────────────────────────
+
+  it("hero progress line shows '% complete · X of Y tracks done' while in-progress (ONBOARD-001)", () => {
+    // Mark 2 of 6 V4 modules complete at 100%, one module at 50%, rest 0.
+    // Aggregate expected: (100+100+50+0+0+0)/6 = 41.67 → rounds to 42%.
+    const inProgress = CANONICAL_MODULES.map((m) => {
+      if (m.category !== "Volume 4") return m;
+      if (m.title === "Portal Foundations")
+        return { ...m, progress_pct: 100, completed: true };
+      if (m.title === "Certification")
+        return { ...m, progress_pct: 100, completed: true };
+      if (m.title === "Transaction Intelligence")
+        return { ...m, progress_pct: 50 };
+      return m;
+    });
+    render(<TrainingHubClient {...baseProps} training={inProgress} />);
+    const progressNode = screen.getByTestId("training-hero-progress");
+    expect(progressNode.textContent).toMatch(/42% complete/i);
+    expect(progressNode.textContent).toMatch(/2 of 6 tracks done/i);
+    // Explicitly forbid raw lesson counts anywhere on the hero progress line.
+    expect(progressNode.textContent).not.toMatch(/32 Interactive Lessons/i);
+    expect(progressNode.textContent).not.toMatch(/lessons? left/i);
+  });
+
+  it("hero progress line shows 'Certified · All N tracks complete' when every V4 module is done (ONBOARD-001)", () => {
+    const allDone = CANONICAL_MODULES.map((m) =>
+      m.category === "Volume 4" ? { ...m, progress_pct: 100, completed: true } : m,
+    );
+    render(<TrainingHubClient {...baseProps} training={allDone} />);
+    const progressNode = screen.getByTestId("training-hero-progress");
+    expect(progressNode.textContent).toMatch(/Certified · All 6 tracks complete/i);
+    expect(progressNode.textContent).not.toMatch(/32 Interactive Lessons/i);
   });
 
   it("renders all four themed sections when their modules exist", () => {
