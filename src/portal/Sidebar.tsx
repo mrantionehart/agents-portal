@@ -113,9 +113,9 @@ export default function Sidebar({ role, open = false, onDismiss }: SidebarProps)
           ))}
         </nav>
 
-        {/* Footer note */}
+        {/* Footer note — PILOT-FEEDBACK-001A */}
         <div className="px-4 py-3 border-t border-[#1a1a2e] text-[10px] uppercase tracking-wide text-[#71717A]">
-          Portal 2.0 · Preview
+          Because Choices Matter.
         </div>
       </aside>
     </>
