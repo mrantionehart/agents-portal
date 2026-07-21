@@ -236,11 +236,21 @@ describe("PILOT-IA-1 — TrainingHubClient rendered structure", () => {
     expect(screen.getByText(/Begin Your HartFelt Journey/)).toBeInTheDocument();
     expect(screen.getByText(/Platform Certification/)).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Start certification/ }),
+      screen.getByRole("link", { name: /Begin Your Journey/ }),
     ).toBeInTheDocument();
   });
 
-  it("hero switches to 'Continue' wording when any V4 module has progress", () => {
+  it("hero metadata line shows learning tracks + interactive lessons counts", () => {
+    render(<TrainingHubClient {...baseProps} training={CANONICAL_MODULES} />);
+    // 6 V4 modules in the canonical fixture → "6 Learning Tracks". The
+    // 32-lesson total is a copy string per the IA-2 spec ("cannot be
+    // derived without meaningful engineering" — hardcoded intentionally).
+    expect(
+      screen.getByText(/6 Learning Tracks • 32 Interactive Lessons/),
+    ).toBeInTheDocument();
+  });
+
+  it("hero switches to 'Continue Journey' wording when any V4 module has progress", () => {
     const withProgress = CANONICAL_MODULES.map((m) =>
       m.category === "Volume 4" && m.title === "Portal Foundations"
         ? { ...m, progress_pct: 50 }
@@ -248,17 +258,17 @@ describe("PILOT-IA-1 — TrainingHubClient rendered structure", () => {
     );
     render(<TrainingHubClient {...baseProps} training={withProgress} />);
     expect(
-      screen.getByRole("link", { name: /Continue certification/ }),
+      screen.getByRole("link", { name: /Continue Journey/ }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Start certification/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Begin Your Journey/ })).toBeNull();
   });
 
-  it("hero switches to 'Review' wording when every V4 module is complete", () => {
+  it("hero switches to 'Review Journey' wording when every V4 module is complete", () => {
     const allDone = CANONICAL_MODULES.map((m) =>
       m.category === "Volume 4" ? { ...m, progress_pct: 100, completed: true } : m,
     );
     render(<TrainingHubClient {...baseProps} training={allDone} />);
-    expect(screen.getByRole("link", { name: /Review certification/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review Journey/ })).toBeInTheDocument();
   });
 
   it("renders all four themed sections when their modules exist", () => {
