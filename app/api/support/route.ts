@@ -1,48 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
-import sgMail from '@sendgrid/mail'
+// ============================================================================
+// AP.MAIL.P2.001 — Support request: authenticated proxy to Vault
+// ============================================================================
+// The Agent Portal is the UI/request boundary only. Support persistence,
+// validation, the domain event, the transactional outbox append, and the
+// notification workflow are owned by Vault. This route no longer sends email
+// (SendGrid removed): it forwards the authenticated request to the Vault
+// business endpoint, which durably saves the request and returns success
+// independently of notification delivery.
+//
+// Failure contract: proxyToVault returns an honest normalized failure — 401 if
+// unauthenticated, 502 (vault_unreachable) if Vault is down — and passes
+// Vault's status + JSON through otherwise. It never silently claims success.
+// ============================================================================
 
-const sgApiKey = process.env.SENDGRID_API_KEY
-if (sgApiKey) {
-  sgMail.setApiKey(sgApiKey)
-}
+import { NextRequest } from 'next/server'
+import { proxyToVault } from '@/lib/vault-forward'
+import { requireAuth } from '@/lib/security'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  try {
-    const { email, name, subject, message } = await request.json()
+  // Portal-side gate (defense in depth). Vault re-verifies the token and
+  // resolves role/tenant itself via gateCaller.
+  const auth = await requireAuth(request)
+  if (auth.response) return auth.response
 
-    // Validate required fields
-    if (!email || !name || !subject || !message) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // Send email to admin
-    await sgMail.send({
-      to: 'admin@hartfeltrealestate.com',
-      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@hartfeltmg.com',
-      replyTo: email,
-      subject: `Support Request from ${name}: ${subject}`,
-      html: `
-        <h2>Support Request</h2>
-        <p><strong>From:</strong> ${name} (${email})</p>
-        <p><strong>Subject:</strong> ${subject}</p>
-        <hr>
-        <p><strong>Message:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-      `,
-    })
-
-    return NextResponse.json(
-      { success: true, message: 'Support request sent successfully' },
-      { status: 200 }
-    )
-  } catch (error) {
-    console.error('Support email error:', error)
-    return NextResponse.json(
-      { error: 'Failed to send support request' },
-      { status: 500 }
-    )
-  }
+  // Forward the form body ({ name, email, subject, message }) unchanged.
+  const body = await request.json().catch(() => ({}))
+  return proxyToVault(request, 'POST', '/support/requests', body)
 }
