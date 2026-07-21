@@ -1,10 +1,19 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Pages that agents can access even before completing Vol 1 training
-const TRAINING_GATE_ALLOWED = ['/login', '/forgot-password', '/reset-password', '/training', '/training-interactive']
-
+// ── Middleware: authentication only ────────────────────────────────────
+//
+// After ONBOARD-001, middleware enforces authentication and NOTHING
+// else. Onboarding routing (Platform Certification-first landing for
+// un-onboarded agents) is a soft default-landing decision made at
+// `/api/login/route.ts` and `app/page.tsx` — NOT a hard-lock here.
+// A previous incarnation of this file (the "Vol 1 training gate") issued
+// unconditional redirects to `/training` for any agent without
+// `training_progress { volume: 'volume-1', volume_completed: true }`,
+// which prevented pilot learners from ever reaching `/home` and
+// contradicted the "may still navigate elsewhere" onboarding contract.
+// The gate was removed in ONBOARD-001; the `volume_completed` flag now
+// serves only as a landing signal, not an access control.
 export async function middleware(request: NextRequest) {
   // Skip auth check for public pages
   const publicPaths = ['/login', '/forgot-password', '/reset-password', '/logout']
@@ -17,7 +26,7 @@ export async function middleware(request: NextRequest) {
     })
   }
 
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -51,59 +60,9 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If user is NOT logged in and trying to access protected routes, redirect to login
+  // Unauth → `/login`. That's the whole enforcement.
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // ─── Training Gate ─────────────────────────────────────────────────
-  // Check if the current path is already allowed (training pages, login)
-  const path = request.nextUrl.pathname
-  const isAllowedPath = TRAINING_GATE_ALLOWED.some(
-    (p) => path === p || path.startsWith(p + '/')
-  )
-
-  if (!isAllowedPath) {
-    try {
-      // Use service role to bypass RLS for this check
-      const admin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
-
-      // Get user role + QA status
-      const { data: profile } = await admin
-        .from('profiles')
-        .select('role, is_qa_user')
-        .eq('id', user.id)
-        .single()
-
-      const role = profile?.role || 'agent'
-
-      // Only gate agents — brokers, admins, and QA users always pass
-      if (role === 'agent' && !profile?.is_qa_user) {
-        const { data: progress } = await admin
-          .from('training_progress')
-          .select('volume_completed')
-          .eq('user_id', user.id)
-          .eq('volume', 'volume-1')
-          .single()
-
-        if (!progress?.volume_completed) {
-          return NextResponse.redirect(new URL('/training', request.url))
-        }
-      }
-    } catch (err) {
-      // Fail CLOSED — if the gate's DB lookup errors, redirect to /training
-      // rather than silently letting agents through. Brokers/admins hitting
-      // a transient DB error get a brief detour to the (universally-allowed)
-      // training page; on the next request after recovery they pass through
-      // normally. Matches Vault's hardened posture (Op Hardening Item 1,
-      // vault commit e568879). No redirect loop possible: /training is in
-      // TRAINING_GATE_ALLOWED above so middleware skips the gate check on it.
-      console.warn("[hardening:item-6] training gate fail-closed", { pathname: request.nextUrl.pathname, error: err instanceof Error ? err.message : String(err) });
-      return NextResponse.redirect(new URL('/training', request.url))
-    }
   }
 
   return response
