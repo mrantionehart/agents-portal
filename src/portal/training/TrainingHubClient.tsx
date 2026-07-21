@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Award,
   BookOpen,
   ExternalLink,
   FileText,
@@ -33,6 +34,127 @@ import {
   progressLabel,
   tabLabel,
 } from "./helpers";
+
+// ── PILOT-IA-1 Training catalog information architecture ──────────────────
+// Reorganize the Training tab into a Platform Certification hero followed
+// by four themed sections. Reduces first-visit cognitive overload by making
+// the recommended starting point obvious. Card component, permissions,
+// links, search, and progress are unchanged — only the arrangement.
+//
+// Volume 4 modules are subsumed by the hero card (Platform Certification is
+// the whole V4 track) and are NOT rendered as individual cards in the
+// categorized sections. Every other module is placed in exactly one section
+// via title-substring matching (permissive — minor punctuation drift in the
+// DB doesn't drop a module). Anything unmatched falls into an "Other"
+// fallback section rendered at the bottom so nothing is silently hidden.
+//
+// During an active search the hero is hidden (it's a nav aid, not a search
+// result) and each section shows only its matching items.
+
+interface CatalogSection {
+  key: string;
+  label: string;
+  patterns: string[];
+}
+
+const CATALOG_SECTIONS: CatalogSection[] = [
+  {
+    key: "getting-started",
+    label: "🏠 Getting Started",
+    patterns: [
+      "Ready Foundations",
+      "New Agent Playbook",
+      "EASE Training",
+    ],
+  },
+  {
+    key: "residential",
+    label: "🏡 Residential Sales",
+    patterns: [
+      "Lead Generation",
+      "Listings Mastery",
+      "Buyer's Journey",
+      "Showing Playbook",
+      "Transaction Process",
+      "Marketing & Branding",
+      "Growth, Mindset",
+      "Client Acquisition",
+    ],
+  },
+  {
+    key: "investing",
+    label: "🏢 Investing & Development",
+    patterns: [
+      "Investor Mindset",
+      "Wholesaling",
+      "Zoning",
+      "Luxury Market",
+      "Capital, Finance",
+      "Elite Mastery",
+    ],
+  },
+  {
+    key: "ai-academy",
+    label: "🤖 AI Academy",
+    patterns: [
+      "AI for Real Estate",
+      "AI Mindset",
+      "ChatGPT vs Claude",
+      "Prompting Like a Pro",
+      "Real Estate Use Cases",
+      "Daily AI Workflow",
+      "AI Roleplay",
+      "What Not to Do",
+      "Making Money with AI",
+    ],
+  },
+];
+
+/** True when the module belongs to the Platform Certification hero. */
+function isPlatformCertification(item: HubItem): boolean {
+  return item.category === "Volume 4";
+}
+
+/** Return the section key for a module title, or null if unmatched.
+ *  Case-insensitive substring match; patterns are checked in order and the
+ *  first section with any matching pattern wins. */
+function classifyBySectionKey(item: HubItem): string | null {
+  const titleLower = item.title.toLowerCase();
+  for (const section of CATALOG_SECTIONS) {
+    for (const pattern of section.patterns) {
+      if (titleLower.includes(pattern.toLowerCase())) {
+        return section.key;
+      }
+    }
+  }
+  return null;
+}
+
+/** Bucket a training item list into hero + section-keyed lists +
+ *  uncategorized fallback. Every input item appears in exactly one bucket. */
+export function partitionTrainingCatalog(items: HubItem[]): {
+  hero: HubItem[];
+  sections: Map<string, HubItem[]>;
+  uncategorized: HubItem[];
+} {
+  const hero: HubItem[] = [];
+  const sections = new Map<string, HubItem[]>();
+  const uncategorized: HubItem[] = [];
+  for (const s of CATALOG_SECTIONS) sections.set(s.key, []);
+  for (const it of items) {
+    if (isPlatformCertification(it)) {
+      hero.push(it);
+      continue;
+    }
+    const key = classifyBySectionKey(it);
+    if (key) {
+      sections.get(key)!.push(it);
+    } else {
+      uncategorized.push(it);
+    }
+  }
+  return { hero, sections, uncategorized };
+}
 
 export interface TrainingHubClientProps {
   training: HubItem[];
@@ -164,11 +286,10 @@ export default function TrainingHubClient({
               search={search}
             />
           ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {visibleTraining.map((it) => (
-                <HubCard key={it.id} item={it} kind="training" />
-              ))}
-            </ul>
+            <CategorizedTraining
+              items={visibleTraining}
+              searchActive={search.trim().length > 0}
+            />
           )}
         </section>
       )}
@@ -215,6 +336,110 @@ export default function TrainingHubClient({
         Read-only hub. Video playback, script content, and resource downloads
         open the existing legacy surfaces unchanged.
       </p>
+    </div>
+  );
+}
+
+// ── PILOT-IA-1 Categorized Training render ───────────────────────────
+
+function CategorizedTraining({
+  items,
+  searchActive,
+}: {
+  items: HubItem[];
+  searchActive: boolean;
+}) {
+  const { hero, sections, uncategorized } = useMemo(
+    () => partitionTrainingCatalog(items),
+    [items],
+  );
+
+  // Hero represents the entire Platform Certification (all V4 modules).
+  // Use the first V4 module (lowest sort_order — Portal Foundations) as
+  // the click-through entry point. Aggregate simple completion signals
+  // across all V4 modules for the "Start" vs "Continue" button state.
+  const heroEntry = hero[0];
+  const anyV4Started = hero.some((m) => (m.progress_pct ?? 0) > 0);
+  const allV4Complete = hero.length > 0 && hero.every((m) => m.completed);
+
+  const showHero = !searchActive && heroEntry != null;
+
+  return (
+    <div>
+      {showHero && (
+        <div
+          className="
+            rounded-lg border border-[#C9A84C]/40
+            bg-gradient-to-br from-[#C9A84C]/10 via-[#C9A84C]/5 to-transparent
+            p-5 mb-6
+          "
+          data-testid="training-hero"
+        >
+          <div className="text-[10px] uppercase tracking-wider text-[#E8D5A3] mb-1">
+            🏁 Begin Your HartFelt Journey
+          </div>
+          <div className="flex items-start gap-3">
+            <Award className="h-6 w-6 text-[#C9A84C] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-[#F1F1F3]">
+                🏆 Platform Certification
+              </h2>
+              <p className="text-sm text-[#A1A1AA] mt-1.5 max-w-prose">
+                Master the HartFelt platform through interactive tours,
+                simulations, practical exercises, and real-world workflows.
+              </p>
+              <div className="mt-2 text-[11px] text-[#71717A]">
+                {hero.length} {hero.length === 1 ? "module" : "modules"}
+                {allV4Complete ? " · Completed" : anyV4Started ? " · In progress" : ""}
+              </div>
+              <a
+                href={heroEntry.open_url}
+                className="
+                  inline-flex mt-4 items-center gap-1.5 rounded-md
+                  bg-[#C9A84C] px-4 py-2 text-sm text-black font-semibold
+                  hover:brightness-95
+                "
+              >
+                {allV4Complete
+                  ? "Review certification"
+                  : anyV4Started
+                  ? "Continue certification →"
+                  : "Start certification →"}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {CATALOG_SECTIONS.map((s) => {
+        const sectionItems = sections.get(s.key) ?? [];
+        if (sectionItems.length === 0) return null;
+        return (
+          <div key={s.key} className="mb-6" data-testid={`training-section-${s.key}`}>
+            <h3 className="text-sm font-semibold text-[#E8D5A3] mb-3">
+              {s.label}
+            </h3>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {sectionItems.map((it) => (
+                <HubCard key={it.id} item={it} kind="training" />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+
+      {uncategorized.length > 0 && (
+        <div className="mb-6" data-testid="training-section-uncategorized">
+          <h3 className="text-sm font-semibold text-[#E8D5A3] mb-3">
+            📚 Other
+          </h3>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {uncategorized.map((it) => (
+              <HubCard key={it.id} item={it} kind="training" />
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
