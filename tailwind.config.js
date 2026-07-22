@@ -3,6 +3,11 @@ module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
+    // RELEASE.002B: the Contact Support modal lives under src/ and uses
+    // classes (z-[100], sm:max-w-lg, max-h-[92vh], the modal shadow/backdrop)
+    // not present in app/ or components/, so Tailwind must scan it directly.
+    // Scoped to this feature dir to avoid changing generation for other src/ files.
+    './src/portal/support/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
