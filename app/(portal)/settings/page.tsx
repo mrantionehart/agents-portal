@@ -42,6 +42,7 @@ import type {
   SettingsProfileResult,
 } from "@/src/portal/settings/types";
 import ConnectedAccountsCard from "@/src/portal/settings/ConnectedAccountsCard";
+import ContactSupport from "@/src/portal/support/ContactSupport";
 
 export default async function SettingsHubPage() {
   const cookieStore = await cookies();
@@ -162,6 +163,18 @@ export default async function SettingsHubPage() {
 
         {/* ── 7. Support / Broker ────────────────────────────────── */}
         <Card title="Support / Broker" icon={LifeBuoy} description="Get help from your broker and access learning resources.">
+          {/* RELEASE.002B — Contact Support opens a modal that posts to the
+              verified /api/support → Vault → outbox flow. UI only. */}
+          <div className="rounded-md border border-[#1a1a2e] bg-[#0b0b10] px-3 py-3 space-y-2">
+            <p className="text-xs text-[#A1A1AA] leading-relaxed">
+              Have a question or an issue? Send it to the HartFelt team and
+              we&apos;ll follow up.
+            </p>
+            <ContactSupport
+              agentName={result.kind === "ok" ? result.profile.full_name : null}
+              agentEmail={result.kind === "ok" ? result.profile.email : null}
+            />
+          </div>
           <ul className="space-y-2">
             <SubLink
               href="mailto:mrhart@hartfeltrealestate.com"
