@@ -1,10 +1,44 @@
-import sgMail from '@sendgrid/mail';
+// Onboarding-critical email — migrated from SendGrid to Resend (2026-07-22).
+// Filename retained to preserve every import site during the migration.
+// Non-onboarding SendGrid callers in this repo remain on SendGrid until a
+// follow-up pass; only this file + app/api/onboarding/webhook were moved.
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = 'info@hartfeltrealestate.com';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM = process.env.RESEND_FROM_EMAIL || 'HartFelt Real Estate <info@hartfeltrealestate.com>';
+const RESEND_URL = 'https://api.resend.com/emails';
 
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY);
+interface ResendMessage {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+async function sendViaResend(msg: ResendMessage): Promise<void> {
+  if (!RESEND_API_KEY) {
+    console.warn('Resend not configured (RESEND_API_KEY missing) - skipping email');
+    return;
+  }
+
+  const res = await fetch(RESEND_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from: FROM,
+      to: [msg.to],
+      subject: msg.subject,
+      html: msg.html,
+      ...(msg.text ? { text: msg.text } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '<no body>');
+    throw new Error(`Resend send failed (${res.status}): ${errText}`);
+  }
 }
 
 export interface WelcomeEmailData {
@@ -112,12 +146,7 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<void> {
 </html>
     `;
 
-    const msg = {
-      to: personalEmail,
-      from: FROM_EMAIL,
-      subject: `Welcome to HartFelt Real Estate - Your Agent Account is Ready`,
-      html: htmlContent,
-      text: `
+    const textContent = `
 Welcome to HartFelt Real Estate, ${agentName}!
 
 Your Portal Email: ${workspaceEmail}
@@ -130,10 +159,14 @@ You will be required to change your password on first login.
 From The Hart,
 Antione Hart
 HartFelt Real Estate
-      `,
-    };
+      `;
 
-    await sgMail.send(msg);
+    await sendViaResend({
+      to: personalEmail,
+      subject: `Welcome to HartFelt Real Estate - Your Agent Account is Ready`,
+      html: htmlContent,
+      text: textContent,
+    });
     console.log(`Welcome email sent to ${personalEmail}`);
   } catch (error) {
     console.error('Failed to send welcome email:', error);
@@ -171,14 +204,11 @@ export async function sendApprovalEmail(agentName: string, personalEmail: string
 </html>
     `;
 
-    const msg = {
+    await sendViaResend({
       to: personalEmail,
-      from: FROM_EMAIL,
       subject: `Welcome to HartFelt - Your Account is Active!`,
       html: htmlContent,
-    };
-
-    await sgMail.send(msg);
+    });
     console.log(`Approval email sent to ${personalEmail}`);
   } catch (error) {
     console.error('Failed to send approval email:', error);
@@ -215,14 +245,11 @@ export async function sendRejectionEmail(
 </html>
     `;
 
-    const msg = {
+    await sendViaResend({
       to: personalEmail,
-      from: FROM_EMAIL,
       subject: `HartFelt Real Estate - Application Status`,
       html: htmlContent,
-    };
-
-    await sgMail.send(msg);
+    });
     console.log(`Rejection email sent to ${personalEmail}`);
   } catch (error) {
     console.error('Failed to send rejection email:', error);
@@ -304,14 +331,7 @@ export async function sendTCCreationRequestNotification(data: {
 </html>
     `;
 
-    // Send to all recipients
-    for (const recipient of recipients) {
-      const msg = {
-        to: recipient,
-        from: FROM_EMAIL,
-        subject: `New TC Creation Request - Action Required: ${tcName}`,
-        html: htmlContent,
-        text: `
+    const textContent = `
 New Transaction Coordinator Creation Request
 
 Requesting Agent: ${agentName} (${agentEmail})
@@ -326,10 +346,16 @@ Review and approve this request at: ${approvalUrl}
 
 From The Hart,
 HartFelt Real Estate
-        `,
-      };
+        `;
 
-      await sgMail.send(msg);
+    // Send to all recipients
+    for (const recipient of recipients) {
+      await sendViaResend({
+        to: recipient,
+        subject: `New TC Creation Request - Action Required: ${tcName}`,
+        html: htmlContent,
+        text: textContent,
+      });
       console.log(`TC creation request notification sent to ${recipient}`);
     }
   } catch (error) {
