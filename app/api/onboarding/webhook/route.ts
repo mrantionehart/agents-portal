@@ -249,38 +249,24 @@ async function notifyAdminsOfSignedDocuments(agentEmail: string) {
 }
 
 async function notifyAdminsViaEmail(agentEmail: string, admins: any[]) {
-  const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-  const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@hartfeltrealestate.com';
+  // Migrated from SendGrid to Resend (2026-07-22). Non-onboarding SendGrid
+  // callers in this repo remain on SendGrid until a follow-up pass.
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const FROM = process.env.RESEND_FROM_EMAIL || 'HartFelt Compliance <noreply@hartfeltrealestate.com>';
 
-  if (!SENDGRID_API_KEY) {
-    console.warn('SendGrid not configured - skipping email notifications');
+  if (!RESEND_API_KEY) {
+    console.warn('Resend not configured - skipping email notifications');
     return;
   }
 
   try {
-    const adminEmails = admins.map((admin: any) => ({ email: admin.email }));
+    const adminEmails = admins
+      .map((a: any) => a.email)
+      .filter((e: string) => !!e);
 
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
-      },
-      body: JSON.stringify({
-        personalizations: [
-          {
-            to: adminEmails,
-            subject: `Agent Document Review Required: ${agentEmail}`,
-          },
-        ],
-        from: {
-          email: FROM_EMAIL,
-          name: 'HartFelt Compliance',
-        },
-        content: [
-          {
-            type: 'text/html',
-            value: `
+    if (adminEmails.length === 0) return;
+
+    const html = `
               <h2>Agent Document Review Required</h2>
               <p>Agent <strong>${agentEmail}</strong> has completed and signed their onboarding documents.</p>
 
@@ -301,14 +287,24 @@ async function notifyAdminsViaEmail(agentEmail: string, admins: any[]) {
               <p style="color: #666; font-size: 12px;">
                 This is an automated notification. Do not reply to this email.
               </p>
-            `,
-          },
-        ],
+            `;
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: FROM,
+        to: adminEmails,
+        subject: `Agent Document Review Required: ${agentEmail}`,
+        html,
       }),
     });
 
     if (!response.ok) {
-      console.error('SendGrid error:', await response.text());
+      console.error('Resend error:', await response.text());
       return;
     }
 
