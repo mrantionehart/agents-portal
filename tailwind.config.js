@@ -8,6 +8,9 @@ module.exports = {
     // not present in app/ or components/, so Tailwind must scan it directly.
     // Scoped to this feature dir to avoid changing generation for other src/ files.
     './src/portal/support/**/*.{js,ts,jsx,tsx,mdx}',
+    // PAPERWORK UX-001 — workflow-first Form Library uses unique classes
+    // (workflow-card grids, star toggles) that must be scanned for CSS.
+    './src/portal/library/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
