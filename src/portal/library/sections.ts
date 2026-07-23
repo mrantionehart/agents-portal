@@ -41,6 +41,18 @@ const isClosing = (t: TemplateCard) =>
 const isPropertySpecific = (t: TemplateCard) =>
   kw(t, "hoa", "condo", "coastal", "flood", "lead", "homeowner");
 
+/**
+ * The documents an agent reaches for most — visually elevated so they're
+ * unmistakable. The FAR/BAR contracts (Offer) and the listing agreements
+ * (Listing) are the primary choices; everything else supports them.
+ */
+export function isPrimaryForm(t: TemplateCard): boolean {
+  return (
+    isContract(t) ||
+    kw(t, "exclusive right of sale", "exclusive brokerage", "listing agreement", "right to sell")
+  );
+}
+
 /** Per-workflow section order. Order == the agent's mental order. */
 export const WORKFLOW_SECTIONS: Record<string, SectionDef[]> = {
   offer: [

@@ -22,7 +22,7 @@ import {
 
 import type { TemplateCard } from "./types";
 import { WORKFLOWS, formsForWorkflow, annotationFor, type Workflow } from "./workflow-map";
-import { groupIntoSections } from "./sections";
+import { groupIntoSections, isPrimaryForm } from "./sections";
 import { searchTemplates } from "./search";
 import { getFavorites, getRecent, pushRecent, toggleFavorite } from "./local-store";
 import { TemplateDownloadButton } from "./TemplateDownloadButton";
@@ -224,18 +224,22 @@ function WorkflowView({
       {sections.length === 0 ? (
         <Empty>No forms are available for this workflow yet.</Empty>
       ) : (
-        // Ordered sections read like the transaction (Contract → Buyer Rep → …).
+        // Ordered sections read like phases of the transaction; each is its own
+        // subtle container so the page never feels like one wall of cards.
         sections.map((s) => (
-          <section key={s.id} className="space-y-2">
+          <section key={s.id} className="rounded-xl border border-[#1a1a2e]/70 bg-[#0d0d14]/40 p-3 space-y-3">
             {s.title && (
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#E8D5A3]/80">
-                {s.title}
-              </h3>
+              <div className="flex items-center gap-2 border-b border-[#1a1a2e] pb-2">
+                <span className="h-3.5 w-1 rounded-full bg-[#E8D5A3]/70" />
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[#E8D5A3]/90">
+                  {s.title}
+                </h3>
+              </div>
             )}
             <ul className="grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               {s.forms.map((t) => (
                 <li key={t.form_id}>
-                  <FormCard card={t} {...cardProps} showWhen />
+                  <FormCard card={t} {...cardProps} showWhen primary={isPrimaryForm(t)} />
                 </li>
               ))}
             </ul>
@@ -328,40 +332,54 @@ function FormCard({
   onDownloaded,
   onSessionExpired,
   showWhen,
-}: { card: TemplateCard; showWhen?: boolean } & CardCommon) {
+  primary,
+}: { card: TemplateCard; showWhen?: boolean; primary?: boolean } & CardCommon) {
   const ann = annotationFor(t.form_id);
   const isFav = favorites.includes(t.form_id);
   const helper =
     showWhen && ann?.requiredIf
       ? { label: "Required if", text: ann.requiredIf }
-      : showWhen && ann?.use
-        ? { label: "Use when", text: ann.use }
-        : null;
+      : showWhen && ann?.onlyFor
+        ? { label: "Only for", text: ann.onlyFor }
+        : showWhen && ann?.use
+          ? { label: "Use when", text: ann.use }
+          : null;
   return (
-    <div className="h-full rounded-lg border border-[#1a1a2e] bg-[#11111a] p-3 flex flex-col gap-2">
+    <div
+      className={`h-full rounded-lg border p-3 flex flex-col gap-2 ${
+        primary
+          ? "border-[#E8D5A3]/25 bg-[#14131c] ring-1 ring-inset ring-[#E8D5A3]/10"
+          : "border-[#1a1a2e] bg-[#11111a]"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          {/* Title — largest; the eye lands here first */}
+          {/* 1. Title — the eye lands here first (elevated for primary docs) */}
           <div className="flex items-start gap-1.5">
             <FileText className="h-4 w-4 text-[#71717A] shrink-0 mt-0.5" />
-            <h4 className="text-[15px] font-semibold leading-snug text-[#F1F1F3]">{t.form_name}</h4>
+            <h4 className={`leading-snug font-semibold text-[#F1F1F3] ${primary ? "text-base" : "text-[15px]"}`}>
+              {t.form_name}
+            </h4>
           </div>
-          {/* Form number — secondary */}
+          {/* 2. Form number — secondary */}
           <div className="mt-1 flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs text-[#A1A1AA]">{t.form_id}</span>
+            {primary && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md border border-[#E8D5A3]/30 text-[#E8D5A3]/90 uppercase tracking-wide">
+                Primary
+              </span>
+            )}
             {t.manual_only && <Tag tone="amber">Manual only</Tag>}
             {!t.active && !t.manual_only && <Tag tone="zinc">Inactive</Tag>}
           </div>
-          {/* Category · revision — muted */}
-          <div className="mt-0.5 text-[10px] uppercase tracking-wide text-[#71717A]">
-            {formatCategory(t.category)}
-            {t.revision ? ` · ${t.revision}` : ""}
-          </div>
-          {/* Helper text — plain-language guidance */}
+          {/* 4. Helper text — applicability, scannable in under a second */}
           {ann?.blurb && <div className="mt-1.5 text-xs text-[#A1A1AA]">{ann.blurb}</div>}
           {helper && (
-            <div className="mt-1 text-[11px] text-[#A1A1AA]">
-              <span className="font-medium text-[#E8D5A3]/80">{helper.label}:</span> {helper.text}
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#A1A1AA]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#E8D5A3]/70 shrink-0" />
+              <span>
+                <span className="font-medium text-[#E8D5A3]/90">{helper.label}:</span> {helper.text}
+              </span>
             </div>
           )}
         </div>
@@ -376,11 +394,17 @@ function FormCard({
           <Star className={`h-4 w-4 ${isFav ? "fill-[#E8D5A3] text-[#E8D5A3]" : "text-[#52525B]"}`} />
         </button>
       </div>
+      {/* 3. Download — primary action */}
       <TemplateDownloadButton
         formId={t.form_id}
         onSessionExpired={onSessionExpired}
         onDownloaded={onDownloaded}
       />
+      {/* 5. Category / revision — least prominent; never competes with the title */}
+      <div className="text-[10px] uppercase tracking-wide text-[#52525B]">
+        {formatCategory(t.category)}
+        {t.revision ? ` · ${t.revision}` : ""}
+      </div>
     </div>
   );
 }

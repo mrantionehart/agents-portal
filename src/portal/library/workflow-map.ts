@@ -36,8 +36,10 @@ export interface FormAnnotation {
   order?: number;
   /** Scannable "Use when: {use}" — the situation this form fits. */
   use?: string;
-  /** Scannable "Required if: {requiredIf}" — takes precedence over `use`. */
+  /** Scannable "Required if: {requiredIf}" — highest precedence. */
   requiredIf?: string;
+  /** Scannable "Only for: {onlyFor}" — e.g. "Condo purchases". */
+  onlyFor?: string;
   /** One-line friendly explanation. */
   blurb?: string;
 }

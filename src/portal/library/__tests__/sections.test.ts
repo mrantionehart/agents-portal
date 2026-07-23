@@ -1,4 +1,4 @@
-import { groupIntoSections } from "../sections";
+import { groupIntoSections, isPrimaryForm } from "../sections";
 import type { TemplateCard } from "../types";
 
 function tpl(over: Partial<TemplateCard>): TemplateCard {
@@ -65,5 +65,19 @@ describe("sections — never hides a form", () => {
     const g = groupIntoSections([tpl({ form_id: "D-1", form_name: "A Disclosure", category: "disclosure" })], "disclosures");
     expect(g).toHaveLength(1);
     expect(g[0].forms).toHaveLength(1);
+  });
+});
+
+describe("isPrimaryForm — elevates the documents agents use most", () => {
+  it("marks FAR/BAR + AS-IS contracts and listing agreements as primary", () => {
+    expect(isPrimaryForm(tpl({ form_name: "FAR/BAR Residential Contract", category: "purchase" }))).toBe(true);
+    expect(isPrimaryForm(tpl({ form_name: "AS-IS Residential Contract", category: "purchase" }))).toBe(true);
+    expect(isPrimaryForm(tpl({ form_name: "Exclusive Right of Sale Listing Agreement", category: "listing" }))).toBe(true);
+    expect(isPrimaryForm(tpl({ form_name: "Exclusive Brokerage Listing Agreement", category: "listing" }))).toBe(true);
+  });
+  it("does NOT mark supporting paperwork (addenda, disclosures) as primary", () => {
+    expect(isPrimaryForm(tpl({ form_name: "Inspection Addendum", category: "addendum" }))).toBe(false);
+    expect(isPrimaryForm(tpl({ form_name: "Seller Property Disclosure", category: "disclosure" }))).toBe(false);
+    expect(isPrimaryForm(tpl({ form_name: "FHA Financing Addendum", category: "addendum" }))).toBe(false);
   });
 });
