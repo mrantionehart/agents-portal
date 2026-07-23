@@ -34,14 +34,16 @@ export const WORKFLOWS: Workflow[] = [
 export interface FormAnnotation {
   /** Lower sorts earlier within a workflow. Unlisted forms sort after (999). */
   order?: number;
-  /** "When is this required?" copy. */
-  when?: string;
+  /** Scannable "Use when: {use}" — the situation this form fits. */
+  use?: string;
+  /** Scannable "Required if: {requiredIf}" — takes precedence over `use`. */
+  requiredIf?: string;
   /** One-line friendly explanation. */
   blurb?: string;
 }
 export const FORM_ANNOTATIONS: Record<string, FormAnnotation> = {
-  "ERS-20sa": { order: 1, when: "Always — this is the listing agreement.", blurb: "Exclusive Right of Sale listing agreement." },
-  "CRSP-17_Z": { order: 5, when: "When the seller is financing the purchase.", blurb: "Seller financing / purchase-money mortgage terms." },
+  "ERS-20sa": { order: 1, use: "Listing a property for sale", blurb: "Exclusive Right of Sale listing agreement." },
+  "CRSP-17_Z": { order: 5, requiredIf: "Seller financing", blurb: "Seller financing / purchase-money mortgage terms." },
   // Broker curates more here over time; unlisted forms still appear, ordered by name.
 };
 

@@ -22,6 +22,7 @@ import {
 
 import type { TemplateCard } from "./types";
 import { WORKFLOWS, formsForWorkflow, annotationFor, type Workflow } from "./workflow-map";
+import { groupIntoSections } from "./sections";
 import { searchTemplates } from "./search";
 import { getFavorites, getRecent, pushRecent, toggleFavorite } from "./local-store";
 import { TemplateDownloadButton } from "./TemplateDownloadButton";
@@ -216,23 +217,30 @@ function WorkflowView({
   templates: TemplateCard[];
   onBack: () => void;
 } & CardCommon) {
-  const forms = formsForWorkflow(templates, workflow);
+  const sections = groupIntoSections(formsForWorkflow(templates, workflow), workflow.id);
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Header emoji={workflow.emoji} title={workflow.label} subtitle={workflow.blurb} onBack={onBack} />
-      {forms.length === 0 ? (
+      {sections.length === 0 ? (
         <Empty>No forms are available for this workflow yet.</Empty>
       ) : (
-        <ol className="space-y-2">
-          {forms.map((t, i) => (
-            <li key={t.form_id} className="flex gap-3">
-              <div className="mt-3 w-6 shrink-0 text-center text-xs font-semibold text-[#71717A]">{i + 1}</div>
-              <div className="flex-1">
-                <FormCard card={t} {...cardProps} showWhen />
-              </div>
-            </li>
-          ))}
-        </ol>
+        // Ordered sections read like the transaction (Contract → Buyer Rep → …).
+        sections.map((s) => (
+          <section key={s.id} className="space-y-2">
+            {s.title && (
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#E8D5A3]/80">
+                {s.title}
+              </h3>
+            )}
+            <ul className="grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+              {s.forms.map((t) => (
+                <li key={t.form_id}>
+                  <FormCard card={t} {...cardProps} showWhen />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
       )}
     </div>
   );
@@ -323,25 +331,37 @@ function FormCard({
 }: { card: TemplateCard; showWhen?: boolean } & CardCommon) {
   const ann = annotationFor(t.form_id);
   const isFav = favorites.includes(t.form_id);
+  const helper =
+    showWhen && ann?.requiredIf
+      ? { label: "Required if", text: ann.requiredIf }
+      : showWhen && ann?.use
+        ? { label: "Use when", text: ann.use }
+        : null;
   return (
     <div className="h-full rounded-lg border border-[#1a1a2e] bg-[#11111a] p-3 flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <FileText className="h-3.5 w-3.5 text-[#71717A] shrink-0" />
-            <span className="text-sm font-medium text-[#F1F1F3] truncate">{t.form_name}</span>
+          {/* Title — largest; the eye lands here first */}
+          <div className="flex items-start gap-1.5">
+            <FileText className="h-4 w-4 text-[#71717A] shrink-0 mt-0.5" />
+            <h4 className="text-[15px] font-semibold leading-snug text-[#F1F1F3]">{t.form_name}</h4>
+          </div>
+          {/* Form number — secondary */}
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-xs text-[#A1A1AA]">{t.form_id}</span>
             {t.manual_only && <Tag tone="amber">Manual only</Tag>}
             {!t.active && !t.manual_only && <Tag tone="zinc">Inactive</Tag>}
           </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-[#A1A1AA]">
-            <span className="font-mono text-[#E8D5A3]">{t.form_id}</span>
-            <span className="uppercase tracking-wide text-[#71717A]">· {formatCategory(t.category)}</span>
-            {t.revision && <span className="text-[#71717A]">· {t.revision}</span>}
+          {/* Category · revision — muted */}
+          <div className="mt-0.5 text-[10px] uppercase tracking-wide text-[#71717A]">
+            {formatCategory(t.category)}
+            {t.revision ? ` · ${t.revision}` : ""}
           </div>
-          {ann?.blurb && <div className="mt-1 text-xs text-[#A1A1AA]">{ann.blurb}</div>}
-          {showWhen && ann?.when && (
-            <div className="mt-1 text-[11px] text-[#71717A]">
-              <span className="text-[#A1A1AA]">When required:</span> {ann.when}
+          {/* Helper text — plain-language guidance */}
+          {ann?.blurb && <div className="mt-1.5 text-xs text-[#A1A1AA]">{ann.blurb}</div>}
+          {helper && (
+            <div className="mt-1 text-[11px] text-[#A1A1AA]">
+              <span className="font-medium text-[#E8D5A3]/80">{helper.label}:</span> {helper.text}
             </div>
           )}
         </div>
