@@ -35,17 +35,12 @@ import {
 } from "@/src/portal/home/home-helpers";
 import TodaySection from "@/src/portal/home/TodaySection";
 import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
-import {
-  pipelineSnapshot,
-  productionSnapshot,
-} from "@/src/portal/home/intelligence-helpers";
+import BusinessSnapshot from "@/src/portal/home/BusinessSnapshot";
 import {
   DevelopmentRadarWidget,
   HotLeadsWidget,
   MarketNewsWidget,
   OpportunitiesWidget,
-  PipelineSnapshotWidget,
-  ProductionSnapshotWidget,
 } from "@/src/portal/home/IntelligenceWidgets";
 
 export default async function PortalHomePage() {
@@ -100,11 +95,6 @@ export default async function PortalHomePage() {
   const cards = result.items;
   const counts = bucketCounts(cards);
 
-  // R6 — Production + Pipeline snapshots are pure derivations from
-  // the workspace cards we just loaded. No new fetches.
-  const production = productionSnapshot(cards);
-  const pipeline = pipelineSnapshot(cards);
-
   // R6 — News + Radar + Hot Leads are parallel-fetched against
   // existing endpoints. Each source's failure is captured per
   // stream so the dashboard never blanks on one upstream blip.
@@ -136,7 +126,12 @@ export default async function PortalHomePage() {
             all bucketing/urgency lives inside TodaySection's modules. ──── */}
       <TodaySection cards={cards} />
 
-      {/* ── 2. Priority buckets ────────────────────────────────── */}
+      {/* ── Business Snapshot (Slice 5) — the agent's own Production +
+            Pipeline, grouped below Today. Reuses the existing widgets +
+            pure helpers; derived from the same fetched cards. ─────────── */}
+      <BusinessSnapshot cards={cards} />
+
+      {/* ── 2. Priority buckets (Readiness) ────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <BucketCard
           label="Needs Attention"
@@ -163,13 +158,10 @@ export default async function PortalHomePage() {
         />
       </div>
 
-      {/* ── 3. R6 Intelligence Widgets ─────────────────────────── */}
-      {/*    Production + Pipeline snapshots first (derived from the
-            cards we already loaded), then Market News + Development
-            Radar + Opportunities + Hot Leads in a 2-column grid. */}
+      {/* ── 3. Remaining Intelligence Widgets ──────────────────── */}
+      {/*    Market News + Development Radar + Hot Leads + Opportunities.
+            (Production + Pipeline moved to Business Snapshot above.) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <ProductionSnapshotWidget snapshot={production} />
-        <PipelineSnapshotWidget snapshot={pipeline} />
         <MarketNewsWidget
           articles={intelligence.news}
           error={intelligence.errors.news}

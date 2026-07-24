@@ -7,7 +7,7 @@
 // every consumer, one Workspace fetch, and existing content is preserved.
 // TodaySection/TodayRow/bucketing internals are NOT re-tested here.
 // ============================================================================
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { DeadlineSummary, WorkspaceCard } from "../../../../src/portal/workspace/types";
 
 // ── server-dependency mocks ──────────────────────────────────────────────────
@@ -139,6 +139,39 @@ describe("Home integration — empty + error behavior", () => {
     expect(screen.queryByRole("heading", { name: "Today" })).not.toBeInTheDocument();
     expect(screen.queryByText(/You're caught up\./)).not.toBeInTheDocument();
     // Still only one fetch attempt
+    expect(mockFetchWorkspace).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Home integration (Slice 5) — Business Snapshot + final ordering", () => {
+  it("renders Business Snapshot containing Production + Pipeline", async () => {
+    mockFetchWorkspace.mockResolvedValue({ ok: true, items: [card("t", 0)] });
+    await renderHome();
+    const biz = screen.getByRole("region", { name: "Business Snapshot" });
+    expect(within(biz).getByText("Production Snapshot")).toBeInTheDocument();
+    expect(within(biz).getByText("Pipeline Snapshot")).toBeInTheDocument();
+  });
+
+  it("keeps the remaining intelligence widgets (e.g. Market News)", async () => {
+    mockFetchWorkspace.mockResolvedValue({ ok: true, items: [card("t", 0)] });
+    await renderHome();
+    expect(screen.getByText("Market News")).toBeInTheDocument();
+  });
+
+  it("final order: Today → Business Snapshot → Readiness", async () => {
+    mockFetchWorkspace.mockResolvedValue({ ok: true, items: [card("o", -1)] });
+    await renderHome();
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
+    const today = screen.getByRole("heading", { name: "Today" });
+    const biz = screen.getByRole("heading", { name: "Business Snapshot" });
+    const readiness = screen.getByText("Needs Attention");
+    expect(today.compareDocumentPosition(biz) & FOLLOWING).toBeTruthy(); // Today before Business Snapshot
+    expect(biz.compareDocumentPosition(readiness) & FOLLOWING).toBeTruthy(); // Business Snapshot before Readiness
+  });
+
+  it("maintains a single Workspace fetch (no new API calls)", async () => {
+    mockFetchWorkspace.mockResolvedValue({ ok: true, items: [card("t", 0)] });
+    await renderHome();
     expect(mockFetchWorkspace).toHaveBeenCalledTimes(1);
   });
 });
