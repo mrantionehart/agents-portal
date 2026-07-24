@@ -11,6 +11,10 @@ module.exports = {
     // PAPERWORK UX-001 — workflow-first Form Library uses unique classes
     // (workflow-card grids, star toggles) that must be scanned for CSS.
     './src/portal/library/**/*.{js,ts,jsx,tsx,mdx}',
+    // TODAY I.001 — the Home "Today" surface (TodayRow/TodaySection, later slices)
+    // lives under src/portal/home and uses unique classes not present in app/;
+    // Tailwind must scan it directly or those classes emit no CSS (invisible UI).
+    './src/portal/home/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
