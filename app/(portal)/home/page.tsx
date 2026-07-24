@@ -25,17 +25,15 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { fetchWorkspaceFromVault, vaultSiteBase } from "@/src/portal/workspace/api";
-import WorkspaceCard from "@/src/portal/workspace/WorkspaceCard";
-import type { WorkspaceCard as WorkspaceCardData } from "@/src/portal/workspace/types";
+import { fetchWorkspaceFromVault } from "@/src/portal/workspace/api";
 import {
   bucketCounts,
   firstName,
   formatToday,
   greetingFor,
-  prioritizeForToday,
   summarySentence,
 } from "@/src/portal/home/home-helpers";
+import TodaySection from "@/src/portal/home/TodaySection";
 import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
 import {
   pipelineSnapshot,
@@ -65,7 +63,6 @@ export default async function PortalHomePage() {
   );
 
   const { data: { session } } = await supabase.auth.getSession();
-  const vaultBase = vaultSiteBase();
   const now = new Date();
 
   // Best-effort first name. Read-only lookup of the caller's profile.
@@ -102,8 +99,6 @@ export default async function PortalHomePage() {
 
   const cards = result.items;
   const counts = bucketCounts(cards);
-  const prioritized = prioritizeForToday(cards);
-  const todays = prioritized.slice(0, 6);
 
   // R6 — Production + Pipeline snapshots are pure derivations from
   // the workspace cards we just loaded. No new fetches.
@@ -135,6 +130,11 @@ export default async function PortalHomePage() {
       <p className="text-base text-[#A1A1AA] mb-6 leading-relaxed max-w-2xl">
         {summarySentence(cards)}
       </p>
+
+      {/* ── TODAY — deadline-driven work queue (Slice 4). Replaces the old
+            "Today's Transactions" list. Shares the cards already fetched;
+            all bucketing/urgency lives inside TodaySection's modules. ──── */}
+      <TodaySection cards={cards} />
 
       {/* ── 2. Priority buckets ────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -184,28 +184,6 @@ export default async function PortalHomePage() {
         />
         <OpportunitiesWidget opportunities={intelligence.opportunities} />
       </div>
-
-      {/* ── 4. Continue Working — Today's Transactions ─────────── */}
-      <section className="mb-8">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-sm font-medium text-[#F1F1F3]">Today&apos;s Transactions</h2>
-          <Link
-            href="/workspace"
-            className="text-xs text-[#A1A1AA] hover:text-[#F1F1F3]"
-          >
-            View all →
-          </Link>
-        </div>
-        {todays.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {todays.map((card) => (
-              <WorkspaceCard key={card.transaction_id} card={card} vaultBase={vaultBase} />
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* ── 4. Recent Activity (placeholder) ──────────────────── */}
       <section className="mb-8">
@@ -358,19 +336,6 @@ function QuickAction({
       <span className="text-[#C9A84C]">{icon}</span>
       <span className="text-sm text-[#F1F1F3]">{label}</span>
     </Link>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="rounded-lg border border-[#1a1a2e] bg-[#11111a] p-8 text-center">
-      <p className="text-sm text-[#A1A1AA]">
-        No active transactions to focus on right now.
-      </p>
-      <p className="text-xs text-[#71717A] mt-1">
-        Head to <Link href="/workspace" className="text-[#E8D5A3] hover:underline">Transactions</Link> to see your full pipeline.
-      </p>
-    </div>
   );
 }
 
