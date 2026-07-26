@@ -31,7 +31,7 @@ export interface NotificationRow {
 
 // ── Categories ──────────────────────────────────────────────────────
 
-export type Category = "transactions" | "paperwork" | "system" | "other";
+export type Category = "transactions" | "paperwork" | "meetings" | "system" | "other";
 
 /** Map an existing notification.type id to one of the spec'd filter
  *  categories. Soft mapping — unknown types fall through to "system". */
@@ -47,6 +47,12 @@ export function categoryFor(type: string): Category {
     case "portal":
     case "paperwork":
       return "paperwork";
+    // Broker meeting requests (Vault MeetingStatusChanged / reminders).
+    case "meeting_request":
+    case "meeting_decision":
+    case "meeting_status":
+    case "meeting_reminder":
+      return "meetings";
     case "training":
     case "event":
     case "chat":
@@ -58,7 +64,7 @@ export function categoryFor(type: string): Category {
 }
 
 export type StatusFilter = "all" | "unread";
-export type CategoryFilter = "all" | "transactions" | "paperwork" | "system";
+export type CategoryFilter = "all" | "transactions" | "paperwork" | "meetings" | "system";
 
 /** Apply both filters. AND across axes. */
 export function applyFilters(
@@ -74,6 +80,7 @@ export function applyFilters(
       if (filters.category === "system" && cat !== "system" && cat !== "other") return false;
       if (filters.category === "transactions" && cat !== "transactions") return false;
       if (filters.category === "paperwork" && cat !== "paperwork") return false;
+      if (filters.category === "meetings" && cat !== "meetings") return false;
     }
     return true;
   });
@@ -86,6 +93,7 @@ export interface InboxCounts {
   unread: number;
   transactions: number;
   paperwork: number;
+  meetings: number;
   system: number;
 }
 
@@ -93,15 +101,17 @@ export function inboxCounts(rows: NotificationRow[]): InboxCounts {
   let unread = 0,
     transactions = 0,
     paperwork = 0,
+    meetings = 0,
     system = 0;
   for (const n of rows) {
     if (!n.read_at) unread += 1;
     const c = categoryFor(n.type);
     if (c === "transactions") transactions += 1;
     else if (c === "paperwork") paperwork += 1;
+    else if (c === "meetings") meetings += 1;
     else system += 1;
   }
-  return { total: rows.length, unread, transactions, paperwork, system };
+  return { total: rows.length, unread, transactions, paperwork, meetings, system };
 }
 
 // ── Time-ago + icon ─────────────────────────────────────────────────
@@ -142,6 +152,11 @@ export function iconFor(type: string): string {
       return "📨";
     case "portal":
       return "🪪";
+    case "meeting_request":
+    case "meeting_decision":
+    case "meeting_status":
+    case "meeting_reminder":
+      return "🤝";
     default:
       return "🔔";
   }
@@ -156,6 +171,11 @@ function isTransactionRelatedType(t: string | null | undefined): boolean {
   if (!t) return false;
   const v = t.toLowerCase();
   return v === "transaction" || v === "deal";
+}
+
+/** Meeting deep-link relatedness. Vault sets related_type='meeting'. */
+function isMeetingRelatedType(t: string | null | undefined): boolean {
+  return !!t && t.toLowerCase() === "meeting";
 }
 
 /** Whitelist of internal app routes we will follow as `action_url`.
@@ -178,6 +198,7 @@ function isSafeInternalUrl(url: string): boolean {
     "/workspace",
     "/clients",
     "/calendar",
+    "/meetings",
     "/notifications",
     "/ai",
     "/settings",
@@ -201,6 +222,14 @@ export function linkTargetFor(n: NotificationRow): string | null {
     UUID_RE.test(n.related_id)
   ) {
     return `/workspace/${n.related_id}`;
+  }
+  // 1b. Meeting foreign key → the agent-safe meeting detail.
+  if (
+    isMeetingRelatedType(n.related_type) &&
+    typeof n.related_id === "string" &&
+    UUID_RE.test(n.related_id)
+  ) {
+    return `/meetings/${n.related_id}`;
   }
   // 2. Producer-provided action_url, ONLY if it points at an internal
   //    portal route. Vault could otherwise inject an external redirect.

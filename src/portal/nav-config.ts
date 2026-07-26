@@ -6,13 +6,20 @@
 //
 // ── AP2 NAVIGATION SPEC OF RECORD ───────────────────────────────────────────
 // This comment IS the AP2 nav design spec of record (there is no separate
-// AP2.1H document in the repo). The locked 10-item order is:
+// AP2.1H document in the repo). The locked 11-item order is:
 //
 //   Home / Transactions / Clients / Buildings / AI / Calendar /
-//   Notifications / Training / Library / Settings
+//   Meetings / Notifications / Training / Library / Settings
 //
 // Future reordering, additions, or removals still require documented product
 // approval recorded here before the array below changes.
+//
+// AGENT-PORTAL-MEETINGS — Adds "Meetings" as the approved 11th item, inserted
+// between Calendar and Notifications (its natural grouping). No other item was
+// reordered. This is the documented product authorization for the change
+// (granted alongside the Vault agent-safe projection, PR #118). Points at
+// /meetings — the agent's own broker meeting requests, backed by the merged
+// Vault agent-safe API.
 //
 // R5 — Training Hub unifies the old Training + Script Library +
 // Resources surfaces under one (portal) destination at /training.
@@ -43,6 +50,7 @@ export type NavItem = {
     | "building-2"
     | "sparkles"
     | "calendar"
+    | "calendar-clock"
     | "bell"
     | "graduation-cap"
     | "book-open"
@@ -64,6 +72,7 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "buildings",    label: "Buildings",     icon: "building-2",      href: "/buildings" },
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
+  { id: "meetings",     label: "Meetings",      icon: "calendar-clock",  href: "/meetings" },
   { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },
   { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training" },
   { id: "library",      label: "Library",       icon: "library",         href: "/library" },
