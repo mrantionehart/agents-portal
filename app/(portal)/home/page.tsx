@@ -42,6 +42,9 @@ import {
   MarketNewsWidget,
   OpportunitiesWidget,
 } from "@/src/portal/home/IntelligenceWidgets";
+import DashboardMeetingsSummary from "../meetings/_components/DashboardMeetingsSummary";
+import { fetchAgentMeetings } from "@/src/portal/meetings/api";
+import { dashboardCounts } from "@/src/portal/meetings/bucketing";
 
 export default async function PortalHomePage() {
   const cookieStore = await cookies();
@@ -95,6 +98,12 @@ export default async function PortalHomePage() {
   const cards = result.items;
   const counts = bucketCounts(cards);
 
+  // Meetings summary — the agent's own broker meeting requests. Counts are
+  // computed server-side from the page's `now` (no render-time Date.now()).
+  // A meetings-fetch failure degrades gracefully to a null summary.
+  const meetingsRes = await fetchAgentMeetings(session.access_token);
+  const meetingCounts = meetingsRes.ok ? dashboardCounts(meetingsRes.items, now) : null;
+
   // R6 — News + Radar + Hot Leads are parallel-fetched against
   // existing endpoints. Each source's failure is captured per
   // stream so the dashboard never blanks on one upstream blip.
@@ -130,6 +139,9 @@ export default async function PortalHomePage() {
             Pipeline, grouped below Today. Reuses the existing widgets +
             pure helpers; derived from the same fetched cards. ─────────── */}
       <BusinessSnapshot cards={cards} />
+
+      {/* ── Meetings summary — broker meeting requests (agent-safe) ─── */}
+      <DashboardMeetingsSummary counts={meetingCounts} />
 
       {/* ── 2. Priority buckets (Readiness) ────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">

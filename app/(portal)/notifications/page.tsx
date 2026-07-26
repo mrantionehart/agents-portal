@@ -239,6 +239,11 @@ export default function PortalNotificationsPage() {
           onClick={() => setCategoryFilter("paperwork")}
         />
         <CategoryChip
+          label={`Meetings${counts ? ` (${counts.meetings})` : ""}`}
+          active={categoryFilter === "meetings"}
+          onClick={() => setCategoryFilter("meetings")}
+        />
+        <CategoryChip
           label={`System${counts ? ` (${counts.system})` : ""}`}
           active={categoryFilter === "system"}
           onClick={() => setCategoryFilter("system")}
@@ -327,7 +332,8 @@ function NotificationRowItem({
           <span className="text-[10px] text-[#71717A]">{timeAgo(n.created_at)}</span>
           {target && (
             <span className="text-[10px] text-[#71717A] inline-flex items-center gap-1">
-              <ExternalLink className="h-2.5 w-2.5" /> open transaction
+              <ExternalLink className="h-2.5 w-2.5" />
+              {cat === "meetings" ? "open meeting" : cat === "transactions" ? "open transaction" : "open"}
             </span>
           )}
         </div>
@@ -342,7 +348,7 @@ function NotificationRowItem({
           href={target}
           onClick={onClick}
           className="block"
-          aria-label={`${n.title} — open transaction`}
+          aria-label={`${n.title} — open`}
         >
           {inner}
         </Link>
@@ -408,6 +414,8 @@ function CategoryBadge({ category, type }: { category: ReturnType<typeof categor
       ? "bg-sky-900/30 text-sky-200 border-sky-700/40"
       : category === "paperwork"
       ? "bg-amber-900/30 text-amber-200 border-amber-700/40"
+      : category === "meetings"
+      ? "bg-[#C9A84C]/15 text-[#E8D5A3] border-[#C9A84C]/40"
       : "bg-[#1a1a25] text-[#A1A1AA] border-[#252538]";
   return (
     <span className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] ${cls}`}>

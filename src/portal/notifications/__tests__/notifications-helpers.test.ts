@@ -102,6 +102,7 @@ describe("inboxCounts", () => {
       unread: 4,
       transactions: 2,
       paperwork: 1,
+      meetings: 0,
       system: 2, // training + unknown_type (system catches "other")
     });
   });
@@ -111,6 +112,7 @@ describe("inboxCounts", () => {
       unread: 0,
       transactions: 0,
       paperwork: 0,
+      meetings: 0,
       system: 0,
     });
   });

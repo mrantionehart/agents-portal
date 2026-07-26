@@ -10,7 +10,7 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 10 documented items in order (Buildings added immediately after Clients)", () => {
+  it("ships the 11 documented items in order (Meetings added between Calendar and Notifications)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -18,11 +18,26 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Buildings",
       "AI",
       "Calendar",
+      "Meetings",
       "Notifications",
       "Training",
       "Library",
       "Settings",
     ]);
+  });
+
+  it("AGENT-PORTAL-MEETINGS — Meetings sits between Calendar and Notifications", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    expect(labels.indexOf("Meetings")).toBe(labels.indexOf("Calendar") + 1);
+    expect(labels.indexOf("Notifications")).toBe(labels.indexOf("Meetings") + 1);
+  });
+
+  it("AGENT-PORTAL-MEETINGS — Meetings routes to /meetings, id 'meetings', icon 'calendar-clock', agent-visible", () => {
+    const m = NAV_ITEMS.find((i) => i.id === "meetings")!;
+    expect(m).toBeDefined();
+    expect(m.href).toBe("/meetings");
+    expect(m.icon).toBe("calendar-clock");
+    expect(m.brokerOnly).toBeUndefined();
   });
 
   it("HOTFIX.AP.STR.001 — Buildings sits immediately after Clients", () => {
