@@ -21,7 +21,10 @@ const mockMaybeSingle = jest.fn(async () => ({ data: { full_name: "Jane Agent" }
 jest.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
     auth: { getSession: mockGetSession },
-    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }) }),
+    from: (table: string) =>
+      table === "daily_quotes"
+        ? { select: () => ({ eq: () => ({ eq: () => ({ limit: () => ({ maybeSingle: async () => ({ data: { quote: "Test quote.", author: "Tony Hart" } }) }) }) }) }) }
+        : { select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }) },
   }),
 }));
 
