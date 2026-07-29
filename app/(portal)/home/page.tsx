@@ -37,6 +37,7 @@ import TodaySection from "@/src/portal/home/TodaySection";
 import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
 import BusinessSnapshot from "@/src/portal/home/BusinessSnapshot";
 import FromTheHart from "@/src/portal/home/FromTheHart";
+import BirthdayPrompt from "@/src/portal/home/BirthdayPrompt";
 import { getTodaysQuote } from "@/src/portal/home/quotes/quote-service";
 import {
   DevelopmentRadarWidget,
@@ -133,6 +134,10 @@ export default async function PortalHomePage() {
       {/* ── From The Hart — daily note from the Broker, directly below the
             greeting. Read-only; no interaction. ───────────────────────── */}
       <FromTheHart quote={quote.quote} author={quote.author} />
+
+      {/* ── Birthday self-entry prompt — loads client-side after the shell,
+            never blocks render, hides itself when set/snoozed/ineligible. ── */}
+      <BirthdayPrompt />
 
       {/* ── Summary sentence ───────────────────────────────────── */}
       <p className="text-base text-[#A1A1AA] mb-6 leading-relaxed max-w-2xl">

@@ -48,7 +48,7 @@ export async function resolveAccessToken(request: NextRequest): Promise<string |
  */
 export async function proxyToVault(
   request: NextRequest,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT',
   vaultPath: string,
   body?: unknown
 ): Promise<NextResponse> {

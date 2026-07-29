@@ -5,6 +5,7 @@ import { useAuth } from '../providers'
 import { ArrowLeft, User, Mail, Phone, MapPin, Loader2, Save, CheckCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
 
 interface Profile {
   id: string
@@ -167,6 +168,9 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+
+            {/* Birthday — saves through Vault (system of record), month/day only */}
+            <ProfileBirthdaySection />
 
             {/* Save Button */}
             <button
