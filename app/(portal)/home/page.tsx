@@ -36,6 +36,8 @@ import {
 import TodaySection from "@/src/portal/home/TodaySection";
 import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
 import BusinessSnapshot from "@/src/portal/home/BusinessSnapshot";
+import FromTheHart from "@/src/portal/home/FromTheHart";
+import { getTodaysQuote } from "@/src/portal/home/quotes/quote-service";
 import {
   DevelopmentRadarWidget,
   HotLeadsWidget,
@@ -123,8 +125,15 @@ export default async function PortalHomePage() {
     callerId: session.user.id,
   });
 
+  // From The Hart — one daily quote, same for everyone. Read-only, one lookup.
+  const quote = await getTodaysQuote(supabase);
+
   return (
     <HomeShell now={now} agentName={agentName}>
+      {/* ── From The Hart — daily note from the Broker, directly below the
+            greeting. Read-only; no interaction. ───────────────────────── */}
+      <FromTheHart quote={quote.quote} author={quote.author} />
+
       {/* ── Summary sentence ───────────────────────────────────── */}
       <p className="text-base text-[#A1A1AA] mb-6 leading-relaxed max-w-2xl">
         {summarySentence(cards)}
