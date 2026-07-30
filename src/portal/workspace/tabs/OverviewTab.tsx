@@ -14,6 +14,10 @@ import { ArrowRight, FileText } from "lucide-react";
 
 import type { WorkspaceCard, LifecycleTone } from "../types";
 import { tabHref } from "./tab-config";
+// Slice 3B-4: Server Component. Renders nothing when the composer flag is
+// OFF — with the flag OFF (as in production today), OverviewTab renders
+// byte-identically to before this slice.
+import PrepareForSigningCTA from "../signing/PrepareForSigningCTA";
 // Transaction OS 3.3E — reuse the grid card's pure view helpers so the detail
 // Overview shows Transaction Stage (3.1) + Deadline (3.2). No recreated logic.
 import { hasLifecycle, lifecycleChipVM } from "../lifecycle-view";
@@ -170,6 +174,9 @@ export default function OverviewTab({ card, vaultBase }: OverviewTabProps) {
           <TabLink id="compliance" txn={card.transaction_id} label="Compliance" />
           <TabLink id="commission" txn={card.transaction_id} label="Commission" />
           <TabLink id="ai" txn={card.transaction_id} label="AI Assistant" />
+          {/* Slice 3B-4: renders nothing when AP_SIGNING_COMPOSER_ENABLED is
+              OFF (production default). */}
+          <PrepareForSigningCTA transactionId={card.transaction_id} />
         </div>
         <p className="mt-3 text-[11px] text-[#71717A]">
           Read-only workspace. No send, approval, or release actions live in
