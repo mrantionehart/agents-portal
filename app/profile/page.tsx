@@ -6,6 +6,7 @@ import { ArrowLeft, User, Mail, Phone, MapPin, Loader2, Save, CheckCircle } from
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
+import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
 
 interface Profile {
   id: string
@@ -171,6 +172,10 @@ export default function ProfilePage() {
 
             {/* Birthday — saves through Vault (system of record), month/day only */}
             <ProfileBirthdaySection />
+
+            {/* Marketing Card — headshot + preferred public phone + readiness
+                (Vault companion contracts; server-owned readiness/capabilities) */}
+            <MarketingProfileSection />
 
             {/* Save Button */}
             <button
