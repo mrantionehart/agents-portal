@@ -40,11 +40,18 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user!.id)
-        .single()
+      // Defense-in-depth: race the query against a timeout so `loading` ALWAYS
+      // resolves and the page renders. The root deadlock (a re-entrant Supabase
+      // call inside onAuthStateChange) is fixed in AuthProvider, but Supabase's
+      // client session read still uses the shared navigator auth lock; under
+      // pathological cross-tab contention it could stall. On timeout we render the
+      // page anyway — the birthday + marketing-card sections use the lock-free
+      // authFetch/API paths, so they load regardless of this direct query.
+      const query = supabase.from('profiles').select('*').eq('id', user!.id).single()
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('profile-load-timeout')), 6000),
+      )
+      const { data, error } = (await Promise.race([query, timeout])) as Awaited<typeof query>
 
       if (error) throw error
       setProfile(data)

@@ -102,23 +102,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // GoTrue invokes onAuthStateChange callbacks WHILE HOLDING the
+    // `sb-<ref>-auth-token` navigator Web Lock. Calling any lock-acquiring Supabase
+    // method (getSession / getUser / .from()) synchronously inside the callback
+    // re-enters that same lock and DEADLOCKS it — the callback awaits a query that
+    // needs the lock the callback itself is holding. That is what hung the profile
+    // page's fetchProfile (it could never acquire the lock), and it was aggravated
+    // across tabs because Web Locks are shared per-origin. Keep this callback
+    // lock-free: synchronous state only, and defer any role/Supabase work to a
+    // macrotask so it runs AFTER the callback returns and the lock is released.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null)
-      if (session?.user) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single()
-          setRole(data?.role || 'agent')
-        } catch (err) {
-          console.error('Error fetching role:', err)
-          setRole('agent') // Default to agent role on error
-        }
-      } else {
+      if (!session?.user) {
         setRole(null)
+        return
       }
+      // Resolve role WITHOUT the client auth lock: /api/auth/me reads the session
+      // cookie server-side (no navigator lock, no Bearer). Deferred to a macrotask
+      // so it never runs inside the lock-held callback.
+      setTimeout(() => {
+        fetch('/api/auth/me')
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => { if (d?.role) setRole(d.role) })
+          .catch(() => { /* keep last-known role; initAuth already set it from /api/auth/me */ })
+      }, 0)
     })
 
     return () => subscription?.unsubscribe()
