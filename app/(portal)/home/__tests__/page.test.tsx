@@ -37,6 +37,13 @@ jest.mock("@/src/portal/home/intelligence-api", () => ({
   loadHomeIntelligence: async () => ({ news: [], radar: [], hotLeads: [], opportunities: [], errors: {} }),
 }));
 
+// MarketingCardPrompt (home) pulls the marketing-profile companion client, which
+// statically imports the browser Supabase client. Mock it so the home shell test
+// never constructs a real browser client; the prompt hides itself on rejection.
+jest.mock("@/src/portal/marketing-profile/api", () => ({
+  getMarketingProfile: jest.fn().mockRejectedValue(new Error("mocked-in-home-test")),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import PortalHomePage from "../page";
 
