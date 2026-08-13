@@ -39,6 +39,7 @@ import BusinessSnapshot from "@/src/portal/home/BusinessSnapshot";
 import FromTheHart from "@/src/portal/home/FromTheHart";
 import BirthdayPrompt from "@/src/portal/home/BirthdayPrompt";
 import MarketingCardPrompt from "@/src/portal/home/MarketingCardPrompt";
+import PayoutReadinessPrompt from "@/src/portal/home/PayoutReadinessPrompt";
 import { getTodaysQuote } from "@/src/portal/home/quotes/quote-service";
 import {
   DevelopmentRadarWidget,
@@ -143,6 +144,10 @@ export default async function PortalHomePage() {
       {/* ── Marketing Card readiness prompt — loads client-side after the shell,
             hides itself when the agent's setup is complete (or snoozed). ── */}
       <MarketingCardPrompt />
+
+      {/* ── Commission payout readiness prompt — nudges Stripe Connect setup;
+            hides itself when payout-ready / not-configured (or snoozed). ── */}
+      <PayoutReadinessPrompt />
 
       {/* ── Summary sentence ───────────────────────────────────── */}
       <p className="text-base text-[#A1A1AA] mb-6 leading-relaxed max-w-2xl">
