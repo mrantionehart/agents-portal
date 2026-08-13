@@ -42,6 +42,7 @@ import type {
   SettingsProfileResult,
 } from "@/src/portal/settings/types";
 import ConnectedAccountsCard from "@/src/portal/settings/ConnectedAccountsCard";
+import CommissionPayoutsCard from "@/src/portal/settings/CommissionPayoutsCard";
 import ContactSupport from "@/src/portal/support/ContactSupport";
 
 export default async function SettingsHubPage() {
@@ -129,6 +130,9 @@ export default async function SettingsHubPage() {
               hint="Model a deal: gross, splits, fees, and net to you."
             />
           </ul>
+          <div className="mt-4">
+            <CommissionPayoutsCard />
+          </div>
         </Card>
 
         {/* ── 4. CRM / Email Sync ───────────────────────────────── */}

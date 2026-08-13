@@ -15,6 +15,9 @@ module.exports = {
     // lives under src/portal/home and uses unique classes not present in app/;
     // Tailwind must scan it directly or those classes emit no CSS (invisible UI).
     './src/portal/home/**/*.{js,ts,jsx,tsx,mdx}',
+    // CommissionPayoutsCard lives under src/portal/settings and uses unique
+    // classes (e.g. text-emerald-400) not otherwise emitted; scan it directly.
+    './src/portal/settings/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
