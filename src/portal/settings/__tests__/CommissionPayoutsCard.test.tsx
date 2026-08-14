@@ -93,4 +93,48 @@ describe('CommissionPayoutsCard', () => {
     // Discloses HartFelt does not store bank info.
     expect(container.textContent).toMatch(/not stored by HartFelt/i)
   })
+
+  it('Connect failure renders the bounded Vault message, never the machine code or raw provider text', async () => {
+    // Vault returns the SANITIZED shape: bounded `message` + a machine `error` code.
+    mockFetch.mockImplementation(async (_url: string, opts?: { method?: string }) => {
+      if (opts?.method === 'POST') {
+        return {
+          ok: false,
+          json: async () => ({
+            error: 'PAYOUT_SETUP_TEMPORARILY_UNAVAILABLE',
+            message:
+              'Payout setup is temporarily unavailable. HARTFELT is working to restore this service. Please try again later or contact us for assistance.',
+          }),
+        }
+      }
+      return statusRes('not_started')
+    })
+    const { container } = render(<CommissionPayoutsCard />)
+    fireEvent.click(await screen.findByRole('button', { name: /Connect with Stripe/i }))
+
+    // The agent sees the bounded product copy…
+    expect(await screen.findByText(/temporarily unavailable/i)).toBeInTheDocument()
+    const text = (container.textContent || '').toLowerCase()
+    // …and NEVER the machine code or any raw provider terminology.
+    for (const leak of [
+      'payout_setup_temporarily_unavailable',
+      'rejected',
+      'cannot create',
+      'your account has been',
+      'acct_',
+    ]) {
+      expect(text).not.toContain(leak)
+    }
+  })
+
+  it('Connect network failure (no JSON) falls back to bounded copy, not a raw error', async () => {
+    mockFetch.mockImplementation(async (_url: string, opts?: { method?: string }) => {
+      if (opts?.method === 'POST') throw new Error('You cannot create new accounts because your account has been rejected.')
+      return statusRes('not_started')
+    })
+    const { container } = render(<CommissionPayoutsCard />)
+    fireEvent.click(await screen.findByRole('button', { name: /Connect with Stripe/i }))
+    expect(await screen.findByText(/temporarily unavailable/i)).toBeInTheDocument()
+    expect((container.textContent || '').toLowerCase()).not.toContain('rejected')
+  })
 })
