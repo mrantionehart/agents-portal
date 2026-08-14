@@ -20,6 +20,11 @@ const VAULT_API_URL = (
   "https://vault.hartfeltrealestate.com/api"
 ).replace(/\/$/, "");
 
+// Agent-safe fallback used ONLY when Vault sent no bounded `message` (network
+// failure, non-JSON). We never surface a raw provider/error string to the agent.
+const PAYOUT_SETUP_UNAVAILABLE_COPY =
+  "Payout setup is temporarily unavailable. HARTFELT is working to restore this service. Please try again later or contact us for assistance.";
+
 type Readiness =
   | "not_configured"
   | "not_started"
@@ -75,14 +80,17 @@ export default function CommissionPayoutsCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context: "agent_portal" }),
       });
-      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      // `message` is the Vault-sanitized, agent-safe product copy. `error` is a
+      // machine code (e.g. PAYOUT_SETUP_TEMPORARILY_UNAVAILABLE) — NEVER shown to
+      // the agent, and we never fall back to any raw provider text.
+      const json = (await res.json().catch(() => ({}))) as { url?: string; message?: string; error?: string };
       if (res.ok && json.url) {
         window.location.href = json.url; // hand off to Stripe-hosted onboarding
         return;
       }
-      setError(json.error || "Couldn't start Stripe payout setup. Please try again.");
+      setError(json.message || PAYOUT_SETUP_UNAVAILABLE_COPY);
     } catch {
-      setError("Couldn't start Stripe payout setup. Please try again.");
+      setError(PAYOUT_SETUP_UNAVAILABLE_COPY);
     } finally {
       setConnecting(false);
     }
