@@ -183,22 +183,51 @@ export interface CertifiedProgress {
 
 export interface LearnerSafeQuizOption {
   id: string;
-  text: string;
+  /** Vault sends `label`. The portal previously read `text`, so every option
+   *  rendered blank and a learner could only distinguish choices by option id. */
+  label: string;
 }
 
 export interface LearnerSafeQuizQuestion {
   id: string;
+  /** Vault sends a question kind; today only "single_choice" is served. */
+  kind?: string;
   prompt: string;
   options: readonly LearnerSafeQuizOption[];
+}
+
+// ── VAULT IS THE SOURCE OF TRUTH FOR THIS SHAPE ─────────────────────────────
+// Mirrors Vault's `LearnerSafeQuiz` (quiz-contracts.ts) EXACTLY. The previous
+// version of this type invented `passingScore` and `attemptCap`, which Vault
+// has never sent — so both rendered blank, and the submit metadata built from
+// this type could not satisfy the attempt route. Do not add convenience fields
+// here: if a value is not in Vault's response, the portal must not pretend it
+// is. See __tests__/vault-quiz-contract.test.ts, which pins this against a
+// fixture copied from the real Vault payload.
+
+/** Vault: `passingRule` reduced to its learner-safe fields. The `kind` is
+ *  collapsed server-side so a hidden critical-item set is never disclosed. */
+export interface QuizPassingRule {
+  kind: string;
+  thresholdPercent: number;
+}
+
+/** Vault: `retryPolicy`. `maxAttempts` is the real attempt cap. */
+export interface QuizRetryPolicy {
+  maxAttempts: number;
+  attemptCountScope: string;
+  passIsPermanentForCertVersion: boolean;
+  revealAnswersAfterAttempt: boolean;
 }
 
 export interface LearnerSafeQuiz {
   quizId: string;
   quizVersion: string;
   title: string;
-  passingScore: number;
-  attemptCap: number;
+  instructions: string | null;
   questions: readonly LearnerSafeQuizQuestion[];
+  passingRule: QuizPassingRule;
+  retryPolicy: QuizRetryPolicy;
 }
 
 export interface QuizGetResponse {
@@ -207,19 +236,31 @@ export interface QuizGetResponse {
   moduleStatus: ModuleStatus;
 }
 
+// ── SUBMIT IS SNAKE_CASE, AND `answers` IS A MAP ────────────────────────────
+// Vault's attempt route validates `quiz_id`, `quiz_version` and an `answers`
+// OBJECT keyed questionId → optionId. The portal previously sent camelCase and
+// an array, so the route rejected every submission with "quiz_id required"
+// before scoring anything.
 export interface QuizAttemptSubmission {
-  quizId: string;
-  quizVersion: string;
-  answers: ReadonlyArray<{ questionId: string; optionId: string }>;
+  quiz_id: string;
+  quiz_version: string;
+  answers: Readonly<Record<string, string>>;
+  idempotency_key?: string;
 }
 
 export interface QuizAttemptResult {
   attempt_id: string;
-  score: number;
+  quizId: string;
+  quizVersion: string;
+  totalCount: number;
+  correctCount: number;
+  scorePercent: number;
   passed: boolean;
-  correct_count: number;
-  total_count: number;
-  retry_allowed_at: string | null;
+  attemptNumber: number;
+  attemptsRemaining: number;
+  /** Tri-state. `review_required` is NOT a pass — `passed` stays false.
+   *  Optional because older attempts predate the column. */
+  outcome?: "passed" | "failed" | "review_required";
 }
 
 export interface QuizAttemptResponse {
