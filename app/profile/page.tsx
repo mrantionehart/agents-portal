@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import { ArrowLeft, User, Mail, Phone, MapPin, Loader2, Save, CheckCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, authFetch } from '@/lib/supabase'
 import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
 import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
 
@@ -13,7 +13,6 @@ interface Profile {
   full_name: string
   email: string
   phone?: string
-  location?: string
   bio?: string
   avatar_url?: string
   license_number?: string
@@ -27,7 +26,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [form, setForm] = useState({ full_name: '', phone: '', location: '', bio: '', license_number: '' })
+  // `location` is intentionally absent: there is no such column on `profiles`.
+  // Submitting it is what made every save fail (42703) — see /api/profile.
+  const [form, setForm] = useState({ full_name: '', phone: '', bio: '', license_number: '' })
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -58,7 +60,6 @@ export default function ProfilePage() {
       setForm({
         full_name: data.full_name || '',
         phone: data.phone || '',
-        location: data.location || '',
         bio: data.bio || '',
         license_number: data.license_number || '',
       })
@@ -70,19 +71,43 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setSaving(true)
+    setSaveError(null)
+    setSaved(false)
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(form)
-        .eq('id', user!.id)
+      // Server route, not a browser-direct table write. The route allowlists
+      // the editable columns and CONFIRMS a row actually changed before it
+      // reports success — a filtered UPDATE that matches nothing is not an
+      // error in PostgREST, which is how the old code could claim to save
+      // while persisting nothing.
+      const res = await authFetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const json = await res.json().catch(() => null)
 
-      if (error) throw error
+      if (!res.ok || !json?.success) {
+        setSaveError(json?.error ?? 'Save failed. Please try again.')
+        return
+      }
+
+      // Re-seed the form from what the SERVER persisted, so what is on screen
+      // is what is in the database.
+      if (json.profile) {
+        setForm({
+          full_name: json.profile.full_name || '',
+          phone: json.profile.phone || '',
+          bio: json.profile.bio || '',
+          license_number: json.profile.license_number || '',
+        })
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch (e) {
-      alert('Error saving profile. Please try again.')
+    } catch {
+      setSaveError('Save failed. Please try again.')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   if (authLoading || !user) return null
@@ -143,16 +168,6 @@ export default function ProfilePage() {
                   placeholder="(555) 123-4567"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Location</label>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-[#0a0a0f]/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#C9A84C]/50 transition"
-                  placeholder="City, State"
-                />
-              </div>
               {profile?.role !== 'office_manager' && (
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">License Number</label>
@@ -191,7 +206,10 @@ export default function ProfilePage() {
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#A88A3C] text-[#050507] font-bold text-sm hover:opacity-90 transition disabled:opacity-50"
             >
               {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving…
+                </>
               ) : saved ? (
                 <>
                   <CheckCircle className="w-4 h-4" />
@@ -204,6 +222,15 @@ export default function ProfilePage() {
                 </>
               )}
             </button>
+
+            {/* Failure is shown inline and persists until the next attempt.
+                The previous code used a blocking alert(), which is dismissable
+                without being read — and was invisible to automated checks. */}
+            {saveError && (
+              <p role="alert" className="mt-2 text-sm text-red-400">
+                Save failed — {saveError}
+              </p>
+            )}
           </div>
         )}
       </div>
