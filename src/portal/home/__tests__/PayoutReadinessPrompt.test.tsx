@@ -13,7 +13,12 @@ const res = (readiness: string, ok = true) => ({ ok, json: async () => ({ readin
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // Existing behavior suite exercises the ENABLED rail.
+  process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED = 'true'
   try { sessionStorage.clear() } catch { /* jsdom has it */ }
+})
+afterEach(() => {
+  delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
 })
 
 describe('PayoutReadinessPrompt', () => {
@@ -73,5 +78,20 @@ describe('PayoutReadinessPrompt', () => {
     const { container } = render(<PayoutReadinessPrompt />)
     await waitFor(() => expect(mockFetch).toHaveBeenCalled())
     expect(container).toBeEmptyDOMElement()
+  })
+
+  describe('rail disabled (payout provider transition)', () => {
+    beforeEach(() => {
+      delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
+    })
+
+    it('renders nothing and never calls the connect endpoint', async () => {
+      mockFetch.mockResolvedValue(res('not_started'))
+      const { container } = render(<PayoutReadinessPrompt />)
+      // Give any (erroneous) effect a tick to fire.
+      await Promise.resolve()
+      expect(container).toBeEmptyDOMElement()
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
   })
 })

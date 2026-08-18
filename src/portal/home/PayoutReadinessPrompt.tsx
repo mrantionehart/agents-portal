@@ -31,6 +31,14 @@ const VAULT_API_URL = (
 
 const SNOOZE_KEY = 'hf_payout_readiness_prompt_dismissed'
 
+// Payout-rail gate (mirrors CommissionPayoutsCard). While HartFelt is between
+// payout providers the CTA cannot succeed, so this nudge must not appear and
+// must make no readiness call. Default OFF until a working rail is enabled via
+// `NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === "true"`.
+function payoutConnectEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === 'true'
+}
+
 /** Readiness states that warrant a prompt (an actionable next step exists). */
 const ACTIONABLE = new Set(['not_started', 'incomplete', 'pending_verification'])
 
@@ -49,6 +57,11 @@ export default function PayoutReadinessPrompt() {
   const [readiness, setReadiness] = useState<string>('')
 
   useEffect(() => {
+    // Rail disabled → never prompt, never call the connect endpoint.
+    if (!payoutConnectEnabled()) {
+      setPhase('hidden')
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {

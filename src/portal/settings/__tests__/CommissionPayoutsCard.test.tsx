@@ -13,6 +13,8 @@ const statusRes = (readiness: string, enabled = true) => ({
 const originalLocation = window.location
 beforeEach(() => {
   jest.clearAllMocks()
+  // The existing behavior suites exercise the ENABLED rail.
+  process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED = 'true'
   Object.defineProperty(window, 'location', {
     value: { href: '', pathname: '/settings', search: '' },
     writable: true,
@@ -20,6 +22,7 @@ beforeEach(() => {
   })
 })
 afterEach(() => {
+  delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
   Object.defineProperty(window, 'location', { value: originalLocation, writable: true, configurable: true })
 })
 
@@ -92,6 +95,36 @@ describe('CommissionPayoutsCard', () => {
     }
     // Discloses HartFelt does not store bank info.
     expect(container.textContent).toMatch(/not stored by HartFelt/i)
+  })
+
+  describe('rail disabled (payout provider transition)', () => {
+    beforeEach(() => {
+      // Default OFF: flag absent means the connect rail is disabled.
+      delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
+    })
+
+    it('shows the neutral updating message and NO connect CTA', async () => {
+      mockFetch.mockResolvedValue(statusRes('not_started'))
+      render(<CommissionPayoutsCard />)
+      expect(await screen.findByText(/updating how commission payouts/i)).toBeInTheDocument()
+      // No CTA of any kind.
+      expect(screen.queryByRole('button', { name: /Connect with Stripe/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Continue Stripe Setup/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Check Status/i })).not.toBeInTheDocument()
+    })
+
+    it('never calls the Vault connect endpoint while disabled', async () => {
+      mockFetch.mockResolvedValue(statusRes('not_started'))
+      render(<CommissionPayoutsCard />)
+      await screen.findByText(/updating how commission payouts/i)
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('names no payment provider in the disabled copy', async () => {
+      const { container } = render(<CommissionPayoutsCard />)
+      await screen.findByText(/updating how commission payouts/i)
+      expect((container.textContent || '').toLowerCase()).not.toContain('stripe')
+    })
   })
 
   it('Connect failure renders the bounded Vault message, never the machine code or raw provider text', async () => {
