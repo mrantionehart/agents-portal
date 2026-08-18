@@ -25,6 +25,20 @@ const VAULT_API_URL = (
 const PAYOUT_SETUP_UNAVAILABLE_COPY =
   "Payout setup is temporarily unavailable. HARTFELT is working to restore this service. Please try again later or contact us for assistance.";
 
+// Payout-rail gate. The Connect CTA appears ONLY when a working payout rail is
+// explicitly enabled (env `NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === "true"`).
+// Default OFF: while HartFelt is transitioning payout providers we must NOT send
+// agents into a connect flow that cannot succeed. When off, the card shows a
+// calm, neutral "being updated" state with no CTA and makes no readiness call.
+function payoutConnectEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === "true";
+}
+
+// Neutral copy shown while the rail is disabled — no provider name, no error,
+// nothing for the agent to act on.
+const PAYOUT_UPDATING_COPY =
+  "We’re updating how commission payouts are handled. You don’t need to do anything right now — HARTFELT will let you know as soon as payout setup is ready.";
+
 type Readiness =
   | "not_configured"
   | "not_started"
@@ -44,6 +58,11 @@ export default function CommissionPayoutsCard() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // Rail disabled → never call the connect endpoint; render the neutral state.
+    if (!payoutConnectEnabled()) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await authFetch(`${VAULT_API_URL}/stripe/connect`, { method: "GET" });
@@ -95,6 +114,22 @@ export default function CommissionPayoutsCard() {
       setConnecting(false);
     }
   }, []);
+
+  // Rail disabled (payout provider transition): calm, neutral, no CTA, no
+  // provider name, nothing to act on. Takes precedence over loading/readiness.
+  if (!payoutConnectEnabled()) {
+    return (
+      <div className="rounded-xl border border-[#1a1a2e] bg-[#11111a] p-5">
+        <div className="flex items-start gap-2">
+          <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A84C]" aria-hidden="true" />
+          <div>
+            <h3 className="text-sm font-semibold text-[#F1F1F3]">Commission Payouts</h3>
+            <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">{PAYOUT_UPDATING_COPY}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
