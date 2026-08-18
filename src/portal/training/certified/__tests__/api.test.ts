@@ -150,15 +150,21 @@ describe("fetchLearnerSafeQuiz", () => {
         quizId: "platform-cert.pcert-l12.required-optional-blocked",
         quizVersion: "1",
         title: "pcert-l12 quiz",
-        passingScore: 80,
-        attemptCap: 3,
+        passingRule: { kind: "percentage_threshold", thresholdPercent: 80 },
+        retryPolicy: {
+          maxAttempts: 3,
+          attemptCountScope: "per_certification_version",
+          passIsPermanentForCertVersion: true,
+          revealAnswersAfterAttempt: false,
+        },
+        instructions: null,
         questions: [
           {
             id: "q1",
             prompt: "Which is which?",
             options: [
-              { id: "opt-a", text: "Option A" },
-              { id: "opt-b", text: "Option B" },
+              { id: "opt-a", label: "Option A" },
+              { id: "opt-b", label: "Option B" },
             ],
           },
         ],
@@ -199,18 +205,22 @@ describe("submitQuizAttempt", () => {
           attempt_id: "att-1",
           score: 100,
           passed: true,
-          correct_count: 1,
-          total_count: 1,
-          retry_allowed_at: null,
+          quizId: "platform-cert.pcert-l12.required-optional-blocked",
+          quizVersion: "1",
+          scorePercent: 100,
+          correctCount: 1,
+          totalCount: 1,
+          attemptNumber: 1,
+          attemptsRemaining: 2,
         },
         status: "graded",
         certification_issuance: null,
       }),
     );
     const submission = {
-      quizId: "platform-cert.pcert-l12.required-optional-blocked",
-      quizVersion: "1",
-      answers: [{ questionId: "q1", optionId: "opt-a" }],
+      quiz_id: "platform-cert.pcert-l12.required-optional-blocked",
+      quiz_version: "1",
+      answers: { q1: "opt-a" },
     };
     await submitQuizAttempt({ lessonId: "pcert-l12", submission });
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
@@ -236,7 +246,7 @@ describe("submitQuizAttempt", () => {
     try {
       await submitQuizAttempt({
         lessonId: "pcert-l32",
-        submission: { quizId: "q", quizVersion: "1", answers: [] },
+        submission: { quiz_id: "q", quiz_version: "1", answers: {} },
       });
       fail("should have thrown");
     } catch (e) {
@@ -268,7 +278,7 @@ describe("submitQuizAttempt", () => {
     );
     const res = await submitQuizAttempt({
       lessonId: "pcert-l32",
-      submission: { quizId: "q", quizVersion: "1", answers: [] },
+      submission: { quiz_id: "q", quiz_version: "1", answers: {} },
     });
     expect(res.certification_issuance?.issuance_id).toBe("iss-1");
   });

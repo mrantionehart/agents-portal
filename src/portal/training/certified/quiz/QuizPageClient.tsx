@@ -164,6 +164,40 @@ export default function QuizPageClient() {
   );
 }
 
+
+// ── Contract validation ─────────────────────────────────────────────────────
+// Returns a learner-readable reason when Vault's payload cannot support a real
+// attempt, or null when it can. This is the guard that would have caught the
+// AP/Vault drift immediately instead of at submit time.
+export function describeQuizContractProblem(
+  quiz: LearnerSafeQuiz | null | undefined,
+): string | null {
+  if (!quiz) return "the quiz could not be loaded.";
+  if (!quiz.quizId) return "it is missing its quiz identifier.";
+  if (!quiz.quizVersion) return "it is missing its quiz version.";
+  if (!Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+    return "it has no questions.";
+  }
+  if (
+    !quiz.passingRule ||
+    typeof quiz.passingRule.thresholdPercent !== "number"
+  ) {
+    return "its passing score is missing.";
+  }
+  if (!quiz.retryPolicy || typeof quiz.retryPolicy.maxAttempts !== "number") {
+    return "its attempt policy is missing.";
+  }
+  for (const q of quiz.questions) {
+    if (!q.id || !Array.isArray(q.options) || q.options.length === 0) {
+      return "one of its questions has no answer options.";
+    }
+    if (q.options.some((o) => !o.id || typeof o.label !== "string")) {
+      return "one of its answer options is missing its text.";
+    }
+  }
+  return null;
+}
+
 // ─── Active quiz UI ────────────────────────────────────────────────────────
 
 function ActiveQuiz({
@@ -174,24 +208,64 @@ function ActiveQuiz({
   onSubmitted: (r: QuizAttemptResponse) => void;
 }) {
   const { quiz, lesson, trackId, lessonId } = phase;
+
+  // ── FAIL CLOSED ON AN INCOMPLETE PAYLOAD ────────────────────────────────
+  // Do not let a learner answer ten questions and only discover at submit
+  // that the quiz had no identity. If Vault's learner-safe payload is
+  // structurally incomplete, this surface refuses to start.
+  const contractProblem = describeQuizContractProblem(quiz);
+
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; code?: string | null } | null>(null);
 
   const allAnswered = quiz.questions.every((q) => answers[q.id]);
 
+  if (contractProblem) {
+    return (
+      <div className="space-y-4" data-cert-quiz-unavailable>
+        <div className="text-[11px] uppercase tracking-wide text-[#C9A84C]">
+          {lesson.id}
+        </div>
+        <div
+          className="rounded-lg border border-red-500/30 bg-red-500/10 p-5"
+          role="alert"
+        >
+          <div className="text-[11px] uppercase tracking-wide">
+            Quiz unavailable
+          </div>
+          <p className="mt-2 text-sm text-[#F1F1F3]">
+            This quiz can&apos;t be started right now — {contractProblem}
+          </p>
+          <p className="mt-2 text-xs text-[#A1A1AA]">
+            Nothing has been recorded against your certification. Please try
+            again, or contact support if it keeps happening.
+          </p>
+        </div>
+        <Link
+          href={`/training/certified/${trackId}/${lessonId}`}
+          className="inline-block text-sm text-[#C9A84C] hover:underline"
+        >
+          ← Back to lesson
+        </Link>
+      </div>
+    );
+  }
+
   const submit = useCallback(async () => {
     if (!allAnswered) return;
     setBusy(true);
     setError(null);
     try {
+      // Vault's attempt route validates snake_case identity and an answers
+      // OBJECT keyed questionId → optionId. Sending camelCase / an array is
+      // what produced "quiz_id required" for every submission.
       const submission = {
-        quizId: quiz.quizId,
-        quizVersion: quiz.quizVersion,
-        answers: quiz.questions.map((q) => ({
-          questionId: q.id,
-          optionId: answers[q.id],
-        })),
+        quiz_id: quiz.quizId,
+        quiz_version: quiz.quizVersion,
+        answers: Object.fromEntries(
+          quiz.questions.map((q) => [q.id, answers[q.id]]),
+        ),
       };
       const result = await submitQuizAttempt({ lessonId, submission });
       onSubmitted(result);
@@ -241,7 +315,9 @@ function ActiveQuiz({
           {quiz.title}
         </h1>
         <p className="mt-1 text-xs text-[#A1A1AA]">
-          Passing score: {quiz.passingScore}% · {quiz.questions.length} questions · Attempt limit: {quiz.attemptCap}
+          Passing score: {quiz.passingRule.thresholdPercent}% ·{" "}
+          {quiz.questions.length} questions · Attempt limit:{" "}
+          {quiz.retryPolicy.maxAttempts}
         </p>
       </header>
       <ol className="space-y-4" data-cert-quiz-questions>
@@ -273,7 +349,7 @@ function ActiveQuiz({
                       className="mt-1 h-4 w-4 accent-[#C9A84C]"
                       data-cert-quiz-option={opt.id}
                     />
-                    <span className="text-sm text-[#F1F1F3]">{opt.text}</span>
+                    <span className="text-sm text-[#F1F1F3]">{opt.label}</span>
                   </label>
                 </li>
               ))}
@@ -331,26 +407,44 @@ function SubmittedView({
           ← Back to lesson
         </Link>
       </div>
+      {/* Tri-state. `review_required` is NOT a pass — Vault keeps `passed`
+          false — but reporting it as a failure misstates both the result and
+          the learner's next step, so it renders as its own state. Nothing here
+          discloses which item triggered review. */}
       <div
         className={`rounded-lg border p-5 ${
           r.passed
             ? "border-green-500/30 bg-green-500/10"
-            : "border-amber-500/30 bg-amber-500/10"
+            : r.outcome === "review_required"
+              ? "border-sky-500/30 bg-sky-500/10"
+              : "border-amber-500/30 bg-amber-500/10"
         }`}
-        data-cert-quiz-result={r.passed ? "passed" : "failed"}
+        data-cert-quiz-result={
+          r.passed ? "passed" : r.outcome === "review_required" ? "review_required" : "failed"
+        }
       >
         <div className="text-[11px] uppercase tracking-wide">
-          {r.passed ? "✅ Quiz passed" : "❌ Quiz not passed"}
+          {r.passed
+            ? "✅ Quiz passed"
+            : r.outcome === "review_required"
+              ? "🔎 Additional review required"
+              : "❌ Quiz not passed"}
         </div>
         <div className="mt-1 text-2xl font-semibold text-[#F1F1F3]">
-          {r.score}%
+          {r.scorePercent}%
         </div>
         <p className="mt-1 text-xs text-[#A1A1AA]">
-          {r.correct_count} of {r.total_count} correct
-          {r.retry_allowed_at
-            ? ` · retry allowed at ${new Date(r.retry_allowed_at).toLocaleString()}`
-            : ""}
+          {r.correctCount} of {r.totalCount} correct · attempt {r.attemptNumber}
+          {r.attemptsRemaining > 0
+            ? ` · ${r.attemptsRemaining} attempt${r.attemptsRemaining === 1 ? "" : "s"} remaining`
+            : " · no attempts remaining"}
         </p>
+        {r.outcome === "review_required" && (
+          <p className="mt-2 text-xs text-[#A1A1AA]">
+            Your score met the threshold. A compliance response is being reviewed
+            with your supervisor before this lesson is marked complete.
+          </p>
+        )}
       </div>
 
       {isFinalPass && certification_issuance && (
@@ -388,7 +482,7 @@ function SubmittedView({
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {!r.passed && (
+        {!r.passed && r.outcome !== "review_required" && r.attemptsRemaining > 0 && (
           <button
             type="button"
             onClick={onRetake}
