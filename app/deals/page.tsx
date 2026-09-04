@@ -4,12 +4,22 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
+// AP-VISIBILITY.1 — use the canonical Vault-fetch helper. Previous code sent
+// `Bearer <profile UUID>`, which Vault rejects (401), and the page then
+// swallowed the 401 into an empty deals array (silent "No deals found").
+// authFetch attaches the CACHED Supabase access-token from onAuthStateChange
+// (never getSession() — LockManager hazard) and self-heals a single 401.
+import { authFetch } from '@/lib/supabase'
 
 export default function DealsPage() {
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [deals, setDeals] = useState<any[]>([])
   const [dealsLoading, setDealsLoading] = useState(true)
+  // AP-VISIBILITY.1 — distinguish "auth/network/server failure" from
+  // "successful 200 with zero records". The old code conflated both into
+  // an empty state; agents saw "No deals found" even when their JWT was bad.
+  const [dealsError, setDealsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -26,18 +36,23 @@ export default function DealsPage() {
   const fetchDeals = async () => {
     try {
       setDealsLoading(true)
-      const res = await fetch('/api/vault/deals', {
-        headers: {
-          'Authorization': `Bearer ${user?.id}`,
-        },
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setDeals(data.deals || [])
+      setDealsError(null)
+      const res = await authFetch('/api/vault/deals')
+      if (!res.ok) {
+        const msg =
+          res.status === 401
+            ? "We couldn't load your deals — your session may have expired. Please refresh."
+            : `We couldn't load your deals (Vault returned ${res.status}). Please retry.`
+        setDealsError(msg)
+        setDeals([])
+        return
       }
+      const data = await res.json()
+      setDeals(Array.isArray(data?.deals) ? data.deals : [])
     } catch (error) {
       console.error('Error fetching deals:', error)
+      setDealsError("We couldn't load your deals — network error. Please retry.")
+      setDeals([])
     } finally {
       setDealsLoading(false)
     }
@@ -84,6 +99,16 @@ export default function DealsPage() {
           </div>
           {dealsLoading ? (
             <div className="p-6">Loading...</div>
+          ) : dealsError ? (
+            <div className="p-6" role="alert">
+              <p className="text-red-400">{dealsError}</p>
+              <button
+                onClick={fetchDeals}
+                className="mt-3 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+              >
+                Retry
+              </button>
+            </div>
           ) : deals.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">

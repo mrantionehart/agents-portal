@@ -4,12 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
+// AP-VISIBILITY.1 — canonical Vault-fetch helper. See app/deals/page.tsx for
+// full rationale. Same defect shape: previous code sent `Bearer <profile UUID>`
+// and rendered "No commissions found" on the resulting 401.
+import { authFetch } from '@/lib/supabase'
 
 export default function CommissionsPage() {
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [commissions, setCommissions] = useState<any[]>([])
   const [commsLoading, setCommsLoading] = useState(true)
+  const [commsError, setCommsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -26,18 +31,23 @@ export default function CommissionsPage() {
   const fetchCommissions = async () => {
     try {
       setCommsLoading(true)
-      const res = await fetch('/api/vault/commissions', {
-        headers: {
-          'Authorization': `Bearer ${user?.id}`,
-        },
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setCommissions(data.commissions || [])
+      setCommsError(null)
+      const res = await authFetch('/api/vault/commissions')
+      if (!res.ok) {
+        const msg =
+          res.status === 401
+            ? "We couldn't load your commissions — your session may have expired. Please refresh."
+            : `We couldn't load your commissions (Vault returned ${res.status}). Please retry.`
+        setCommsError(msg)
+        setCommissions([])
+        return
       }
+      const data = await res.json()
+      setCommissions(Array.isArray(data?.commissions) ? data.commissions : [])
     } catch (error) {
       console.error('Error fetching commissions:', error)
+      setCommsError("We couldn't load your commissions — network error. Please retry.")
+      setCommissions([])
     } finally {
       setCommsLoading(false)
     }
@@ -113,6 +123,16 @@ export default function CommissionsPage() {
           </div>
           {commsLoading ? (
             <div className="p-6">Loading...</div>
+          ) : commsError ? (
+            <div className="p-6" role="alert">
+              <p className="text-red-400">{commsError}</p>
+              <button
+                onClick={fetchCommissions}
+                className="mt-3 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+              >
+                Retry
+              </button>
+            </div>
           ) : commissions.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
