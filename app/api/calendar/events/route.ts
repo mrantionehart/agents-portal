@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
-import { sendExpoPushBroadcast } from '@/lib/push-notifications'
+import { sendExpoPushToUsers } from '@/lib/push-notifications'
 import { adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
@@ -110,16 +110,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine target agent (broker can assign events to agents)
+    // P0-41 (Cluster A) — also pull tenant_id so the fan-out below is
+    // bounded to the caller's own tenant. The recipient set MUST NOT cross
+    // tenants under any role, including the platform super-admin.
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
     const role = profile?.role || 'agent'
+    const callerTenantId = ((profile as any)?.tenant_id ?? null) as
+      | string
+      | null
 
     let targetAgentId = user.id
     if (['broker', 'admin'].includes(role) && agent_id) {
       targetAgentId = agent_id
+    }
+
+    // P0-41 (Cluster A) — Correction 3: fail closed on missing tenant when
+    // the caller would trigger a fan-out. Deny the whole request before
+    // persisting an orphan event; the caller has no scope to broadcast
+    // into, so proceeding would either leak (old behavior) or silently
+    // drop notifications (which is worse than a clear 403).
+    const willFanOut = ['broker', 'admin', 'office_manager'].includes(role)
+    if (willFanOut && !callerTenantId) {
+      return NextResponse.json(
+        {
+          error: 'tenant_required',
+          message:
+            'Caller profile is missing tenant_id; cannot fan out event notifications',
+        },
+        { status: 403 },
+      )
     }
 
     const { data: event, error } = await admin
@@ -143,12 +166,23 @@ export async function POST(request: NextRequest) {
     if (error) throw error
 
     // ── Notify all agents (in-app + email) when broker/admin/office_manager creates an event ──
-    if (['broker', 'admin', 'office_manager'].includes(role)) {
+    if (willFanOut) {
       try {
-        // Get all active agent profiles for notifications
+        // P0-41 (Cluster A) — tenant-scoped recipient query. The prior
+        // implementation selected every profile in the database with no
+        // filter, causing cross-tenant fan-out of in-app notifications,
+        // emails, and push notifications. Recipients are now scoped to
+        // the caller's own tenant. Precedent for hand-rolled inline
+        // tenant derivation via `adminClient` is documented in
+        // lib/security/withServiceRole.ts (`sec3a-new-leads-tenant-scope`,
+        // `r3b-intakes-tenant-scope`). `callerTenantId` is guaranteed
+        // non-null by the fail-closed gate above. Profiles with
+        // tenant_id IS NULL are naturally excluded because PostgREST
+        // `.eq('tenant_id', X)` compares by equality (NULL never equals X).
         const { data: agents } = await admin
           .from('profiles')
           .select('id, email, full_name')
+          .eq('tenant_id', callerTenantId as string)
 
         if (agents && agents.length > 0) {
           const eventDateFormatted = new Date(event_date + 'T12:00:00').toLocaleDateString('en-US', {
@@ -191,9 +225,24 @@ export async function POST(request: NextRequest) {
           }
 
           // Send push notifications to agents' phones (non-blocking)
+          // P0-41 (Cluster A) — switched from `sendExpoPushBroadcast` (which
+          // fans out to EVERY active Expo token in the system regardless of
+          // tenant) to `sendExpoPushToUsers` scoped to the tenant-filtered
+          // recipient IDs. The excludeUserId parameter is preserved to
+          // maintain the actor-exclusion invariant across all three
+          // channels (in-app, email, push).
           const pushTitle = `New Event: ${title}`
           const pushBody = `${creatorName} scheduled "${title}" on ${eventDateFormatted}${event_time ? ' at ' + event_time : ''}${location ? ' — ' + location : ''}`
-          sendExpoPushBroadcast(pushTitle, pushBody, { type: 'event', event_id: event.id }, user.id).catch(() => {})
+          const tenantRecipientIds = agents
+            .filter((a: any) => a.id !== user.id)
+            .map((a: any) => a.id)
+          sendExpoPushToUsers(
+            tenantRecipientIds,
+            pushTitle,
+            pushBody,
+            { type: 'event', event_id: event.id },
+            user.id,
+          ).catch(() => {})
 
           // Send email notifications via SendGrid
           const sgKey = process.env.SENDGRID_API_KEY
