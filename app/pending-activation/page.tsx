@@ -42,18 +42,24 @@ async function loadProfile(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("is_active, onboarding_status")
-    .eq("id", user.id)
-    .single();
-
-  return data
-    ? {
-        is_active: data.is_active === true,
-        onboarding_status: (data.onboarding_status as string | null) ?? null,
-      }
-    : null;
+  // Fail CLOSED on any lookup error — return null and let the caller render
+  // Copy B ("Your account is currently inactive. Contact your broker.").
+  // Under NO circumstances leak the error to the client or fall through to
+  // an "active" UX that suggests portal access.
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("is_active, onboarding_status")
+      .eq("id", user.id)
+      .single();
+    if (error || !data) return null;
+    return {
+      is_active: data.is_active === true,
+      onboarding_status: (data.onboarding_status as string | null) ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default async function PendingActivationPage() {

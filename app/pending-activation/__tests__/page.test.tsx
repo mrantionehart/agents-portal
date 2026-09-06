@@ -22,17 +22,20 @@ import { render, screen } from "@testing-library/react";
 
 let PROFILE: {
   id: string;
-  is_active: boolean;
+  is_active: boolean | null;
   onboarding_status: string | null;
 } | null = null;
+let AUTHED_ID: string | null = null;
+type ProfileMode = "row" | "no-row" | "error";
+let PROFILE_MODE: ProfileMode = "row";
 
 jest.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
     auth: {
       getUser: async () => ({
         data: {
-          user: PROFILE
-            ? { id: PROFILE.id, email: "test@hartfeltrealestate.com" }
+          user: AUTHED_ID
+            ? { id: AUTHED_ID, email: "test@hartfeltrealestate.com" }
             : null,
         },
         error: null,
@@ -41,15 +44,19 @@ jest.mock("@supabase/ssr", () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          single: async () => ({
-            data: PROFILE
-              ? {
-                  is_active: PROFILE.is_active,
-                  onboarding_status: PROFILE.onboarding_status,
-                }
-              : null,
-            error: null,
-          }),
+          single: async () => {
+            if (PROFILE_MODE === "error") throw new Error("network");
+            if (PROFILE_MODE === "no-row") return { data: null, error: { code: "PGRST116", message: "no rows" } };
+            return {
+              data: PROFILE
+                ? {
+                    is_active: PROFILE.is_active,
+                    onboarding_status: PROFILE.onboarding_status,
+                  }
+                : null,
+              error: null,
+            };
+          },
         }),
       }),
     }),
@@ -69,6 +76,8 @@ async function renderPage() {
 
 beforeEach(() => {
   PROFILE = null;
+  AUTHED_ID = "u-1";
+  PROFILE_MODE = "row";
 });
 
 describe("/pending-activation · copy variants", () => {
@@ -114,5 +123,38 @@ describe("/pending-activation · copy variants", () => {
     const home = screen.getByRole("link", { name: /home|dashboard|portal/i });
     expect(home).toBeInTheDocument();
     expect(home.getAttribute("href")).toBe("/home");
+  });
+
+  it("is_active=null (row present) → renders Copy B (deny; does NOT fall through to active UX)", async () => {
+    PROFILE = { id: "u-1", is_active: null, onboarding_status: null };
+    await renderPage();
+    expect(
+      screen.getByText(/Your account is currently inactive\./i)
+    ).toBeInTheDocument();
+    // Explicitly assert the "active" affordance is NOT rendered.
+    expect(screen.queryByRole("link", { name: /home|dashboard|portal/i })).toBeNull();
+  });
+
+  it("profile row missing → renders Copy B safely (no protected content, no crash)", async () => {
+    PROFILE = null;
+    PROFILE_MODE = "no-row";
+    await renderPage();
+    expect(
+      screen.getByText(/Your account is currently inactive\./i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /home|dashboard|portal/i })).toBeNull();
+  });
+
+  it("profile lookup DB error → renders Copy B safely (no protected content, no leaked error)", async () => {
+    PROFILE_MODE = "error";
+    await renderPage();
+    expect(
+      screen.getByText(/Your account is currently inactive\./i)
+    ).toBeInTheDocument();
+    // No portal-return affordance under error
+    expect(screen.queryByRole("link", { name: /home|dashboard|portal/i })).toBeNull();
+    // No error / stack / raw exception surfaced
+    expect(screen.queryByText(/network/i)).toBeNull();
+    expect(screen.queryByText(/error/i)).toBeNull();
   });
 });
