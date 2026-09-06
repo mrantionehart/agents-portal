@@ -36,10 +36,16 @@ import { NextRequest, NextResponse } from 'next/server'
 export type AuthedUser = User
 
 const UNAUTHORIZED_BODY = { error: 'Unauthorized' } as const
+const INACTIVE_BODY = {
+  error: 'Account inactive',
+  code: 'inactive_account',
+} as const
 
 // Build a fresh NextResponse on every call — Sprint 5A lesson learned;
 // module-scope responses have their body stream consumed on first read.
 const unauthorized = () => NextResponse.json(UNAUTHORIZED_BODY, { status: 401 })
+const forbiddenInactive = () =>
+  NextResponse.json(INACTIVE_BODY, { status: 403 })
 
 /**
  * Extract the authenticated user from a request. Returns null if no valid
@@ -97,11 +103,44 @@ export async function getAuthedUser(
 }
 
 /**
+ * Read the caller's `profiles.is_active` via the same auth transport as
+ * getAuthedUser. Fails CLOSED on error / absent row so a lookup miss
+ * never grants access to an inactive account.
+ *
+ * Uses `userClient(request)` (RLS-safe; `profiles` has a self-read policy
+ * — every user can SELECT their own row via `auth.uid() = id`). No
+ * service-role client needed.
+ */
+async function readCallerIsActive(
+  request: NextRequest,
+  userId: string
+): Promise<boolean> {
+  try {
+    const svc = userClient(request)
+    const { data, error } = await svc
+      .from('profiles')
+      .select('is_active')
+      .eq('id', userId)
+      .single()
+    if (error) return false
+    return data?.is_active === true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Helper: { response, user? } discriminated union.
  * Usage:
  *   const auth = await requireAuth(request)
  *   if (auth.response) return auth.response
  *   const user = auth.user
+ *
+ * Two-gate contract:
+ *   - No session → 401 { error: 'Unauthorized' }
+ *   - Session but profiles.is_active=false / missing / error → 403
+ *     { error: 'Account inactive', code: 'inactive_account' }
+ * All 48 API-route callers inherit this transparently.
  */
 export async function requireAuth(
   request: NextRequest
@@ -111,6 +150,8 @@ export async function requireAuth(
 > {
   const user = await getAuthedUser(request)
   if (!user) return { response: unauthorized() }
+  const active = await readCallerIsActive(request, user.id)
+  if (!active) return { response: forbiddenInactive() }
   return { user }
 }
 
@@ -162,6 +203,8 @@ export function userClient(request: NextRequest): SupabaseClient {
 /**
  * HOF wrapper. The handler receives the authenticated user in the context.
  * For dynamic routes the second argument carries `params`; pass it through.
+ * Same two-gate contract as requireAuth: 401 on missing session, 403 on
+ * inactive account.
  */
 export function withAuth<P = unknown>(
   handler: (
@@ -175,6 +218,8 @@ export function withAuth<P = unknown>(
   ): Promise<NextResponse> => {
     const user = await getAuthedUser(request)
     if (!user) return unauthorized()
+    const active = await readCallerIsActive(request, user.id)
+    if (!active) return forbiddenInactive()
     return handler(request, { user, params: route?.params })
   }
 }

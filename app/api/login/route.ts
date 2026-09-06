@@ -86,11 +86,12 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', data.user.id)
       .single()
 
     const role = profile?.role || 'agent'
+    const isActive = profile?.is_active === true
 
     // ── ONBOARD-001 — Onboarding-first landing decision ─────────────────
     //
@@ -113,8 +114,16 @@ export async function POST(request: NextRequest) {
     // Reading the flag with the authenticated Supabase client relies on
     // the standard `training_progress` RLS policy (own-row SELECT via
     // `auth.uid() = user_id`), so no service-role client is needed.
+    // ── AP-INACTIVE-GATE ────────────────────────────────────────────────
+    // profiles.is_active is the authoritative Agent Portal access signal.
+    // Inactive users (invitees not yet promoted, suspended agents, or any
+    // missing/erroring profile row) must land on /pending-activation
+    // instead of any protected surface. The session IS still created so
+    // that page can render for the authenticated caller.
     let redirectPath: string
-    if (role === 'admin' || role === 'broker') {
+    if (!isActive) {
+      redirectPath = '/pending-activation'
+    } else if (role === 'admin' || role === 'broker') {
       redirectPath = 'https://vault.hartfeltrealestate.com/dashboard'
     } else {
       const { data: progress } = await supabase
