@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { userClient } from '@/lib/security'
+import { TYPE_GROUPS, TYPE_GROUP_ORDER, groupTransactionsByType } from '@/app/api/pipeline/type-groups'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,16 +51,12 @@ const STAGE_MAP: Record<string, { label: string; statuses: string[]; probability
 
 const STAGE_ORDER = ['cultivate', 'appointment', 'active', 'under_contract', 'closed']
 
-// Transaction type groupings (matching KW CommandPro style)
-const TYPE_GROUPS: Record<string, { label: string; icon: string; types: string[] }> = {
-  listings:  { label: 'Listings',   icon: 'home',      types: ['seller'] },
-  buyers:    { label: 'Buyers',     icon: 'key',       types: ['buyer'] },
-  leases:    { label: 'Leases',     icon: 'building',  types: ['lease'] },
-  referrals: { label: 'Referrals',  icon: 'share',     types: ['referral'] },
-  other:     { label: 'Other',      icon: 'layers',    types: ['wholesale', 'double_close'] },
-}
-
-const TYPE_GROUP_ORDER = ['listings', 'buyers', 'leases', 'referrals', 'other']
+// P0-19 · Transaction type groupings extracted to a shared, pure module so
+// filter/count/render all read from the same partition function and mixed
+// legacy + canonical Vault vocabulary (e.g. `listing`, `buyer_rep`) is no
+// longer invisible. See app/api/pipeline/type-groups.ts for the full mapping
+// + the `commercial` product residual note. `TYPE_GROUPS` and
+// `TYPE_GROUP_ORDER` are imported above and used identically to before.
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,9 +114,14 @@ export async function GET(request: NextRequest) {
     // Build pipeline data grouped by type → stage
     const pipelineGroups: any[] = []
 
+    // P0-19 · Partition ONCE via the shared pure function so counts and cards
+    // can never drift from each other. `groupTransactionsByType` also silently
+    // drops unknown/future/`commercial` types (no crash, no misclassification).
+    const groupedTxs = groupTransactionsByType(transactions || [])
+
     for (const groupKey of TYPE_GROUP_ORDER) {
       const group = TYPE_GROUPS[groupKey]
-      const groupTxs = (transactions || []).filter(t => group.types.includes(t.type))
+      const groupTxs = groupedTxs[groupKey] || []
 
       if (groupTxs.length === 0 && role === 'agent') {
         // Still show empty groups for agents so they see the full pipeline
