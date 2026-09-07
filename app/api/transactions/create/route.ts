@@ -55,14 +55,30 @@ export async function POST(request: NextRequest) {
     // profiles_select USING true.
     const admin = userClient(request)
 
-    // Get user role
+    // SEC · P0-18 — Get caller role AND tenant. Tenant is needed for the
+    // defense-in-depth same-tenant check on the assignedAgentId branch below.
+    // The Vault DB RLS + trigger (SEC.2a/2b Slice 1B) already reject any
+    // cross-tenant INSERT at the transactions layer; this route-level check
+    // is DEFENSE-IN-DEPTH so the failure surfaces as a clean 404 with no
+    // foreign-tenant identity leak (rather than a raw RLS reject).
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
 
-    const userRole = profile?.role || 'agent'
+    const userRole = (profile as { role?: string } | null)?.role || 'agent'
+    const callerTenantId =
+      (profile as { tenant_id?: string | null } | null)?.tenant_id ?? null
+
+    // Fail closed if caller has no tenant — service accounts / orphan
+    // profiles must not be able to create transactions.
+    if (!callerTenantId) {
+      return NextResponse.json(
+        { error: 'Caller has no tenant assignment' },
+        { status: 403 }
+      )
+    }
 
     const body = await request.json()
     const {
@@ -112,20 +128,76 @@ export async function POST(request: NextRequest) {
     // Enum-safe value actually written to transactions.type (no migration).
     const storedType = toEnumTransactionType(type)
 
-    // Determine agent_id: broker/admin can assign to any agent
+    // Determine agent_id: broker/admin can assign to any agent (subject
+    // to the SEC · P0-18 tenant + owner-role checks below). Agents cannot
+    // cross-assign — assignedAgentId is ignored for agent callers so
+    // targetAgentId stays as their own id, matching the existing DB RLS
+    // policy `WITH CHECK (agent_id = auth.uid() OR user_role() IN
+    // ('admin','broker'))`.
     let targetAgentId = user.id
     if (['broker', 'admin'].includes(userRole) && assignedAgentId) {
-      // Verify the agent exists
+      // ── SEC · P0-18 · assignee tenant + role validation ────────────
+      // A transaction owner must satisfy BOTH:
+      //   • targetProfile.tenant_id === callerTenantId
+      //   • targetProfile.role ∈ DEAL_OWNER_ROLES  (['agent','new_agent'])
+      //
+      // Non-owner roles (tc / manager / office_manager / broker / admin)
+      // are refused with a clear 400. Foreign-tenant / tenantless /
+      // nonexistent targets fail closed as a generic 404 so the response
+      // does not leak the foreign tenant identity or the target profile
+      // id. Vault DB RLS + trigger (SEC.2a/2b Slice 1B) remain the
+      // second line of defense — this check runs first so the failure
+      // surfaces cleanly instead of as a raw Postgres RLS reject.
+      //
+      // Uses the user JWT client (userClient, RLS-safe) — no service-role
+      // authority is introduced.
+      const DEAL_OWNER_ROLES = ['agent', 'new_agent'] as const
       const { data: agentProfile } = await admin
         .from('profiles')
-        .select('id')
+        .select('id, role, tenant_id, is_active')
         .eq('id', assignedAgentId)
-        .eq('is_active', true)
         .single()
 
-      if (agentProfile) {
-        targetAgentId = assignedAgentId
+      const agentRow = agentProfile as {
+        id?: string
+        role?: string
+        tenant_id?: string | null
+        is_active?: boolean
+      } | null
+
+      // Nonexistent / tenantless / foreign-tenant / inactive → generic 404
+      // (do NOT distinguish these to the client — no identity leak).
+      if (
+        !agentRow ||
+        !agentRow.tenant_id ||
+        agentRow.tenant_id !== callerTenantId ||
+        agentRow.is_active !== true
+      ) {
+        return NextResponse.json(
+          { error: 'Agent not found' },
+          { status: 404 }
+        )
       }
+
+      // Role guard — the target must be an eligible transaction owner.
+      // Clear 400 here (not 404) because the caller CAN see the user
+      // exists (they typed a real id) — we want the broker to understand
+      // that the selected user's role is the disqualifier, not that the
+      // user is missing.
+      if (
+        !agentRow.role ||
+        !(DEAL_OWNER_ROLES as readonly string[]).includes(agentRow.role)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'The selected user cannot own a transaction. Only agent or new_agent roles are eligible.',
+          },
+          { status: 400 }
+        )
+      }
+
+      targetAgentId = assignedAgentId
     }
 
     // Insert transaction
