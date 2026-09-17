@@ -10,7 +10,7 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 11 documented items in order (Meetings added between Calendar and Notifications)", () => {
+  it("ships the 12 documented items in order (COMM-1C adds The Ring between Notifications and Training)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -20,10 +20,20 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Calendar",
       "Meetings",
       "Notifications",
+      "The Ring",
       "Training",
       "Library",
       "Settings",
     ]);
+  });
+
+  it("COMM-1C — The Ring sits between Notifications and Training and points at /the-ring", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    expect(labels.indexOf("The Ring")).toBe(labels.indexOf("Notifications") + 1);
+    expect(labels.indexOf("The Ring")).toBe(labels.indexOf("Training") - 1);
+    const r = NAV_ITEMS.find((i) => i.id === "the-ring")!;
+    expect(r.href).toBe("/the-ring");
+    expect(r.brokerOnly).toBeUndefined();
   });
 
   it("AGENT-PORTAL-MEETINGS — Meetings sits between Calendar and Notifications", () => {
