@@ -53,6 +53,7 @@ export type NavItem = {
     | "calendar-clock"
     | "bell"
     | "graduation-cap"
+    | "swords"
     | "book-open"
     | "library"
     | "settings";
@@ -74,6 +75,13 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "meetings",     label: "Meetings",      icon: "calendar-clock",  href: "/meetings" },
   { id: "notifications",label: "Notifications", icon: "bell",            href: "/notifications" },
+  // COMM-1C — "The Ring" is the agent-facing Ring learner surface (Practice /
+  // Seller Lead Certification / History). Documented product authorization:
+  // COMM-1C Agent Ring Access (grants the agent surface for the Ring, whose
+  // engine + APIs live in Vault; the Portal calls them with the agent's Bearer
+  // token). Placed next to Training as a sibling learning destination; no other
+  // item reordered.
+  { id: "the-ring",     label: "The Ring",      icon: "swords",          href: "/the-ring" },
   { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training" },
   { id: "library",      label: "Library",       icon: "library",         href: "/library" },
   { id: "settings",     label: "Settings",      icon: "settings",        href: "/settings" },

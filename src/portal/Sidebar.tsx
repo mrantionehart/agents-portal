@@ -23,6 +23,7 @@ import {
   ListChecks,
   Settings,
   Sparkles,
+  Swords,
   Users,
   X,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const ICONS = {
   "calendar-clock": CalendarClock,
   "bell": Bell,
   "graduation-cap": GraduationCap,
+  "swords": Swords,
   "book-open": BookOpen,
   "library": Library,
   "settings": Settings,
