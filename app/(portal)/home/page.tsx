@@ -35,6 +35,9 @@ import {
 } from "@/src/portal/home/home-helpers";
 import TodaySection from "@/src/portal/home/TodaySection";
 import { loadHomeIntelligence } from "@/src/portal/home/intelligence-api";
+import DailyGamePlan from "@/src/portal/home/DailyGamePlan";
+import { EMPTY_PLAN, loadDailyPlan } from "@/src/portal/home/daily-plan-api";
+import { dailyPlanEnabledFor } from "./_lib/daily-plan-flags";
 import BusinessSnapshot from "@/src/portal/home/BusinessSnapshot";
 import FromTheHart from "@/src/portal/home/FromTheHart";
 import BirthdayPrompt from "@/src/portal/home/BirthdayPrompt";
@@ -120,6 +123,13 @@ export default async function PortalHomePage() {
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const baseUrl = `${proto}://${host}`;
 
+  // EASE-2.0-PLAN-SURFACE-AP-1 — Daily Game Plan, pilot cohort only.
+  // The gate is evaluated BEFORE the fetch: an agent outside the cohort never
+  // causes a Daily Plan request to leave the Portal. Vault's route is generic
+  // and would answer them — we simply do not ask.
+  const showDailyPlan = dailyPlanEnabledFor(session.user.id);
+  const dailyPlan = showDailyPlan ? await loadDailyPlan(session.access_token) : EMPTY_PLAN;
+
   const intelligence = await loadHomeIntelligence({
     baseUrl,
     cookieHeader,
@@ -153,6 +163,11 @@ export default async function PortalHomePage() {
       <p className="text-base text-[#A1A1AA] mb-6 leading-relaxed max-w-2xl">
         {summarySentence(cards)}
       </p>
+
+      {/* ── Your Daily Game Plan — the few things that need the agent now,
+            ranked by Vault. Pilot-gated; a fetch failure degrades to the
+            honest empty state rather than blanking Home. ─────────────── */}
+      {showDailyPlan && <DailyGamePlan items={dailyPlan.items} now={now} />}
 
       {/* ── TODAY — deadline-driven work queue (Slice 4). Replaces the old
             "Today's Transactions" list. Shares the cards already fetched;

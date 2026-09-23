@@ -98,7 +98,14 @@ describe("BuildingsClient — wiring + search", () => {
     global.fetch = fetchMock;
     await act(async () => { render(<BuildingsClient />); });
     await screen.findByText(/the setai/i);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/broker/str-directory");
+    // The page now also loads the agent's own matches (EASE-2.0-PLAN-STR-
+    // DESTINATION-1), and child effects run before the parent's — so the
+    // directory call is no longer necessarily the FIRST call. The assertion
+    // that matters is unchanged: this endpoint is still the one used.
+    expect(
+      fetchMock.mock.calls.map((c: unknown[]) => String(c[0]))
+        .some((u: string) => u.includes("/api/broker/str-directory"))
+    ).toBe(true);
   });
 
   it("exposes a keyboard-accessible search input over the returned dataset", async () => {

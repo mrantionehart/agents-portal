@@ -24,6 +24,7 @@ import {
   fetchAirbnbFriendlyBuildings,
   type Building,
 } from "./model";
+import YourMatches from "./YourMatches";
 
 type Status = "loading" | "error" | "empty" | "ready";
 
@@ -34,6 +35,17 @@ export default function BuildingsClient() {
   const [search, setSearch] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  // EASE-2.0-PLAN-STR-DESTINATION-1 — the match the Daily Game Plan sent us to.
+  // Read from window.location inside an effect rather than useSearchParams,
+  // which would force a Suspense boundary around this whole client tree for a
+  // single optional string. Used ONLY to highlight a row Vault already
+  // returned — never as an authorization claim, never to fetch anything.
+  const [highlightMatchId, setHighlightMatchId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = new URLSearchParams(window.location.search).get("match");
+    setHighlightMatchId(v && v.trim() !== "" ? v.trim() : null);
+  }, []);
 
   // Debounce the search box.
   useEffect(() => {
@@ -92,6 +104,11 @@ export default function BuildingsClient() {
           {BUILDINGS_INTRO_COPY}
         </p>
       </header>
+
+      {/* ── Your Matches — the agent's own active STR matches, in Vault's
+            order. Hides itself entirely when there are none; the directory
+            below is this page's real subject. ───────────────────────────── */}
+      <YourMatches highlightMatchId={highlightMatchId} />
 
       {/* Search */}
       <div className="mb-5">
