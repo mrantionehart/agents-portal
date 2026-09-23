@@ -48,9 +48,18 @@ export function planTimeLabel(iso: string, now: Date = new Date()): string {
   return ahead ? `In ${days}d` : `${days}d ago`;
 }
 
-/** Where a row goes. Item-level for meetings; the list for tasks, which has no detail route. */
+/**
+ * Where a row goes.
+ *
+ * Item-level for meetings and matches; the list for tasks, which has no detail
+ * route and is not worth inventing one for. `?match=` only highlights a row
+ * among the matches Vault already returned for this caller — it is never an
+ * authorization claim, and following it writes nothing.
+ */
 export function planHref(item: PlanItem): string {
-  return item.subjectKind === "meeting" ? `/meetings/${item.subjectId}` : "/tasks";
+  if (item.subjectKind === "meeting") return `/meetings/${item.subjectId}`;
+  if (item.subjectKind === "str_match") return `/buildings?match=${encodeURIComponent(item.subjectId)}`;
+  return "/tasks";
 }
 
 function PlanRow({ item, now }: { item: PlanItem; now: Date }) {

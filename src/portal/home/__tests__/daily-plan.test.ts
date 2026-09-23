@@ -131,17 +131,39 @@ describe("no Vault request unless gated in", () => {
 
 describe("display filtering", () => {
   it("keeps only signals the Portal can act on", () => {
-    expect(SUPPORTED_SIGNALS).toEqual(["meeting_soon", "task_overdue"]);
+    expect(SUPPORTED_SIGNALS).toEqual(["meeting_soon", "task_overdue", "str_match_unread"]);
   });
 
-  it("excludes STR matches — there is no AP destination yet", () => {
+  it("now INCLUDES STR matches — /buildings gained a destination", () => {
+    // Previously excluded: a signal with nowhere to land is a dead end. The
+    // "Your Matches" section on /buildings changed that, so this assertion is
+    // inverted rather than deleted.
     const items = toPlanItems([
       candidate({ signal_type: "str_match_unread", subject_ref: { kind: "str_match", id: "m1", label: "Sample Tower" } }),
       candidate(),
     ]);
+    expect(items).toHaveLength(2);
+    expect(items[0].signal).toBe("str_match_unread");
+    expect(items[0].subjectKind).toBe("str_match");
+    expect(items[0].label).toBe("Sample Tower");
+  });
+
+  it("still rejects a signal type the Portal cannot act on", () => {
+    const items = toPlanItems([
+      candidate({ signal_type: "some_future_signal", subject_ref: { kind: "task", id: "x", label: "X" } }),
+      candidate(),
+    ]);
     expect(items).toHaveLength(1);
     expect(items[0].signal).toBe("task_overdue");
-    expect(JSON.stringify(items)).not.toContain("Sample Tower");
+  });
+
+  it("preserves Vault's order across all three signal types", () => {
+    const items = toPlanItems([
+      candidate({ signal_type: "str_match_unread", subject_ref: { kind: "str_match", id: "m1", label: "Match first" } }),
+      candidate({ signal_type: "meeting_soon", subject_ref: { kind: "meeting", id: "g1", label: "Meeting second" }, occurred_at: "2026-09-23T15:00:00.000Z" }),
+      candidate({ subject_ref: { kind: "task", id: "t1", label: "Task third" } }),
+    ]);
+    expect(items.map((i) => i.label)).toEqual(["Match first", "Meeting second", "Task third"]);
   });
 
   it("preserves Vault's order — it does not re-rank", () => {
@@ -184,6 +206,20 @@ describe("display filtering", () => {
 });
 
 describe("links", () => {
+  it("sends an STR match to its highlighted row on /buildings", () => {
+    const [m] = toPlanItems([
+      candidate({ signal_type: "str_match_unread", subject_ref: { kind: "str_match", id: "match-9", label: "Sample Tower" } }),
+    ]);
+    expect(planHref(m)).toBe("/buildings?match=match-9");
+  });
+
+  it("encodes an id that would otherwise break the query string", () => {
+    const [m] = toPlanItems([
+      candidate({ signal_type: "str_match_unread", subject_ref: { kind: "str_match", id: "a&b=c", label: "X" } }),
+    ]);
+    expect(planHref(m)).toBe("/buildings?match=a%26b%3Dc");
+  });
+
   it("sends a meeting to its own page and a task to the list", () => {
     const [meeting, task] = toPlanItems([
       candidate({ signal_type: "meeting_soon", subject_ref: { kind: "meeting", id: "g9", label: "Coaching" }, occurred_at: "2026-09-23T15:00:00.000Z" }),

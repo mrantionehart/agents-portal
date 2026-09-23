@@ -17,8 +17,15 @@ const VAULT_API_URL = (
   process.env.NEXT_PUBLIC_VAULT_API_URL ?? "https://vault.hartfeltrealestate.com/api"
 ).replace(/\/$/, "");
 
-/** Signals the Portal can currently act on. STR matches have no AP destination yet. */
-export const SUPPORTED_SIGNALS = ["meeting_soon", "task_overdue"] as const;
+/**
+ * Signals the Portal can currently act on.
+ *
+ * `str_match_unread` joined once `/buildings` gained a "Your Matches" section
+ * to land on — a signal without a destination is a dead end, so this list is
+ * the set of things the agent can actually DO something about, not the set
+ * Vault can produce.
+ */
+export const SUPPORTED_SIGNALS = ["meeting_soon", "task_overdue", "str_match_unread"] as const;
 export type SupportedSignal = (typeof SUPPORTED_SIGNALS)[number];
 
 export const MAX_PLAN_ITEMS = 5;
@@ -26,7 +33,7 @@ export const MAX_PLAN_ITEMS = 5;
 /** The subset of Vault's PlanCandidate the Portal renders. */
 export interface PlanItem {
   readonly signal: SupportedSignal;
-  readonly subjectKind: "meeting" | "task";
+  readonly subjectKind: "meeting" | "task" | "str_match";
   readonly subjectId: string;
   readonly label: string;
   /** The action-relevant instant, ISO. Humanized at render, never shown raw. */
@@ -62,7 +69,10 @@ export function toPlanItems(candidates: unknown): PlanItem[] {
     const action = c.action as Record<string, unknown> | undefined;
     const kind = subject?.kind;
     const id = subject?.id;
-    if ((kind !== "meeting" && kind !== "task") || typeof id !== "string" || id === "") continue;
+    if (
+      (kind !== "meeting" && kind !== "task" && kind !== "str_match")
+      || typeof id !== "string" || id === ""
+    ) continue;
     if (typeof c.occurred_at !== "string") continue;
 
     out.push({
