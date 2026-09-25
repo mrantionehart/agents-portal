@@ -7,7 +7,9 @@ import MeetingActions from "./MeetingActions";
 import {
   MEETING_TYPE_LABELS,
   PRIORITY_LABELS,
+  labelForMeetingMode,
   type AgentMeetingDetail,
+  type MeetingMode,
 } from "@/src/portal/meetings/types";
 import { formatDateTime, formatDate, participantLabel } from "@/src/portal/meetings/bucketing";
 
@@ -41,6 +43,37 @@ export default function MeetingDetail({ detail }: { detail: AgentMeetingDetail }
         <Fact label="Timezone" value={tz} />
         {showExpires ? <Fact label="Expires" value={formatDate(m.expires_at, tz)} /> : <span />}
       </div>
+
+      {/* Preferred meeting type + broker-set logistics. Renders even for
+          historical rows (null → "Not specified") to make it obvious that
+          older meetings pre-date this feature. */}
+      <Panel title="Preferred meeting type">
+        <p className="text-sm text-[#F1F1F3]">{labelForMeetingMode(m.meeting_mode as MeetingMode | null)}</p>
+        {m.meeting_mode === "zoom" && m.zoom_link && (
+          <p className="mt-2 text-xs">
+            <span className="text-[#71717A]">Zoom link:</span>{" "}
+            <a
+              href={m.zoom_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#C9A84C] hover:text-[#E8D5A3] underline break-all"
+            >
+              {m.zoom_link}
+            </a>
+          </p>
+        )}
+        {m.meeting_mode === "in_person" && m.meeting_location && (
+          <p className="mt-2 text-xs">
+            <span className="text-[#71717A]">Location:</span> <span className="text-[#F1F1F3]">{m.meeting_location}</span>
+          </p>
+        )}
+        {m.meeting_mode === "phone" && m.callback_phone && (
+          <p className="mt-2 text-xs">
+            <span className="text-[#71717A]">Callback number:</span>{" "}
+            <a href={`tel:${m.callback_phone}`} className="text-[#C9A84C] hover:text-[#E8D5A3]">{m.callback_phone}</a>
+          </p>
+        )}
+      </Panel>
 
       {/* Confirmed time */}
       {m.status === "confirmed" && m.confirmed_start_at && (

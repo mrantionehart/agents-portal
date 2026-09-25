@@ -19,7 +19,9 @@ const past = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString(
 let seq = 0;
 function m(over: Partial<AgentMeetingListItem> = {}): AgentMeetingListItem {
   return {
-    id: `m-${++seq}`, status: "requested", meeting_type: "deal_review", priority: "normal",
+    id: `m-${++seq}`, status: "requested", meeting_type: "deal_review",
+    meeting_mode: null, zoom_link: null,
+    priority: "normal",
     duration_min: 30, confirmed_start_at: null, timezone: "America/New_York",
     created_at: NOW.toISOString(), expires_at: future(24 * 14), ...over,
   };
@@ -86,7 +88,7 @@ describe("participantLabel", () => {
 });
 
 describe("validateCreate", () => {
-  const base = { meetingType: "deal_review" as const, priority: "normal" as const, durationMin: 30, timezone: "America/New_York" };
+  const base = { meetingType: "deal_review" as const, priority: "normal" as const, meetingMode: "zoom" as const, durationMin: 30, timezone: "America/New_York" };
   it("accepts 1–3 future times", () => {
     expect(validateCreate({ ...base, proposedStarts: [future(2)] }, NOW).ok).toBe(true);
     expect(validateCreate({ ...base, proposedStarts: [future(2), future(4), future(6)] }, NOW).ok).toBe(true);
@@ -107,6 +109,18 @@ describe("validateCreate", () => {
   });
   it("requires a timezone", () => {
     expect(validateCreate({ ...base, timezone: "", proposedStarts: [future(2)] }, NOW).ok).toBe(false);
+  });
+  it("requires a valid meetingMode", () => {
+    expect(validateCreate({ ...base, meetingMode: undefined as never, proposedStarts: [future(2)] }, NOW).ok).toBe(false);
+    expect(validateCreate({ ...base, meetingMode: "video" as never, proposedStarts: [future(2)] }, NOW).ok).toBe(false);
+    for (const m of ["zoom", "in_person", "phone"] as const) {
+      expect(validateCreate({ ...base, meetingMode: m, proposedStarts: [future(2)] }, NOW).ok).toBe(true);
+    }
+  });
+  it("bounds optional mode-detail lengths", () => {
+    expect(validateCreate({ ...base, meetingMode: "in_person", meetingLocation: "x".repeat(501), proposedStarts: [future(2)] }, NOW).ok).toBe(false);
+    expect(validateCreate({ ...base, meetingMode: "phone", callbackPhone: "5".repeat(41), proposedStarts: [future(2)] }, NOW).ok).toBe(false);
+    expect(validateCreate({ ...base, meetingMode: "in_person", meetingLocation: "Newark", proposedStarts: [future(2)] }, NOW).ok).toBe(true);
   });
 });
 

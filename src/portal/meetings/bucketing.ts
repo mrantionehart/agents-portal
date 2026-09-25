@@ -7,6 +7,7 @@
 import {
   AGENT_MEETING_TYPES,
   MEETING_PRIORITIES,
+  MEETING_MODES,
   type AgentMeetingListItem,
   type CreateMeetingInput,
 } from "./types";
@@ -128,6 +129,15 @@ export function validateCreate(input: Partial<CreateMeetingInput>, now: Date): C
   }
   if (!input.timezone || typeof input.timezone !== "string") {
     return { ok: false, error: "Timezone is required." };
+  }
+  if (!input.meetingMode || !(MEETING_MODES as readonly string[]).includes(input.meetingMode)) {
+    return { ok: false, error: "Choose how you would like to meet." };
+  }
+  if (input.meetingLocation != null && typeof input.meetingLocation === "string" && input.meetingLocation.length > 500) {
+    return { ok: false, error: "Location is too long." };
+  }
+  if (input.callbackPhone != null && typeof input.callbackPhone === "string" && input.callbackPhone.length > 40) {
+    return { ok: false, error: "Callback number is too long." };
   }
   const times = input.proposedStarts ?? [];
   if (!Array.isArray(times) || times.length < 1 || times.length > 3) {

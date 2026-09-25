@@ -14,8 +14,11 @@ import {
   MEETING_TYPE_LABELS,
   MEETING_PRIORITIES,
   PRIORITY_LABELS,
+  MEETING_MODES,
+  MEETING_MODE_LABELS,
   type AgentMeetingType,
   type MeetingPriority,
+  type MeetingMode,
 } from "@/src/portal/meetings/types";
 import { validateCreate } from "@/src/portal/meetings/bucketing";
 
@@ -26,6 +29,9 @@ export default function CreateMeetingForm() {
   const [meetingType, setMeetingType] = useState<AgentMeetingType>("deal_review");
   const [priority, setPriority] = useState<MeetingPriority>("normal");
   const [durationMin, setDurationMin] = useState(30);
+  const [meetingMode, setMeetingMode] = useState<MeetingMode>("zoom");
+  const [meetingLocation, setMeetingLocation] = useState("");
+  const [callbackPhone, setCallbackPhone] = useState("");
   const [times, setTimes] = useState<string[]>([""]);
   const [notes, setNotes] = useState("");
   const [minDateTime, setMinDateTime] = useState("");
@@ -63,7 +69,16 @@ export default function CreateMeetingForm() {
         return Number.isNaN(d.getTime()) ? t : d.toISOString();
       });
 
-    const check = validateCreate({ meetingType, priority, durationMin, timezone, proposedStarts }, new Date());
+    // Only forward the mode-detail field that matches the chosen mode.
+    const locationForRequest = meetingMode === "in_person" ? (meetingLocation.trim() || null) : null;
+    const callbackForRequest = meetingMode === "phone" ? (callbackPhone.trim() || null) : null;
+
+    const check = validateCreate({
+      meetingType, priority, durationMin, timezone, proposedStarts,
+      meetingMode,
+      meetingLocation: locationForRequest,
+      callbackPhone: callbackForRequest,
+    }, new Date());
     if (!check.ok) { setError(check.error ?? "Please review the form."); return; }
 
     setBusy(true);
@@ -74,6 +89,9 @@ export default function CreateMeetingForm() {
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           meetingType, priority, durationMin, timezone, proposedStarts,
+          meetingMode,
+          ...(locationForRequest ? { meetingLocation: locationForRequest } : {}),
+          ...(callbackForRequest ? { callbackPhone: callbackForRequest } : {}),
           notes: notes.trim() || null,
           idempotencyKey: ensureIdem(),
         }),
@@ -119,6 +137,57 @@ export default function CreateMeetingForm() {
           </select>
         </Field>
       </div>
+
+      <Field label="Preferred meeting type">
+        <div role="radiogroup" aria-label="Preferred meeting type" className="flex flex-wrap gap-2">
+          {MEETING_MODES.map((m) => {
+            const selected = meetingMode === m;
+            return (
+              <label
+                key={m}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium cursor-pointer ${
+                  selected
+                    ? "border-[#C9A84C] bg-[#C9A84C] text-[#0b0b10]"
+                    : "border-[#1a1a2e] bg-[#0b0b10] text-[#A1A1AA] hover:text-[#F1F1F3]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="meetingMode"
+                  value={m}
+                  checked={selected}
+                  onChange={() => setMeetingMode(m)}
+                  className="hidden"
+                />
+                {MEETING_MODE_LABELS[m]}
+              </label>
+            );
+          })}
+        </div>
+        {meetingMode === "in_person" && (
+          <input
+            type="text"
+            value={meetingLocation}
+            onChange={(e) => setMeetingLocation(e.target.value)}
+            maxLength={500}
+            placeholder="Preferred location (optional) — e.g. Newark office"
+            className={`${selectCls} mt-2`}
+          />
+        )}
+        {meetingMode === "phone" && (
+          <input
+            type="tel"
+            value={callbackPhone}
+            onChange={(e) => setCallbackPhone(e.target.value)}
+            maxLength={40}
+            placeholder="Callback number (optional — defaults to your profile phone)"
+            className={`${selectCls} mt-2`}
+          />
+        )}
+        {meetingMode === "zoom" && (
+          <p className="mt-1 text-[11px] text-[#71717A]">The broker will send you the Zoom link when the meeting is confirmed.</p>
+        )}
+      </Field>
 
       <Field label="Preferred times (1–3, future only)">
         <div className="space-y-2">
