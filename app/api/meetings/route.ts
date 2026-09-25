@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
   try { body = (await request.json()) as Record<string, unknown>; } catch { /* Vault will 400 on missing fields */ }
 
   // Allow-list the create payload. Deliberately omits tenantId / brokerId /
-  // requesterId / status / expiresAt — Vault owns those.
+  // requesterId / status / expiresAt — Vault owns those. `meetingMode` +
+  // mode-specific detail (`meetingLocation`, `callbackPhone`) are forwarded
+  // when present; Vault re-validates against its own enum + mode-scoping
+  // rules (`zoom_link` is broker-only on confirm and never forwarded here).
   const safe: Record<string, unknown> = {
     meetingType: body.meetingType,
     priority: body.priority,
@@ -40,6 +43,9 @@ export async function POST(request: NextRequest) {
     proposedStarts: body.proposedStarts,
     notes: typeof body.notes === "string" ? body.notes : null,
   };
+  if (typeof body.meetingMode === "string") safe.meetingMode = body.meetingMode;
+  if (typeof body.meetingLocation === "string") safe.meetingLocation = body.meetingLocation;
+  if (typeof body.callbackPhone === "string") safe.callbackPhone = body.callbackPhone;
   if (typeof body.idempotencyKey === "string") safe.idempotencyKey = body.idempotencyKey;
 
   return proxyToVault(request, "POST", "/meetings", safe);

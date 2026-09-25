@@ -37,6 +37,37 @@ export function isAgentMeetingType(v: unknown): v is AgentMeetingType {
 
 export const MEETING_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 export type MeetingPriority = (typeof MEETING_PRIORITIES)[number];
+
+// ── Meeting MODE (channel/venue) — mirror of Vault src/lib/meetings/mode.ts.
+// Distinct from meeting_type which is subject/topic. Same allow-list on both
+// sides so a payload accepted by AP is accepted by Vault and vice-versa.
+// The requester's meeting_mode is IMMUTABLE post-write (broker can only fill
+// the mode-specific detail column on confirm).
+export const MEETING_MODES = ["in_person", "zoom", "phone"] as const;
+export type MeetingMode = (typeof MEETING_MODES)[number];
+
+export const MEETING_MODE_LABELS: Record<MeetingMode, string> = {
+  in_person: "In person",
+  zoom: "Zoom",
+  phone: "Phone call",
+};
+export const MEETING_MODE_LABELS_SHORT: Record<MeetingMode, string> = {
+  in_person: "In person",
+  zoom: "Zoom",
+  phone: "Phone",
+};
+
+export function isMeetingMode(v: unknown): v is MeetingMode {
+  return typeof v === "string" && (MEETING_MODES as readonly string[]).includes(v);
+}
+export function labelForMeetingMode(v: MeetingMode | null | undefined): string {
+  if (v == null) return "Not specified";
+  return MEETING_MODE_LABELS[v];
+}
+export function labelForMeetingModeShort(v: MeetingMode | null | undefined): string {
+  if (v == null) return "Not specified";
+  return MEETING_MODE_LABELS_SHORT[v];
+}
 export const PRIORITY_LABELS: Record<MeetingPriority, string> = {
   low: "Low", normal: "Normal", high: "High", urgent: "Urgent",
 };
@@ -60,6 +91,10 @@ export interface AgentMeetingListItem {
   id: string;
   status: string;
   meeting_type: string;
+  /** Requester preferred mode. null for historical rows / older-client writes. */
+  meeting_mode: string | null;
+  /** Populated by the broker on confirm when meeting_mode='zoom'. */
+  zoom_link: string | null;
   priority: string;
   duration_min: number;
   confirmed_start_at: string | null;
@@ -95,6 +130,12 @@ export interface AgentMeetingDetail {
     id: string;
     status: string;
     meeting_type: string;
+    /** Requester preferred mode. null on legacy rows → "Not specified". */
+    meeting_mode: string | null;
+    /** Mode-specific detail — only the column matching meeting_mode carries content. */
+    zoom_link: string | null;
+    meeting_location: string | null;
+    callback_phone: string | null;
     priority: string;
     duration_min: number;
     notes: string | null;
@@ -121,5 +162,14 @@ export interface CreateMeetingInput {
   timezone: string;
   proposedStarts: string[]; // 1–3 future ISO datetimes
   notes?: string | null;
+  /** Requester's preferred meeting mode. AP always sends this (Vault still
+   *  accepts it as optional during the Vault→AP→EASE ladder; a follow-up will
+   *  tighten to required once EASE OTA lands). */
+  meetingMode: MeetingMode;
+  /** Optional mode-specific detail — Vault ignores fields that don't match
+   *  the chosen mode and validates the rest. Broker fills the Zoom link on
+   *  confirm — agents don't supply one on the request. */
+  meetingLocation?: string | null;
+  callbackPhone?: string | null;
   idempotencyKey?: string;
 }
