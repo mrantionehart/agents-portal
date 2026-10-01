@@ -12,6 +12,11 @@
 //
 // This suite locks the tenant-scope contract:
 //
+//   0. Authorization mirrors the DB's own INSERT policy on public.documents
+//      ("Users can upload documents"): owns the transaction, OR role is
+//      broker/admin. The owner branch keys on OWNERSHIP, not a role name.
+//      The route runs on adminClient, which bypasses RLS, so this code is
+//      the only thing enforcing that policy on this path.
 //   1. Access is contained to one tenant for EVERY permitted role, not just
 //      agents — a broker/admin in tenant B cannot touch a tenant-A txn
 //   2. The existing agent ownership check is NOT weakened
@@ -60,11 +65,15 @@ let storageUploads: { bucket: string; path: string }[] = []
 let documentInserts: any[] = []
 let documentUpdates: any[] = []
 let notificationInserts: any[] = []
+// When set, every compliance_notifications insert resolves with this error,
+// the way PostgREST reports one.
+let NOTIF_INSERT_ERROR: { code: string; message: string } | null = null
 let mailSends: { to: string }[] = []
 // Records the filters the recipient fan-out query was actually built with,
 // so dropping `.eq('tenant_id', …)` is detectable even if the fixture set
 // happens to contain only in-tenant rows.
 let recipientQueryFilters: { in: Record<string, any>; eq: Record<string, any> }[] = []
+let consoleErrors: string[] = []
 
 // Honour the select projection the way PostgREST does: a column that was
 // not asked for is simply ABSENT from the returned row. Without this the
@@ -115,7 +124,7 @@ function resolveTable(table: string, f: any): any {
     return { data: null, error: null } // no prior same-label document
   }
   if (table === 'compliance_notifications') {
-    if (f.insert) return { data: null, error: null }
+    if (f.insert) return { data: null, error: NOTIF_INSERT_ERROR }
     // Debounce probe ends `.limit(1).maybeSingle()`, so a miss is null —
     // NOT []. An empty array here would be truthy and silently debounce
     // every recipient, making the fan-out assertions vacuously pass.
@@ -230,6 +239,11 @@ beforeEach(() => {
   notificationInserts = []
   mailSends = []
   recipientQueryFilters = []
+  NOTIF_INSERT_ERROR = null
+  consoleErrors = []
+  jest.spyOn(console, 'error').mockImplementation((...args: any[]) => {
+    consoleErrors.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
+  })
 
   process.env.SENDGRID_API_KEY = 'SG.test-key-not-real'
   process.env.SENDGRID_FROM_EMAIL = 'noreply@portal.test'
@@ -325,7 +339,6 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
   it.each([
     ['the owning agent', AGENT_A],
     ['a same-tenant broker', BROKER_A],
-    ['a same-tenant office_manager (broker tier)', OM_A],
   ])('permits %s and scopes every notification channel to the transaction tenant', async (_who, id) => {
     AUTHED_USER = { id, email: 'who@test' }
     const res = await POST(uploadRequest('tx-a'))
@@ -370,7 +383,7 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
     }
   })
 
-  it('permits an owning new_agent (a DEAL_OWNER_ROLE)', async () => {
+  it('permits an owning new_agent (the policy owner branch, no role test)', async () => {
     TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: NEWAGENT_A_OWNER }
     AUTHED_USER = { id: NEWAGENT_A_OWNER, email: 'newagent.owner@test' }
     const res = await POST(uploadRequest('tx-a'))
@@ -387,23 +400,29 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
   })
 })
 
-describe('SEC-COMPLIANCE-TENANT-1 — role bands', () => {
-  it('refuses a new_agent who does not own the transaction', async () => {
-    // Before the fix this passed: the ownership check keyed on the literal
-    // string 'agent', so new_agent skipped it and reached the storage write.
-    AUTHED_USER = { id: NEWAGENT_A, email: 'newagent.a@test' }
+describe('SEC-COMPLIANCE-TENANT-1 — authorization matches the documents INSERT policy', () => {
+  // Non-owners outside ('broker','admin') are denied, per the RLS policy.
+  // `user_role` has 8 labels; these are the ones the policy does not name.
+  it.each([
+    ['new_agent', NEWAGENT_A, 'newagent.a@test'],
+    ['internal_staff', STAFF_A, 'staff.a@test'],
+    ['office_manager', OM_A, 'om.a@test'],
+  ])('refuses a non-owning %s even in the transaction tenant', async (_r, id, email) => {
+    AUTHED_USER = { id, email }
     const res = await POST(uploadRequest('tx-a'))
     expect(res.status).toBe(403)
     await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
     expectNoSideEffects()
   })
 
-  it('refuses a role in no documented band (internal_staff), even in the right tenant', async () => {
-    AUTHED_USER = { id: STAFF_A, email: 'staff.a@test' }
+  it('permits a non-agent role that OWNS the transaction (ownership, not role)', async () => {
+    // The policy's owner branch is transactions.agent_id = auth.uid(), with
+    // no role test. An office_manager who owns the transaction qualifies.
+    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: OM_A }
+    AUTHED_USER = { id: OM_A, email: 'om.a@test' }
     const res = await POST(uploadRequest('tx-a'))
-    expect(res.status).toBe(403)
-    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
-    expectNoSideEffects()
+    expect(res.status).toBe(200)
+    expect(storageUploads).toHaveLength(1)
   })
 
   it('excludes the uploader from their own fan-out', async () => {
@@ -424,5 +443,60 @@ describe('SEC-COMPLIANCE-TENANT-1 — role bands', () => {
     expect(notificationInserts.map((n) => n.recipient_id)).not.toContain(INACTIVE_ADMIN_A)
     expect(mailSends.map((m) => m.to)).not.toContain('admin.a.off@test')
     expect(notificationInserts.map((n) => n.recipient_id)).toContain(ADMIN_A)
+  })
+})
+
+describe('SEC-COMPLIANCE-TENANT-1 — notification failures are surfaced, not swallowed', () => {
+  it('reports a failing insert in the response and logs it, and still stores the document', async () => {
+    NOTIF_INSERT_ERROR = { code: '42501', message: 'permission denied for table compliance_notifications' }
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+
+    const res = await POST(uploadRequest('tx-a'))
+    const body = await res.json()
+
+    // The upload must not be lost because a notification broke.
+    expect(res.status).toBe(200)
+    expect(storageUploads).toHaveLength(1)
+    expect(documentInserts).toHaveLength(1)
+
+    // Every recipient's insert failed, and the response says so.
+    expect(body.notifications.recipients).toBeGreaterThan(0)
+    expect(body.notifications.insertFailed).toBe(body.notifications.recipients)
+    expect(body.notifications.inserted).toBe(0)
+    expect(body.notifications.failed).toBe(false)
+
+    // And it was logged, with the driver's code, and WITHOUT identifiers.
+    const logged = consoleErrors.filter((l) => l.includes('notification insert failed'))
+    expect(logged).toHaveLength(body.notifications.recipients)
+    expect(logged.join(' ')).toContain('42501')
+    expect(logged.join(' ')).not.toContain('admin.a@test')
+    expect(logged.join(' ')).not.toContain('1 Test St')
+    expect(logged.join(' ')).not.toContain('Seller Disclosure')
+  })
+
+  it('reports successful inserts so the counts are not write-only', async () => {
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.notifications.inserted).toBe(body.notifications.recipients)
+    expect(body.notifications.insertFailed).toBe(0)
+    expect(body.notifications.inserted).toBe(notificationInserts.length)
+    expect(consoleErrors.filter((l) => l.includes('notification insert failed'))).toHaveLength(0)
+  })
+
+  it('logs a rejected mail send instead of discarding it', async () => {
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+    global.fetch = jest.fn(async (url: any) => {
+      if (String(url).includes('api.sendgrid.com')) return new Response('nope', { status: 500 })
+      throw new Error('unexpected network call')
+    }) as any
+
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    // Mail is dispatched without blocking, so let its handler run.
+    await new Promise((r) => setImmediate(r))
+    expect(consoleErrors.filter((l) => l.includes('notification mail rejected')).length).toBeGreaterThan(0)
   })
 })
