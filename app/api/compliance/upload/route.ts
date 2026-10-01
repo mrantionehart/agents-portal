@@ -282,51 +282,49 @@ export async function POST(request: NextRequest) {
     //        OR deals.agent_id        = auth.uid()            -- owns the deal
     //        OR profiles.role IN ('broker','admin') )         -- staff
     //
-    // This route always writes `uploaded_by: user.id` and always keys on a
-    // transaction (it never sets documents.deal_id), so the equivalent
-    // code-side rule is: owns the transaction, OR is broker/admin.
+    // Two things follow, and the structure below mirrors both.
     //
-    // Note the owner branch keys on OWNERSHIP, not on a role name. That is
-    // why the previous `role === 'agent'` literal was wrong in both
-    // directions: too narrow, because `new_agent` is a transaction-owning
-    // role (app/api/transactions/create/route.ts), and too permissive,
-    // because every role other than 'agent' skipped the check entirely.
+    // (1) The owner branches carry NO role term and NO tenant term. Owning
+    //     the subject is itself the scope: `transactions.agent_id` can only
+    //     point at the caller for work assigned to the caller. So ownership
+    //     qualifies on its own, whatever the role. That is why the previous
+    //     `role === 'agent'` literal was wrong in both directions — too
+    //     narrow, because `new_agent` also owns transactions
+    //     (app/api/transactions/create/route.ts), and too permissive,
+    //     because every role other than 'agent' skipped the check entirely.
     //
-    // `user_role` is a Postgres enum with 8 labels — agent, admin, broker,
-    // tc, manager, new_agent, office_manager, internal_staff. Everything
-    // outside ownership and ('broker','admin') is denied here, which is
-    // exactly what the RLS policy says: that covers internal_staff,
-    // office_manager, tc and manager.
+    // (2) The staff branch carries no tenant term either, but RLS evaluates
+    //     it per row under a real session. This route runs on `adminClient`,
+    //     which BYPASSES RLS, and it reaches any transaction by id. Tenant
+    //     containment is the code-side equivalent of the row scope RLS
+    //     would have applied, so it is required on the staff branch:
+    //     without it a broker in tenant A could upload onto a tenant-B
+    //     transaction and fan the notification out across every tenant.
+    //     Precedent for inline tenant derivation via `adminClient` is
+    //     documented in lib/security/withServiceRole.ts
+    //     (`sec3a-new-leads-tenant-scope`, `r3b-intakes-tenant-scope`).
     //
-    // This route runs on `adminClient`, which BYPASSES RLS, so this check
-    // is the only thing enforcing that policy on this path.
+    // On the deal branch: this route's insert never sets `documents.deal_id`
+    // (see the insert below — a guard test pins that), so for every row it
+    // writes `documents.deal_id` is NULL and the policy's `deals` EXISTS is
+    // false by construction. The policy therefore reduces, for THIS route's
+    // writes, to ownership-of-the-transaction OR staff. If `deal_id` is ever
+    // added to that insert, this check has to be extended to deal owners.
+    //
+    // `user_role` is a Postgres enum with 8 labels: agent, admin, broker,
+    // tc, manager, new_agent, office_manager, internal_staff. Being outside
+    // ('broker','admin') means no STAFF-level reach — it is NOT a
+    // categorical denial of the role, because any of them still qualifies
+    // by owning the transaction.
     const DOCUMENT_STAFF_ROLES = ['broker', 'admin'] // public.documents INSERT policy
 
     const role = profile?.role || 'agent'
     const ownsTransaction = transaction.agent_id === user.id
     const isDocumentStaff = DOCUMENT_STAFF_ROLES.includes(role)
 
-    if (!ownsTransaction && !isDocumentStaff) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // SEC-COMPLIANCE-TENANT-1 — tenant containment applies to EVERY
-    // permitted role, not only agents. The ownership check above covers
-    // agents alone, so before this guard a broker/admin in tenant A could
-    // upload a compliance document onto a transaction in tenant B, and the
-    // fan-out below notified brokers/admins in every tenant.
-    //
     // Anchor on the TRANSACTION's tenant_id: it is written by the
     // `trg_set_transaction_tenant_id` BEFORE INSERT trigger, so it is
-    // populated for every row rather than depending on the insert payload.
-    //
-    // Fail closed when either side is missing. A tenant-less caller has no
-    // scope to act in, and a tenant-less transaction has no scope to be
-    // acted on; proceeding would either leak (old behavior) or silently
-    // drop notifications, which is worse than a clear 403. Precedent for
-    // hand-rolled inline tenant derivation via `adminClient` is documented
-    // in lib/security/withServiceRole.ts (`sec3a-new-leads-tenant-scope`,
-    // `r3b-intakes-tenant-scope`).
+    // populated for every row rather than depending on an insert payload.
     const callerTenantId = ((profile as any)?.tenant_id ?? null) as
       | string
       | null
@@ -334,19 +332,26 @@ export async function POST(request: NextRequest) {
       | string
       | null
 
-    if (!callerTenantId || !txTenantId) {
-      return NextResponse.json(
-        {
-          error: 'tenant_required',
-          message:
-            'Caller profile or transaction is missing tenant_id; cannot scope this compliance upload',
-        },
-        { status: 403 },
-      )
-    }
-
-    if (callerTenantId !== txTenantId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ownsTransaction) {
+      if (!isDocumentStaff) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+      // Staff branch only. Fail closed when either side has no tenant: a
+      // tenant-less caller has no scope to act in, and a tenant-less
+      // transaction none to be acted on.
+      if (!callerTenantId || !txTenantId) {
+        return NextResponse.json(
+          {
+            error: 'tenant_required',
+            message:
+              'Caller profile or transaction is missing tenant_id; cannot scope this compliance upload',
+          },
+          { status: 403 },
+        )
+      }
+      if (callerTenantId !== txTenantId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     // Upload file to Supabase Storage
@@ -422,7 +427,7 @@ export async function POST(request: NextRequest) {
     // silently dropped. Only the insert is awaited, so only insert counts
     // are settled by the time we respond; mail is still dispatched without
     // blocking and its outcome is logged, not reported.
-    const notify = { recipients: 0, inserted: 0, insertFailed: 0, debounced: 0, failed: false }
+    const notify = { recipients: 0, inserted: 0, insertFailed: 0, debounced: 0, failed: false, untenanted: false }
     try {
       // SEC-COMPLIANCE-TENANT-1 — tenant-scoped recipient query. The prior
       // version selected every broker/admin profile with no tenant filter,
@@ -433,7 +438,18 @@ export async function POST(request: NextRequest) {
       // Profiles with tenant_id IS NULL are naturally excluded because
       // PostgREST `.eq('tenant_id', X)` compares by equality (NULL never
       // equals X).
-      const { data: brokers } = await admin
+      // An owner may upload to a transaction with no tenant_id (the owner
+      // branch has no tenant term). There is no audience to scope to in
+      // that case, so fan out to nobody rather than to everybody.
+      if (!txTenantId) {
+        notify.untenanted = true
+        console.warn('[security:compliance-upload] transaction has no tenant_id; notification fan-out skipped', {
+          transaction_id: transactionId,
+        })
+      }
+
+      const { data: brokers } = txTenantId
+        ? await admin
         .from('profiles')
         .select('id, email, full_name')
         .in('role', ['broker', 'admin'])
@@ -446,6 +462,7 @@ export async function POST(request: NextRequest) {
         // Precedent (P0-41 on calendar/events) excludes the actor from
         // their own fan-out on every channel.
         .neq('id', user.id)
+        : { data: [] as { id: string; email: string | null; full_name: string | null }[] }
 
       const { data: uploaderProfile } = await admin
         .from('profiles')

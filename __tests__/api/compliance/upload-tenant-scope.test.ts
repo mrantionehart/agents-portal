@@ -13,10 +13,18 @@
 // This suite locks the tenant-scope contract:
 //
 //   0. Authorization mirrors the DB's own INSERT policy on public.documents
-//      ("Users can upload documents"): owns the transaction, OR role is
-//      broker/admin. The owner branch keys on OWNERSHIP, not a role name.
-//      The route runs on adminClient, which bypasses RLS, so this code is
-//      the only thing enforcing that policy on this path.
+//      ("Users can upload documents"), which has two independent branches:
+//        · OWNER  — transactions.agent_id = auth.uid(). No role term and no
+//          tenant term; owning the subject IS the scope. Qualifies alone.
+//        · STAFF  — profiles.role IN ('broker','admin'). RLS would scope
+//          this per row under a real session; this route runs on
+//          adminClient (bypasses RLS) and reaches any transaction by id,
+//          so tenant containment is required on THIS branch.
+//      Being outside ('broker','admin') is NOT a categorical denial of a
+//      role — any role still qualifies by owning the transaction.
+//      The deal branch is inert here: this route never sets
+//      documents.deal_id, so that EXISTS is false by construction. A guard
+//      test below pins the insert payload so that stays true.
 //   1. Access is contained to one tenant for EVERY permitted role, not just
 //      agents — a broker/admin in tenant B cannot touch a tenant-A txn
 //   2. The existing agent ownership check is NOT weakened
@@ -403,11 +411,13 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
 describe('SEC-COMPLIANCE-TENANT-1 — authorization matches the documents INSERT policy', () => {
   // Non-owners outside ('broker','admin') are denied, per the RLS policy.
   // `user_role` has 8 labels; these are the ones the policy does not name.
+  // These roles are outside ('broker','admin'), so they have no STAFF-level
+  // reach. They are not categorically denied — see the owner cases below.
   it.each([
     ['new_agent', NEWAGENT_A, 'newagent.a@test'],
     ['internal_staff', STAFF_A, 'staff.a@test'],
     ['office_manager', OM_A, 'om.a@test'],
-  ])('refuses a non-owning %s even in the transaction tenant', async (_r, id, email) => {
+  ])('gives a non-owning %s no staff-level reach, even in the transaction tenant', async (_r, id, email) => {
     AUTHED_USER = { id, email }
     const res = await POST(uploadRequest('tx-a'))
     expect(res.status).toBe(403)
@@ -415,14 +425,78 @@ describe('SEC-COMPLIANCE-TENANT-1 — authorization matches the documents INSERT
     expectNoSideEffects()
   })
 
-  it('permits a non-agent role that OWNS the transaction (ownership, not role)', async () => {
-    // The policy's owner branch is transactions.agent_id = auth.uid(), with
-    // no role test. An office_manager who owns the transaction qualifies.
-    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: OM_A }
-    AUTHED_USER = { id: OM_A, email: 'om.a@test' }
+  // The owner branch has no role term, so every one of these qualifies by
+  // ownership despite having no staff-level reach above. This is the
+  // difference between "no staff access" and "categorically denied".
+  it.each([
+    ['new_agent', NEWAGENT_A, 'newagent.a@test'],
+    ['internal_staff', STAFF_A, 'staff.a@test'],
+    ['office_manager', OM_A, 'om.a@test'],
+  ])('permits a %s that OWNS the transaction (ownership, not role)', async (_r, id, email) => {
+    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: id }
+    AUTHED_USER = { id, email }
     const res = await POST(uploadRequest('tx-a'))
     expect(res.status).toBe(200)
     expect(storageUploads).toHaveLength(1)
+    expect(documentInserts).toHaveLength(1)
+  })
+
+  it('permits an OWNER whose own profile has no tenant_id', async () => {
+    // The owner branch carries no tenant term. A caller with no tenant must
+    // not be locked out of a transaction that is assigned to them.
+    PROFILES.push({
+      id: 'owner-no-tenant', email: 'owner.nt@test', full_name: 'Owner NT',
+      role: 'agent', tenant_id: null, is_active: true,
+    })
+    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: 'owner-no-tenant' }
+    AUTHED_USER = { id: 'owner-no-tenant', email: 'owner.nt@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    expect(storageUploads).toHaveLength(1)
+    // The transaction still has a tenant, so the fan-out is still scoped.
+    expect(recipientQueryFilters[0].eq).toHaveProperty('tenant_id', TENANT_A)
+  })
+
+  it('permits an OWNER of a tenant-less transaction and fans out to NOBODY', async () => {
+    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: AGENT_A, tenant_id: null }
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(storageUploads).toHaveLength(1)
+    // No audience to scope to, so no audience at all — not everybody.
+    expect(body.notifications.untenanted).toBe(true)
+    expect(body.notifications.recipients).toBe(0)
+    expect(recipientQueryFilters).toHaveLength(0)
+    expect(notificationInserts).toEqual([])
+    expect(mailSends).toEqual([])
+  })
+
+  it('still requires a tenant on the STAFF branch specifically', async () => {
+    // Same tenant-less transaction, but the caller is staff rather than the
+    // owner. Staff get no free pass: this must fail closed.
+    TRANSACTION = { ...(TRANSACTION as TxFixture), tenant_id: null }
+    AUTHED_USER = { id: BROKER_A, email: 'broker.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({ error: 'tenant_required' })
+    expectNoSideEffects()
+  })
+
+  it('writes no deal_id, which is what makes the policy deal branch inert here', async () => {
+    // The documents INSERT policy also admits deal owners. That branch can
+    // only fire when documents.deal_id is non-NULL. This route never sets
+    // it, so the policy reduces to owner-or-staff for the rows written
+    // here. If this assertion ever fails, the authorization above has to be
+    // extended to deal owners before shipping.
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    expect(documentInserts).toHaveLength(1)
+    expect(Object.keys(documentInserts[0])).not.toContain('deal_id')
+    expect(documentInserts[0].transaction_id).toBe('tx-a')
+    expect(documentInserts[0].uploaded_by).toBe(AGENT_A)
   })
 
   it('excludes the uploader from their own fan-out', async () => {
