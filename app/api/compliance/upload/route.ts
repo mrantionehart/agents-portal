@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
     // Verify transaction exists and user has access
     const { data: transaction } = await admin
       .from('transactions')
-      .select('id, agent_id, type, property_address')
+      .select('id, agent_id, tenant_id, type, property_address')
       .eq('id', transactionId)
       .is('deleted_at', null)
       .single()
@@ -263,15 +263,95 @@ export async function POST(request: NextRequest) {
     }
 
     // Check role
+    // SEC-COMPLIANCE-TENANT-1 — also pull tenant_id so both the access
+    // decision below and the recipient fan-out further down are bounded to
+    // one tenant. Neither MUST cross tenants under any role, including the
+    // platform super-admin (same contract as P0-41 on calendar/events).
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
 
+    // SEC-COMPLIANCE-TENANT-1 — mirror the authorization the database
+    // already states for this table rather than inventing a band. The
+    // INSERT policy on public.documents ("Users can upload documents") is:
+    //
+    //   auth.uid() = uploaded_by
+    //   AND (   transactions.agent_id = auth.uid()            -- owns the txn
+    //        OR deals.agent_id        = auth.uid()            -- owns the deal
+    //        OR profiles.role IN ('broker','admin') )         -- staff
+    //
+    // Two things follow, and the structure below mirrors both.
+    //
+    // (1) The owner branches carry NO role term and NO tenant term. Owning
+    //     the subject is itself the scope: `transactions.agent_id` can only
+    //     point at the caller for work assigned to the caller. So ownership
+    //     qualifies on its own, whatever the role. That is why the previous
+    //     `role === 'agent'` literal was wrong in both directions — too
+    //     narrow, because `new_agent` also owns transactions
+    //     (app/api/transactions/create/route.ts), and too permissive,
+    //     because every role other than 'agent' skipped the check entirely.
+    //
+    // (2) The staff branch carries no tenant term either, but RLS evaluates
+    //     it per row under a real session. This route runs on `adminClient`,
+    //     which BYPASSES RLS, and it reaches any transaction by id. Tenant
+    //     containment is the code-side equivalent of the row scope RLS
+    //     would have applied, so it is required on the staff branch:
+    //     without it a broker in tenant A could upload onto a tenant-B
+    //     transaction and fan the notification out across every tenant.
+    //     Precedent for inline tenant derivation via `adminClient` is
+    //     documented in lib/security/withServiceRole.ts
+    //     (`sec3a-new-leads-tenant-scope`, `r3b-intakes-tenant-scope`).
+    //
+    // On the deal branch: this route's insert never sets `documents.deal_id`
+    // (see the insert below — a guard test pins that), so for every row it
+    // writes `documents.deal_id` is NULL and the policy's `deals` EXISTS is
+    // false by construction. The policy therefore reduces, for THIS route's
+    // writes, to ownership-of-the-transaction OR staff. If `deal_id` is ever
+    // added to that insert, this check has to be extended to deal owners.
+    //
+    // `user_role` is a Postgres enum with 8 labels: agent, admin, broker,
+    // tc, manager, new_agent, office_manager, internal_staff. Being outside
+    // ('broker','admin') means no STAFF-level reach — it is NOT a
+    // categorical denial of the role, because any of them still qualifies
+    // by owning the transaction.
+    const DOCUMENT_STAFF_ROLES = ['broker', 'admin'] // public.documents INSERT policy
+
     const role = profile?.role || 'agent'
-    if (role === 'agent' && transaction.agent_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const ownsTransaction = transaction.agent_id === user.id
+    const isDocumentStaff = DOCUMENT_STAFF_ROLES.includes(role)
+
+    // Anchor on the TRANSACTION's tenant_id: it is written by the
+    // `trg_set_transaction_tenant_id` BEFORE INSERT trigger, so it is
+    // populated for every row rather than depending on an insert payload.
+    const callerTenantId = ((profile as any)?.tenant_id ?? null) as
+      | string
+      | null
+    const txTenantId = ((transaction as any)?.tenant_id ?? null) as
+      | string
+      | null
+
+    if (!ownsTransaction) {
+      if (!isDocumentStaff) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+      // Staff branch only. Fail closed when either side has no tenant: a
+      // tenant-less caller has no scope to act in, and a tenant-less
+      // transaction none to be acted on.
+      if (!callerTenantId || !txTenantId) {
+        return NextResponse.json(
+          {
+            error: 'tenant_required',
+            message:
+              'Caller profile or transaction is missing tenant_id; cannot scope this compliance upload',
+          },
+          { status: 403 },
+        )
+      }
+      if (callerTenantId !== txTenantId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     // Upload file to Supabase Storage
@@ -335,11 +415,54 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Notify all brokers/admins that a doc was uploaded ─────
+    // SEC-COMPLIANCE-TENANT-1 — these outcomes used to be discarded. The
+    // insert was `.then(undefined, () => {})` and the mail send was
+    // `.catch(() => {})`, so both failed invisibly: production holds 0
+    // `compliance_notifications` rows against existing `documents`, which
+    // is only consistent with the insert having been failing all along.
+    //
+    // The upload itself still succeeds when a notification fails — a stored
+    // compliance document must not be lost because a notification broke —
+    // but the failure is now counted, logged and returned instead of
+    // silently dropped. Only the insert is awaited, so only insert counts
+    // are settled by the time we respond; mail is still dispatched without
+    // blocking and its outcome is logged, not reported.
+    const notify = { recipients: 0, inserted: 0, insertFailed: 0, debounced: 0, failed: false, untenanted: false }
     try {
-      const { data: brokers } = await admin
+      // SEC-COMPLIANCE-TENANT-1 — tenant-scoped recipient query. The prior
+      // version selected every broker/admin profile with no tenant filter,
+      // so a compliance document uploaded on one tenant's transaction
+      // notified brokers/admins in every tenant (in-app row AND SendGrid
+      // mail). Anchored on the transaction's tenant — the subject of the
+      // notification — which the guard above proved equals the caller's.
+      // Profiles with tenant_id IS NULL are naturally excluded because
+      // PostgREST `.eq('tenant_id', X)` compares by equality (NULL never
+      // equals X).
+      // An owner may upload to a transaction with no tenant_id (the owner
+      // branch has no tenant term). There is no audience to scope to in
+      // that case, so fan out to nobody rather than to everybody.
+      if (!txTenantId) {
+        notify.untenanted = true
+        console.warn('[security:compliance-upload] transaction has no tenant_id; notification fan-out skipped', {
+          transaction_id: transactionId,
+        })
+      }
+
+      const { data: brokers } = txTenantId
+        ? await admin
         .from('profiles')
         .select('id, email, full_name')
         .in('role', ['broker', 'admin'])
+        .eq('tenant_id', txTenantId)
+        // Deactivated accounts must not keep receiving compliance
+        // documents. requireAuth() already gates is_active for the
+        // CALLER, but recipients are not callers. Safe to filter on
+        // equality here: no profiles row has is_active IS NULL.
+        .eq('is_active', true)
+        // Precedent (P0-41 on calendar/events) excludes the actor from
+        // their own fan-out on every channel.
+        .neq('id', user.id)
+        : { data: [] as { id: string; email: string | null; full_name: string | null }[] }
 
       const { data: uploaderProfile } = await admin
         .from('profiles')
@@ -357,6 +480,8 @@ export async function POST(request: NextRequest) {
       // saves of the same document don't multiply broker emails.
       // We compute the cutoff once, outside the loop.
       const debounceCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+
+      notify.recipients = (brokers || []).length
 
       for (const broker of brokers || []) {
         // Debounce probe — query by columns + metadata->>doc_label so we
@@ -385,11 +510,12 @@ export async function POST(request: NextRequest) {
               window_minutes: 5,
             }
           )
+          notify.debounced++
           continue
         }
 
         // In-app notification
-        await admin.from('compliance_notifications').insert({
+        const { error: notifError } = await admin.from('compliance_notifications').insert({
           recipient_id: broker.id,
           transaction_id: transactionId,
           notification_type: 'doc_uploaded',
@@ -401,7 +527,22 @@ export async function POST(request: NextRequest) {
             property_address: transaction.property_address,
             agent_name: uploaderName,
           },
-        }).then(undefined, () => {})
+        })
+
+        if (notifError) {
+          notify.insertFailed++
+          // IDs and the driver's own codes only. No broker email, no
+          // document body, no property address.
+          console.error('[security:compliance-upload] notification insert failed', {
+            recipient_id: broker.id,
+            transaction_id: transactionId,
+            notification_type: 'doc_uploaded',
+            code: notifError.code ?? null,
+            message: notifError.message ?? null,
+          })
+        } else {
+          notify.inserted++
+        }
 
         // Email notification
         const sgApiKey = process.env.SENDGRID_API_KEY
@@ -434,16 +575,36 @@ export async function POST(request: NextRequest) {
 </div></body></html>`,
               }],
             }),
-          }).catch(() => {})
+          })
+            .then((mailRes) => {
+              if (!mailRes.ok) {
+                console.error('[security:compliance-upload] notification mail rejected', {
+                  recipient_id: broker.id,
+                  transaction_id: transactionId,
+                  status: mailRes.status,
+                })
+              }
+            })
+            .catch((mailErr) => {
+              console.error('[security:compliance-upload] notification mail threw', {
+                recipient_id: broker.id,
+                transaction_id: transactionId,
+                message: mailErr instanceof Error ? mailErr.message : null,
+              })
+            })
         }
       }
     } catch (notifErr) {
+      notify.failed = true
       console.error('Notification error (non-critical):', notifErr)
     }
 
     return NextResponse.json({
       document: newDoc,
       message: 'Document uploaded successfully',
+      // Settled insert outcomes. `failed: true` means the fan-out block
+      // itself threw, so the counts below are incomplete.
+      notifications: notify,
     })
   } catch (err) {
     console.error('Compliance upload error:', err)
