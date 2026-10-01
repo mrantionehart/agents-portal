@@ -3,11 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import SidebarNav from '../components/SidebarNav'
-import {
-  CheckCircle2, Upload, AlertCircle, XCircle, FileText, ChevronRight,
-  ChevronDown, FolderOpen, Shield, Clock, Search, Filter, ArrowLeft,
-  PenLine, Bell, Lock, Unlock, AlertTriangle
-} from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, Bell, CheckCircle2, ChevronDown, ChevronRight, Clock, Download, FileText, Filter, FolderOpen, Lock, PenLine, Search, Shield, Unlock, Upload, XCircle } from 'lucide-react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface ComplianceTransaction {
@@ -191,6 +187,27 @@ export default function CompliancePage() {
   }
 
   // Upload handler
+  // Fetch a short-lived signed URL for a stored compliance document.
+  // The bucket is private, so `file_path` alone retrieves nothing — the server
+  // re-checks ownership-or-same-tenant-staff before it signs anything.
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const handleDownload = async (documentId: string) => {
+    try {
+      setDownloading(documentId)
+      const res = await fetch(`/api/compliance/document/${documentId}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error === 'Forbidden' ? 'You do not have access to this document' : (err.error || 'Could not open document'))
+      }
+      const { url } = await res.json()
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err: any) {
+      alert(err.message || 'Could not open document')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   const handleUploadClick = (docLabel: string, folder: string) => {
     setPendingUpload({ docLabel, folder })
     fileInputRef.current?.click()
@@ -717,6 +734,17 @@ export default function CompliancePage() {
                                       >
                                         <Upload className="w-3.5 h-3.5" />
                                         {uploading === item.doc_label ? 'Uploading...' : item.document?.signature_status === 'missing' ? 'Re-upload Signed' : 'Upload'}
+                                      </button>
+                                    )}
+                                    {/* View — signed, short-lived, server-authorized */}
+                                    {item.document && (
+                                      <button
+                                        onClick={() => handleDownload(item.document!.id)}
+                                        disabled={downloading === item.document.id}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0a0a0f] text-gray-200 text-xs font-medium rounded-lg hover:bg-[#1a1a2e] disabled:opacity-50 transition"
+                                      >
+                                        <Download className="w-3.5 h-3.5" />
+                                        {downloading === item.document.id ? 'Opening...' : 'View'}
                                       </button>
                                     )}
                                     {/* Replace button for uploaded docs */}
