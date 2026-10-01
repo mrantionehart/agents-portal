@@ -36,6 +36,7 @@ type ProfileFixture = {
   full_name: string | null
   role: string
   tenant_id: string | null
+  is_active: boolean
 }
 
 type TxFixture = {
@@ -90,6 +91,12 @@ function resolveProfiles(f: any) {
     if ('tenant_id' in f.eq) {
       rows = rows.filter((p) => p.tenant_id !== null && p.tenant_id === f.eq.tenant_id)
     }
+    if ('is_active' in f.eq) {
+      rows = rows.filter((p) => p.is_active === f.eq.is_active)
+    }
+    for (const [k, v] of Object.entries(f.neq)) {
+      rows = rows.filter((p) => (p as any)[k] !== v)
+    }
     return { data: rows.map((p) => project(p, f.select)), error: null }
   }
   const row = PROFILES.find((p) => p.id === f.eq.id) || null
@@ -118,7 +125,7 @@ function resolveTable(table: string, f: any): any {
 }
 
 function builder(table: string) {
-  const f: any = { eq: {}, in: {}, is: {} }
+  const f: any = { eq: {}, in: {}, is: {}, neq: {} }
   const self: any = {
     select: (s?: string) => { if (s !== undefined) f.select = s; return self },
     insert: (v: any) => {
@@ -129,6 +136,7 @@ function builder(table: string) {
     },
     update: (v: any) => { f.update = v; if (table === 'documents') documentUpdates.push(v); return self },
     eq: (k: string, v: any) => { f.eq[k] = v; return self },
+    neq: (k: string, v: any) => { f.neq[k] = v; return self },
     in: (k: string, v: any) => { f.in[k] = v; return self },
     is: (k: string, v: any) => { f.is[k] = v; return self },
     ilike: (k: string, v: any) => { f.ilike = [k, v]; return self },
@@ -208,6 +216,11 @@ const BROKER_B = 'broker-b'
 const ADMIN_B = 'admin-b'
 const BROKER_NOTENANT = 'broker-nt'
 const SUPERADMIN_B = 'superadmin-b'
+const INACTIVE_ADMIN_A = 'admin-a-inactive'
+const NEWAGENT_A = 'newagent-a'
+const NEWAGENT_A_OWNER = 'newagent-a-owner'
+const STAFF_A = 'staff-a'
+const OM_A = 'om-a'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -233,13 +246,21 @@ beforeEach(() => {
   }) as any
 
   PROFILES = [
-    { id: AGENT_A, email: 'agent.a@test', full_name: 'Agent A', role: 'agent', tenant_id: TENANT_A },
-    { id: BROKER_A, email: 'broker.a@test', full_name: 'Broker A', role: 'broker', tenant_id: TENANT_A },
-    { id: ADMIN_A, email: 'admin.a@test', full_name: 'Admin A', role: 'admin', tenant_id: TENANT_A },
-    { id: BROKER_B, email: 'broker.b@test', full_name: 'Broker B', role: 'broker', tenant_id: TENANT_B },
-    { id: ADMIN_B, email: 'admin.b@test', full_name: 'Admin B', role: 'admin', tenant_id: TENANT_B },
-    { id: BROKER_NOTENANT, email: 'broker.nt@test', full_name: 'Broker NT', role: 'broker', tenant_id: null },
-    { id: SUPERADMIN_B, email: PLATFORM_SUPER_ADMIN_EMAIL, full_name: 'Platform Super Admin', role: 'admin', tenant_id: TENANT_B },
+    { id: AGENT_A, email: 'agent.a@test', full_name: 'Agent A', role: 'agent', tenant_id: TENANT_A, is_active: true },
+    { id: BROKER_A, email: 'broker.a@test', full_name: 'Broker A', role: 'broker', tenant_id: TENANT_A, is_active: true },
+    { id: ADMIN_A, email: 'admin.a@test', full_name: 'Admin A', role: 'admin', tenant_id: TENANT_A, is_active: true },
+    { id: BROKER_B, email: 'broker.b@test', full_name: 'Broker B', role: 'broker', tenant_id: TENANT_B, is_active: true },
+    { id: ADMIN_B, email: 'admin.b@test', full_name: 'Admin B', role: 'admin', tenant_id: TENANT_B, is_active: true },
+    { id: BROKER_NOTENANT, email: 'broker.nt@test', full_name: 'Broker NT', role: 'broker', tenant_id: null, is_active: true },
+    { id: SUPERADMIN_B, email: PLATFORM_SUPER_ADMIN_EMAIL, full_name: 'Platform Super Admin', role: 'admin', tenant_id: TENANT_B, is_active: true },
+    // Deactivated, same tenant, broker tier — must receive nothing.
+    { id: INACTIVE_ADMIN_A, email: 'admin.a.off@test', full_name: 'Admin A (off)', role: 'admin', tenant_id: TENANT_A, is_active: false },
+    // `new_agent` is a DEAL_OWNER_ROLE per app/api/transactions/create/route.ts.
+    { id: NEWAGENT_A, email: 'newagent.a@test', full_name: 'New Agent A', role: 'new_agent', tenant_id: TENANT_A, is_active: true },
+    { id: NEWAGENT_A_OWNER, email: 'newagent.owner@test', full_name: 'New Agent Owner', role: 'new_agent', tenant_id: TENANT_A, is_active: true },
+    // `internal_staff` exists in production but is in no documented band.
+    { id: STAFF_A, email: 'staff.a@test', full_name: 'Staff A', role: 'internal_staff', tenant_id: TENANT_A, is_active: true },
+    { id: OM_A, email: 'om.a@test', full_name: 'Office Manager A', role: 'office_manager', tenant_id: TENANT_A, is_active: true },
   ]
 
   TRANSACTION = {
@@ -290,7 +311,7 @@ describe('SEC-COMPLIANCE-TENANT-1 — refusal across tenants, every role', () =>
   it('still refuses an agent who does not own the transaction (pre-existing check intact)', async () => {
     PROFILES.push({
       id: 'agent-a2', email: 'agent.a2@test', full_name: 'Agent A2',
-      role: 'agent', tenant_id: TENANT_A,
+      role: 'agent', tenant_id: TENANT_A, is_active: true,
     })
     AUTHED_USER = { id: 'agent-a2', email: 'agent.a2@test' }
     const res = await POST(uploadRequest('tx-a'))
@@ -304,6 +325,7 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
   it.each([
     ['the owning agent', AGENT_A],
     ['a same-tenant broker', BROKER_A],
+    ['a same-tenant office_manager (broker tier)', OM_A],
   ])('permits %s and scopes every notification channel to the transaction tenant', async (_who, id) => {
     AUTHED_USER = { id, email: 'who@test' }
     const res = await POST(uploadRequest('tx-a'))
@@ -322,20 +344,38 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
     // same people, and that set is exactly tenant A's brokers/admins.
     const notified = [...new Set(notificationInserts.map((n) => n.recipient_id))].sort()
     const mailed = [...new Set(mailSends.map((m) => m.to))].sort()
-    const expectedIds = [BROKER_A, ADMIN_A].sort()
-    const expectedEmails = ['broker.a@test', 'admin.a@test'].sort()
+    const byId = new Map(PROFILES.map((p) => [p.id, p]))
+    // Active broker-tier recipients in the transaction's tenant, minus the
+    // uploader. Derived, so the expectation cannot drift from the fixtures.
+    const expectedIds = PROFILES.filter(
+      (p) =>
+        ['broker', 'admin'].includes(p.role) &&
+        p.tenant_id === TENANT_A &&
+        p.is_active &&
+        p.id !== id,
+    ).map((p) => p.id).sort()
+    const expectedEmails = expectedIds.map((x) => byId.get(x)!.email as string).sort()
 
+    expect(expectedIds.length).toBeGreaterThan(0)
     expect(notified).toEqual(expectedIds)
     expect(mailed).toEqual(expectedEmails)
     expect(notified.length).toBe(mailed.length)
 
-    // And nobody foreign or tenant-less appears in either channel.
-    for (const foreign of [BROKER_B, ADMIN_B, BROKER_NOTENANT, SUPERADMIN_B]) {
-      expect(notified).not.toContain(foreign)
+    // Nobody foreign, tenant-less, deactivated, or the uploader themselves.
+    for (const excluded of [BROKER_B, ADMIN_B, BROKER_NOTENANT, SUPERADMIN_B, INACTIVE_ADMIN_A, id]) {
+      expect(notified).not.toContain(excluded)
     }
-    for (const foreignEmail of ['broker.b@test', 'admin.b@test', 'broker.nt@test', PLATFORM_SUPER_ADMIN_EMAIL]) {
-      expect(mailed).not.toContain(foreignEmail)
+    for (const excludedEmail of ['broker.b@test', 'admin.b@test', 'broker.nt@test', PLATFORM_SUPER_ADMIN_EMAIL, 'admin.a.off@test']) {
+      expect(mailed).not.toContain(excludedEmail)
     }
+  })
+
+  it('permits an owning new_agent (a DEAL_OWNER_ROLE)', async () => {
+    TRANSACTION = { ...(TRANSACTION as TxFixture), agent_id: NEWAGENT_A_OWNER }
+    AUTHED_USER = { id: NEWAGENT_A_OWNER, email: 'newagent.owner@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    expect(storageUploads).toHaveLength(1)
   })
 
   it('is non-vacuous: the same fixtures DO contain reachable foreign recipients', () => {
@@ -344,5 +384,45 @@ describe('SEC-COMPLIANCE-TENANT-1 — allowed upload stays inside the tenant', (
     )
     // 3 in tenant B (incl. the super-admin) + 1 tenant-less.
     expect(foreign.length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('SEC-COMPLIANCE-TENANT-1 — role bands', () => {
+  it('refuses a new_agent who does not own the transaction', async () => {
+    // Before the fix this passed: the ownership check keyed on the literal
+    // string 'agent', so new_agent skipped it and reached the storage write.
+    AUTHED_USER = { id: NEWAGENT_A, email: 'newagent.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
+    expectNoSideEffects()
+  })
+
+  it('refuses a role in no documented band (internal_staff), even in the right tenant', async () => {
+    AUTHED_USER = { id: STAFF_A, email: 'staff.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
+    expectNoSideEffects()
+  })
+
+  it('excludes the uploader from their own fan-out', async () => {
+    AUTHED_USER = { id: BROKER_A, email: 'broker.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    expect(notificationInserts.map((n) => n.recipient_id)).not.toContain(BROKER_A)
+    expect(mailSends.map((m) => m.to)).not.toContain('broker.a@test')
+    // but the other active same-tenant recipient still got it, so this is
+    // exclusion of the actor rather than the fan-out being broken
+    expect(notificationInserts.map((n) => n.recipient_id)).toContain(ADMIN_A)
+  })
+
+  it('excludes a deactivated same-tenant admin from both channels', async () => {
+    AUTHED_USER = { id: AGENT_A, email: 'agent.a@test' }
+    const res = await POST(uploadRequest('tx-a'))
+    expect(res.status).toBe(200)
+    expect(notificationInserts.map((n) => n.recipient_id)).not.toContain(INACTIVE_ADMIN_A)
+    expect(mailSends.map((m) => m.to)).not.toContain('admin.a.off@test')
+    expect(notificationInserts.map((n) => n.recipient_id)).toContain(ADMIN_A)
   })
 })

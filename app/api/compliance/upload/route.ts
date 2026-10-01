@@ -273,8 +273,27 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
+    // SEC-COMPLIANCE-TENANT-1 — band the roles explicitly, reusing the
+    // bands the rest of the repo already defines, so an unrecognised role
+    // fails closed instead of inheriting broker-level reach.
+    //
+    // The previous check keyed on the literal string 'agent', which meant
+    // every other role skipped the ownership requirement entirely. That
+    // included `new_agent`, which app/api/transactions/create/route.ts
+    // establishes as a DEAL_OWNER_ROLE — so a new_agent could upload onto
+    // a colleague's transaction.
+    const DEAL_OWNER_ROLES = ['agent', 'new_agent'] // transactions/create
+    const BROKER_TIER_ROLES = ['broker', 'admin', 'office_manager'] // broker/intakes
+
     const role = profile?.role || 'agent'
-    if (role === 'agent' && transaction.agent_id !== user.id) {
+    const isDealOwnerRole = DEAL_OWNER_ROLES.includes(role)
+    const isBrokerTier = BROKER_TIER_ROLES.includes(role)
+
+    if (!isDealOwnerRole && !isBrokerTier) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (isDealOwnerRole && transaction.agent_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -393,6 +412,14 @@ export async function POST(request: NextRequest) {
         .select('id, email, full_name')
         .in('role', ['broker', 'admin'])
         .eq('tenant_id', txTenantId)
+        // Deactivated accounts must not keep receiving compliance
+        // documents. requireAuth() already gates is_active for the
+        // CALLER, but recipients are not callers. Safe to filter on
+        // equality here: no profiles row has is_active IS NULL.
+        .eq('is_active', true)
+        // Precedent (P0-41 on calendar/events) excludes the actor from
+        // their own fan-out on every channel.
+        .neq('id', user.id)
 
       const { data: uploaderProfile } = await admin
         .from('profiles')
