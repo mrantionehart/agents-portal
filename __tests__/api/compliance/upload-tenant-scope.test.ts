@@ -574,3 +574,7 @@ describe('SEC-COMPLIANCE-TENANT-1 — notification failures are surfaced, not sw
     expect(consoleErrors.filter((l) => l.includes('notification mail rejected')).length).toBeGreaterThan(0)
   })
 })
+
+// This file declares top-level fixtures. Without an import/export TypeScript
+// treats it as a global script, so two such suites collide on identical names.
+export {}

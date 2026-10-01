@@ -43,6 +43,11 @@ export type ServiceRoleReason =
   | 'token-gated-deal-session'
   // Compliance writer paths — INSERT into RLS-only tables
   | 'compliance-upload-notification-fanout'
+  // Reads one document row + its transaction + the caller's profile, then mints
+  // a short-lived signed URL. Service role is required because the bucket is
+  // private and the authorization rule (owner, or same-tenant broker/admin)
+  // is enforced in code — see app/api/compliance/document/[id]/route.ts.
+  | 'compliance-document-download'
   // (compliance-review-broker-action retired — D-3 Track D: PF-DVL
   // confirmed document_verification_log has wide-open "Allow all for
   // service role" policy (USING true); Track C had already landed
