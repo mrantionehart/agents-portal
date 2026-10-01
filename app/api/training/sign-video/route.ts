@@ -7,6 +7,18 @@
 // Auth: Supabase session cookie (portal) OR `Authorization: Bearer <access_token>`
 //       (EASE). Only authenticated users can request a signed URL.
 //
+// AP-TRAINING-SIGN-1 — authentication alone used to be the whole gate, which
+// made `training_modules.required_role` unenforceable: any signed-in portal or
+// EASE user could pass any training/**.mp4 key and get a playable URL. Both
+// clients receive every video row straight from the database (the portal via
+// /api/training/catalog, EASE by reading the tables directly), so the
+// restricted keys were in reach. Prod bore this out — one broker completed all
+// three videos of the admin+office_manager module and one agent started one.
+//
+// The key is now resolved to its video and that video's module, and the
+// module's required_role is enforced against the caller's role AS READ FROM
+// `profiles`. Authorization happens before the signer is ever touched.
+//
 // Key safety: the `key` parameter MUST begin with `training/`. Any other path
 // is rejected so this endpoint cannot be abused to sign URLs for arbitrary
 // bucket contents.
@@ -24,6 +36,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  resolveCallerRole,
+  resolveVideoByKey,
+  roleMayAccessModule,
+} from '@/lib/training/video-authorization';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -135,6 +152,30 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // --- AP-TRAINING-SIGN-1 authorization boundary --------------------------
+    // A service client is required here: training_videos / training_modules
+    // are readable by `authenticated`, but the caller's own role must come
+    // from `profiles` under service role so no caller can influence it.
+    // Nothing below this block runs for an unauthorized caller — in
+    // particular getR2Client() and getSignedUrl() are never reached.
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const video = await resolveVideoByKey(admin, key);
+    if (!video) {
+      // Unrecognised key — deny. This endpoint previously signed anything
+      // shaped like training/**.mp4.
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+
+    const role = await resolveCallerRole(admin, user.userId);
+    if (!roleMayAccessModule(video.requiredRole, role)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+    // ------------------------------------------------------------------------
 
     const ttlSec = (() => {
       const raw = process.env.TRAINING_SIGNED_URL_TTL_SEC;
