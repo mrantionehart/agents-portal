@@ -54,42 +54,52 @@ export function TourRunner() {
 function CompletionCard() {
   const tour = useTour();
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      data-tour-completion
-      // `pointer-events-auto` is retained defensively; the inline style
-      // below is what actually restores interactivity in production
-      // (Tailwind purges the `.pointer-events-auto` utility from the
-      // shipped CSS bundle in this build).
-      className="pointer-events-auto absolute bg-[#0f1218] border border-emerald-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-5 w-[400px] max-w-[92vw]"
-      style={{
-        left: "50%",
-        top: "50%",
-        transform: "translate(-50%, -50%)",
-        pointerEvents: "auto",
-      }}
-    >
-      <h2 className="text-[15px] font-semibold text-emerald-200 mb-2">
-        {tour.mode === "preview"
-          ? "Preview complete. No progress was saved."
-          : "Lesson complete."}
-      </h2>
-      <p className="text-[13px] text-[#D4D4D8]">
-        {tour.mode === "preview"
-          ? "Nothing was written for your certification. Close this to return to the training hub."
-          : "Your progress has been recorded."}
-      </p>
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={tour.exit}
-          className="text-[12px] px-3 py-1 rounded bg-[#C9A84C] text-black font-semibold"
-        >
-          Close
-        </button>
+    <>
+      {/* Backdrop — TourStepView paints its own via <Spotlight>, but the
+          completion state renders the card alone. Without this layer, the
+          full page shows around the card and competes for attention. */}
+      <div
+        aria-hidden
+        data-tour-completion-backdrop
+        className="absolute inset-0 bg-black/80 pointer-events-none"
+      />
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        data-tour-completion
+        // `pointer-events-auto` is retained defensively; the inline style
+        // below is what actually restores interactivity in production
+        // (Tailwind purges the `.pointer-events-auto` utility from the
+        // shipped CSS bundle in this build).
+        className="pointer-events-auto absolute bg-[#0f1218] border border-emerald-500/40 text-[#F1F1F3] rounded-lg shadow-xl p-5 w-[400px] max-w-[92vw]"
+        style={{
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "auto",
+        }}
+      >
+        <h2 className="text-[15px] font-semibold text-emerald-200 mb-2">
+          {tour.mode === "preview"
+            ? "Preview complete. No progress was saved."
+            : "Lesson complete."}
+        </h2>
+        <p className="text-[13px] text-[#D4D4D8]">
+          {tour.mode === "preview"
+            ? "Nothing was written for your certification. Close this to return to the training hub."
+            : "Your progress has been recorded."}
+        </p>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={tour.exit}
+            className="text-[12px] px-3 py-1 rounded bg-[#C9A84C] text-black font-semibold"
+          >
+            Close
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -189,7 +199,7 @@ function Spotlight({
       <div
         data-tour-overlay
         aria-hidden
-        className="absolute inset-0 bg-black/60 pointer-events-none"
+        className="absolute inset-0 bg-black/80 pointer-events-none"
       />
     );
   }
@@ -216,7 +226,7 @@ function Spotlight({
       <rect
         width="100%"
         height="100%"
-        fill="rgba(0,0,0,0.6)"
+        fill="rgba(0,0,0,0.8)"
         mask="url(#tour-spotlight-mask)"
       />
       <rect
