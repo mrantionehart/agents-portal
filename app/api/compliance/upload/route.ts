@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
     // Verify transaction exists and user has access
     const { data: transaction } = await admin
       .from('transactions')
-      .select('id, agent_id, type, property_address')
+      .select('id, agent_id, tenant_id, type, property_address')
       .eq('id', transactionId)
       .is('deleted_at', null)
       .single()
@@ -263,14 +263,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Check role
+    // SEC-COMPLIANCE-TENANT-1 — also pull tenant_id so both the access
+    // decision below and the recipient fan-out further down are bounded to
+    // one tenant. Neither MUST cross tenants under any role, including the
+    // platform super-admin (same contract as P0-41 on calendar/events).
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
 
     const role = profile?.role || 'agent'
     if (role === 'agent' && transaction.agent_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // SEC-COMPLIANCE-TENANT-1 — tenant containment applies to EVERY
+    // permitted role, not only agents. The ownership check above covers
+    // agents alone, so before this guard a broker/admin in tenant A could
+    // upload a compliance document onto a transaction in tenant B, and the
+    // fan-out below notified brokers/admins in every tenant.
+    //
+    // Anchor on the TRANSACTION's tenant_id: it is written by the
+    // `trg_set_transaction_tenant_id` BEFORE INSERT trigger, so it is
+    // populated for every row rather than depending on the insert payload.
+    //
+    // Fail closed when either side is missing. A tenant-less caller has no
+    // scope to act in, and a tenant-less transaction has no scope to be
+    // acted on; proceeding would either leak (old behavior) or silently
+    // drop notifications, which is worse than a clear 403. Precedent for
+    // hand-rolled inline tenant derivation via `adminClient` is documented
+    // in lib/security/withServiceRole.ts (`sec3a-new-leads-tenant-scope`,
+    // `r3b-intakes-tenant-scope`).
+    const callerTenantId = ((profile as any)?.tenant_id ?? null) as
+      | string
+      | null
+    const txTenantId = ((transaction as any)?.tenant_id ?? null) as
+      | string
+      | null
+
+    if (!callerTenantId || !txTenantId) {
+      return NextResponse.json(
+        {
+          error: 'tenant_required',
+          message:
+            'Caller profile or transaction is missing tenant_id; cannot scope this compliance upload',
+        },
+        { status: 403 },
+      )
+    }
+
+    if (callerTenantId !== txTenantId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -336,10 +379,20 @@ export async function POST(request: NextRequest) {
 
     // ── Notify all brokers/admins that a doc was uploaded ─────
     try {
+      // SEC-COMPLIANCE-TENANT-1 — tenant-scoped recipient query. The prior
+      // version selected every broker/admin profile with no tenant filter,
+      // so a compliance document uploaded on one tenant's transaction
+      // notified brokers/admins in every tenant (in-app row AND SendGrid
+      // mail). Anchored on the transaction's tenant — the subject of the
+      // notification — which the guard above proved equals the caller's.
+      // Profiles with tenant_id IS NULL are naturally excluded because
+      // PostgREST `.eq('tenant_id', X)` compares by equality (NULL never
+      // equals X).
       const { data: brokers } = await admin
         .from('profiles')
         .select('id, email, full_name')
         .in('role', ['broker', 'admin'])
+        .eq('tenant_id', txTenantId)
 
       const { data: uploaderProfile } = await admin
         .from('profiles')
