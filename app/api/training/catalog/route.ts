@@ -15,6 +15,7 @@
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, userClient } from '@/lib/security'
+import { roleMayAccessModule } from '@/lib/training/video-authorization'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,18 +29,38 @@ export async function GET(request: NextRequest) {
 
     const supabase = userClient(request)
 
-    const [{ data: modules }, { data: videos }, { data: progress }] = await Promise.all([
-      supabase.from('training_modules').select('*').order('sort_order'),
-      supabase.from('training_videos').select('*').order('sort_order'),
-      supabase
-        .from('training_video_progress')
-        .select('video_id, watched_seconds, completed')
-        .eq('user_id', user.id),
-    ])
+    const [{ data: modules }, { data: videos }, { data: progress }, { data: profile }] =
+      await Promise.all([
+        supabase.from('training_modules').select('*').order('sort_order'),
+        supabase.from('training_videos').select('*').order('sort_order'),
+        supabase
+          .from('training_video_progress')
+          .select('video_id, watched_seconds, completed')
+          .eq('user_id', user.id),
+        // Own row only — `profiles` RLS restricts the read to auth.uid(), and
+        // `authenticated` holds no UPDATE grant on profiles at all, so a
+        // caller cannot alter the role they are judged by. Reading it with
+        // userClient keeps the Sprint 8B anon-key + user-JWT design intact
+        // rather than reintroducing a service client here.
+        supabase.from('profiles').select('role').eq('id', user.id).single(),
+      ])
+
+    // AP-TRAINING-SIGN-1 — required_role is enforced HERE as well as in
+    // sign-video. sign-video is the security boundary (it is what turns a key
+    // into playable media); this filter keeps the portal from listing modules
+    // the caller cannot play and from handing out their r2_keys.
+    const role = (profile?.role as string) ?? null
+    const visibleModules = (modules || []).filter((m) =>
+      roleMayAccessModule((m as { required_role?: string[] | null }).required_role, role)
+    )
+    const visibleModuleIds = new Set(visibleModules.map((m) => (m as { id: string }).id))
+    const visibleVideos = (videos || []).filter((v) =>
+      visibleModuleIds.has((v as { module_id: string | null }).module_id ?? '')
+    )
 
     return NextResponse.json({
-      modules: modules || [],
-      videos: videos || [],
+      modules: visibleModules,
+      videos: visibleVideos,
       progress: progress || [],
     })
   } catch (err) {
