@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
 import { requireAuth, userClient } from '@/lib/security'
+import { normalizeStateCode, refuseIfNotAutomated } from '@/lib/jurisdiction'
 
 const inflateAsync = promisify(inflate)
 
@@ -314,7 +315,7 @@ function buildFieldValues(offer: any, buyer: any, agentProfile: any): Record<str
   const fullAddress = [
     offer.property_address,
     offer.property_city,
-    `${offer.property_state || 'FL'} ${offer.property_zip || ''}`
+    `${offer.property_state || ''} ${offer.property_zip || ''}`
   ].filter(Boolean).join(', ')
 
   return {
@@ -324,10 +325,15 @@ function buildFieldValues(offer: any, buyer: any, agentProfile: any): Record<str
     buyer_phone:        buyer.phone || '',
     property_address:   fullAddress || offer.property_address || '',
     property_city:      offer.property_city || '',
-    property_state:     offer.property_state || 'FL',
+    // PAPERWORK-JURISDICTION-2 — no silent 'FL' fallback: the POST handler
+    // refuses anything that is not already a Florida offer, so a blank here
+    // would mean the gate was bypassed and must not be papered over.
+    property_state:     offer.property_state || '',
     property_zip:       offer.property_zip || '',
     property_mls_id:    offer.property_mls_id || '',
-    property_county:    offer.property_county || 'Miami-Dade',
+    // Likewise: an unknown county is left blank for a human to complete
+    // rather than guessed as Miami-Dade.
+    property_county:    offer.property_county || '',
     offer_price:        offer.offer_price ? Number(offer.offer_price).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
     earnest_money:      offer.earnest_money_amount ? Number(offer.earnest_money_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
     financing_type:     (offer.financing_type || 'conventional').toUpperCase(),
@@ -386,6 +392,22 @@ export async function POST(request: NextRequest) {
     if (offer.agent_id !== user.id) {
       return NextResponse.json({ error: 'Not authorized for this offer' }, { status: 403 })
     }
+
+    // ── PAPERWORK-JURISDICTION-2 — jurisdiction gate ────────────────────
+    // Every contract_template and every field map below is a Florida
+    // Realtors / FAR-BAR artifact, and buildFieldValues used to default
+    // property_state to 'FL' and property_county to 'Miami-Dade'. An offer on
+    // a New Jersey property — or one with no state at all — was therefore
+    // silently stamped as Florida and handed a Florida contract. Refuse before
+    // any template is loaded, downloaded, filled or stored. GET is deliberately
+    // NOT gated: previously generated documents stay readable.
+    const refusal = refuseIfNotAutomated(offer.property_state)
+    if (refusal) {
+      return NextResponse.json(refusal, { status: 409 })
+    }
+    // Store the canonical code on the offer we pass downstream, so a PDF never
+    // prints "fl" or "Florida" where the form expects "FL".
+    offer.property_state = normalizeStateCode(offer.property_state)
 
     // ── Get agent profile ───────────────────────────────────────────────
     const { data: agentProfile } = await supabase
