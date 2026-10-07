@@ -19,3 +19,14 @@
 export function assessmentEntryEnabled(): boolean {
   return process.env.NEXT_PUBLIC_RING_SELLER_CERT_ASSESSMENT_ENABLED === "true";
 }
+
+/** COMM-1D — True when the Practice entry should offer the Voice Call channel
+ *  alongside Text Conversation. Off by default → the surface is TEXT-ONLY and
+ *  byte-identical to COMM-1C (no chooser, straight to Start Practice). The Vault
+ *  voice routes (practice/prepare|join|complete|result|transcript) are already
+ *  live and agent-capable; this flag only governs whether the Portal exposes the
+ *  voice entry. Set NEXT_PUBLIC_RING_VOICE_PRACTICE_ENABLED = "true" for a
+ *  controlled voice UAT. Independent of the assessment flag. */
+export function voicePracticeEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_RING_VOICE_PRACTICE_ENABLED === "true";
+}

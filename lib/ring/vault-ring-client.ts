@@ -210,6 +210,87 @@ export function getTextResult(
   return ringRequest(`/simulation/text/result?${q.toString()}`, { method: "GET" });
 }
 
+// ── Voice practice (COMM-1D) ──────────────────────────────────────────────────
+// The SAME channel-neutral learner backend as text, on the voice sibling routes.
+// prepare creates the session WITHOUT any provider call; join (called only after
+// the browser holds the microphone) mints the ephemeral Retell web-call token;
+// complete/result return the SAME coaching shape as text; transcript returns the
+// learner's own turns. This client never sends tenantId/learnerId/mode/
+// authoritative/outcome — identical spoof-surface discipline to the text client.
+
+/** /practice/prepare — identical learner-safe shape to text prepare. */
+export type VoicePrepareResult = TextPrepareResult;
+
+/** /practice/join — the ONLY secret-shaped field is accessToken (ephemeral,
+ *  ~30s TTL, used once by the browser SDK and never stored). transport/callId/
+ *  url/iceServers are RETELL V3 pass-through connection details, present only
+ *  when the provider sent them. Never the provider key or control secret. */
+export interface VoiceJoinMaterial {
+  sessionId: string;
+  accessToken: string;
+  scenarioLabel: string;
+  reused: boolean;
+  transport?: "livekit" | "gateway";
+  callId?: string;
+  url?: string;
+  iceServers?: Array<{ urls: string | string[]; username?: string; credential?: string }>;
+}
+
+export interface VoiceTranscriptTurn {
+  idx: number;
+  role: TextRole;
+  content: string;
+  confidence?: number | null;
+}
+export interface VoiceTranscript {
+  sessionId: string;
+  scenarioLabel: string;
+  turns: VoiceTranscriptTurn[];
+}
+
+export function prepareVoice(
+  certificationId: string,
+  level: RingLevel | null,
+): Promise<VoicePrepareResult> {
+  return ringRequest("/simulation/practice/prepare", jsonInit("POST", { level, certificationId }));
+}
+
+/** Mint the provider call. Call ONLY after the microphone is granted — the Vault
+ *  token dies ~30s after creation, so nothing may sit between this and connect. */
+export function joinVoice(certificationId: string, sessionId: string): Promise<VoiceJoinMaterial> {
+  return ringRequest("/simulation/practice/join", jsonInit("POST", { sessionId, certificationId }));
+}
+
+export function completeVoice(
+  certificationId: string,
+  sessionId: string,
+  retry = false,
+): Promise<CompletionResult> {
+  return ringRequest(
+    `/simulation/practice/${encodeURIComponent(sessionId)}/complete`,
+    jsonInit("POST", { retry, certificationId }),
+  );
+}
+
+export function getVoiceResult(certificationId: string, sessionId: string): Promise<ResultPoll> {
+  const q = new URLSearchParams({ certificationId });
+  return ringRequest(
+    `/simulation/practice/${encodeURIComponent(sessionId)}/result?${q.toString()}`,
+    { method: "GET" },
+  );
+}
+
+export function getVoiceTranscript(
+  certificationId: string,
+  sessionId: string,
+): Promise<VoiceTranscript> {
+  const q = new URLSearchParams({ certificationId });
+  return ringRequest(
+    `/simulation/practice/${encodeURIComponent(sessionId)}/transcript?${q.toString()}`,
+    { method: "GET" },
+  );
+}
+
 // ── Practice history ─────────────────────────────────────────────────────────
 
 export function getPracticeHistory(certificationId: string): Promise<PracticeHistory> {
