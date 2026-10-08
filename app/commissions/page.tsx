@@ -8,6 +8,15 @@ import Link from 'next/link'
 // full rationale. Same defect shape: previous code sent `Bearer <profile UUID>`
 // and rendered "No commissions found" on the resulting 401.
 import { authFetch } from '@/lib/supabase'
+// COMMISSION-CANONICAL-FORMULA-1 — "Your Amount" must be the figure Vault
+// would actually pay (net_commission), not agent_amount. See the module
+// header for why agent_amount could not be trusted here.
+import {
+  formatPayable,
+  totalPayable,
+  pendingCalculationCount,
+  PENDING_CALCULATION_LABEL,
+} from '@/lib/commissionPayable'
 
 export default function CommissionsPage() {
   const { user, loading, signOut } = useAuth()
@@ -80,7 +89,8 @@ export default function CommissionsPage() {
   }
 
   const totalGross = commissions.reduce((sum, c) => sum + (c.gross_commission || 0), 0)
-  const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
+  const totalEarned = totalPayable(commissions)
+  const pendingCalc = pendingCalculationCount(commissions)
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -113,6 +123,14 @@ export default function CommissionsPage() {
           <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-2">Your Earned Amount</h3>
             <p className="text-3xl font-bold">${totalEarned.toLocaleString()}</p>
+            {/* The total covers only calculated commissions. Saying so is the
+                point: a silently-short total is worse than a visible gap. */}
+            {pendingCalc > 0 && (
+              <p className="text-sm text-yellow-400 mt-2">
+                {pendingCalc} commission{pendingCalc === 1 ? '' : 's'} not yet
+                calculated — not included in this total.
+              </p>
+            )}
           </div>
         </div>
 
@@ -152,7 +170,15 @@ export default function CommissionsPage() {
                       <td className="px-6 py-3">{comm.transactions?.property_address || 'N/A'}</td>
                       <td className="px-6 py-3">{comm.transactions?.client_name || 'N/A'}</td>
                       <td className="px-6 py-3">${(comm.gross_commission || 0).toLocaleString()}</td>
-                      <td className="px-6 py-3 font-semibold">${(comm.agent_amount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-3 font-semibold">
+                        {formatPayable(comm) === PENDING_CALCULATION_LABEL ? (
+                          <span className="text-yellow-400 font-normal text-sm">
+                            {PENDING_CALCULATION_LABEL}
+                          </span>
+                        ) : (
+                          formatPayable(comm)
+                        )}
+                      </td>
                       <td className="px-6 py-3">
                         <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(comm.commission_status)}`}>
                           {comm.commission_status}

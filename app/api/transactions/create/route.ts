@@ -266,14 +266,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Auto-create commission record if contract price is provided
+    // Auto-create commission record if contract price is provided.
+    //
+    // COMMISSION-CANONICAL-FORMULA-1 — this path used to compute the split
+    // itself: `agentAmt = grossComm × agentSplit`, with no transaction fee at
+    // all. That was a THIRD commission formula. On a 400,000 deal at 3% and a
+    // 70% split it wrote agent_amount 8,400.00 where the Vault calculator
+    // produces 8,193.50 and where /api/commissions/pay would move 8,193.50 —
+    // and the row it wrote displayed 8,400.00 to the agent.
+    //
+    // This route now records only the INPUTS. The money is computed in
+    // exactly one place: Vault's /api/commissions/calculate, which reads the
+    // agent's own profile for the split tier, the per-deal fee and the annual
+    // cap — none of which this request body carries, and none of which a
+    // caller should be able to supply. agent_amount / brokerage_amount are
+    // NOT NULL in the schema, so they are seeded at 0.00 alongside an
+    // explicit `pending_calculation` status: the zero is not a figure, it is
+    // the absence of one, and the status is what says so. Vault's pay gate
+    // refuses any commission whose net_commission has not been calculated,
+    // so a row in this state cannot be paid.
     const price = contract_price ? parseFloat(contract_price) : 0
     if (price > 0) {
       const commRate = commission_rate_pct ? parseFloat(commission_rate_pct) : 3.0
       const agentSplit = agent_split_pct ? parseFloat(agent_split_pct) : 70.0
       const grossComm = price * (commRate / 100)
-      const agentAmt = grossComm * (agentSplit / 100)
-      const brokerageAmt = grossComm - agentAmt
       const referralAmt = referral_fee_pct ? grossComm * (parseFloat(referral_fee_pct) / 100) : 0
 
       await admin
@@ -284,8 +300,9 @@ export async function POST(request: NextRequest) {
           gross_commission: Math.round(grossComm * 100) / 100,
           commission_rate_pct: commRate,
           agent_split_pct: agentSplit,
-          agent_amount: Math.round(agentAmt * 100) / 100,
-          brokerage_amount: Math.round(brokerageAmt * 100) / 100,
+          commission_status: 'pending_calculation',
+          agent_amount: 0,
+          brokerage_amount: 0,
           referral_fee_amount: referralAmt > 0 ? Math.round(referralAmt * 100) / 100 : null,
         })
     }
