@@ -111,7 +111,12 @@ describe('CommissionsPage · auth + error/empty state', () => {
           {
             id: 'c1',
             gross_commission: 20000,
+            // COMMISSION-CANONICAL-FORMULA-1 — "Your Amount" is the PAYABLE
+            // figure (net_commission), not agent_amount. agent_amount is kept
+            // here, deliberately different, so the assertion below proves
+            // which field the cell reads.
             agent_amount: 15000,
+            net_commission: 13650,
             commission_status: 'paid',
             paid_at: '2026-11-01',
             transactions: { property_address: '9 Fidelity Pl', client_name: 'Jane Doe' },
@@ -124,6 +129,39 @@ describe('CommissionsPage · auth + error/empty state', () => {
     expect(screen.getByText('Jane Doe')).toBeInTheDocument()
     // $20,000 appears twice: total-gross summary card + the row's cell.
     expect(screen.getAllByText('$20,000').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('$15,000').length).toBeGreaterThanOrEqual(1)
+    // the payable amount, in the row AND the "Your Earned Amount" card
+    expect(screen.getAllByText('$13,650').length).toBeGreaterThanOrEqual(2)
+    // and NOT the figure this Portal's own create path would have written
+    expect(screen.queryByText('$15,000')).not.toBeInTheDocument()
+  })
+
+  // COMMISSION-CANONICAL-FORMULA-1
+  it('shows "Pending calculation" instead of a figure when none was calculated', async () => {
+    authFetchMock.mockResolvedValueOnce(
+      mkResp(200, {
+        commissions: [
+          {
+            id: 'c1',
+            gross_commission: 19500,
+            // exactly the shape this Portal's create path leaves behind: a
+            // seeded agent_amount and no calculated net_commission.
+            agent_amount: 13650,
+            net_commission: null,
+            commission_status: 'pending_calculation',
+            paid_at: null,
+            transactions: { property_address: '1 Pending Way', client_name: 'Ann Roe' },
+          },
+        ],
+      })
+    )
+    render(<CommissionsPage />)
+    await waitFor(() => expect(screen.getByText('1 Pending Way')).toBeInTheDocument())
+    expect(screen.getByText('Pending calculation')).toBeInTheDocument()
+    // the uncalculated row contributes nothing to the earned total...
+    expect(screen.queryByText('$13,650')).not.toBeInTheDocument()
+    // ...and the gap is stated rather than left as a silently short total
+    expect(
+      screen.getByText(/1 commission not yet\s+calculated/)
+    ).toBeInTheDocument()
   })
 })
