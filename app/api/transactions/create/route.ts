@@ -125,6 +125,25 @@ export async function POST(request: NextRequest) {
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 })
     }
+
+    // COMMISSION-REFERRAL-CANONICAL-1 — `referral_fee_pct` is written straight
+    // to the shared `transactions` table, and Vault's commission calculator
+    // reads it from there. Vault's own write paths both reject anything
+    // outside 0-100; this route applied no range check at all, so the Portal
+    // was the one way a 140% referral could reach the calculator. Same rule
+    // and same message as Vault, so a value cannot depend on which app was
+    // used to enter it.
+    let referralPct: number | null = null
+    if (referral_fee_pct !== undefined && referral_fee_pct !== null && referral_fee_pct !== '') {
+      const pct = parseFloat(referral_fee_pct)
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        return NextResponse.json(
+          { error: 'Referral fee percentage must be between 0 and 100' },
+          { status: 400 }
+        )
+      }
+      referralPct = pct
+    }
     // Enum-safe value actually written to transactions.type (no migration).
     const storedType = toEnumTransactionType(type)
 
@@ -223,7 +242,7 @@ export async function POST(request: NextRequest) {
         contract_date: contract_date || null,
         lease_term_months: lease_term_months ? parseInt(lease_term_months) : null,
         assignment_fee: assignment_fee ? parseFloat(assignment_fee) : null,
-        referral_fee_pct: referral_fee_pct ? parseFloat(referral_fee_pct) : null,
+        referral_fee_pct: referralPct,
         referral_party: referral_party?.trim() || null,
         notes: notes?.trim() || null,
         financing_type: financing_type || 'conventional',
@@ -290,8 +309,15 @@ export async function POST(request: NextRequest) {
       const commRate = commission_rate_pct ? parseFloat(commission_rate_pct) : 3.0
       const agentSplit = agent_split_pct ? parseFloat(agent_split_pct) : 70.0
       const grossComm = price * (commRate / 100)
-      const referralAmt = referral_fee_pct ? grossComm * (parseFloat(referral_fee_pct) / 100) : 0
 
+      // COMMISSION-REFERRAL-CANONICAL-1 — this route also computed the
+      // referral amount (`grossComm × pct`, unclamped) and wrote it. Vault now
+      // treats a stored `referral_fee_amount` as AUTHORITATIVE — it is the only
+      // way a flat-dollar referral can be expressed — so that multiply was
+      // quietly becoming the money, bypassing both the calculator and its
+      // clamp. The percentage is already recorded on the transaction above
+      // (`referral_fee_pct`), which is the input Vault's calculator reads; the
+      // amount is derived there, once, alongside every other figure on the row.
       await admin
         .from('commissions')
         .insert({
@@ -303,7 +329,6 @@ export async function POST(request: NextRequest) {
           commission_status: 'pending_calculation',
           agent_amount: 0,
           brokerage_amount: 0,
-          referral_fee_amount: referralAmt > 0 ? Math.round(referralAmt * 100) / 100 : null,
         })
     }
 

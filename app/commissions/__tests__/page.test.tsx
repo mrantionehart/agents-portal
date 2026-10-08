@@ -135,6 +135,56 @@ describe('CommissionsPage · auth + error/empty state', () => {
     expect(screen.queryByText('$15,000')).not.toBeInTheDocument()
   })
 
+  // COMMISSION-REFERRAL-CANONICAL-1 — an external referral comes off the gross
+  // before the fee and the split, so on a referral deal it is the largest
+  // single reason the payable figure sits below the gross. Showing the payable
+  // amount without it leaves an unexplained gap.
+  it('shows the referral deduction when a commission carries one', async () => {
+    authFetchMock.mockResolvedValueOnce(
+      mkResp(200, {
+        commissions: [
+          {
+            id: 'c1',
+            gross_commission: 12000,
+            referral_fee_amount: 3000,
+            net_commission: 6093.5,
+            commission_status: 'calculated',
+            paid_at: null,
+            transactions: { property_address: '789 Palm Drive', client_name: 'Ann Roe' },
+          },
+        ],
+      })
+    )
+    render(<CommissionsPage />)
+    await waitFor(() => expect(screen.getByText('789 Palm Drive')).toBeInTheDocument())
+    expect(screen.getByText('Referral Fee')).toBeInTheDocument()
+    expect(screen.getByText('-$3,000')).toBeInTheDocument()
+    // the payable figure is already net of the referral — not reduced twice
+    expect(screen.getAllByText('$6,093.5').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText('$3,093.5')).not.toBeInTheDocument()
+  })
+
+  it('hides the referral column entirely when no commission has one', async () => {
+    authFetchMock.mockResolvedValueOnce(
+      mkResp(200, {
+        commissions: [
+          {
+            id: 'c1',
+            gross_commission: 12000,
+            referral_fee_amount: null,
+            net_commission: 8193.5,
+            commission_status: 'calculated',
+            paid_at: null,
+            transactions: { property_address: '2 Bridge Way', client_name: 'Ann Roe' },
+          },
+        ],
+      })
+    )
+    render(<CommissionsPage />)
+    await waitFor(() => expect(screen.getByText('2 Bridge Way')).toBeInTheDocument())
+    expect(screen.queryByText('Referral Fee')).not.toBeInTheDocument()
+  })
+
   // COMMISSION-CANONICAL-FORMULA-1
   it('shows "Pending calculation" instead of a figure when none was calculated', async () => {
     authFetchMock.mockResolvedValueOnce(

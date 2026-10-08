@@ -80,3 +80,48 @@ describe('transactions/create — no local commission formula', () => {
     expect(src).toMatch(/if\s*\(\s*price\s*>\s*0\s*\)/)
   })
 })
+
+// ── COMMISSION-REFERRAL-CANONICAL-1 ──────────────────────────────────
+//
+// This route also computed the referral AMOUNT (`grossComm × pct`, unclamped)
+// and wrote it. Vault now treats a stored `referral_fee_amount` as
+// AUTHORITATIVE — it is the only way a flat-dollar referral is expressed — so
+// that multiply was quietly becoming the money, bypassing both the calculator
+// and its clamp. And `referral_fee_pct` went to the shared `transactions`
+// table with no range check, while both of Vault's own write paths reject
+// anything outside 0-100.
+
+describe('transactions/create — the referral is an input, not a computation', () => {
+  it('does not derive a referral amount', () => {
+    expect(src).not.toMatch(/const\s+referralAmt\s*=/)
+    expect(src).not.toMatch(/grossComm\s*\*\s*\(\s*parseFloat\(\s*referral_fee_pct/)
+  })
+
+  it('never writes referral_fee_amount — only Vault’s calculator may', () => {
+    expect(commissionInsert).not.toContain('referral_fee_amount')
+  })
+
+  it('still records the referral PERCENTAGE on the transaction', () => {
+    // the input Vault's calculator reads
+    expect(src).toMatch(/referral_fee_pct:\s*referralPct/)
+    expect(src).toMatch(/referral_party:\s*referral_party\?\.trim\(\)/)
+  })
+
+  it('rejects a percentage outside 0-100, with Vault’s own message', () => {
+    expect(src).toMatch(/pct\s*<\s*0\s*\|\|\s*pct\s*>\s*100/)
+    expect(src).toContain('Referral fee percentage must be between 0 and 100')
+  })
+
+  it('validates BEFORE any insert, so a bad percentage writes nothing', () => {
+    const guard = src.indexOf('Referral fee percentage must be between')
+    const insert = src.indexOf(".from('transactions')")
+    expect(guard).toBeGreaterThan(-1)
+    expect(insert).toBeGreaterThan(-1)
+    expect(guard).toBeLessThan(insert)
+  })
+
+  it('treats an absent percentage as null, not as zero', () => {
+    // a stored 0 would read as "a referral was considered and set to nothing"
+    expect(src).toMatch(/let referralPct: number \| null = null/)
+  })
+})
