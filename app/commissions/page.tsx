@@ -15,6 +15,7 @@ import {
   formatPayable,
   totalPayable,
   pendingCalculationCount,
+  referralDeduction,
   PENDING_CALCULATION_LABEL,
 } from '@/lib/commissionPayable'
 
@@ -91,6 +92,7 @@ export default function CommissionsPage() {
   const totalGross = commissions.reduce((sum, c) => sum + (c.gross_commission || 0), 0)
   const totalEarned = totalPayable(commissions)
   const pendingCalc = pendingCalculationCount(commissions)
+  const anyReferral = commissions.some((c) => referralDeduction(c) != null)
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -159,6 +161,14 @@ export default function CommissionsPage() {
                     <th className="px-6 py-3 text-left text-sm font-semibold">Property</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Client</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Gross Commission</th>
+                    {/* COMMISSION-REFERRAL-CANONICAL-1 — an external referral
+                        comes off the gross before the fee and the split, and
+                        is usually the largest single reason the payable figure
+                        is below the gross. The column only appears when some
+                        commission on screen actually carries one. */}
+                    {anyReferral && (
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Referral Fee</th>
+                    )}
                     <th className="px-6 py-3 text-left text-sm font-semibold">Your Amount</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Paid Date</th>
@@ -170,6 +180,13 @@ export default function CommissionsPage() {
                       <td className="px-6 py-3">{comm.transactions?.property_address || 'N/A'}</td>
                       <td className="px-6 py-3">{comm.transactions?.client_name || 'N/A'}</td>
                       <td className="px-6 py-3">${(comm.gross_commission || 0).toLocaleString()}</td>
+                      {anyReferral && (
+                        <td className="px-6 py-3 text-amber-400">
+                          {referralDeduction(comm) != null
+                            ? `-$${referralDeduction(comm)!.toLocaleString()}`
+                            : '—'}
+                        </td>
+                      )}
                       <td className="px-6 py-3 font-semibold">
                         {formatPayable(comm) === PENDING_CALCULATION_LABEL ? (
                           <span className="text-yellow-400 font-normal text-sm">

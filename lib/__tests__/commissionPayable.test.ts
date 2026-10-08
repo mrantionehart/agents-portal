@@ -5,6 +5,7 @@ import {
   payableAmount,
   totalPayable,
   pendingCalculationCount,
+  referralDeduction,
   formatPayable,
   PENDING_CALCULATION_LABEL,
 } from '../commissionPayable'
@@ -86,5 +87,54 @@ describe('formatPayable', () => {
     expect(formatPayable({ net_commission: null })).toBe(
       PENDING_CALCULATION_LABEL
     )
+  })
+})
+
+// ── COMMISSION-REFERRAL-CANONICAL-1 ──────────────────────────────────
+describe('referralDeduction', () => {
+  it('returns the referral taken off the gross', () => {
+    expect(referralDeduction({ referral_fee_amount: 3000 })).toBe(3000)
+  })
+
+  it('accepts a numeric column that arrives as a string', () => {
+    expect(referralDeduction({ referral_fee_amount: '3000.00' })).toBe(3000)
+  })
+
+  it('returns null when there is no referral', () => {
+    expect(referralDeduction({ referral_fee_amount: null })).toBeNull()
+    expect(referralDeduction({ referral_fee_amount: 0 })).toBeNull()
+    expect(referralDeduction({})).toBeNull()
+    expect(referralDeduction(null)).toBeNull()
+  })
+
+  it('never presents a negative as a deduction', () => {
+    // A stored negative is data we cannot explain; showing "-$-500" would
+    // misstate the agent's own figure.
+    expect(referralDeduction({ referral_fee_amount: -500 })).toBeNull()
+  })
+
+  it('returns null rather than NaN on an unparseable value', () => {
+    expect(referralDeduction({ referral_fee_amount: 'n/a' })).toBeNull()
+    expect(referralDeduction({ referral_fee_amount: Number.NaN })).toBeNull()
+  })
+
+  it('is independent of the payable amount', () => {
+    // An uncalculated commission can still carry a referral the create path
+    // recorded, and a calculated one can carry none.
+    const pending = { net_commission: null, referral_fee_amount: 3000 }
+    expect(payableAmount(pending)).toBeNull()
+    expect(referralDeduction(pending)).toBe(3000)
+
+    const noReferral = { net_commission: 8193.5, referral_fee_amount: null }
+    expect(payableAmount(noReferral)).toBe(8193.5)
+    expect(referralDeduction(noReferral)).toBeNull()
+  })
+
+  it('the referral is NOT subtracted again from the payable total', () => {
+    // net_commission is already net of the referral. Double-counting here
+    // would understate what the agent is owed.
+    const rows = [{ net_commission: 6093.5, referral_fee_amount: 3000 }]
+    expect(totalPayable(rows)).toBe(6093.5)
+    expect(totalPayable(rows)).not.toBe(6093.5 - 3000)
   })
 })

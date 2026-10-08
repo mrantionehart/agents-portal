@@ -21,6 +21,14 @@
 export interface PayableCommissionRow {
   net_commission?: number | string | null
   commission_status?: string | null
+  /**
+   * COMMISSION-REFERRAL-CANONICAL-1 — an external brokerage referral, taken
+   * off the GROSS before the transaction fee and the split. On a referral deal
+   * it is the single largest reason the payable figure sits below the gross,
+   * so showing the payable amount without it leaves an unexplained gap.
+   */
+  referral_fee_amount?: number | string | null
+  gross_commission?: number | string | null
 }
 
 /**
@@ -30,13 +38,10 @@ export interface PayableCommissionRow {
  */
 export function payableAmount(row: PayableCommissionRow | null | undefined): number | null {
   if (!row) return null
-  const raw = row.net_commission
   // PostgREST returns numeric columns as numbers, but a numeric(12,2) can
   // arrive as a string depending on the driver; accept both, reject anything
   // that is not a finite number once coerced.
-  const n = typeof raw === 'string' ? Number(raw) : raw
-  if (typeof n !== 'number' || !Number.isFinite(n)) return null
-  return n
+  return money(row.net_commission)
 }
 
 /** Sum of the payable amounts, skipping rows with no calculated figure. */
@@ -52,6 +57,26 @@ export function pendingCalculationCount(
   rows: ReadonlyArray<PayableCommissionRow>
 ): number {
   return rows.filter((r) => payableAmount(r) == null).length
+}
+
+/** A money column that may arrive as a number or a numeric string. */
+function money(raw: number | string | null | undefined): number | null {
+  const n = typeof raw === 'string' ? Number(raw) : raw
+  if (typeof n !== 'number' || !Number.isFinite(n)) return null
+  return n
+}
+
+/**
+ * The referral deducted from this commission's gross, or null when there is
+ * none. Never negative: a stored negative is data we cannot explain, and
+ * presenting it as a deduction would misstate the agent's own figure.
+ */
+export function referralDeduction(
+  row: PayableCommissionRow | null | undefined
+): number | null {
+  if (!row) return null
+  const n = money(row.referral_fee_amount)
+  return n != null && n > 0 ? n : null
 }
 
 export const PENDING_CALCULATION_LABEL = 'Pending calculation'
