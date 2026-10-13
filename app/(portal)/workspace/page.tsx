@@ -87,20 +87,55 @@ export default async function WorkspacePage() {
           }}
         />
       ) : (
-        <WorkspaceFromVault accessToken={session.access_token} vaultBase={vaultBase} />
+        <WorkspaceFromVault
+          accessToken={session.access_token}
+          vaultBase={vaultBase}
+          scope={await resolveWorkspaceScope(supabase, session.user.id)}
+        />
       )}
     </div>
   );
 }
 
+/**
+ * LEASE-WALKTHROUGH-1 — which Vault scope this caller should get.
+ *
+ * This was hardcoded to "mine", which filters transactions by
+ * agent_id = caller.id. For an agent that is correct. For a BROKER it means
+ * an empty workspace: brokers are not the assigned agent on anything, so they
+ * could never open a lease transaction, and therefore never reach
+ * Documents → Walkthrough.
+ *
+ * Vault has supported `?scope=office` for broker tier all along and refuses it
+ * for anyone else with a 403, so the tenant boundary and the role check both
+ * stay server-side. This only decides which of the two to ASK for; an
+ * unreadable role falls back to "mine", the narrower scope.
+ */
+const BROKER_TIER = new Set(["broker", "admin", "office_manager"]);
+
+async function resolveWorkspaceScope(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+): Promise<"mine" | "office"> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  const role = (data as { role?: string | null } | null)?.role ?? "";
+  return BROKER_TIER.has(role) ? "office" : "mine";
+}
+
 async function WorkspaceFromVault({
   accessToken,
+  scope,
   vaultBase,
 }: {
   accessToken: string;
+  scope: "mine" | "office";
   vaultBase: string;
 }) {
-  const result = await fetchWorkspaceFromVault({ accessToken, scope: "mine" });
+  const result = await fetchWorkspaceFromVault({ accessToken, scope });
   if (result.ok === true) {
     return <WorkspaceClient items={result.items} vaultBase={vaultBase} />;
   }

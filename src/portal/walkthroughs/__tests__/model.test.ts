@@ -376,3 +376,39 @@ describe("AP walkthrough panel · save / reload wiring", () => {
     expect(send).toContain("await loadOne(");
   });
 });
+
+describe("AP broker access · workspace scope (P0)", () => {
+  const page = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs.readFileSync(
+      path.join(process.cwd(), "app/(portal)/workspace/page.tsx"),
+      "utf-8",
+    );
+  })();
+
+  it("[APW-30] the page source is readable — anchor", () => {
+    expect(page.length).toBeGreaterThan(1000);
+    expect(page).toContain("fetchWorkspaceFromVault");
+  });
+
+  it("[APW-31] scope is DERIVED, not hardcoded to mine", () => {
+    // Hardcoding "mine" filters by agent_id = caller.id, so a broker saw an
+    // empty workspace and could never open a lease transaction — which is why
+    // Documents → Walkthrough was unreachable for brokers.
+    expect(page).not.toContain('scope: "mine" }');
+    expect(page).toContain("resolveWorkspaceScope");
+  });
+
+  it("[APW-32] broker tier gets office; everyone else keeps the narrower mine", () => {
+    const fn = page.slice(page.indexOf("const BROKER_TIER"), page.indexOf("async function WorkspaceFromVault"));
+    for (const role of ["broker", "admin", "office_manager"]) {
+      expect(fn).toContain(`"${role}"`);
+    }
+    // agent must NOT be in the broker set
+    expect(fn).not.toMatch(/"agent"/);
+    // and an unreadable role falls back to the narrower scope
+    expect(fn).toContain('? "office" : "mine"');
+  });
+});
