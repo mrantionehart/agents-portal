@@ -331,3 +331,48 @@ describe("AP walkthrough panel · review guards", () => {
     expect(code).toContain("/api/paperwork/walkthroughs");
   });
 });
+
+describe("AP walkthrough panel · save / reload wiring", () => {
+  const panel = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs.readFileSync(
+      path.join(process.cwd(), "src/portal/walkthroughs/WalkthroughsPanel.tsx"),
+      "utf-8",
+    );
+  })();
+
+  it("[APW-26] a successful save RE-READS from the server", () => {
+    // Otherwise the panel would show its own optimistic draft while the
+    // server holds something else — and the status, progress and `generated`
+    // flag it gates Send on all come from the server.
+    const save = panel.slice(panel.indexOf("const save ="), panel.indexOf("const generate ="));
+    expect(save).toContain("setDirty(false)");
+    expect(save).toContain("await loadOne(");
+    expect(save).toContain("await loadList()");
+  });
+
+  it("[APW-27] a FAILED save does not clear the dirty flag", () => {
+    // Clearing it on failure would tell the agent their work was saved when
+    // it was not.
+    const save = panel.slice(panel.indexOf("const save ="), panel.indexOf("const generate ="));
+    const failBranch = save.slice(save.indexOf("if (!res.ok)"));
+    expect(failBranch).toContain("return false");
+    expect(failBranch.slice(0, failBranch.indexOf("return false"))).not.toContain("setDirty(false)");
+  });
+
+  it("[APW-28] loading a walkthrough resets dirty and rehydrates from the server", () => {
+    const load = panel.slice(panel.indexOf("const loadOne ="), panel.indexOf("const edit ="));
+    for (const marker of ["setDraft(", "setCatalogue(", "setCandidates(", "setStatus(", "setGenerated(", "setEditable(", "setDirty(false)"]) {
+      expect(load).toContain(marker);
+    }
+  });
+
+  it("[APW-29] generate saves a dirty draft first, and send re-reads after", () => {
+    const gen = panel.slice(panel.indexOf("const generate ="), panel.indexOf("const send ="));
+    expect(gen).toContain("if (dirty && !(await save(false))) return");
+    const send = panel.slice(panel.indexOf("const send ="), panel.indexOf("const start ="));
+    expect(send).toContain("await loadOne(");
+  });
+});
