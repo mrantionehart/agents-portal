@@ -25,6 +25,14 @@ import {
   type Draft,
   type SignerCandidate,
   addAdditional,
+  addDamageRow,
+  addKeyRow,
+  addMeterRow,
+  clearUtility,
+  removeRow,
+  setAttendees,
+  setUtility,
+  updateRow,
   progressOf,
   removeAdditional,
   sectionProgress,
@@ -76,6 +84,11 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  // Inline confirmations, NOT window.confirm. A native dialog blocks the
+  // renderer, and this repo has already lost a verification run to exactly
+  // that: the dialog froze the page and the click that opened it timed out.
+  const [confirmSend, setConfirmSend] = useState(false)
+  const [confirmNewMode, setConfirmNewMode] = useState<'move_in' | 'move_out' | null>(null)
   const [newRoom, setNewRoom] = useState<Record<string, string>>({})
 
   const offered = shouldOfferWalkthroughs(transactionType)
@@ -194,8 +207,7 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
 
   const send = useCallback(async () => {
     if (!openId) return
-    const who = signers.map((s) => `${s.name} (${s.role_label})`).join(', ')
-    if (!window.confirm(`Send for signature to: ${who || 'nobody resolved'}?`)) return
+    setConfirmSend(false)
     setBusy('Sending…')
     try {
       const res = await authFetch(
@@ -212,7 +224,7 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
     } finally {
       setBusy(null)
     }
-  }, [openId, signers, loadOne, loadList])
+  }, [openId, loadOne, loadList])
 
   const start = useCallback(
     async (mode: 'move_in' | 'move_out', confirmNew = false) => {
@@ -224,14 +236,9 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
         })
         const body = await res.json().catch(() => ({}))
         if (res.status === 409 && body.requires_confirmation) {
-          if (
-            window.confirm(
-              `A completed ${modeLabel(mode)} walkthrough already exists. Record an additional one?`,
-            )
-          ) {
-            setBusy(null)
-            return start(mode, true)
-          }
+          // The server refuses a second walkthrough of a completed mode until
+          // asked twice. Surface it inline and let the agent decide.
+          setConfirmNewMode(mode)
           return
         }
         if (!res.ok) {
@@ -320,6 +327,33 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
         )}
       </div>
 
+      {confirmNewMode && (
+        <div className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+          A completed {modeLabel(confirmNewMode)} walkthrough already exists. Record an additional
+          one?
+          <span className="ml-2 inline-flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const m = confirmNewMode
+                setConfirmNewMode(null)
+                void start(m, true)
+              }}
+              className="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white hover:bg-amber-500"
+            >
+              Record another
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmNewMode(null)}
+              className="rounded border border-amber-500/50 px-2 py-0.5"
+            >
+              Cancel
+            </button>
+          </span>
+        </div>
+      )}
+
       {startable.length > 0 && (
         <div className="mt-3 flex gap-2">
           {startable.map((m) => (
@@ -371,6 +405,17 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="text-xs text-zinc-400">
+              Present
+              <input
+                type="text"
+                disabled={!editable}
+                placeholder="Names, comma separated"
+                value={draft.attendees.join(', ')}
+                onChange={(e) => edit((d) => setAttendees(d, e.target.value))}
+                className="ml-2 w-56 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+              />
             </label>
             {progress && (
               <span className="text-xs text-zinc-400">
@@ -513,6 +558,195 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
             )
           })}
 
+          {/* Keys / utilities / meters / damage — requirement-6 fields. The PDF
+              renders all of them, so a client that cannot enter them leaves a
+              section of the signed record permanently blank. */}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {/* Keys */}
+            <div className="rounded border border-zinc-800 p-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase text-zinc-400">
+                Keys &amp; access devices
+              </h4>
+              {draft.keys.map((k, i) => (
+                <div key={`k-${i}`} className="mb-1 flex items-center gap-1">
+                  <input
+                    type="text"
+                    disabled={!editable}
+                    placeholder="Key or device"
+                    value={k.label}
+                    onChange={(e) => edit((d) => updateRow(d, 'keys', i, { label: e.target.value }))}
+                    className="flex-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={!editable}
+                    title="Issued"
+                    value={k.issued}
+                    onChange={(e) =>
+                      edit((d) => updateRow(d, 'keys', i, { issued: Math.max(0, Number(e.target.value) || 0) }))
+                    }
+                    className="w-14 rounded border border-zinc-800 bg-zinc-900 px-1 py-1 text-[11px] text-zinc-200"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={!editable}
+                    title="Returned"
+                    value={k.returned}
+                    onChange={(e) =>
+                      edit((d) => updateRow(d, 'keys', i, { returned: Math.max(0, Number(e.target.value) || 0) }))
+                    }
+                    className="w-14 rounded border border-zinc-800 bg-zinc-900 px-1 py-1 text-[11px] text-zinc-200"
+                  />
+                  {editable && (
+                    <button type="button" onClick={() => edit((d) => removeRow(d, 'keys', i))} className="text-rose-400">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {editable && (
+                <button
+                  type="button"
+                  onClick={() => edit((d) => addKeyRow(d))}
+                  className="mt-1 text-[11px] text-amber-400 hover:text-amber-300"
+                >
+                  + Add a key
+                </button>
+              )}
+              <p className="mt-1 text-[10px] text-zinc-600">Issued / returned counts.</p>
+            </div>
+
+            {/* Utilities */}
+            <div className="rounded border border-zinc-800 p-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase text-zinc-400">Utilities</h4>
+              {catalogue.utilities.map((u) => {
+                const current = draft.utilities[u.value]
+                return (
+                  <div key={u.value} className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-zinc-300">{u.label}</span>
+                    <div className="flex gap-1">
+                      {catalogue.utility_statuses.map((st) => {
+                        const active = current?.status === st.value
+                        return (
+                          <button
+                            key={st.value}
+                            type="button"
+                            disabled={!editable}
+                            onClick={() =>
+                              edit((d) =>
+                                active
+                                  ? clearUtility(d, u.value)
+                                  : setUtility(d, u.value, { status: st.value }),
+                              )
+                            }
+                            className={`rounded border px-1.5 py-0.5 text-[10px] ${
+                              active
+                                ? 'border-zinc-500 bg-zinc-700 text-white'
+                                : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'
+                            } disabled:opacity-50`}
+                          >
+                            {st.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Meters */}
+            <div className="rounded border border-zinc-800 p-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase text-zinc-400">Meter readings</h4>
+              {draft.meters.map((m, i) => (
+                <div key={`m-${i}`} className="mb-1 flex items-center gap-1">
+                  <input
+                    type="text"
+                    disabled={!editable}
+                    placeholder="Meter"
+                    value={m.label}
+                    onChange={(e) => edit((d) => updateRow(d, 'meters', i, { label: e.target.value }))}
+                    className="flex-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                  <input
+                    type="text"
+                    disabled={!editable}
+                    placeholder="Reading"
+                    value={m.reading}
+                    onChange={(e) => edit((d) => updateRow(d, 'meters', i, { reading: e.target.value }))}
+                    className="w-24 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                  {editable && (
+                    <button type="button" onClick={() => edit((d) => removeRow(d, 'meters', i))} className="text-rose-400">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {editable && (
+                <button
+                  type="button"
+                  onClick={() => edit((d) => addMeterRow(d))}
+                  className="mt-1 text-[11px] text-amber-400 hover:text-amber-300"
+                >
+                  + Add a reading
+                </button>
+              )}
+            </div>
+
+            {/* Existing damage */}
+            <div className="rounded border border-zinc-800 p-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase text-zinc-400">Existing damage</h4>
+              <p className="mb-1 text-[10px] text-zinc-600">
+                Already present — recorded separately so it is not read as new.
+              </p>
+              {draft.existing_damage.map((dm, i) => (
+                <div key={`dm-${i}`} className="mb-1 flex items-center gap-1">
+                  <input
+                    type="text"
+                    disabled={!editable}
+                    placeholder="Location"
+                    value={dm.location}
+                    onChange={(e) =>
+                      edit((d) => updateRow(d, 'existing_damage', i, { location: e.target.value }))
+                    }
+                    className="w-28 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                  <input
+                    type="text"
+                    disabled={!editable}
+                    placeholder="What is damaged"
+                    value={dm.description}
+                    onChange={(e) =>
+                      edit((d) => updateRow(d, 'existing_damage', i, { description: e.target.value }))
+                    }
+                    className="flex-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                  />
+                  {editable && (
+                    <button
+                      type="button"
+                      onClick={() => edit((d) => removeRow(d, 'existing_damage', i))}
+                      className="text-rose-400"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {editable && (
+                <button
+                  type="button"
+                  onClick={() => edit((d) => addDamageRow(d))}
+                  className="mt-1 text-[11px] text-amber-400 hover:text-amber-300"
+                >
+                  + Add damage
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Signers */}
           <div className="mt-4 rounded border border-zinc-800 p-3">
             <h4 className="mb-1 text-xs font-semibold uppercase text-zinc-400">Who signs</h4>
@@ -604,14 +838,40 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
               >
                 {generated ? 'Re-generate PDF' : 'Generate PDF'}
               </button>
-              <button
-                type="button"
-                disabled={!!busy || blockers.length > 0}
-                onClick={() => void send()}
-                className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-40"
-              >
-                Send for signatures
-              </button>
+              {confirmSend ? (
+                <span className="inline-flex items-center gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
+                  Email {signers.length || 'no'} signer{signers.length === 1 ? '' : 's'}
+                  {signers.length > 0 && (
+                    <span className="text-amber-300">
+                      ({signers.map((s) => `${s.name} (${s.role_label})`).join(', ')})
+                    </span>
+                  )}
+                  ?
+                  <button
+                    type="button"
+                    onClick={() => void send()}
+                    className="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white hover:bg-amber-500"
+                  >
+                    Send
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmSend(false)}
+                    className="rounded border border-amber-500/50 px-2 py-0.5"
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!!busy || blockers.length > 0}
+                  onClick={() => setConfirmSend(true)}
+                  className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-40"
+                >
+                  Send for signatures
+                </button>
+              )}
               {blockers.length > 0 && (
                 <ul className="w-full list-disc pl-5 text-[11px] text-zinc-500">
                   {blockers.map((b) => (

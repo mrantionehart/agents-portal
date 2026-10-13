@@ -2,6 +2,14 @@
 // LEASE-WALKTHROUGH-1 — Agent Portal walkthrough model
 // ============================================================================
 import {
+  addDamageRow,
+  addKeyRow,
+  addMeterRow,
+  clearUtility,
+  removeRow,
+  setAttendees,
+  setUtility,
+  updateRow,
   type Catalogue,
   type Draft,
   type SignerCandidate,
@@ -38,7 +46,11 @@ const CATALOGUE: Catalogue = {
   ],
   representations: ["tenant", "landlord", "both"],
   utilities: [{ value: "electric", label: "Electric" }],
-  utility_statuses: ["tenant_responsible", "landlord_responsible", "not_applicable"],
+  utility_statuses: [
+    { value: "tenant_responsible", label: "Tenant" },
+    { value: "landlord_responsible", label: "Landlord" },
+    { value: "not_applicable", label: "N/A" },
+  ],
 };
 
 const draft = (): Draft => ({
@@ -218,5 +230,104 @@ describe("AP walkthrough model · entry rules", () => {
         { mode: "move_out", status: "in_progress" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("AP walkthrough model · requirement-6 fields", () => {
+  it("[APW-17] keys round-trip and delete", () => {
+    // These render in the PDF. A client that cannot enter them leaves a
+    // section of the signed record permanently blank — which is what the
+    // pre-merge review of PR #67 found.
+    let d = addKeyRow(draft());
+    d = updateRow(d, "keys", 0, { label: "Front door", issued: 2, returned: 1 });
+    expect(d.keys).toEqual([{ label: "Front door", issued: 2, returned: 1 }]);
+    d = removeRow(d, "keys", 0);
+    expect(d.keys).toEqual([]);
+  });
+
+  it("[APW-18] meters and existing damage round-trip", () => {
+    let d = addMeterRow(draft());
+    d = updateRow(d, "meters", 0, { label: "Electric", reading: "41022" });
+    expect(d.meters[0]).toEqual({ label: "Electric", reading: "41022" });
+    d = addDamageRow(d);
+    d = updateRow(d, "existing_damage", 0, { location: "Kitchen", description: "Chipped tile" });
+    expect(d.existing_damage[0]).toEqual({ location: "Kitchen", description: "Chipped tile" });
+  });
+
+  it("[APW-19] an out-of-range row edit is a no-op returning the SAME draft", () => {
+    const d = addKeyRow(draft());
+    expect(updateRow(d, "keys", 9, { label: "x" })).toBe(d);
+    expect(removeRow(d, "keys", 9)).toBe(d);
+  });
+
+  it("[APW-20] a utility needs a responsible party before it is recorded", () => {
+    let d = setUtility(draft(), "electric", { account: "123" });
+    expect(d.utilities.electric).toBeUndefined();
+    d = setUtility(d, "electric", { status: "tenant_responsible", account: "123" });
+    expect(d.utilities.electric).toEqual({ status: "tenant_responsible", account: "123" });
+    d = clearUtility(d, "electric");
+    expect(d.utilities.electric).toBeUndefined();
+  });
+
+  it("[APW-21] attendees parse from a comma list, dropping blanks", () => {
+    expect(setAttendees(draft(), " A Tenant , , B Agent ,").attendees).toEqual([
+      "A Tenant",
+      "B Agent",
+    ]);
+    expect(setAttendees(draft(), "").attendees).toEqual([]);
+  });
+});
+
+describe("AP walkthrough panel · review guards", () => {
+  const panel = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs.readFileSync(
+      path.join(process.cwd(), "src/portal/walkthroughs/WalkthroughsPanel.tsx"),
+      "utf-8",
+    );
+  })();
+
+  it("[APW-22] the panel source is readable — anchor for the scans below", () => {
+    // Without this, a renamed file would make every assertion below read "" and
+    // pass vacuously.
+    expect(panel.length).toBeGreaterThan(2000);
+    expect(panel).toContain("WalkthroughsPanel");
+  });
+
+  it("[APW-23] uses NO window.confirm", () => {
+    // A native dialog blocks the renderer. This repo has already lost a
+    // verification run to exactly that — the dialog froze the page and the
+    // click that opened it timed out. Confirmations are inline.
+    const code = panel.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(code).not.toContain("window.confirm");
+    expect(code).not.toContain("window.alert");
+  });
+
+  it("[APW-24] renders every requirement-6 field", () => {
+    // The PDF renders all of them; a panel that cannot enter them leaves a
+    // section of the signed record permanently blank.
+    //
+    // Collected rather than asserted one at a time because jest's expect()
+    // takes no message argument — that is a vitest idiom, and using it here
+    // silently broke this assertion on its first run.
+    const required = [
+      "Keys &amp; access devices",
+      "Utilities",
+      "Meter readings",
+      "Existing damage",
+      "Present",
+      "Comments",
+    ];
+    expect(required.filter((m) => !panel.includes(m))).toEqual([]);
+  });
+
+  it("[APW-25] never calls Vault directly — only the AP proxy routes", () => {
+    // A browser cannot reach Vault cross-origin, and a direct VAULT_API_URL
+    // here would also skip requireAuth at the edge.
+    const code = panel.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(code).not.toContain("VAULT_API_URL");
+    expect(code).toContain("/api/paperwork/walkthroughs");
   });
 });

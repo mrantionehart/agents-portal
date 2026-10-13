@@ -35,7 +35,9 @@ export interface Catalogue {
   ratings: { value: Rating; label: string }[];
   representations: string[];
   utilities: { value: string; label: string }[];
-  utility_statuses: string[];
+  /** value+label pairs, shipped by Vault so neither client invents its own
+   *  copy of "tenant_responsible ⇒ Tenant". */
+  utility_statuses: { value: string; label: string }[];
 }
 
 export interface ItemObservation {
@@ -254,4 +256,78 @@ export function startableModes(
     existing.filter((w) => w.status !== "signed" && w.status !== "voided").map((w) => w.mode),
   );
   return (["move_in", "move_out"] as const).filter((m) => !open.has(m));
+}
+
+// ── Keys / meters / existing damage / utilities ─────────────────────────────
+// Requirement 6 fields. The PDF renders all of them, so a client that cannot
+// enter them leaves a section of the signed record permanently blank.
+
+type ListKey = "keys" | "meters" | "existing_damage";
+
+export function addKeyRow(draft: Draft): Draft {
+  return { ...draft, keys: [...draft.keys, { label: "", issued: 0, returned: 0 }] };
+}
+
+export function addMeterRow(draft: Draft): Draft {
+  return { ...draft, meters: [...draft.meters, { label: "", reading: "" }] };
+}
+
+export function addDamageRow(draft: Draft): Draft {
+  return {
+    ...draft,
+    existing_damage: [...draft.existing_damage, { location: "", description: "" }],
+  };
+}
+
+export function updateRow<K extends ListKey>(
+  draft: Draft,
+  key: K,
+  index: number,
+  patch: Partial<Draft[K][number]>,
+): Draft {
+  const list = [...draft[key]] as Draft[K];
+  // Out of range is a no-op that returns the SAME draft, so a stale index from
+  // a row deleted in another tab cannot blank the form or force a re-render.
+  if (!list[index]) return draft;
+  list[index] = { ...list[index], ...patch };
+  return { ...draft, [key]: list } as Draft;
+}
+
+export function removeRow(draft: Draft, key: ListKey, index: number): Draft {
+  const list = [...draft[key]];
+  if (!list[index]) return draft;
+  list.splice(index, 1);
+  return { ...draft, [key]: list } as Draft;
+}
+
+/** A utility row needs a responsible party before it is recorded — a row that
+ *  says only "account 123" asserts nothing about who pays. */
+export function setUtility(
+  draft: Draft,
+  utility: string,
+  patch: { status?: string; account?: string; notes?: string },
+): Draft {
+  const prev = draft.utilities[utility];
+  const status = patch.status ?? prev?.status;
+  if (!status) return draft;
+  return {
+    ...draft,
+    utilities: { ...draft.utilities, [utility]: { ...prev, ...patch, status } },
+  };
+}
+
+export function clearUtility(draft: Draft, utility: string): Draft {
+  const utilities = { ...draft.utilities };
+  delete utilities[utility];
+  return { ...draft, utilities };
+}
+
+export function setAttendees(draft: Draft, raw: string): Draft {
+  return {
+    ...draft,
+    attendees: raw
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean),
+  };
 }
