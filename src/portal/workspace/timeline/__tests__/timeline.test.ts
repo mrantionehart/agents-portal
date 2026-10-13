@@ -1299,10 +1299,12 @@ describe("Workflow 3.3.1 boundary lint", () => {
     const apiDir = path.join(process.cwd(), "app", "api");
     if (fs.existsSync(apiDir)) {
       // W3.3.1 created no timeline route. AGENT.SIGN.1C intentionally added
-      // app/api/paperwork/checklist; guard nothing else under paperwork.
+      // app/api/paperwork/checklist and LEASE-WALKTHROUGH-1 added
+      // app/api/paperwork/walkthroughs (pure forwarders to Vault); guard
+      // nothing else under paperwork.
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
-        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist"]);
+        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist", "walkthroughs"]);
       }
       expect(fs.existsSync(path.join(apiDir, "timeline"))).toBe(false);
     }

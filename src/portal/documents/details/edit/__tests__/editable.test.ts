@@ -444,11 +444,15 @@ describe("Workflow 3.2.B.1 boundary lint", () => {
     const apiDir = path.join(process.cwd(), "app", "api");
     if (fs.existsSync(apiDir)) {
       // AGENT.SIGN.1C intentionally added app/api/paperwork/checklist (the
-      // Vault-powered checklist source). Guard that nothing ELSE was created
-      // under app/api/paperwork.
+      // Vault-powered checklist source). LEASE-WALKTHROUGH-1 intentionally
+      // added app/api/paperwork/walkthroughs — four forwarders with NO rules
+      // of their own; Vault owns the checklist, the validation, the duplicate
+      // guard and the signer rules, and a browser cannot reach it
+      // cross-origin. Guard that nothing ELSE was created under
+      // app/api/paperwork.
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
-        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist"]);
+        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist", "walkthroughs"]);
       }
     }
   });

@@ -424,6 +424,7 @@ export default async function TransactionWorkspacePage({
             activeFormInstanceId={activeFormInstanceId}
             activeFormDetail={activeFormDetail}
             coachRecommendation={resolvedCard.coach_recommendation ?? null}
+            transactionType={resolvedCard.transaction_type}
           />
         );
       case "timeline":

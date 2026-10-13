@@ -10,6 +10,7 @@
 import DocumentsPanel from "@/src/portal/documents/DocumentsPanel";
 import FormDetailDrawer from "@/src/portal/documents/details/FormDetailDrawer";
 import ChecklistTable from "@/src/portal/documents/checklist/ChecklistTable";
+import WalkthroughsPanel from "@/src/portal/walkthroughs/WalkthroughsPanel";
 import type { DocumentRow } from "@/src/portal/documents/types";
 import type { FormDetailBundle } from "@/src/portal/documents/details/types";
 import type { CoachRecommendation } from "@/src/portal/workspace/types";
@@ -27,6 +28,9 @@ export interface DocumentsTabProps {
   activeFormDetail: FormDetailBundle | null;
   /** AGENT.SIGN.1C — Coach recommendation for the checklist header. */
   coachRecommendation?: CoachRecommendation | null;
+  /** LEASE-WALKTHROUGH-1 — transactions.type. The walkthrough panel renders
+   *  nothing unless this is a lease. */
+  transactionType?: string | null;
 }
 
 export default function DocumentsTab({
@@ -39,6 +43,7 @@ export default function DocumentsTab({
   activeFormInstanceId,
   activeFormDetail,
   coachRecommendation,
+  transactionType,
 }: DocumentsTabProps) {
   return (
     <div className="relative space-y-6">
@@ -53,6 +58,12 @@ export default function DocumentsTab({
         paperworkPackageUrl={paperworkPackageUrl}
         transactionId={transactionId}
         activeFormId={activeFormId}
+      />
+      {/* LEASE-WALKTHROUGH-1 — renders nothing off a lease. Loads from its own
+          endpoint, so it is unaffected by whatever the documents fetch did. */}
+      <WalkthroughsPanel
+        transactionId={transactionId}
+        transactionType={transactionType}
       />
       {activeFormId && activeFormDocument && activeFormDetail && (
         <FormDetailDrawer
