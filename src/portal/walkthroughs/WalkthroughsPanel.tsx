@@ -77,6 +77,7 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [candidates, setCandidates] = useState<SignerCandidate[]>([])
   const [signers, setSigners] = useState<{ name: string; role_label: string }[]>([])
+  const [warnings, setWarnings] = useState<{ one_sided?: string | null; date?: string | null } | null>(null)
   const [status, setStatus] = useState('in_progress')
   const [generated, setGenerated] = useState(false)
   const [editable, setEditable] = useState(false)
@@ -88,6 +89,9 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
   // renderer, and this repo has already lost a verification run to exactly
   // that: the dialog froze the page and the click that opened it timed out.
   const [confirmSend, setConfirmSend] = useState(false)
+  // Vault's one-sided refusal, held so the agent can confirm it explicitly.
+  // NEVER auto-retried — doing so would make the server safeguard decorative.
+  const [oneSided, setOneSided] = useState<string | null>(null)
   const [confirmNewMode, setConfirmNewMode] = useState<'move_in' | 'move_out' | null>(null)
   const [newRoom, setNewRoom] = useState<Record<string, string>>({})
 
@@ -139,6 +143,7 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
         })),
       )
       setSigners(body.signers ?? [])
+      setWarnings(body.warnings ?? null)
       setStatus(body.walkthrough.status)
       setGenerated(!!body.walkthrough.generated)
       setEditable(!!body.walkthrough.editable)
@@ -205,26 +210,40 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
     }
   }, [openId, dirty, save, loadOne])
 
-  const send = useCallback(async () => {
-    if (!openId) return
-    setConfirmSend(false)
-    setBusy('Sending…')
-    try {
-      const res = await authFetch(
-        `/api/paperwork/walkthroughs/${openId}/send`,
-        { method: 'POST' },
-        30000,
-      )
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) setError(body.error || 'Could not send.')
-      else {
-        await loadOne(openId)
-        await loadList()
+  const send = useCallback(
+    async (confirmOneSided: boolean) => {
+      if (!openId) return
+      setConfirmSend(false)
+      setBusy('Sending…')
+      try {
+        const res = await authFetch(
+          `/api/paperwork/walkthroughs/${openId}/send`,
+          {
+            method: 'POST',
+            body: JSON.stringify(confirmOneSided ? { confirm_one_sided: true } : {}),
+          },
+          30000,
+        )
+        const body = await res.json().catch(() => ({}))
+        // Vault answers 409 + requires_confirmation:'one_sided' when only the
+        // tenant side or only the landlord side will sign. Surface it and stop;
+        // the agent has to say so before confirm_one_sided ever goes out.
+        if (res.status === 409 && body.requires_confirmation === 'one_sided') {
+          setOneSided(body.error || 'Only one side of the tenancy is set to sign.')
+          return
+        }
+        if (!res.ok) setError(body.error || 'Could not send.')
+        else {
+          setOneSided(null)
+          await loadOne(openId)
+          await loadList()
+        }
+      } finally {
+        setBusy(null)
       }
-    } finally {
-      setBusy(null)
-    }
-  }, [openId, loadOne, loadList])
+    },
+    [openId, loadOne, loadList],
+  )
 
   const start = useCallback(
     async (mode: 'move_in' | 'move_out', confirmNew = false) => {
@@ -424,6 +443,20 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
               </span>
             )}
             {dirty && <span className="text-xs font-semibold text-amber-400">Unsaved</span>}
+          </div>
+
+          {/* Server-computed warnings. Neither client decides what counts as
+              one-sided or how far ahead a date is suspicious. */}
+          <div className="mb-3 space-y-1">
+            {[warnings?.one_sided, warnings?.date].filter(Boolean).map((w) => (
+              <p
+                key={w as string}
+                className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200"
+              >
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {w}
+              </p>
+            ))}
           </div>
 
           {/* Sections */}
@@ -838,7 +871,30 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
               >
                 {generated ? 'Re-generate PDF' : 'Generate PDF'}
               </button>
-              {confirmSend ? (
+              {oneSided ? (
+                <span className="inline-flex flex-wrap items-center gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  {oneSided} Send it anyway?
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOneSided(null)
+                      // The agent said so. This is the ONLY path that confirms.
+                      void send(true)
+                    }}
+                    className="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white hover:bg-amber-500"
+                  >
+                    Send anyway
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOneSided(null)}
+                    className="rounded border border-amber-500/50 px-2 py-0.5"
+                  >
+                    Go back
+                  </button>
+                </span>
+              ) : confirmSend ? (
                 <span className="inline-flex items-center gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
                   Email {signers.length || 'no'} signer{signers.length === 1 ? '' : 's'}
                   {signers.length > 0 && (
@@ -849,7 +905,7 @@ export default function WalkthroughsPanel({ transactionId, transactionType }: Pr
                   ?
                   <button
                     type="button"
-                    onClick={() => void send()}
+                    onClick={() => void send(false)}
                     className="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white hover:bg-amber-500"
                   >
                     Send
