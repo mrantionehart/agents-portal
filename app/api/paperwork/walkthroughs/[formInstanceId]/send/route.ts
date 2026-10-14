@@ -12,6 +12,12 @@ export const fetchCache = 'force-no-store'
 // Pass-through. Vault refuses on its own terms — not generated yet, no
 // designated signers, already sent — and those messages are forwarded verbatim
 // because they are precisely what tells the agent what to do next.
+//
+// The body is forwarded too. Vault's one-sided safeguard answers 409 +
+// requires_confirmation:'one_sided' and only relents on
+// { confirm_one_sided: true }; a forwarder that dropped the body would turn
+// "Send anyway" into a button that 409s forever. This route does NOT invent
+// that flag — it only carries what the client sent.
 // ============================================================================
 
 export async function POST(
@@ -22,6 +28,7 @@ export async function POST(
     const auth = await requireAuth(request)
     if (auth.response) return auth.response
     const { formInstanceId } = await context.params
+    const body = await request.text().catch(() => '')
     const response = await fetch(
       `${VAULT_API_URL}/paperwork/walkthroughs/${encodeURIComponent(formInstanceId)}/send`,
       {
@@ -30,6 +37,7 @@ export async function POST(
           Authorization: request.headers.get('authorization') || '',
           'Content-Type': 'application/json',
         },
+        body: body || '{}',
         cache: 'no-store',
       },
     )

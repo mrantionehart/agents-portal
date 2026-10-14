@@ -412,3 +412,86 @@ describe("AP broker access · workspace scope (P0)", () => {
     expect(fn).toContain('? "office" : "mine"');
   });
 });
+
+describe("AP one-sided send confirmation", () => {
+  const panel = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs
+      .readFileSync(path.join(process.cwd(), "src/portal/walkthroughs/WalkthroughsPanel.tsx"), "utf-8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+  })();
+
+  it("[APW-33] the panel source is readable — anchor", () => {
+    expect(panel.length).toBeGreaterThan(2000);
+    expect(panel).toContain("WalkthroughsPanel");
+  });
+
+  it("[APW-34] the one-sided 409 is detected and NEVER auto-confirmed", () => {
+    // Auto-retrying would make Vault's safeguard decorative.
+    expect(panel).toContain("requires_confirmation === 'one_sided'");
+    expect(panel).toContain("send(false)");
+    const confirmSites = panel.match(/send\(true\)/g) ?? [];
+    expect(confirmSites).toHaveLength(1);
+    // and that one site sits behind an explicit click labelled as such
+    const idx = panel.indexOf("send(true)");
+    const before = panel.slice(Math.max(0, idx - 300), idx);
+    expect(before).toContain("onClick");
+    expect(panel).toContain("Send anyway");
+  });
+
+  it("[APW-35] the flag is only in the body when confirming", () => {
+    expect(panel).toContain("confirmOneSided ? { confirm_one_sided: true } : {}");
+  });
+
+  it("[APW-36] server-computed warnings are rendered, not recomputed", () => {
+    expect(panel).toContain("warnings?.one_sided");
+    expect(panel).toContain("warnings?.date");
+    // the client must not carry its own day threshold
+    expect(panel).not.toMatch(/DATE_WARN|30 days/);
+  });
+});
+
+describe("AP send forwarder carries the confirmation flag", () => {
+  const route = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs
+      .readFileSync(
+        path.join(
+          process.cwd(),
+          "app/api/paperwork/walkthroughs/[formInstanceId]/send/route.ts",
+        ),
+        "utf-8",
+      )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+  })();
+
+  it("[APW-37] the forwarder source is readable — anchor", () => {
+    expect(route).toContain("export async function POST");
+    expect(route).toContain("paperwork/walkthroughs/");
+  });
+
+  it("[APW-38] the client body reaches Vault", () => {
+    // A forwarder that dropped the body would make "Send anyway" 409 forever:
+    // Vault only relents on { confirm_one_sided: true }, which the client sends
+    // in the body and nowhere else.
+    expect(route).toMatch(/const body = await request\.text\(\)/);
+    const fetchCall = route.slice(route.indexOf("await fetch("));
+    expect(fetchCall).toMatch(/body:\s*body/);
+  });
+
+  it("[APW-39] the forwarder never invents the confirmation itself", () => {
+    expect(route).not.toContain("confirm_one_sided: true");
+    expect(route).not.toMatch(/confirm_one_sided\s*=/);
+  });
+
+  it("[APW-40] Vault's status is passed through verbatim, so 409 survives", () => {
+    expect(route).toMatch(/status:\s*response\.status/);
+    expect(route).not.toMatch(/status:\s*200/);
+  });
+});
