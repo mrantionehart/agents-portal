@@ -18,6 +18,12 @@ import {
   referralDeduction,
   PENDING_CALCULATION_LABEL,
 } from '@/lib/commissionPayable'
+// HFOS-P1 — the agent's own terms. Every figure is rendered verbatim from
+// Vault; this page performs no commission arithmetic of its own.
+import CompensationTerms, {
+  type CompensationPlan,
+  type CapProgress,
+} from '@/components/CompensationTerms'
 
 export default function CommissionsPage() {
   const { user, loading, signOut } = useAuth()
@@ -25,6 +31,9 @@ export default function CommissionsPage() {
   const [commissions, setCommissions] = useState<any[]>([])
   const [commsLoading, setCommsLoading] = useState(true)
   const [commsError, setCommsError] = useState<string | null>(null)
+  const [plan, setPlan] = useState<CompensationPlan | null>(null)
+  const [capProgress, setCapProgress] = useState<CapProgress | null>(null)
+  const [planError, setPlanError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -35,6 +44,7 @@ export default function CommissionsPage() {
   useEffect(() => {
     if (user) {
       fetchCommissions()
+      fetchCompensation()
     }
   }, [user])
 
@@ -60,6 +70,33 @@ export default function CommissionsPage() {
       setCommissions([])
     } finally {
       setCommsLoading(false)
+    }
+  }
+
+  const fetchCompensation = async () => {
+    try {
+      setPlanError(null)
+      const res = await authFetch('/api/vault/compensation')
+      if (!res.ok) {
+        // Say nothing rather than guess: a default plan shown to a founding
+        // agent is worse than an honest blank.
+        setPlanError(
+          res.status === 401
+            ? "We couldn't load your compensation terms — your session may have expired. Please refresh."
+            : `We couldn't load your compensation terms (Vault returned ${res.status}).`,
+        )
+        setPlan(null)
+        setCapProgress(null)
+        return
+      }
+      const data = await res.json()
+      setPlan(data?.plan ?? null)
+      setCapProgress(data?.capProgress ?? null)
+    } catch (error) {
+      console.error('Error fetching compensation:', error)
+      setPlanError("We couldn't load your compensation terms — network error.")
+      setPlan(null)
+      setCapProgress(null)
     }
   }
 
@@ -116,6 +153,8 @@ export default function CommissionsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        <CompensationTerms plan={plan} capProgress={capProgress} error={planError} />
+
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
