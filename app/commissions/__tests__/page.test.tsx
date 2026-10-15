@@ -26,6 +26,20 @@ jest.mock('@/lib/supabase', () => ({
 }))
 beforeEach(() => {
   authFetchMock.mockReset()
+  // HFOS-P1 — the page now fetches commissions AND compensation. The
+  // `...Once` queues in these tests land on the COMMISSIONS call, which is
+  // invoked first; without a default the compensation call received
+  // `undefined` and manufactured its own "couldn't load" banner, which the
+  // commissions assertions below then matched. This default answers it
+  // benignly (a null plan renders nothing) so each test still exercises only
+  // the commissions path it was written for.
+  authFetchMock.mockImplementation((url: string) =>
+    Promise.resolve(
+      url === '/api/vault/compensation'
+        ? mkResp(200, { plan: null, capProgress: null })
+        : mkResp(200, { commissions: [] }),
+    ),
+  )
   global.fetch = jest.fn()
 })
 
