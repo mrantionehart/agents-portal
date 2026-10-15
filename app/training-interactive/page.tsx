@@ -1306,13 +1306,23 @@ The agent who responds first usually wins. AI makes sure that's you.`,
       // Save to Supabase in background
       if (supabase && user) {
         try {
-          await supabase.from('training_progress').upsert({
-            user_id: user.id,
-            volume: currentVolume,
-            module: currentModule,
-            test_scores: updatedScores,
-            completed_modules: [...new Set(updatedCompleted)]
-          })
+          // HARTFELT-READY-GATE-FINAL — `onConflict` is REQUIRED. The table has
+          // UNIQUE (user_id, volume), but an upsert with no conflict target
+          // uses the primary key `id`; with no id supplied this ran as an
+          // INSERT, hit the unique violation, threw, and was swallowed below.
+          // So only the FIRST write for a volume ever landed and the row froze
+          // — which is why `completed_modules` in Prod disagrees with the quiz
+          // table, and why `final_exam_score` was never stored at all.
+          const { error: progressErr } = await supabase
+            .from('training_progress')
+            .upsert({
+              user_id: user.id,
+              volume: currentVolume,
+              module: currentModule,
+              test_scores: updatedScores,
+              completed_modules: [...new Set(updatedCompleted)]
+            }, { onConflict: 'user_id,volume' })
+          if (progressErr) throw progressErr
         } catch (err) {
           console.error('Failed to save progress:', err)
           // Still show success even if saving fails - data is in local state
@@ -1373,15 +1383,25 @@ The agent who responds first usually wins. AI makes sure that's you.`,
 
       if (supabase && user) {
         try {
-          await supabase.from('training_progress').upsert({
-            user_id: user.id,
-            volume: currentVolume,
-            volume_completed: true,
-            final_exam_score: score,
-            certification_date: today
-          })
+          const { error: certErr } = await supabase
+            .from('training_progress')
+            .upsert({
+              user_id: user.id,
+              volume: currentVolume,
+              volume_completed: true,
+              final_exam_score: score,
+              certification_date: today
+            }, { onConflict: 'user_id,volume' })
+          if (certErr) throw certErr
         } catch (err) {
+          // The score IS the certification evidence the onboarding gate reads.
+          // A swallowed failure here is how every `final_exam_score` in Prod
+          // came to be NULL, so tell the agent instead of pretending.
           console.error('Failed to save certification:', err)
+          setAlertMessage(
+            `⚠️ Score ${score}% passed, but it could not be saved. Tell your broker — your certification is not recorded yet.`
+          )
+          setShowAlert(true)
         }
       }
 
