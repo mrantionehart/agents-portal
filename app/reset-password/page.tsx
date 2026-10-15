@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+const MIN_PASSWORD_LENGTH = 12
+
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -36,8 +38,11 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError(null)
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    // HFOF-P2 — matches the project's Supabase Auth `password_min_length`,
+    // raised from 6 to 12. Validating below the provider's floor would show a
+    // generic GoTrue rejection instead of this message.
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
       return
     }
 
@@ -105,7 +110,7 @@ export default function ResetPasswordPage() {
                 placeholder="At least 6 characters"
                 className="w-full px-4 py-2 bg-[#111] border border-[#222] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 required
-                minLength={6}
+                minLength={MIN_PASSWORD_LENGTH}
               />
             </div>
 
@@ -118,7 +123,7 @@ export default function ResetPasswordPage() {
                 placeholder="Repeat your password"
                 className="w-full px-4 py-2 bg-[#111] border border-[#222] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                 required
-                minLength={6}
+                minLength={MIN_PASSWORD_LENGTH}
               />
             </div>
 

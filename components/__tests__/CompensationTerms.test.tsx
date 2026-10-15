@@ -110,3 +110,47 @@ describe('HFOS-P1 — CompensationTerms', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('HFOF-P1 — custom split overrides', () => {
+  it('marks a broker-authorized custom split and shows the effective figures', () => {
+    render(
+      <CompensationTerms
+        plan={plan({ agentSplitPct: 85, brokerageSplitPct: 15, splitSource: 'override' })}
+        capProgress={cap()}
+      />,
+    )
+    expect(screen.getByTestId('override-badge')).toHaveTextContent('Custom split')
+    expect(screen.getByText('85% / 15%')).toBeInTheDocument()
+    // the tier badge stays — the agent is still a Standard Agent on a custom split
+    expect(screen.getByTestId('tier-badge')).toHaveTextContent('Standard Agent')
+    expect(screen.queryByTestId('override-pending')).toBeNull()
+  })
+
+  it('shows no custom marker on the ordinary tier path', () => {
+    render(<CompensationTerms plan={plan({ splitSource: 'tier' })} capProgress={cap()} />)
+    expect(screen.queryByTestId('override-badge')).toBeNull()
+    expect(screen.getByText('70% / 30%')).toBeInTheDocument()
+  })
+
+  it('states an UNAUTHORIZED override instead of displaying it as in force', () => {
+    render(
+      <CompensationTerms
+        plan={plan({ splitSource: 'tier', splitOverrideRefusal: 'not_authorized', splitRequestedPct: 100 })}
+        capProgress={cap()}
+      />,
+    )
+    const pending = screen.getByTestId('override-pending')
+    expect(pending).toHaveTextContent('100%')
+    expect(pending).toHaveTextContent('has not been')
+    // the figure shown as effective is still the tier rate, never the request
+    expect(screen.getByText('70% / 30%')).toBeInTheDocument()
+    expect(screen.queryByText('100% / 0%')).toBeNull()
+    expect(screen.queryByTestId('override-badge')).toBeNull()
+  })
+
+  it('says nothing about overrides when there is no request at all', () => {
+    render(<CompensationTerms plan={plan()} capProgress={cap()} />)
+    expect(screen.queryByTestId('override-pending')).toBeNull()
+    expect(screen.queryByTestId('override-badge')).toBeNull()
+  })
+})

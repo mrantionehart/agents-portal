@@ -20,6 +20,12 @@ export interface CompensationPlan {
   brokerageSplitPct: number
   transactionFee: number
   annualCap: number
+  /** HFOF-P1 — 'override' when a broker-authorized custom split is in force.
+   *  agentSplitPct/brokerageSplitPct above are ALWAYS the effective figures. */
+  splitSource?: 'tier' | 'override'
+  /** Set when a percentage sits on the profile but did NOT apply. */
+  splitOverrideRefusal?: string | null
+  splitRequestedPct?: number | null
   waiver: {
     monthsTotal: number | null
     lastWaivedMonth: string | null
@@ -81,6 +87,14 @@ export default function CompensationTerms({
     >
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="text-lg font-semibold text-white">Your Compensation</h3>
+        {plan.splitSource === 'override' && (
+          <span
+            data-testid="override-badge"
+            className="px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30"
+          >
+            Custom split
+          </span>
+        )}
         <span
           data-testid="tier-badge"
           className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -97,7 +111,11 @@ export default function CompensationTerms({
         <Field
           label="Your split"
           value={`${plan.agentSplitPct}% / ${plan.brokerageSplitPct}%`}
-          note="you / brokerage"
+          note={
+            plan.splitSource === 'override'
+              ? 'you / brokerage · custom split'
+              : 'you / brokerage'
+          }
         />
         <Field label="Transaction fee" value={usd(plan.transactionFee)} note="per closing" />
         <Field
@@ -142,6 +160,13 @@ export default function CompensationTerms({
             />
           </div>
         </div>
+      )}
+
+      {plan.splitOverrideRefusal === 'not_authorized' && plan.splitRequestedPct != null && (
+        <p data-testid="override-pending" className="text-xs text-amber-400 mt-4">
+          A custom split of {plan.splitRequestedPct}% is on file but has not been
+          authorized by your broker, so your {plan.tierLabel} rate applies.
+        </p>
       )}
 
       <p className="text-xs text-zinc-500 mt-4">
