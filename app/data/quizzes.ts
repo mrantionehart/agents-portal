@@ -478,6 +478,80 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
   },
 
   // ═══════════════════════════════════════════
+  // VOLUME 1 M13 — EASE Training — Agent (m_v4_agent)
+  // Broker policy 2026-10-15: M13 is mandatory for HartFelt Ready; M11
+  // (Broker) and M12 (Admin) are excluded. The module's four lessons are
+  // video-only in `training_videos` (no objective_md / body_markdown), so
+  // every question below is drawn from the EASE agent build itself:
+  //   13.1 Welcome & Your Apps      -> ToolsMenuScreen agent tool grid
+  //   13.2 Leads & Deals            -> PIPELINE_STAGES, AddLeadScreen
+  //   13.3 Commissions & Training   -> CommissionCalcScreen earnings math
+  //   13.4 CMA, Compliance & Chat   -> ComplianceScreen STATUS_CONFIG
+  // ═══════════════════════════════════════════
+
+  vol1_m13: {
+    title: 'EASE Training — Agent Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v1m13q1',
+        question: 'In the EASE mobile app, which tab holds the Commission Calculator, Manual CMA and Compliance Tracker?',
+        options: [
+          { id: 'a', text: 'Dashboard' },
+          { id: 'b', text: 'Tools' },
+          { id: 'c', text: 'More' },
+          { id: 'd', text: 'Deals' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m13q2',
+        question: 'What is the correct order of the stages in the EASE deal pipeline?',
+        options: [
+          { id: 'a', text: 'Cultivate, Appointment, Active, Under Contract, Closed' },
+          { id: 'b', text: 'Appointment, Cultivate, Active, Closed, Under Contract' },
+          { id: 'c', text: 'Active, Cultivate, Appointment, Under Contract, Closed' },
+          { id: 'd', text: 'Cultivate, Active, Appointment, Closed, Under Contract' },
+        ],
+        correct: 'a',
+      },
+      {
+        id: 'v1m13q3',
+        question: 'When you add a lead in EASE, which field must be filled in before the lead will save?',
+        options: [
+          { id: 'a', text: 'Phone number' },
+          { id: 'b', text: 'Email address' },
+          { id: 'c', text: "The lead's name" },
+          { id: 'd', text: 'Budget' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m13q4',
+        question: 'In the EASE Commission Calculator, the agent/broker split percentage you choose is applied to:',
+        options: [
+          { id: 'a', text: 'The full commission on the sale' },
+          { id: 'b', text: 'One side of the commission (the listing side)' },
+          { id: 'c', text: 'The sale price of the property' },
+          { id: 'd', text: "The brokerage's share after its fees" },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m13q5',
+        question: 'You just uploaded a required document in the EASE Compliance Tracker. What status does it show?',
+        options: [
+          { id: 'a', text: 'Approved' },
+          { id: 'b', text: 'Pending' },
+          { id: 'c', text: 'Missing' },
+          { id: 'd', text: 'Rejected' },
+        ],
+        correct: 'b',
+      },
+    ],
+  },
+
+  // ═══════════════════════════════════════════
   // VOLUME 3 / AI Training (also mapped as vol3_m1 for legacy)
   // ═══════════════════════════════════════════
 
@@ -1181,7 +1255,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
 
 /**
  * Look up a quiz by volume and module number.
- * Volume 1: modules 1-10, Volume 2: modules 8-14, Volume 3 (AI): modules 1-8
+ * Volume 1: modules 1-10 and 13 (EASE Agent), Volume 2: modules 8-14, Volume 3 (AI): modules 1-8
  */
 export function getQuizForModule(volume: number, moduleNum: number): Quiz | null {
   return MODULE_QUIZZES[`vol${volume}_m${moduleNum}`] || null
