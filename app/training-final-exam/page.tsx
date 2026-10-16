@@ -14,7 +14,19 @@ interface Option { id: string; label: string }
 interface Question { id: string; prompt: string; options: Option[] }
 interface MissingModule { volume: number; moduleNum: number; title: string | null }
 
+interface Eligibility {
+  baseCap: number
+  extraGranted: number
+  effectiveCap: number
+  attemptsUsed: number
+  attemptsRemaining: number
+  mayAttempt: boolean
+  passed: boolean
+  needsBrokerGrant: boolean
+}
+
 interface ExamState {
+  eligibility: Eligibility
   quiz_id: string
   quiz_version: string
   pass_score: number
@@ -144,6 +156,24 @@ export default function FinalExamPage() {
     )
   }
 
+  if (!state.eligibility.mayAttempt && !state.eligibility.passed) {
+    // Out of attempts. The agent is told to speak to their broker — never
+    // shown a broker control, and never told how to obtain one themselves.
+    return (
+      <Shell>
+        <Note tone="error">
+          <strong>No attempts remaining.</strong> You have used all{' '}
+          {state.eligibility.effectiveCap} attempts at the final exam. Speak to your Broker of
+          Record, who can authorize one additional attempt.
+        </Note>
+        <p className="text-sm text-[#A1A1AA]">
+          Best score so far: {state.final_exam.bestScore ?? 0}%.
+        </p>
+        <Link href="/training" className="text-sm text-[#C9A84C] underline">Back to Training</Link>
+      </Shell>
+    )
+  }
+
   if (state.final_exam.passed) {
     return (
       <Shell>
@@ -165,6 +195,11 @@ export default function FinalExamPage() {
             {' '}Previous best: {state.final_exam.bestScore}% over {state.final_exam.attemptCount}{' '}
             attempt{state.final_exam.attemptCount === 1 ? '' : 's'}.
           </>
+        )}
+        {' '}You have {state.eligibility.attemptsRemaining} of {state.eligibility.effectiveCap}{' '}
+        attempt{state.eligibility.attemptsRemaining === 1 ? '' : 's'} left.
+        {state.eligibility.extraGranted > 0 && (
+          <> This includes one additional attempt authorized by your broker.</>
         )}
       </Note>
 
