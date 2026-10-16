@@ -23,6 +23,7 @@ import {
 import CompensationTerms, {
   type CompensationPlan,
   type CapProgress,
+  type CapBlock,
 } from '@/components/CompensationTerms'
 
 export default function CommissionsPage() {
@@ -33,6 +34,7 @@ export default function CommissionsPage() {
   const [commsError, setCommsError] = useState<string | null>(null)
   const [plan, setPlan] = useState<CompensationPlan | null>(null)
   const [capProgress, setCapProgress] = useState<CapProgress | null>(null)
+  const [cap, setCap] = useState<CapBlock | null>(null)
   const [planError, setPlanError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -87,16 +89,20 @@ export default function CommissionsPage() {
         )
         setPlan(null)
         setCapProgress(null)
+        setCap(null)
         return
       }
       const data = await res.json()
       setPlan(data?.plan ?? null)
       setCapProgress(data?.capProgress ?? null)
+      // Vault's authoritative projected-vs-actual block.
+      setCap(data?.cap ?? null)
     } catch (error) {
       console.error('Error fetching compensation:', error)
       setPlanError("We couldn't load your compensation terms — network error.")
       setPlan(null)
       setCapProgress(null)
+      setCap(null)
     }
   }
 
@@ -153,7 +159,7 @@ export default function CommissionsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <CompensationTerms plan={plan} capProgress={capProgress} error={planError} />
+        <CompensationTerms plan={plan} capProgress={capProgress} cap={cap} error={planError} />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
