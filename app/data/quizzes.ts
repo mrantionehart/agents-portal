@@ -57,12 +57,21 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
       },
       {
         id: 'v1m1q3',
+        // Answer key corrected TRUE -> FALSE on broker approval 2026-10-16.
+        // It had been keyed 'a' (True), which contradicts Module 1's own
+        // curriculum — "your process must be consistent, strategic, and rooted
+        // in service", `Preparation` and `Discipline` among the core values,
+        // and credibility built "through systems, communication, and
+        // presentation - not hype", where presentation is one input of three
+        // rather than above process. The quiz was also internally inconsistent:
+        // q1 above keys the process-led answer. Historical attempts and scores
+        // are untouched and NOT regraded.
         question: 'True or False: Presentation is more important than process at HartFelt.',
         options: [
           { id: 'a', text: 'True' },
           { id: 'b', text: 'False' },
         ],
-        correct: 'a',
+        correct: 'b',
       },
     ],
   },
