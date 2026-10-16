@@ -22,6 +22,7 @@ import TrainingHubClient from "@/src/portal/training/TrainingHubClient";
 import { loadTrainingHub } from "@/src/portal/training/loader";
 import type { HubTab } from "@/src/portal/training/types";
 import { BrokerCertPreviewSection } from "@/src/portal/tour/BrokerCertPreviewSection";
+import { FinalExamEntry } from "@/src/portal/training/FinalExamEntry";
 
 export default async function TrainingHubPage({
   searchParams,
@@ -75,6 +76,7 @@ export default async function TrainingHubPage({
 
   return (
     <Shell>
+      <FinalExamEntry />
       <TrainingHubClient
         training={result.training}
         scripts={result.scripts}
