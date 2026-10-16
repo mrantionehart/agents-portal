@@ -35,6 +35,30 @@ export interface CompensationPlan {
   }
 }
 
+/**
+ * HARTFELT-CAP-DASHBOARD-FINAL-1 — Vault's authoritative cap block, served by
+ * /api/agents/me/compensation. Every figure is Vault's; this component does no
+ * cap arithmetic, so the Portal cannot disagree with the Vault card or the
+ * statement.
+ *
+ * `actual_unavailable` means the receipt read FAILED. The verified figures are
+ * then null and we show an error — we never substitute the projected balance,
+ * because a forecast in the earned slot is the defect this replaces.
+ */
+export interface CapBlock {
+  cap_year: number
+  annual_cap: number
+  verified_contributions: number | null
+  remaining_annual_cap: number | null
+  projected_contributions: number
+  projected_not_yet_credited: number | null
+  cap_reached_actual: boolean | null
+  awaiting_verification_count: number
+  awaiting_verification_amount: number
+  last_verified_at: string | null
+  actual_unavailable: boolean
+}
+
 export interface CapProgress {
   cap_year: number
   annual_cap: number
@@ -44,6 +68,13 @@ export interface CapProgress {
   progress_pct: number | null
   source: string
 }
+
+/**
+ * Bar width, rounded to one decimal. An unrounded ratio renders as
+ * `7.199999999999999%` in the DOM, which is noise in a style attribute.
+ */
+const pctWidth = (part: number, whole: number) =>
+  whole > 0 ? Math.round(Math.max(0, Math.min(100, (part / whole) * 100)) * 10) / 10 : 0
 
 const usd = (n: number) =>
   `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
@@ -61,10 +92,13 @@ function Field({ label, value, note }: { label: string; value: string; note?: st
 export default function CompensationTerms({
   plan,
   capProgress,
+  cap,
   error,
 }: {
   plan: CompensationPlan | null
   capProgress: CapProgress | null
+  /** Vault's authoritative projected-vs-actual block. Preferred when present. */
+  cap?: CapBlock | null
   error?: string | null
 }) {
   if (error) {
@@ -138,29 +172,110 @@ export default function CompensationTerms({
         />
       </dl>
 
-      {capProgress && (
+      {cap ? (
+        <div className="mt-6 space-y-3" data-testid="cap-block">
+          {/* Verified Cap Contributions — the only earned figure. */}
+          <div>
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-zinc-300">
+                Verified Cap Contributions —{' '}
+                <span data-testid="cap-verified" className="font-semibold">
+                  {cap.verified_contributions != null
+                    ? usd(cap.verified_contributions)
+                    : '—'}
+                </span>
+              </span>
+              <span className="text-zinc-400">
+                Remaining Annual Cap{' '}
+                <span data-testid="cap-remaining" className="font-semibold">
+                  {cap.remaining_annual_cap != null
+                    ? usd(cap.remaining_annual_cap)
+                    : '—'}
+                </span>
+              </span>
+            </div>
+            <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                data-testid="cap-bar"
+                className={cap.cap_reached_actual ? 'h-2 bg-green-500' : 'h-2 bg-blue-500'}
+                // Tracks VERIFIED money only. An unreadable or absent figure is
+                // an empty bar, never a full one.
+                style={{
+                  width:
+                    cap.verified_contributions != null && cap.annual_cap > 0
+                      ? `${pctWidth(cap.verified_contributions, cap.annual_cap)}%`
+                      : '0%',
+                }}
+              />
+            </div>
+            {cap.last_verified_at && (
+              <p className="text-xs text-zinc-500 mt-1">
+                Last verified {new Date(cap.last_verified_at).toLocaleDateString()}.
+              </p>
+            )}
+          </div>
+
+          {cap.actual_unavailable && (
+            <p data-testid="cap-unavailable" className="text-xs text-amber-400">
+              We couldn&apos;t read your verified contributions, so none are
+              shown. The projected figure below is a forecast and is not a
+              substitute for it.
+            </p>
+          )}
+
+          {/* Projected — Not Yet Credited, and what is waiting on the broker. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+              <p className="text-xs text-zinc-500">Projected — Not Yet Credited</p>
+              <p data-testid="cap-projected" className="text-sm font-semibold text-zinc-200">
+                {usd(cap.projected_not_yet_credited ?? cap.projected_contributions)}
+              </p>
+              <p className="text-xs text-zinc-500">
+                Forecast only — does not count toward your cap.
+              </p>
+            </div>
+            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+              <p className="text-xs text-zinc-500">Awaiting Receipt Verification</p>
+              <p data-testid="cap-awaiting" className="text-sm font-semibold text-zinc-200">
+                {usd(cap.awaiting_verification_amount)}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {cap.awaiting_verification_count} receipt
+                {cap.awaiting_verification_count === 1 ? '' : 's'} with your broker.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            Only commission receipts your broker has verified count toward the{' '}
+            {cap.cap_year} cap.
+          </p>
+        </div>
+      ) : capProgress ? (
+        // No `cap` block from Vault (an older response). Show the projected
+        // figure LABELLED as projected rather than as "contributed" — the
+        // previous wording presented a forecast as earned money.
         <div className="mt-6">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-zinc-400">
-              Cap progress — {usd(capProgress.total_contributed)} contributed
+              Projected cap progress — {usd(capProgress.total_contributed)} projected
             </span>
             <span className="text-zinc-400">
-              {capProgress.cap_reached
-                ? 'Cap met'
-                : `${usd(capProgress.remaining_to_cap)} to cap`}
+              {usd(capProgress.remaining_to_cap)} to cap (forecast)
             </span>
           </div>
           <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
             <div
               data-testid="cap-bar"
-              className={capProgress.cap_reached ? 'h-2 bg-green-500' : 'h-2 bg-blue-500'}
-              // progress_pct is Vault's figure. null means uncapped, which is
-              // an empty bar, not 100%.
+              className="h-2 bg-zinc-600"
               style={{ width: `${Math.max(0, Math.min(100, capProgress.progress_pct ?? 0))}%` }}
             />
           </div>
+          <p className="text-xs text-zinc-500 mt-1">
+            Forecast only — verified contributions were not available.
+          </p>
         </div>
-      )}
+      ) : null}
 
       {plan.splitOverrideRefusal === 'not_authorized' && plan.splitRequestedPct != null && (
         <p data-testid="override-pending" className="text-xs text-amber-400 mt-4">
