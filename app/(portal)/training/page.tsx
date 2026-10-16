@@ -23,6 +23,7 @@ import { loadTrainingHub } from "@/src/portal/training/loader";
 import type { HubTab } from "@/src/portal/training/types";
 import { BrokerCertPreviewSection } from "@/src/portal/tour/BrokerCertPreviewSection";
 import { FinalExamEntry } from "@/src/portal/training/FinalExamEntry";
+import { BrokerExamAttemptGrants } from "@/src/portal/training/BrokerExamAttemptGrants";
 
 export default async function TrainingHubPage({
   searchParams,
@@ -86,6 +87,7 @@ export default async function TrainingHubPage({
         error={result.kind === "error" ? result.message : null}
       />
       <BrokerCertPreviewSection role={role} userId={session.user.id} />
+      <BrokerExamAttemptGrants role={role} />
     </Shell>
   );
 }
