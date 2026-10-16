@@ -18,6 +18,13 @@ module.exports = {
     // CommissionPayoutsCard lives under src/portal/settings and uses unique
     // classes (e.g. text-emerald-400) not otherwise emitted; scan it directly.
     './src/portal/settings/**/*.{js,ts,jsx,tsx,mdx}',
+    // TOUR — the LearnerTour overlay (TourRunner, TourProvider, cards) uses
+    // arbitrary-hex tokens (bg-[#0f1218], border-[#2b2f3a], bg-[#1a1210])
+    // and utilities (pointer-events-auto) that appear nowhere else in the
+    // scanned dirs. Without this glob those classes are purged from the
+    // shipped CSS, leaving the tour tooltip with no background/border —
+    // agents saw page content bleeding through the "invisible" tooltip.
+    './src/portal/tour/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
