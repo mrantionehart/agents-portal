@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientIp, withRateLimit } from '@/lib/security'
+import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 // Sprint 8B Phase 1: service role removed. Anon key + RLS now serve this
 // route. Policy anchor verified in Sprint 8B-P0.1:
@@ -77,6 +78,32 @@ export const GET = withRateLimit<{ slug: string }>(
       )
     }
 
+    // ── the approved marketing card ────────────────────────────────────
+    // Vault serves the agent's APPROVED card at a public, slug-addressed route
+    // that applies the same publication gate this query does, and 404s when
+    // there is no approved card.
+    //
+    // 🔑 Why a probe rather than a query. The select above is the ANON GRANT
+    // CONTRACT, and this route runs on the anonymous client — reading
+    // `agent_marketing_cards` here would mean granting anonymous SELECT on a
+    // table holding every agent's DRAFT cards. The probe needs no grant, no
+    // secret and no new trust: it asks the one route that is already allowed to
+    // answer, and a failure of any kind simply leaves the existing artwork in
+    // place.
+    const approvedCardUrl = `${VAULT_BASE_URL}/api/public/agent-card/${encodeURIComponent(profile.card_slug)}`
+    let cardImageUrl: string | null = profile.business_card_url
+    try {
+      // Bounded: a slow sibling must not hold a public page open. On timeout
+      // the uploaded artwork is used, which is what the page showed before.
+      const probe = await fetch(approvedCardUrl, {
+        method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(2500),
+      })
+      if (probe.ok) cardImageUrl = approvedCardUrl
+    } catch {
+      // Vault unreachable — keep the uploaded artwork. A public page must not
+      // break because a sibling service is down.
+    }
+
     // Only return public-safe fields
     return NextResponse.json({
       success: true,
@@ -87,7 +114,7 @@ export const GET = withRateLimit<{ slug: string }>(
         phone: profile.phone,
         bio: profile.bio,
         avatar_url: profile.avatar_url,
-        card_image_url: profile.business_card_url,
+        card_image_url: cardImageUrl,
         slug: profile.card_slug,
         social: {
           website: profile.website,
