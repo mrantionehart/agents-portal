@@ -178,6 +178,21 @@ function isMeetingRelatedType(t: string | null | undefined): boolean {
   return !!t && t.toLowerCase() === "meeting";
 }
 
+/**
+ * CRM follow-up relatedness. Vault sets related_type='crm_followup' with the
+ * TASK id in related_id.
+ *
+ * 🔑 THE TASK ID IS NOT ADDRESSABLE HERE. The Portal has no per-task route, so
+ * the link goes to the agent's own list. Vault's own `action_url` on these rows
+ * is `/client-intelligence/<leadId>` — a VAULT route that means nothing in this
+ * app, and which `isSafeInternalUrl` correctly refuses. One row, two apps, two
+ * route spaces: that is exactly why the related_type branch exists and why it
+ * does not trust the producer's URL.
+ */
+function isFollowupRelatedType(t: string | null | undefined): boolean {
+  return !!t && t.toLowerCase() === "crm_followup";
+}
+
 /** Whitelist of internal app routes we will follow as `action_url`.
  *  Anything else (including absolute URLs to external domains) is
  *  ignored to avoid letting Vault inject open redirects through the
@@ -202,6 +217,8 @@ function isSafeInternalUrl(url: string): boolean {
     "/notifications",
     "/ai",
     "/settings",
+    // AP-FOLLOWUPS-1 — My Follow-Ups.
+    "/follow-ups",
   ];
   return ALLOWED_PREFIXES.some((p) => url === p || url.startsWith(p + "/") || url.startsWith(p + "?"));
 }
@@ -230,6 +247,11 @@ export function linkTargetFor(n: NotificationRow): string | null {
     UUID_RE.test(n.related_id)
   ) {
     return `/meetings/${n.related_id}`;
+  }
+  // 1c. CRM follow-up → the agent's own list. Deliberately NOT related_id:
+  //     there is no per-task route in this app, and inventing one would 404.
+  if (isFollowupRelatedType(n.related_type)) {
+    return "/follow-ups";
   }
   // 2. Producer-provided action_url, ONLY if it points at an internal
   //    portal route. Vault could otherwise inject an external redirect.

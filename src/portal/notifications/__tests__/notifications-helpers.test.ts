@@ -332,3 +332,47 @@ describe("AP2.1F boundary lint — no realtime / no new APIs / no migrations / s
     expect(src).not.toMatch(/from\s+['"][^'"]*(sendgrid|twilio|onesignal|firebase\/messaging)/i);
   });
 });
+
+// ============================================================================
+// FOLLOWUP-NOTIFICATIONS-1 — a follow-up row must open something useful
+// ============================================================================
+describe('linkTargetFor — CRM follow-up rows', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    id: 'n1', user_id: 'u1', title: 'New follow-up assigned', body: 'x',
+    type: 'reminder', read_at: null, created_at: '2026-10-21T21:25:52Z',
+    related_type: 'crm_followup',
+    related_id: 'b45dbd65-21cb-411b-8e27-1e5021c4271f',
+    action_url: '/client-intelligence/b80b3152-019a-4198-8e0c-e6cac97224a1',
+    ...over,
+  }) as any
+
+  it('routes to the agent own list, not to a per-task route that does not exist', () => {
+    expect(linkTargetFor(row())).toBe('/follow-ups')
+  })
+
+  it.each(['CRM_FOLLOWUP', 'Crm_Followup'])('is case-insensitive (%s)', (t) => {
+    expect(linkTargetFor(row({ related_type: t }))).toBe('/follow-ups')
+  })
+
+  it('🔒 ignores Vault own action_url, which is a VAULT route', () => {
+    // `/client-intelligence/...` means nothing in the Portal. Following it
+    // would 404, and trusting producer URLs is the open-redirect hole the
+    // whitelist exists to close.
+    expect(linkTargetFor(row())).not.toContain('client-intelligence')
+  })
+
+  it('still links when related_id is absent — the list does not need it', () => {
+    expect(linkTargetFor(row({ related_id: null }))).toBe('/follow-ups')
+  })
+
+  it('a follow-up action_url pointing at /follow-ups is now whitelisted', () => {
+    expect(linkTargetFor(row({ related_type: null, action_url: '/follow-ups?bucket=overdue' })))
+      .toBe('/follow-ups?bucket=overdue')
+  })
+
+  it('🔒 an external action_url is still refused', () => {
+    expect(linkTargetFor(row({ related_type: null, action_url: 'https://evil.example/x' })))
+      .toBeNull()
+    expect(linkTargetFor(row({ related_type: null, action_url: '//evil.example' }))).toBeNull()
+  })
+})
