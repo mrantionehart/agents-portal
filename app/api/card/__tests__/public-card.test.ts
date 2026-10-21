@@ -236,3 +236,70 @@ describe('SEC.PR1 — vCard payload', () => {
     expect(vcard).toContain(`URL:${FIXTURE.website}`)
   })
 })
+
+// ============================================================================
+// The approved marketing card becomes the public hero
+// ============================================================================
+// Vault serves an agent's APPROVED card at a public, slug-addressed route and
+// 404s when there is none. The portal cannot simply READ that table: this route
+// runs on the anon client, and the select above is a column-grant contract — so
+// reading `agent_marketing_cards` would mean granting anonymous SELECT on a
+// table holding every agent's DRAFT cards. It probes the route instead.
+describe('approved marketing card on the public page', () => {
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch })
+
+  const probeWith = (impl: jest.Mock) => { global.fetch = impl as unknown as typeof fetch }
+  const body = async (slug = 'test-agent') => (await (await call(slug)).json()).data
+
+  it('uses the approved card as the hero when Vault has one', async () => {
+    probeWith(jest.fn(async () => ({ ok: true })))
+    const d = await body()
+    expect(d.card_image_url).toBe(
+      'https://hartfelt-vault.vercel.app/api/public/agent-card/test-agent',
+    )
+  })
+
+  it('probes the public route for THIS slug, with HEAD', async () => {
+    const f = jest.fn(async () => ({ ok: true }))
+    probeWith(f)
+    await body()
+    const [url, init] = f.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/api/public/agent-card/test-agent')
+    expect(init.method).toBe('HEAD')
+  })
+
+  // Requirement: no approved graphic → keep the layout that exists. Cole's and
+  // Mallory's pages depend on this, since their branded cards are uploads.
+  it('keeps the uploaded artwork when Vault has no approved card', async () => {
+    probeWith(jest.fn(async () => ({ ok: false })))
+    expect((await body()).card_image_url).toBe(FIXTURE.business_card_url)
+  })
+
+  // A public page must not break because a sibling service is down or slow.
+  it('keeps the uploaded artwork when Vault is unreachable', async () => {
+    probeWith(jest.fn(async () => { throw new Error('ECONNREFUSED') }))
+    expect((await body()).card_image_url).toBe(FIXTURE.business_card_url)
+  })
+
+  it('keeps the uploaded artwork when the probe times out', async () => {
+    probeWith(jest.fn(async () => { const e: any = new Error('timeout'); e.name = 'TimeoutError'; throw e }))
+    expect((await body()).card_image_url).toBe(FIXTURE.business_card_url)
+  })
+
+  it('bounds the probe rather than waiting indefinitely', async () => {
+    const f = jest.fn(async () => ({ ok: true }))
+    probeWith(f)
+    await body()
+    expect((f.mock.calls[0][1] as RequestInit).signal).toBeDefined()
+  })
+
+  // 🔒 The anon grant contract is untouched by any of this — the route must
+  // still not read the card table.
+  it('does not query agent_marketing_cards', async () => {
+    probeWith(jest.fn(async () => ({ ok: true })))
+    await body()
+    expect(selectedColumns).not.toContain('agent_marketing_cards')
+    expect(selectedColumns.split(',').map((c) => c.trim()).sort()).toEqual([...GRANTED_COLUMNS].sort())
+  })
+})
