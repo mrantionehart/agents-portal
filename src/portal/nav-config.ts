@@ -71,6 +71,10 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { id: "transactions", label: "Transactions",  icon: "list-checks",     href: "/workspace" },
   { id: "clients",      label: "Clients",       icon: "users",           href: "/clients" },
   { id: "buildings",    label: "Buildings",     icon: "building-2",      href: "/buildings" },
+  // AP-FOLLOWUPS-1 — the agent's own follow-ups, served by Vault. Placed
+  // AFTER Buildings on purpose: HOTFIX.AP.STR.001 pins Buildings to sit
+  // immediately after Clients, and two guards enforce it.
+  { id: "follow-ups",   label: "My Follow-Ups", icon: "calendar-clock",  href: "/follow-ups" },
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "meetings",     label: "Meetings",      icon: "calendar-clock",  href: "/meetings" },

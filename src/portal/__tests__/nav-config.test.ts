@@ -10,12 +10,13 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 12 documented items in order (COMM-1C adds The Ring between Notifications and Training)", () => {
+  it("ships the 13 documented items in order (AP-FOLLOWUPS-1 adds My Follow-Ups after Buildings)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
       "Clients",
       "Buildings",
+      "My Follow-Ups",
       "AI",
       "Calendar",
       "Meetings",
@@ -48,6 +49,19 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
     expect(m.href).toBe("/meetings");
     expect(m.icon).toBe("calendar-clock");
     expect(m.brokerOnly).toBeUndefined();
+  });
+
+  it("AP-FOLLOWUPS-1 — My Follow-Ups routes to /follow-ups, agent-visible, after Buildings", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    // Deliberately NOT between Clients and Buildings: HOTFIX.AP.STR.001 pins
+    // that adjacency and two guards enforce it.
+    expect(labels.indexOf("My Follow-Ups")).toBe(labels.indexOf("Buildings") + 1);
+    const f = NAV_ITEMS.find((i) => i.id === "follow-ups")!;
+    expect(f).toBeDefined();
+    expect(f.href).toBe("/follow-ups");
+    expect(f.icon).toBe("calendar-clock");
+    // An agent's own follow-ups — never broker-gated.
+    expect(f.brokerOnly).toBeUndefined();
   });
 
   it("HOTFIX.AP.STR.001 — Buildings sits immediately after Clients", () => {
