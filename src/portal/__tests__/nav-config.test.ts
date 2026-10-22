@@ -10,13 +10,14 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 13 documented items in order (AP-FOLLOWUPS-1 adds My Follow-Ups after Buildings)", () => {
+  it("ships the 14 documented items in order (DEVINTEL-P3I adds Developer Opportunities after My Follow-Ups)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
       "Clients",
       "Buildings",
       "My Follow-Ups",
+      "Developer Opportunities",
       "AI",
       "Calendar",
       "Meetings",
@@ -26,6 +27,25 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Library",
       "Settings",
     ]);
+  });
+
+  it("DEVINTEL-P3I — Developer Opportunities routes to /developer-opportunities, agent-visible, after My Follow-Ups", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    expect(labels.indexOf("Developer Opportunities")).toBe(labels.indexOf("My Follow-Ups") + 1);
+    const d = NAV_ITEMS.find((i) => i.id === "developer-opportunities")!;
+    expect(d.href).toBe("/developer-opportunities");
+    // Agent-visible: this is the agent's own assigned work, not broker tooling.
+    expect(d.brokerOnly).toBeUndefined();
+    // And it must NOT be the legacy Private Opportunities page.
+    expect(d.href).not.toBe("/opportunities");
+    expect(d.legacy).toBeUndefined();
+  });
+
+  it("[CRITICAL] Private Opportunities is untouched by DEVINTEL-P3I", () => {
+    // A different, unrelated feature. If it ever appears in NAV_ITEMS it must
+    // keep its own href; P3I must never have repointed or replaced it.
+    const priv = NAV_ITEMS.filter((i) => i.href === "/opportunities");
+    for (const p of priv) expect(p.label).not.toBe("Developer Opportunities");
   });
 
   it("COMM-1C — The Ring sits between Notifications and Training and points at /the-ring", () => {

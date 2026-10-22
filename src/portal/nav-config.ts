@@ -75,6 +75,14 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   // AFTER Buildings on purpose: HOTFIX.AP.STR.001 pins Buildings to sit
   // immediately after Clients, and two guards enforce it.
   { id: "follow-ups",   label: "My Follow-Ups", icon: "calendar-clock",  href: "/follow-ups" },
+  // DEVINTEL-P3I — developer relationships the broker has assigned to this
+  // agent, served entirely by Vault. Placed AFTER My Follow-Ups so the two
+  // pins already guarded stay intact: HOTFIX.AP.STR.001 keeps Buildings
+  // immediately after Clients, and COMM-1C keeps The Ring between
+  // Notifications and Training. Shares the building icon with Buildings —
+  // the icon union is closed, and widening it is a bigger change than this
+  // entry deserves.
+  { id: "developer-opportunities", label: "Developer Opportunities", icon: "building-2", href: "/developer-opportunities" },
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "meetings",     label: "Meetings",      icon: "calendar-clock",  href: "/meetings" },
