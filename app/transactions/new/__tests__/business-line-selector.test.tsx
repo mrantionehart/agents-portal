@@ -19,7 +19,9 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }))
 
-jest.mock('../../providers', () => ({
+// NOTE: jest.mock paths resolve relative to THIS test file (one dir deeper than
+// app/deals/__tests__), so the page's '../../providers' is '../../../providers' here.
+jest.mock('../../../providers', () => ({
   useAuth: () => ({
     user: { id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', email: 'a@x.co', role: 'agent' },
     role: 'agent',
@@ -29,7 +31,7 @@ jest.mock('../../providers', () => ({
 }))
 
 // Stub the sidebar (unrelated deps) so the page mounts in isolation.
-jest.mock('../../components/SidebarNav', () => ({
+jest.mock('../../../components/SidebarNav', () => ({
   __esModule: true,
   default: () => null,
 }))
