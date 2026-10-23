@@ -18,45 +18,34 @@ import {
 } from "../editable-fields";
 import { resolveCurrentValue } from "../value-resolver";
 
-describe("TERMS_PATH_ALLOWLIST_MIRROR — matches Vault byte-for-byte", () => {
-  // Parse the ENTIRE Vault TERMS_PATH_ALLOWLIST array (any prefix — lease,
-  // buyer_rep, …) and compare regex sources. Generalized so new allowlist
-  // families (e.g. buyer_rep) don't require test edits beyond the data.
-  async function vaultAllowlistSources(): Promise<string[]> {
-    const fs = await import("fs");
-    const path = await import("path");
-    const vaultSrc = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "..",
-        "vault",
-        "src",
-        "lib",
-        "paperwork",
-        "route-helpers.ts"
-      ),
-      "utf-8"
-    );
-    const block = vaultSrc.match(
-      /TERMS_PATH_ALLOWLIST:\s*ReadonlyArray<RegExp>\s*=\s*\[([\s\S]*?)\];/
-    );
-    if (!block) throw new Error("Could not locate Vault TERMS_PATH_ALLOWLIST");
-    return block[1]
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith("/"))
-      .map((l) => l.replace(/^\//, "").replace(/\/,?$/, ""));
-  }
-
-  it("has the same number of regexes as Vault", async () => {
-    const vault = await vaultAllowlistSources();
-    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(vault.length);
+// ── P4H-13 — this block used to read Vault off disk, and never ran ─────────
+// It parsed `process.cwd()/../vault/src/lib/paperwork/route-helpers.ts` and
+// compared regex sources. That sibling directory exists in no layout this repo
+// is cloned into, so the suite failed to the `vault` path rather than to a real
+// mismatch — and the drift it existed to prevent happened anyway: Vault gained
+// purchase.* and amendment_* and the mirror never followed.
+//
+// The sync is now asserted from inside each repo against one explicit
+// contract, so drift fails the CI of whichever repo drifted:
+//   this repo → __tests__/terms-allowlist-contract.test.ts
+//   Vault     → src/lib/paperwork/__tests__/terms-allowlist-contract.test.ts
+// The check below keeps a failing signal here if that file is ever deleted,
+// because removing the only running guard should not be quiet.
+describe("TERMS_PATH_ALLOWLIST_MIRROR — the sync guard exists and runs", () => {
+  it("the contract test is present in this suite directory", () => {
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    const here = path.join(__dirname, "terms-allowlist-contract.test.ts");
+    expect(fs.existsSync(here)).toBe(true);
+    const src = fs.readFileSync(here, "utf-8");
+    // It must compare the whole mirror, not spot-check a path.
+    expect(src).toContain("TERMS_PATH_ALLOWLIST_MIRROR.map((r) => r.source)");
   });
 
-  it("matches Vault's allowlist source on every regex string", async () => {
-    const vault = await vaultAllowlistSources();
-    const mirror = TERMS_PATH_ALLOWLIST_MIRROR.map((re) => re.source);
-    expect(mirror.sort()).toEqual(vault.sort());
+  it("and this file no longer depends on a sibling Vault checkout", () => {
+    const fs = require("fs") as typeof import("fs");
+    const src = fs.readFileSync(__filename, "utf-8");
+    expect(src).not.toMatch(/"vault",\s*$/m);
   });
 });
 
@@ -450,9 +439,19 @@ describe("Workflow 3.2.B.1 boundary lint", () => {
       // guard and the signer rules, and a browser cannot reach it
       // cross-origin. Guard that nothing ELSE was created under
       // app/api/paperwork.
+      //
+      // P4H-13 intentionally added app/api/paperwork/compliance-review — one
+      // GET forwarder with no rule of its own. Vault owns the verdict and
+      // decides which audience sees the approval card; a second place that
+      // could compute a verdict is a second place that could disagree with
+      // the first.
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
-        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist", "walkthroughs"]);
+        expect(fs.readdirSync(pwDir).sort()).toEqual([
+          "checklist",
+          "compliance-review",
+          "walkthroughs",
+        ]);
       }
     }
   });

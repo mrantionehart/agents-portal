@@ -46,6 +46,7 @@ import {
   severityTone,
 } from "./helpers";
 import FormEditableSection from "./edit/FormEditableSection";
+import ComplianceReviewPanel from "./ComplianceReviewPanel";
 
 export interface FormDetailDrawerProps {
   transactionId: string;
@@ -128,6 +129,17 @@ export default function FormDetailDrawer({
       </header>
 
       <div className="px-5 py-4 space-y-5">
+        {/* P4H-13 — the automatic compliance review, FIRST in the drawer.
+            It is what tells the agent whether this agreement can be submitted,
+            so it goes above the fields rather than below the audit history
+            where it would be found only by scrolling. Renders nothing for a
+            form Vault will not review. */}
+        <ComplianceReviewPanel
+          transactionId={transactionId}
+          formInstanceId={formInstanceId}
+          formId={document.form_id}
+        />
+
         {/* Section: Editable fields (Workflow 3.2.B.1, agent + broker) */}
         <FormEditableSection
           transactionId={transactionId}

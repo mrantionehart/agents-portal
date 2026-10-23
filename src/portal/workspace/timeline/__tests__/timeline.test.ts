@@ -1301,10 +1301,15 @@ describe("Workflow 3.3.1 boundary lint", () => {
       // W3.3.1 created no timeline route. AGENT.SIGN.1C intentionally added
       // app/api/paperwork/checklist and LEASE-WALKTHROUGH-1 added
       // app/api/paperwork/walkthroughs (pure forwarders to Vault); guard
-      // nothing else under paperwork.
+      // nothing else under paperwork. P4H-13 added compliance-review: one GET
+      // forwarder with no rule of its own (Vault owns the verdict).
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
-        expect(fs.readdirSync(pwDir).sort()).toEqual(["checklist", "walkthroughs"]);
+        expect(fs.readdirSync(pwDir).sort()).toEqual([
+          "checklist",
+          "compliance-review",
+          "walkthroughs",
+        ]);
       }
       expect(fs.existsSync(path.join(apiDir, "timeline"))).toBe(false);
     }
