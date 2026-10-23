@@ -27,6 +27,22 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^lease\.restrictions\.(smoking_allowed|business_use_allowed|subletting_allowed|alterations_allowed)$/,
   /^lease\.is_contract_to_lease$/,
   /^buyer_rep\.(effective_date|expiration_date|geographic_area|compensation_pct|compensation_flat_fee|brokerage_relationship)$/,
+  // ── Sync catch-up ──────────────────────────────────────────────────────
+  // Vault gained these and the mirror never followed, because the guard that
+  // was supposed to catch it read `../vault/src/...` — a sibling checkout that
+  // exists in no layout this repo is cloned into, so it never ran. The drift
+  // meant the editor silently offered fewer paths than PATCH /terms accepts.
+  // Both repos now assert the same explicit contract from inside their own
+  // suites; see __tests__/terms-allowlist-contract.test.ts.
+  /^purchase\.inspection\.period_days$/,
+  /^purchase\.appraisal\.(contingency_days|cure_window_days)$/,
+  /^purchase\.seller_financing\.(principal_amount|interest_rate|term_months)$/,
+  /^purchase\.buyer_property\.(address|target_close_date)$/,
+  /^amendment_(terms|date)$/,
+  // ── P4H-13 — rental listing (ERL-14) ───────────────────────────────────
+  /^listing\.(effective_date|listing_expiration_date|commission_pct|co_op_pct)$/,
+  /^listing\.rental\.rent_amount$/,
+  /^listing\.listing_kind$/,
 ];
 
 /** Roles whose contact fields the AGENT may complete in-portal via the
@@ -35,6 +51,17 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
 const AGENT_EDITABLE_PARTY_ROLES: ReadonlySet<string> = new Set([
   "buyer",
   "co_buyer",
+  // P4H-13 — on a rental listing the owner is the agent's own client and the
+  // person whose signing email the ERL needs, so withholding it here left the
+  // agent unable to complete a field their own rule asks them for. Vault's
+  // agent party PATCH already accepts any valid party role, so this only
+  // widens what the Portal OFFERS; it grants no new server capability.
+  //
+  // Seller and tenant stay out deliberately: the comment above this set is
+  // about party-portal work, and nothing in this release changes who completes
+  // a seller's or a tenant's contact details.
+  "landlord",
+  "co_landlord",
 ]);
 /** Contact columns the agent party-contact PATCH accepts. */
 const AGENT_EDITABLE_PARTY_FIELDS: ReadonlySet<string> = new Set([

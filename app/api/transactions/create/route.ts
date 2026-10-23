@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
     const validTypes = [
       'buyer', 'seller', 'lease', 'referral', 'wholesale', 'double_close', // legacy
       'purchase', 'listing', 'buyer_rep', 'commercial', // canonical wizard
+      'rental_listing', // P4H-13 — stores as 'listing' + terms.listing.listing_kind
     ]
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 })
@@ -226,6 +227,19 @@ export async function POST(request: NextRequest) {
         agent_id: targetAgentId,
         type: storedType,
         status: 'draft',
+        // P4H-13 — the marker that makes this listing a RENTAL one. Vault's
+        // rule engine reads terms.listing.listing_kind and uses it both ways:
+        // it is what requires ERL-14, and what keeps the sale instruments
+        // (ERS-20sa, EBLA-13, SPDR-4x) from firing on an agreement that has no
+        // seller, no list price and no Johnson v. Davis duty. Without it the
+        // transaction is an ordinary sale listing and the agent is blocked on
+        // three fields the ERL does not have.
+        //
+        // Written as a whole `terms` object because this route creates the row;
+        // merging is the PATCH paths' job.
+        ...(type === 'rental_listing'
+          ? { terms: { listing: { listing_kind: 'rental' } } }
+          : {}),
         property_address: property_address.trim(),
         city: city?.trim() || '',
         state: state?.trim() || '',

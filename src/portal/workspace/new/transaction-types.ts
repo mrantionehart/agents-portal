@@ -28,6 +28,7 @@ export type CanonicalTransactionType =
   | "purchase"
   | "lease"
   | "listing"
+  | "rental_listing"
   | "buyer_rep"
   | "commercial"
   | "wholesale"
@@ -45,6 +46,11 @@ export const TRANSACTION_TYPE_OPTIONS: ReadonlyArray<TransactionTypeOption> = [
   { id: "purchase", label: "Purchase", description: "Represent a buyer under contract to purchase", icon: Key },
   { id: "lease", label: "Lease", description: "Residential lease / rental", icon: Building2 },
   { id: "listing", label: "Listing", description: "Represent a seller listing a property", icon: Home },
+  // P4H-13 — distinct from both neighbours on purpose. `listing` is a SALE
+  // (seller, list price, buyer-broker co-op) and `lease` is the tenancy
+  // itself; an exclusive right to lease is neither, and it is signed before a
+  // tenant exists, so it cannot require one.
+  { id: "rental_listing", label: "Rental Listing", description: "Represent a landlord letting a property (Exclusive Right to Lease)", icon: Building2 },
   { id: "buyer_rep", label: "Buyer Rep", description: "Buyer representation agreement", icon: Handshake },
   { id: "commercial", label: "Commercial", description: "Commercial transaction", icon: Building },
   { id: "wholesale", label: "Wholesale", description: "Assignment / wholesale deal", icon: Layers },
