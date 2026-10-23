@@ -242,6 +242,7 @@ export async function POST(request: NextRequest) {
         agent_id: isAcquisition ? null : targetAgentId,
         prepared_by: isAcquisition ? user.id : null,
         business_line: businessLine,
+        business_line_verified: true, // explicit, post-migration classification
         type: storedType,
         status: 'draft',
         property_address: property_address.trim(),
