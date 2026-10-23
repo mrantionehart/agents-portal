@@ -20,9 +20,33 @@ export const fetchCache = 'force-no-store'
 // for "this form is not reviewable" must not be flattened into an empty pass.
 // ============================================================================
 
+/** GET — the deterministic review. Cannot reach a model; safe on a page load. */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ transactionId: string; formInstanceId: string }> },
+) {
+  return forward(request, context, 'GET')
+}
+
+/**
+ * POST — deterministic PLUS the optional semantic pass, run once and cached by
+ * Vault against the document checksum.
+ *
+ * A separate verb, mirroring Vault's own split, so the "no paid calls on a page
+ * load" property survives the hop: this proxy cannot turn a GET into a POST,
+ * and the submit action is the only caller.
+ */
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ transactionId: string; formInstanceId: string }> },
+) {
+  return forward(request, context, 'POST')
+}
+
+async function forward(
+  request: NextRequest,
+  context: { params: Promise<{ transactionId: string; formInstanceId: string }> },
+  method: 'GET' | 'POST',
 ) {
   try {
     const auth = await requireAuth(request)
@@ -32,7 +56,7 @@ export async function GET(
       `${VAULT_API_URL}/paperwork/transactions/${encodeURIComponent(transactionId)}` +
         `/documents/${encodeURIComponent(formInstanceId)}/compliance-review`,
       {
-        method: 'GET',
+        method,
         headers: { Authorization: request.headers.get('authorization') || '' },
         cache: 'no-store',
       },
