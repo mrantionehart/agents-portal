@@ -29,6 +29,7 @@ describe("TransactionTypeStep", () => {
       "Purchase",
       "Lease",
       "Listing",
+      "Rental Listing",
       "Buyer Rep",
       "Commercial",
       "Wholesale",
@@ -36,7 +37,8 @@ describe("TransactionTypeStep", () => {
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    expect(TRANSACTION_TYPE_OPTIONS).toHaveLength(7);
+    // P4H-13 — 8 after Rental Listing joined the 7.
+    expect(TRANSACTION_TYPE_OPTIONS).toHaveLength(8);
     // no legacy-only labels
     expect(screen.queryByText("Double Close")).not.toBeInTheDocument();
   });
@@ -46,11 +48,11 @@ describe("TransactionTypeStep", () => {
     const { rerender } = render(
       <TransactionTypeStep value={null} onSelect={onSelect} />
     );
-    fireEvent.click(screen.getByRole("radio", { name: /Listing/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Listing/ }));
     expect(onSelect).toHaveBeenCalledWith("listing");
 
     rerender(<TransactionTypeStep value="listing" onSelect={onSelect} />);
-    expect(screen.getByRole("radio", { name: /Listing/ })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: /^Listing/ })).toHaveAttribute(
       "aria-checked",
       "true"
     );

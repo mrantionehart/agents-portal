@@ -57,6 +57,13 @@ const CANONICAL_TO_ENUM_TYPE: Record<string, string> = {
   purchase: 'buyer', // enum has no 'purchase' → buyer-side (FAR-BAR via mapper)
   commercial: 'buyer', // enum has no 'commercial' → buyer-side fallback
   listing: 'listing',
+  // P4H-13 — a RENTAL listing (Florida Realtors ERL-14): the owner engages the
+  // brokerage to find a TENANT. It stores as the existing `listing` enum value
+  // and is distinguished downstream by terms.listing.listing_kind = 'rental',
+  // deliberately rather than a new enum member: transactions.type is
+  // CHECK-constrained, and a migration plus three coordinated deploys is a
+  // heavy way to say "this listing is a rental".
+  rental_listing: 'listing',
   buyer_rep: 'buyer_rep',
   lease: 'lease',
   wholesale: 'wholesale',

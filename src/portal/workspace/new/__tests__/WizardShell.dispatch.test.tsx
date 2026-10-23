@@ -63,8 +63,8 @@ it("dispatches the real TransactionTypeStep on the first step", async () => {
 it("selecting a type updates the live session (radio becomes checked)", async () => {
   render(<WizardShell />);
   await screen.findByTestId("wizard-step-type");
-  fireEvent.click(screen.getByRole("radio", { name: /Listing/ }));
-  expect(screen.getByRole("radio", { name: /Listing/ })).toHaveAttribute(
+  fireEvent.click(screen.getByRole("radio", { name: /^Listing/ }));
+  expect(screen.getByRole("radio", { name: /^Listing/ })).toHaveAttribute(
     "aria-checked",
     "true"
   );

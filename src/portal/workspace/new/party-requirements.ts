@@ -30,6 +30,10 @@ export const REQUIRED_PARTIES_BY_TYPE: Record<
   purchase: [{ role: "buyer", label: "Buyer" }],
   buyer_rep: [{ role: "buyer", label: "Buyer" }],
   listing: [{ role: "seller", label: "Seller" }],
+  // P4H-13 — the landlord is the party who GRANTS the exclusive right, so
+  // they are required. A tenant is deliberately NOT required: the agreement is
+  // signed to go and find one.
+  rental_listing: [{ role: "landlord", label: "Landlord / owner" }],
   lease: [
     { role: "landlord", label: "Landlord" },
     { role: "tenant", label: "Tenant" },
