@@ -43,6 +43,18 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^listing\.(effective_date|listing_expiration_date|commission_pct|co_op_pct)$/,
   /^listing\.rental\.rent_amount$/,
   /^listing\.listing_kind$/,
+  // ── P4H-13 — the rest of ERL-14 ────────────────────────────────────────
+  // Mirrors Vault's TERMS_PATH_ALLOWLIST. Each path is declared in Vault's
+  // erl14-terms-map.ts against the blank or election it fills; nothing here
+  // is wider than that map accounts for. The election paths carry a value
+  // that selects a checkbox and have NO default — the broker chooses.
+  /^listing\.rental\.(rent_basis|season_from|season_to)$/,
+  /^listing\.rental\.(advance_rent|security_deposit|pet_deposit)$/,
+  /^listing\.rental\.(credit_report_fee|association_application_fee)$/,
+  /^listing\.compensation\.(rent_period_pct|gross_value_pct|first_month_pct|other)$/,
+  /^listing\.compensation\.(payment_timing|remit_days|payment_days|other_terms)$/,
+  /^listing\.brokerage_relationship$/,
+  /^listing\.owners\.[01]\.(name|email|phone|address)$/,
 ];
 
 /** Roles whose contact fields the AGENT may complete in-portal via the
