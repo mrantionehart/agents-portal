@@ -55,6 +55,11 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^listing\.compensation\.(payment_timing|remit_days|payment_days|other_terms)$/,
   /^listing\.brokerage_relationship$/,
   /^listing\.owners\.[01]\.(name|email|phone|address)$/,
+  // §8 — "check all that apply", so three independent toggles. (c) is never
+  // written on the brokerage's behalf: the form deems it selected by silence.
+  /^listing\.tenant_broker\.(offer_from_broker|offer_from_owner|no_offer)$/,
+  /^listing\.tenant_broker\.from_(broker|owner)\.(gross_value_pct|first_month_pct|flat_amount)$/,
+  /^listing\.legal_description$/,
 ];
 
 /** Roles whose contact fields the AGENT may complete in-portal via the

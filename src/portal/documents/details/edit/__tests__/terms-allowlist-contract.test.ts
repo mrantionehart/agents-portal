@@ -53,6 +53,9 @@ const TERMS_ALLOWLIST_CONTRACT: readonly string[] = [
   "^listing\\.compensation\\.(payment_timing|remit_days|payment_days|other_terms)$",
   "^listing\\.brokerage_relationship$",
   "^listing\\.owners\\.[01]\\.(name|email|phone|address)$",
+  "^listing\\.tenant_broker\\.(offer_from_broker|offer_from_owner|no_offer)$",
+  "^listing\\.tenant_broker\\.from_(broker|owner)\\.(gross_value_pct|first_month_pct|flat_amount)$",
+  "^listing\\.legal_description$",
 ];
 
 describe("the mirror matches the contract", () => {
@@ -63,7 +66,7 @@ describe("the mirror matches the contract", () => {
   });
 
   it("[APTAC-2] the count is pinned — a silent addition cannot slip through", () => {
-    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(23);
+    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(26);
   });
 
   it("[APTAC-3] this guard needs NO sibling checkout, which is the whole point", () => {
