@@ -72,6 +72,15 @@ export interface RequiredFormSummary {
   drawerHref: string;
   /** Vault deep-link. */
   vaultHref: string;
+  /**
+   * P4H-13 — the form_instances row behind this summary, when one exists.
+   *
+   * DocumentRow already carries it (Vault's agent-document projection emits
+   * `form_instance_id: fi.id`), but the summary dropped it, so the only thing
+   * that could identify a specific document to review never reached the tab.
+   * Null for a rule-engine requirement with no instance yet.
+   */
+  form_instance_id: string | null;
 }
 
 export interface StatutoryItemSummary {
