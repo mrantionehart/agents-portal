@@ -126,6 +126,7 @@ function countInserts(table: string): number {
 function brokerCallerPayload(assignedAgentId?: string) {
   return {
     type: "buyer",
+    business_line: "brokerage", // P4H-14 — now required on every create
     property_address: "123 Test St",
     ...(assignedAgentId !== undefined ? { agent_id: assignedAgentId } : {}),
   };
@@ -330,6 +331,7 @@ describe("SEC · P0-18 · /api/transactions/create defense-in-depth", () => {
     };
     await call({
       type: "buyer",
+      business_line: "brokerage",
       agent_id: "u-agent",
       property_address: "456 Elm",
       city: "Miami",
@@ -402,6 +404,7 @@ describe("SEC · P0-18 · /api/transactions/create defense-in-depth", () => {
     // Agent caller tries to assign to a different agent id.
     await call({
       type: "buyer",
+      business_line: "brokerage",
       agent_id: "u-other-agent",
       property_address: "789 Palm",
     });

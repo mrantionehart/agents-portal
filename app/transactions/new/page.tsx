@@ -24,6 +24,7 @@ export default function NewTransactionPage() {
 
   const [form, setForm] = useState({
     type: '',
+    business_line: 'brokerage', // P4H-14 — brokerage | acquisition (explicit)
     agent_id: '',
     property_address: '',
     city: '',
@@ -143,6 +144,32 @@ export default function NewTransactionPage() {
             <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
+
+        {/* P4H-14 — Business Line (explicit, required, independent of type) */}
+        <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6 mb-6">
+          <h2 className="text-base font-bold text-white mb-4">Business Line</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { value: 'brokerage', label: 'Brokerage', hint: 'HartFelt Real Estate represents a client — commissions, splits & caps apply.' },
+              { value: 'acquisition', label: 'Acquisition', hint: 'HartFelt Holdings buys as principal — no agent commission, split, cap, or payout.' },
+            ].map(opt => {
+              const selected = form.business_line === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => updateField('business_line', opt.value)}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition ${
+                    selected ? 'border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]' : 'border-[#1a1a2e] bg-[#0a0a0f] text-gray-400 hover:border-[#2a2a3e]'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{opt.label}</span>
+                  <span className="block mt-1 text-xs text-gray-500">{opt.hint}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         {/* Transaction Type Selection */}
         <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-6 mb-6">
@@ -394,7 +421,7 @@ export default function NewTransactionPage() {
             </div>
 
             {/* GCI Preview */}
-            {form.contract_price && (
+            {form.contract_price && form.business_line === 'brokerage' && (
               <div className="bg-[#050507] rounded-lg p-4 border border-[#1a1a2e]">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Estimated GCI</p>
                 <div className="flex items-center gap-6">
