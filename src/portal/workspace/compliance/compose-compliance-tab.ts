@@ -256,6 +256,8 @@ function composeRequiredForms(
       reason: req?.reason ?? d.reason ?? null,
       drawerHref: formDrawerHref(i.card.transaction_id, d.form_id),
       vaultHref: d.open_in_vault_url,
+      // P4H-13 — carried through so the tab can name the document to review.
+      form_instance_id: d.form_instance_id ?? null,
     };
   });
 }

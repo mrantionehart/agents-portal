@@ -179,6 +179,50 @@ describe("composeComplianceTabState — readiness header", () => {
   });
 });
 
+describe("composeComplianceTabState — the form instance id survives", () => {
+  // P4H-13 — the composer is the only thing that moves form_instance_id from
+  // DocumentRow onto the summary the tab reads. The tab's own test builds its
+  // state fixture directly, so it CANNOT see this being dropped: the review
+  // would silently stop running in production while that test stayed green.
+  it("[WIRE-11] carries form_instance_id from the document row", () => {
+    const r = composeComplianceTabState(
+      base({
+        documents: [
+          makeDoc("ERL-14", { form_instance_id: "fi-1", has_instance: true }),
+        ],
+      })
+    );
+    const erl = r.requiredForms.find((f) => f.form_id === "ERL-14");
+    expect(erl).toBeTruthy();
+    expect(erl!.form_instance_id).toBe("fi-1");
+  });
+
+  it("[WIRE-12] null when the document has no instance, never undefined", () => {
+    const r = composeComplianceTabState(
+      base({ documents: [makeDoc("ERL-14")] })
+    );
+    const erl = r.requiredForms.find((f) => f.form_id === "ERL-14");
+    // Null rather than undefined so the resolver's `!!` check is meaningful
+    // and the field is present in every row.
+    expect(erl!.form_instance_id).toBeNull();
+  });
+
+  it("[WIRE-13] every summary row carries the field", () => {
+    const r = composeComplianceTabState(
+      base({
+        documents: [
+          makeDoc("ERL-14", { form_instance_id: "fi-1" }),
+          makeDoc("CDS-1"),
+        ],
+      })
+    );
+    expect(r.requiredForms).toHaveLength(2);
+    for (const f of r.requiredForms) {
+      expect("form_instance_id" in f).toBe(true);
+    }
+  });
+});
+
 describe("composeComplianceTabState — blockers", () => {
   it("surfaces statutory missing items", () => {
     const r = composeComplianceTabState(
