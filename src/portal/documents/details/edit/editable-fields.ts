@@ -48,13 +48,19 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   // erl14-terms-map.ts against the blank or election it fills; nothing here
   // is wider than that map accounts for. The election paths carry a value
   // that selects a checkbox and have NO default — the broker chooses.
-  /^listing\.rental\.(rent_basis|season_from|season_to)$/,
+  /^listing\.rental\.(rent_basis|season_from|season_to|current_lease_expires)$/,
   /^listing\.rental\.(advance_rent|security_deposit|pet_deposit)$/,
   /^listing\.rental\.(credit_report_fee|association_application_fee)$/,
   /^listing\.compensation\.(rent_period_pct|gross_value_pct|first_month_pct|other)$/,
-  /^listing\.compensation\.(payment_timing|remit_days|payment_days|other_terms)$/,
+  /^listing\.compensation\.(payment_timing|remit_days|payment_days|rent_payment_days|other_terms)$/,
   /^listing\.brokerage_relationship$/,
-  /^listing\.owners\.[01]\.(name|email|phone|address)$/,
+  // Vault's allowlist is the gate: a path it rejects fails AFTER the agent
+  // has typed it. ERL-14 carries ONE printed owner line and two signature
+  // slots, so a second owner has no name, phone or address blank — they sign
+  // as a transaction_party, which is where the envelope reads recipients
+  // from. Only the routing email exists for owners.1.
+  /^listing\.owners\.0\.(name|phone|address)$/,
+  /^listing\.owners\.[01]\.email$/,
   // §8 — "check all that apply", so three independent toggles. (c) is never
   // written on the brokerage's behalf: the form deems it selected by silence.
   /^listing\.tenant_broker\.(offer_from_broker|offer_from_owner|no_offer)$/,
