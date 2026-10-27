@@ -46,13 +46,14 @@ const TERMS_ALLOWLIST_CONTRACT: readonly string[] = [
   "^listing\\.(effective_date|listing_expiration_date|commission_pct|co_op_pct)$",
   "^listing\\.rental\\.rent_amount$",
   "^listing\\.listing_kind$",
-  "^listing\\.rental\\.(rent_basis|season_from|season_to)$",
+  "^listing\\.rental\\.(rent_basis|season_from|season_to|current_lease_expires)$",
   "^listing\\.rental\\.(advance_rent|security_deposit|pet_deposit)$",
   "^listing\\.rental\\.(credit_report_fee|association_application_fee)$",
   "^listing\\.compensation\\.(rent_period_pct|gross_value_pct|first_month_pct|other)$",
-  "^listing\\.compensation\\.(payment_timing|remit_days|payment_days|other_terms)$",
+  "^listing\\.compensation\\.(payment_timing|remit_days|payment_days|rent_payment_days|other_terms)$",
   "^listing\\.brokerage_relationship$",
-  "^listing\\.owners\\.[01]\\.(name|email|phone|address)$",
+  "^listing\\.owners\\.0\\.(name|phone|address)$",
+  "^listing\\.owners\\.[01]\\.email$",
   "^listing\\.tenant_broker\\.(offer_from_broker|offer_from_owner|no_offer)$",
   "^listing\\.tenant_broker\\.from_(broker|owner)\\.(gross_value_pct|first_month_pct|flat_amount)$",
   "^listing\\.legal_description$",
@@ -66,7 +67,7 @@ describe("the mirror matches the contract", () => {
   });
 
   it("[APTAC-2] the count is pinned — a silent addition cannot slip through", () => {
-    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(26);
+    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(27);
   });
 
   it("[APTAC-3] this guard needs NO sibling checkout, which is the whole point", () => {
