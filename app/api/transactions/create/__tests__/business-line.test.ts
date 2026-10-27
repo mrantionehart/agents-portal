@@ -99,7 +99,7 @@ describe("P4H-14 — business-line classification on create", () => {
     expect(inserts("transactions")).toHaveLength(0);
   });
 
-  it("acquisition (priced) → agentless + preparer, NO commission row", async () => {
+  it("acquisition (priced) → agent_id stays the creator (P7 anchor), NO commission row", async () => {
     PROFILE_SEQ = [{ data: { role: "agent", tenant_id: "tenant-A" }, error: null }];
     SCRIPTED["transactions.single"] = { data: { id: "txn-acq", business_line: "acquisition" }, error: null };
     const r = await call({
@@ -111,8 +111,10 @@ describe("P4H-14 — business-line classification on create", () => {
     expect(r.status).toBe(201);
     const t = txnInsert();
     expect(t?.business_line).toBe("acquisition");
-    expect(t?.agent_id).toBeNull();
-    expect(t?.prepared_by).toBe("u-agent");
+    // P7 reconciliation: acquisitions are NOT agentless — agent_id stays the
+    // creator (tenancy anchor); there is no prepared_by column.
+    expect(t?.agent_id).toBe("u-agent");
+    expect(t?.prepared_by).toBeUndefined();
     // The whole point: acquisitions spawn NO commission (no split/cap/payout).
     expect(inserts("commissions")).toHaveLength(0);
   });
@@ -130,13 +132,12 @@ describe("P4H-14 — business-line classification on create", () => {
     const t = txnInsert();
     expect(t?.business_line).toBe("brokerage");
     expect(t?.agent_id).toBe("u-agent");
-    expect(t?.prepared_by).toBeNull();
+    expect(t?.prepared_by).toBeUndefined();
     expect(inserts("commissions")).toHaveLength(1);
   });
 
-  it("office_manager may create an acquisition as preparer (agentless, no commission)", async () => {
-    AUTHED_USER = { id: "u-om" };
-    PROFILE_SEQ = [{ data: { role: "office_manager", tenant_id: "tenant-A" }, error: null }];
+  it("acquisition is excluded from the commission engine regardless of a price", async () => {
+    PROFILE_SEQ = [{ data: { role: "agent", tenant_id: "tenant-A" }, error: null }];
     SCRIPTED["transactions.single"] = { data: { id: "txn-om-acq", business_line: "acquisition" }, error: null };
     const r = await call({
       type: "double_close",
@@ -146,8 +147,8 @@ describe("P4H-14 — business-line classification on create", () => {
     });
     expect(r.status).toBe(201);
     const t = txnInsert();
-    expect(t?.agent_id).toBeNull();
-    expect(t?.prepared_by).toBe("u-om");
+    expect(t?.business_line).toBe("acquisition");
+    expect(t?.agent_id).toBe("u-agent");
     expect(inserts("commissions")).toHaveLength(0);
   });
 });

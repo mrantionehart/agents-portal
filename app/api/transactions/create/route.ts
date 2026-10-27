@@ -238,11 +238,12 @@ export async function POST(request: NextRequest) {
     const { data: transaction, error } = await admin
       .from('transactions')
       .insert({
-        // P4H-14: acquisitions carry NO selling agent; the creator is the preparer.
-        agent_id: isAcquisition ? null : targetAgentId,
-        prepared_by: isAcquisition ? user.id : null,
+        // P4H-14 (P7-reconciled): agent_id stays the creator/tenancy anchor for
+        // ALL lines (acquisitions are NOT agentless — that is the P7 invariant).
+        // The explicit business_line override is what excludes an acquisition
+        // from the commission engine; no prepared_by, no verified flag.
+        agent_id: targetAgentId,
         business_line: businessLine,
-        business_line_verified: true, // explicit, post-migration classification
         type: storedType,
         status: 'draft',
         property_address: property_address.trim(),
