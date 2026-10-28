@@ -127,6 +127,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 })
     }
 
+    // P4H-14 — explicit business line is REQUIRED, never inferred from type.
+    // brokerage → commissions/caps/payouts apply; acquisition → HartFelt
+    // Holdings principal purchase, none apply (no agent credit, no commission).
+    const businessLine =
+      body.business_line === 'brokerage' || body.business_line === 'acquisition'
+        ? body.business_line
+        : null
+    if (!businessLine) {
+      return NextResponse.json(
+        { error: "business_line is required and must be 'brokerage' or 'acquisition'." },
+        { status: 400 },
+      )
+    }
+    const isAcquisition = businessLine === 'acquisition'
+
     // COMMISSION-REFERRAL-CANONICAL-1 — `referral_fee_pct` is written straight
     // to the shared `transactions` table, and Vault's commission calculator
     // reads it from there. Vault's own write paths both reject anything
@@ -224,7 +239,12 @@ export async function POST(request: NextRequest) {
     const { data: transaction, error } = await admin
       .from('transactions')
       .insert({
+        // P4H-14 (P7-reconciled): agent_id stays the creator/tenancy anchor for
+        // ALL lines (acquisitions are NOT agentless — that is the P7 invariant).
+        // The explicit business_line override is what excludes an acquisition
+        // from the commission engine; no prepared_by, no verified flag.
         agent_id: targetAgentId,
+        business_line: businessLine,
         type: storedType,
         status: 'draft',
         // P4H-13 — the marker that makes this listing a RENTAL one. Vault's
@@ -319,7 +339,8 @@ export async function POST(request: NextRequest) {
     // refuses any commission whose net_commission has not been calculated,
     // so a row in this state cannot be paid.
     const price = contract_price ? parseFloat(contract_price) : 0
-    if (price > 0) {
+    // P4H-14 — acquisitions NEVER spawn a commission row (no split/cap/payout).
+    if (price > 0 && !isAcquisition) {
       const commRate = commission_rate_pct ? parseFloat(commission_rate_pct) : 3.0
       const agentSplit = agent_split_pct ? parseFloat(agent_split_pct) : 70.0
       const grossComm = price * (commRate / 100)

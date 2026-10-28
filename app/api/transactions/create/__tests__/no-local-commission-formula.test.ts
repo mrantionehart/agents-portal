@@ -77,7 +77,13 @@ describe('transactions/create — no local commission formula', () => {
   })
 
   it('still skips the commission row entirely when there is no contract price', () => {
-    expect(src).toMatch(/if\s*\(\s*price\s*>\s*0\s*\)/)
+    // P4H-14 widened the guard to also skip acquisitions:
+    //   if (price > 0 && !isAcquisition) { ...insert commission... }
+    expect(src).toMatch(/if\s*\(\s*price\s*>\s*0\s*&&\s*!isAcquisition\s*\)/)
+  })
+
+  it('P4H-14 — commission insert is gated on brokerage (acquisitions never priced in)', () => {
+    expect(src).toMatch(/!isAcquisition/)
   })
 })
 
