@@ -69,14 +69,20 @@ export async function GET(request: NextRequest) {
     // production. Agent sees own pipeline rows only; broker/admin sees all.
     const admin = userClient(request)
 
-    // Get user role
+    // Get user role + tenant. Tenant is required so the broker-tier agent
+    // roster below cannot read `profiles` across tenants — the previous
+    // version omitted `tenant_id` from the filter, so a broker-tier caller
+    // whose session escaped RLS (service role, misconfigured policy) would
+    // have seen every brokerage's active agents. Fail closed when the
+    // caller has no tenant assignment.
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single()
 
     const role = profile?.role || 'agent'
+    const callerTenantId = (profile?.tenant_id as string | null) ?? null
 
     // Get target agent (broker can view any agent, or "all")
     const { searchParams } = new URL(request.url)
@@ -209,12 +215,16 @@ export async function GET(request: NextRequest) {
       closedVolume: (transactions || []).filter(t => t.status === 'closed').reduce((s, t) => s + (t.contract_price || 0), 0),
     }
 
-    // Get agent list for broker view
+    // Get agent list for broker view. Scope to the caller's own tenant —
+    // the previous version only filtered by `is_active`, which would show
+    // every active profile across every brokerage if RLS failed open.
+    // Fail closed when the caller has no tenant assignment.
     let agents: any[] = []
-    if (['broker', 'admin'].includes(role)) {
+    if (['broker', 'admin'].includes(role) && callerTenantId) {
       const { data: agentList } = await admin
         .from('profiles')
         .select('id, full_name, email')
+        .eq('tenant_id', callerTenantId)
         .eq('is_active', true)
         .order('full_name')
 
