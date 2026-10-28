@@ -29,6 +29,20 @@ interface Completeness {
   notes: string[]
 }
 
+// Vercel rejects a serverless-function request body over ~4.5 MB BEFORE the
+// Vault function runs, so waiting out a 10 MB scan to be told that is wasted
+// time. Guard client-side at a safe round number.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+
+// The upload is a multipart body that commonly exceeds `authFetch`'s 8 s
+// default. SendViaDocuSignButton already lifts its ceiling to 60 s for the
+// same reason.
+const UPLOAD_TIMEOUT_MS = 60_000
+
+function formatMiB(bytes: number): string {
+  return (bytes / 1024 / 1024).toFixed(1)
+}
+
 export default function UploadAgreementButton({
   transactionId,
   formInstanceId,
@@ -44,18 +58,45 @@ export default function UploadAgreementButton({
     setBusy(true)
     setError(null)
     setNotes(null)
+
+    // Refuse an oversize file BEFORE the upload. The ceiling is the
+    // platform's — Vercel rejects a body over ~4.5 MB before the Vault
+    // function runs — and a scan of a signed PDF is the usual cause.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `That file is ${formatMiB(file.size)} MB. The upload ceiling is ${
+          MAX_UPLOAD_BYTES / 1024 / 1024
+        } MB; most scans exceed it. Re-save the PDF with image compression and try again.`,
+      )
+      setBusy(false)
+      return
+    }
+
     try {
       const body = new FormData()
       body.set('file', file)
       const res = await authFetch(
         `${VAULT_API_URL}/paperwork/agents/transactions/${transactionId}/documents/${formInstanceId}/upload-agreement`,
         { method: 'POST', body },
+        UPLOAD_TIMEOUT_MS,
       )
+      // Vercel's 413 (over the platform body limit) arrives as plain text,
+      // so res.json() throws. Fall back to a size-named message instead of
+      // the bare `Upload failed (413)` that the response-object branch would
+      // otherwise produce.
       const json = (await res.json().catch(() => ({}))) as {
         error?: string
         completeness?: Completeness
       }
       if (!res.ok) {
+        if (res.status === 413) {
+          setError(
+            `That file is over the ${
+              MAX_UPLOAD_BYTES / 1024 / 1024
+            } MB upload ceiling. Re-save the PDF with image compression and try again.`,
+          )
+          return
+        }
         // Vault's refusals name the thing to fix — surface them verbatim
         // rather than replacing them with "Upload failed".
         setError(json.error ?? `Upload failed (${res.status})`)
@@ -67,8 +108,19 @@ export default function UploadAgreementButton({
         setNotes(json.completeness.notes ?? [])
       }
       onUploaded?.()
-    } catch {
-      setError('Upload failed')
+    } catch (err) {
+      // authFetch's timeout aborts via AbortController. A bare "Upload
+      // failed" leaves the agent guessing whether the document was rejected;
+      // name the timeout so she knows to check her connection.
+      const isAbort =
+        err instanceof DOMException && err.name === 'AbortError'
+      setError(
+        isAbort
+          ? `Upload timed out after ${
+              UPLOAD_TIMEOUT_MS / 1000
+            } s. Check your connection and try again.`
+          : 'Upload failed',
+      )
     } finally {
       setBusy(false)
     }

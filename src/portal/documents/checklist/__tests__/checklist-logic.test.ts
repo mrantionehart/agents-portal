@@ -11,6 +11,7 @@ import {
   selectabilityFor,
   buildChecklistRows,
   deriveActionBar,
+  esignSendEnabled,
   type VaultDocumentCard,
   type VaultRequirementCard,
   type VaultFormStatus,
@@ -177,5 +178,42 @@ describe('deriveActionBar', () => {
     expect(bar.count).toBe(0)
     expect(bar.canGenerate).toBe(false)
     expect(bar.canDownload).toBe(false)
+  })
+})
+
+// ============================================================================
+// P4H-13 · esignSendEnabled — the gate behind "Send via My DocuSign"
+// ============================================================================
+// She reconnected successfully and the row still told her to connect. Half of
+// that was staleness (see ChecklistTable.esign-refetch); this is the other
+// half: a stored account whose token has expired still reads `connected`, and
+// the send fails at the provider after she has told a client it is coming.
+// ============================================================================
+
+describe('esignSendEnabled', () => {
+  it('[GATE-1] enables the send only when connected AND not needing reconnection', () => {
+    expect(esignSendEnabled({ connected: true, needs_reconnect: false })).toBe(true)
+  })
+
+  it('[GATE-2] refuses a connected account that needs reconnection', () => {
+    // Exactly the state her account was in when the send would have failed.
+    expect(esignSendEnabled({ connected: true, needs_reconnect: true })).toBe(false)
+  })
+
+  it('[GATE-3] refuses a disconnected account either way', () => {
+    expect(esignSendEnabled({ connected: false, needs_reconnect: true })).toBe(false)
+    expect(esignSendEnabled({ connected: false, needs_reconnect: false })).toBe(false)
+  })
+
+  it('[GATE-4] fails CLOSED on an absent or unusable status', () => {
+    expect(esignSendEnabled(null)).toBe(false)
+    expect(esignSendEnabled(undefined)).toBe(false)
+    expect(esignSendEnabled({})).toBe(false)
+  })
+
+  it('[GATE-5] an ABSENT needs_reconnect does not block a connected account', () => {
+    // The field is served today, but absent must not read as "needs
+    // reconnection" or a healthy account would be refused its own send.
+    expect(esignSendEnabled({ connected: true })).toBe(true)
   })
 })
