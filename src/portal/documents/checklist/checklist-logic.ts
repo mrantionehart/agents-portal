@@ -40,6 +40,8 @@ export interface VaultDocumentCard {
   status: VaultFormStatus
   form_revision: string | null
   manual_only: boolean
+  /** P4H-13 — Vault says whether this form also accepts an uploaded PDF. */
+  accepts_upload?: boolean
   generatable: boolean
   e_sign: boolean
   has_upload: boolean
@@ -136,6 +138,7 @@ export interface ChecklistRow {
   statusLabel: ChecklistStatusLabel
   requirementLabel: RequirementLabel
   e_sign: boolean
+  accepts_upload: boolean
   manual_only: boolean
   generatable: boolean
   has_upload: boolean
@@ -179,6 +182,7 @@ export function buildChecklistRows(
       requirementLabel: mapRequirementLabel(req.requirement_basis, req.required),
       e_sign: doc?.e_sign ?? false,
       manual_only: doc?.manual_only ?? false,
+      accepts_upload: doc?.accepts_upload ?? false,
       generatable: doc?.generatable ?? false,
       has_upload: doc?.has_upload ?? false,
       downloadable: doc?.downloadable ?? false,

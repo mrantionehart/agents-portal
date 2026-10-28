@@ -19,6 +19,7 @@ import AgentDocumentDownloadButton from '@/src/portal/documents/AgentDocumentDow
 import CoachStrip from '@/src/portal/workspace/components/CoachStrip'
 import type { CoachRecommendation } from '@/src/portal/workspace/types'
 import GenerateFormButton from './GenerateFormButton'
+import UploadAgreementButton from './UploadAgreementButton'
 import SendViaDocuSignButton from './SendViaDocuSignButton'
 import {
   buildChecklistRows,
@@ -336,6 +337,17 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
                           formInstanceId={r.form_instance_id}
                           formId={r.form_id}
                           onGenerated={() => void load()}
+                        />
+                      )}
+                      {/* P4H-13 workflow B — BESIDE Generate, not instead of
+                          it. `accepts_upload` comes from Vault so this file
+                          does not keep its own copy of the form list. */}
+                      {r.accepts_upload && r.form_instance_id && (
+                        <UploadAgreementButton
+                          transactionId={transactionId}
+                          formInstanceId={r.form_instance_id}
+                          formId={r.form_id}
+                          onUploaded={() => void load()}
                         />
                       )}
                       {r.e_sign &&

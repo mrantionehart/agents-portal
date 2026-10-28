@@ -27,6 +27,45 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^lease\.restrictions\.(smoking_allowed|business_use_allowed|subletting_allowed|alterations_allowed)$/,
   /^lease\.is_contract_to_lease$/,
   /^buyer_rep\.(effective_date|expiration_date|geographic_area|compensation_pct|compensation_flat_fee|brokerage_relationship)$/,
+  // ── Sync catch-up ──────────────────────────────────────────────────────
+  // Vault gained these and the mirror never followed, because the guard that
+  // was supposed to catch it read `../vault/src/...` — a sibling checkout that
+  // exists in no layout this repo is cloned into, so it never ran. The drift
+  // meant the editor silently offered fewer paths than PATCH /terms accepts.
+  // Both repos now assert the same explicit contract from inside their own
+  // suites; see __tests__/terms-allowlist-contract.test.ts.
+  /^purchase\.inspection\.period_days$/,
+  /^purchase\.appraisal\.(contingency_days|cure_window_days)$/,
+  /^purchase\.seller_financing\.(principal_amount|interest_rate|term_months)$/,
+  /^purchase\.buyer_property\.(address|target_close_date)$/,
+  /^amendment_(terms|date)$/,
+  // ── P4H-13 — rental listing (ERL-14) ───────────────────────────────────
+  /^listing\.(effective_date|listing_expiration_date|commission_pct|co_op_pct)$/,
+  /^listing\.rental\.rent_amount$/,
+  /^listing\.listing_kind$/,
+  // ── P4H-13 — the rest of ERL-14 ────────────────────────────────────────
+  // Mirrors Vault's TERMS_PATH_ALLOWLIST. Each path is declared in Vault's
+  // erl14-terms-map.ts against the blank or election it fills; nothing here
+  // is wider than that map accounts for. The election paths carry a value
+  // that selects a checkbox and have NO default — the broker chooses.
+  /^listing\.rental\.(rent_basis|season_from|season_to|current_lease_expires)$/,
+  /^listing\.rental\.(advance_rent|security_deposit|pet_deposit)$/,
+  /^listing\.rental\.(credit_report_fee|association_application_fee)$/,
+  /^listing\.compensation\.(rent_period_pct|gross_value_pct|first_month_pct|other)$/,
+  /^listing\.compensation\.(payment_timing|remit_days|payment_days|rent_payment_days|other_terms)$/,
+  /^listing\.brokerage_relationship$/,
+  // Vault's allowlist is the gate: a path it rejects fails AFTER the agent
+  // has typed it. ERL-14 carries ONE printed owner line and two signature
+  // slots, so a second owner has no name, phone or address blank — they sign
+  // as a transaction_party, which is where the envelope reads recipients
+  // from. Only the routing email exists for owners.1.
+  /^listing\.owners\.0\.(name|phone|address)$/,
+  /^listing\.owners\.[01]\.email$/,
+  // §8 — "check all that apply", so three independent toggles. (c) is never
+  // written on the brokerage's behalf: the form deems it selected by silence.
+  /^listing\.tenant_broker\.(offer_from_broker|offer_from_owner|no_offer)$/,
+  /^listing\.tenant_broker\.from_(broker|owner)\.(gross_value_pct|first_month_pct|flat_amount)$/,
+  /^listing\.legal_description$/,
 ];
 
 /** Roles whose contact fields the AGENT may complete in-portal via the
@@ -35,6 +74,17 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
 const AGENT_EDITABLE_PARTY_ROLES: ReadonlySet<string> = new Set([
   "buyer",
   "co_buyer",
+  // P4H-13 — on a rental listing the owner is the agent's own client and the
+  // person whose signing email the ERL needs, so withholding it here left the
+  // agent unable to complete a field their own rule asks them for. Vault's
+  // agent party PATCH already accepts any valid party role, so this only
+  // widens what the Portal OFFERS; it grants no new server capability.
+  //
+  // Seller and tenant stay out deliberately: the comment above this set is
+  // about party-portal work, and nothing in this release changes who completes
+  // a seller's or a tenant's contact details.
+  "landlord",
+  "co_landlord",
 ]);
 /** Contact columns the agent party-contact PATCH accepts. */
 const AGENT_EDITABLE_PARTY_FIELDS: ReadonlySet<string> = new Set([

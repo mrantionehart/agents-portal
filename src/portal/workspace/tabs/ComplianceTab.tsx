@@ -54,6 +54,29 @@ export interface ComplianceTabProps {
   transactionId: string;
 }
 
+/**
+ * P4H-13 — the agreement whose review must run before submission.
+ *
+ * Kept as a named export rather than inlined so the rule is testable and lives
+ * in exactly one place. Returns nulls when there is no such form, or when the
+ * requirement exists but no form_instances row does yet — passing an id we do
+ * not have would make the review call 404 and block a submission that should
+ * have gone through.
+ */
+export function resolveReviewedForm(
+  forms: ComplianceTabState["requiredForms"],
+): { formInstanceId: string | null; formId: string | null } {
+  const match = forms.find(
+    (f) => REVIEW_BEFORE_SUBMIT_FORM_IDS.includes(f.form_id) && !!f.form_instance_id,
+  );
+  return match
+    ? { formInstanceId: match.form_instance_id, formId: match.form_id }
+    : { formInstanceId: null, formId: null };
+}
+
+/** Mirrors SubmitForReviewButton's own list; the button re-checks it. */
+const REVIEW_BEFORE_SUBMIT_FORM_IDS = ["ERL-14"];
+
 export default function ComplianceTab({ state, transactionId }: ComplianceTabProps) {
   return (
     <div className="space-y-5">
@@ -62,7 +85,11 @@ export default function ComplianceTab({ state, transactionId }: ComplianceTabPro
       <WarningsSection items={state.warnings} />
       <RequiredFormsSection items={state.requiredForms} />
       <StatutorySection items={state.statutory} />
-      <BrokerReviewSection state={state.brokerReview} transactionId={transactionId} />
+      <BrokerReviewSection
+        state={state.brokerReview}
+        transactionId={transactionId}
+        reviewedForm={resolveReviewedForm(state.requiredForms)}
+      />
       <EnvelopeSection summary={state.envelope} />
       <GatesSection items={state.gates} degraded={state.payoutReadinessDegraded} />
 
@@ -305,9 +332,13 @@ function StatutorySection({ items }: { items: StatutoryItemSummary[] }) {
 function BrokerReviewSection({
   state,
   transactionId,
+  reviewedForm,
 }: {
   state: ComplianceTabState["brokerReview"];
   transactionId: string;
+  /** P4H-13 — nulls for every transaction without a reviewed agreement, which
+   *  keeps the button's behaviour there exactly what it was. */
+  reviewedForm: { formInstanceId: string | null; formId: string | null };
 }) {
   // Agent may submit unless already awaiting review or approved.
   const canSubmit = !["submitted", "approved"].includes(state.status);
@@ -322,7 +353,13 @@ function BrokerReviewSection({
           <span className="text-[#A1A1AA] text-xs">Status</span>
           <Pill tone={state.pill.tone}>{state.pill.label}</Pill>
         </div>
-        {canSubmit && <SubmitForReviewButton transactionId={transactionId} />}
+        {canSubmit && (
+          <SubmitForReviewButton
+            transactionId={transactionId}
+            reviewFormInstanceId={reviewedForm.formInstanceId}
+            reviewFormId={reviewedForm.formId}
+          />
+        )}
       </div>
     </section>
   );
