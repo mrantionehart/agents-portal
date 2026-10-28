@@ -123,4 +123,72 @@ describe('UploadAgreementButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Upload completed/i }))
     expect(mockFetch).not.toHaveBeenCalled()
   })
+
+  // ── P4H-13 production-defect regressions ────────────────────────────────
+
+  function oversizePdf(bytes: number): File {
+    const prefix = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]) // "%PDF-"
+    // A Uint8Array of the full size is enormous; the component only reads
+    // `file.size`, so a mocked `size` is faithful and 10,000× cheaper.
+    const f = new File([prefix], 'ERL-14 scan.pdf', { type: 'application/pdf' })
+    Object.defineProperty(f, 'size', { value: bytes, configurable: false })
+    return f
+  }
+
+  it('[UPB-7] a file over 4 MB is refused BEFORE the upload and names the size', async () => {
+    // Vercel rejects a body over ~4.5 MB before the Vault function runs, so
+    // waiting out the upload only to be told that is wasted time.
+    mount()
+    fireEvent.change(fileInput(), { target: { files: [oversizePdf(5 * 1024 * 1024)] } })
+
+    expect(await screen.findByText(/5\.0 MB/i)).toBeInTheDocument()
+    expect(screen.getByText(/4 MB/i)).toBeInTheDocument()
+    // No fetch — the agent's connection is not spent on a doomed request.
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('[UPB-8] a request abort (timeout) says it timed out, not bare "Upload failed"', async () => {
+    // authFetch's AbortController fires a DOMException with name "AbortError".
+    // Before this fix the catch branch produced bare "Upload failed", which
+    // is exactly the string Mallory saw.
+    mockFetch.mockImplementationOnce(() => {
+      throw new DOMException('aborted', 'AbortError')
+    })
+    mount()
+    fireEvent.change(fileInput(), { target: { files: [pdf()] } })
+
+    expect(await screen.findByText(/timed out/i)).toBeInTheDocument()
+    expect(screen.getByText(/60/i)).toBeInTheDocument() // the ceiling it waited
+    expect(screen.queryByText(/^Upload failed$/)).not.toBeInTheDocument()
+  })
+
+  it('[UPB-9] a 413 whose body is plain text is NOT shown as "Upload failed (413)"', async () => {
+    // Vercel's 413 arrives as plain text, so res.json() throws and json.error
+    // is undefined. The fallback must still name the actual cause.
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 413,
+      json: async () => { throw new SyntaxError('Unexpected token < in JSON at position 0') },
+    })
+    mount()
+    fireEvent.change(fileInput(), { target: { files: [pdf()] } })
+
+    expect(await screen.findByText(/upload ceiling/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Upload failed \(413\)/i)).not.toBeInTheDocument()
+  })
+
+  it('[UPB-10] authFetch is called with the 60-second timeout', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, completeness: { confident: true, flags: [], notes: [] } }),
+    })
+    mount()
+    fireEvent.change(fileInput(), { target: { files: [pdf()] } })
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    const [, , timeoutMs] = mockFetch.mock.calls[0]
+    // The default 8 s was the shape of the Mallory failure; the explicit
+    // 60 s matches SendViaDocuSignButton.
+    expect(timeoutMs).toBe(60_000)
+  })
 })

@@ -84,11 +84,17 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
   const [pkgMessage, setPkgMessage] = useState<string | null>(null)
   // AGENT.SIGN.2C — whether the agent has a connected DocuSign (gates the
   // per-row "Send via My DocuSign" action). Non-secret status only.
+  //
+  // P4H-13 · the OAuth connect round-trip happens on /settings — a DIFFERENT
+  // route — so this component never has to unmount, and a single mount-time
+  // read left the row stuck on `false` after a successful reconnect. Refetch
+  // on window focus and on the tab becoming visible, which is exactly when
+  // the answer has changed.
   const [esignConnected, setEsignConnected] = useState(false)
 
   useEffect(() => {
     let active = true
-    ;(async () => {
+    const fetchStatus = async (): Promise<void> => {
       try {
         const res = await authFetch(`${VAULT_API_URL}/esign/status`, { method: 'GET' })
         if (!res.ok) return
@@ -97,9 +103,22 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
       } catch {
         /* not connected / unavailable — Send button falls back to Connect */
       }
-    })()
+    }
+    void fetchStatus()
+    const onFocus = (): void => {
+      void fetchStatus()
+    }
+    const onVisibility = (): void => {
+      // Firing on EVERY visibilitychange would refetch on tab-hide too; the
+      // only moment the answer can have changed is when the tab is visible.
+      if (document.visibilityState === 'visible') void fetchStatus()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       active = false
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 
