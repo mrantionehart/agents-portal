@@ -210,7 +210,7 @@ describe("R3A — assignment filter + badge", () => {
     it.each([
       ["assigned", "Assigned"],
       ["claimed", "Claimed"],
-      ["dispo", "Dispo Feed"],
+      ["dispo", "Available to claim"],
       [null, null],
     ])("bucket=%s → %s", (input, expected) => {
       expect(bucketBadgeLabel(input as any)).toBe(expected);

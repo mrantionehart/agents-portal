@@ -194,10 +194,15 @@ export function clientListCounts(rows: ClientListItem[]): ClientListCounts {
 }
 
 /** Display label for a per-row bucket badge. Returns null when the row
- *  is broker-visible-only — no badge in that case. */
+ *  is broker-visible-only — no badge in that case.
+ *
+ *  P4H-15 — the pooled unassigned-prospect bucket (`dispo`) is labelled
+ *  "Available to claim" everywhere user-facing. The internal bucket key
+ *  stays `"dispo"` so saved filters, counts and the server policy name
+ *  do not drift. */
 export function bucketBadgeLabel(b: ClientListItem["assignmentBucket"]): string | null {
   if (b === "assigned") return "Assigned";
   if (b === "claimed") return "Claimed";
-  if (b === "dispo") return "Dispo Feed";
+  if (b === "dispo") return "Available to claim";
   return null;
 }
