@@ -83,14 +83,49 @@ export function useCommandData(active: boolean): State {
           }
         } catch { /* fall through; client search still works */ }
 
-        // ── clients via existing client_profiles table (RLS-gated) ─
+        // ── clients via existing client_profiles table ────────────
+        // RLS gates this SELECT in production (tenant + ownership for
+        // agents; tenant for broker tier), but the client never asked
+        // for anything, so if RLS ever failed open the browser would
+        // receive every row the table has. Defense-in-depth: resolve
+        // the caller's own tenant + role first and apply the same
+        // predicates the server routes do. If either lookup fails,
+        // return no clients at all rather than fall through to an
+        // unfiltered SELECT.
         let clientItems: CommandClient[] = [];
         try {
-          const { data: rows, error } = await supabase
+          const userId = data.session?.user?.id ?? null;
+          if (!userId) throw new Error("no_user");
+
+          const { data: me } = await supabase
+            .from("profiles")
+            .select("role, tenant_id")
+            .eq("id", userId)
+            .maybeSingle();
+          const callerRole = (me?.role as string | null) ?? null;
+          const callerTenantId = (me?.tenant_id as string | null) ?? null;
+          if (!callerRole || !callerTenantId) throw new Error("no_scope");
+
+          const BROKER_TIER = ["broker", "admin", "office_manager"];
+          const isBroker = BROKER_TIER.includes(callerRole);
+
+          let q = supabase
             .from("client_profiles")
             .select("id, full_name, email, phone")
+            .eq("tenant_id", callerTenantId)
             .order("updated_at", { ascending: false })
             .limit(200);
+
+          if (!isBroker) {
+            // Agent / new_agent — mirror the server policy:
+            //   assigned_agent_id = me OR claimed_by = me
+            //   OR (visibility = 'dispo_feed' AND status = 'dispo')
+            q = q.or(
+              `assigned_agent_id.eq.${userId},claimed_by.eq.${userId},and(visibility.eq.dispo_feed,status.eq.dispo)`,
+            );
+          }
+
+          const { data: rows, error } = await q;
           if (!error && Array.isArray(rows)) {
             clientItems = rows.map((r: any) => ({
               id: r.id,
@@ -98,7 +133,7 @@ export function useCommandData(active: boolean): State {
               subtitle: [r.email || null, r.phone || null].filter(Boolean).join(" · "),
             }));
           }
-        } catch { /* fall through */ }
+        } catch { /* fall through — command bar still shows transactions */ }
 
         setState({ txns: txnItems, clients: clientItems, loading: false, error: null });
       } catch (err) {
