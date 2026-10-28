@@ -27,7 +27,19 @@ import {
   type TypeFilter,
 } from "./helpers";
 
-export default function ClientsClient({ items }: { items: ClientListItem[] }) {
+/** P4H-15 — the view the list is being rendered in:
+ *   • "profiles" (default) — rows the caller OWNS. All assignment chips
+ *     apply and are shown.
+ *   • "claim" — only the pooled unassigned-prospect ("dispo") rows. The
+ *     "Assigned to Me" / "Claimed by Me" / "Dispo Feed" chips become
+ *     redundant (every row IS dispo), so they're hidden. */
+export default function ClientsClient({
+  items,
+  view = "profiles",
+}: {
+  items: ClientListItem[];
+  view?: "profiles" | "claim";
+}) {
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all");
@@ -64,29 +76,28 @@ export default function ClientsClient({ items }: { items: ClientListItem[] }) {
       </div>
 
       {/* R3A — Assignment filter chips (caller-relative). AND-composed
-          with temperature + type + search above. */}
-      <div className="flex flex-wrap gap-2 mb-4 text-xs">
-        <TypeChip
-          label="All Assignments"
-          active={assignmentFilter === "all"}
-          onClick={() => setAssignmentFilter("all")}
-        />
-        <TypeChip
-          label={`Assigned to Me (${counts.assigned})`}
-          active={assignmentFilter === "assigned"}
-          onClick={() => setAssignmentFilter("assigned")}
-        />
-        <TypeChip
-          label={`Claimed by Me (${counts.claimed})`}
-          active={assignmentFilter === "claimed"}
-          onClick={() => setAssignmentFilter("claimed")}
-        />
-        <TypeChip
-          label={`Dispo Feed (${counts.dispo})`}
-          active={assignmentFilter === "dispo"}
-          onClick={() => setAssignmentFilter("dispo")}
-        />
-      </div>
+          with temperature + type + search above.
+          P4H-15 — hidden in the "claim" view, where every row IS dispo
+          and the chips would all be either redundant or empty. */}
+      {view === "profiles" && (
+        <div className="flex flex-wrap gap-2 mb-4 text-xs">
+          <TypeChip
+            label="All Assignments"
+            active={assignmentFilter === "all"}
+            onClick={() => setAssignmentFilter("all")}
+          />
+          <TypeChip
+            label={`Assigned to Me (${counts.assigned})`}
+            active={assignmentFilter === "assigned"}
+            onClick={() => setAssignmentFilter("assigned")}
+          />
+          <TypeChip
+            label={`Claimed by Me (${counts.claimed})`}
+            active={assignmentFilter === "claimed"}
+            onClick={() => setAssignmentFilter("claimed")}
+          />
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-6">

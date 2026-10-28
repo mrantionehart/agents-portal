@@ -25,7 +25,15 @@ export default async function ClientsIndexPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const params = await searchParams;
-  const tab: "profiles" | "leads" = params.tab === "leads" ? "leads" : "profiles";
+  // P4H-15 — three tabs: "profiles" (clients the caller owns), "claim"
+  // (unassigned pooled prospects — the dispo feed, surfaced as its own
+  // bucket instead of mixed into the owned list), and "leads" (unchanged).
+  const tab: "profiles" | "claim" | "leads" =
+    params.tab === "leads"
+      ? "leads"
+      : params.tab === "claim"
+      ? "claim"
+      : "profiles";
 
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -105,10 +113,54 @@ export default async function ClientsIndexPage({
     );
   }
 
+  // P4H-15 — partition the loaded list by `assignmentBucket`:
+  //
+  //   • "profiles" tab shows rows the caller OWNS — assigned-to-me,
+  //     claimed-by-me, and (for broker tier) rows visible by role but
+  //     not pooled. The pooled unassigned-prospect ("dispo") rows are
+  //     routed to their own tab so they can't be mistaken for a
+  //     caller's own clients.
+  //   • "claim" tab shows ONLY the pooled unassigned-prospect rows.
+  //
+  // The server-side policy is unchanged; this is a client-visible
+  // partition of the SAME result set, labelled the way the agent sees it.
+  const ownedItems = result.items.filter((r) => r.assignmentBucket !== "dispo");
+  const claimableItems = result.items.filter((r) => r.assignmentBucket === "dispo");
+
+  if (tab === "claim") {
+    return (
+      <PageShell tab={tab}>
+        <ClaimableHeader count={claimableItems.length} />
+        <ClientsClient items={claimableItems} view="claim" />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell tab={tab}>
-      <ClientsClient items={result.items} />
+      <ClientsClient items={ownedItems} view="profiles" />
     </PageShell>
+  );
+}
+
+/** Short banner explaining what the Available-to-Claim tab is, so an
+ *  agent who lands there doesn't wonder why the names aren't theirs. */
+function ClaimableHeader({ count }: { count: number }) {
+  return (
+    <div
+      role="note"
+      className="rounded-md border border-[#C9A84C]/30 bg-[#C9A84C]/5 px-3 py-2 text-xs text-[#E8D5A3] mb-4"
+    >
+      <div className="font-medium">
+        {count === 1
+          ? "1 unassigned prospect available to claim"
+          : `${count} unassigned prospects available to claim`}
+      </div>
+      <div className="text-[#A1A1AA] mt-0.5">
+        These are pooled brokerage leads. Open one to review and claim it;
+        your Client Profiles tab only lists clients already assigned to you.
+      </div>
+    </div>
   );
 }
 

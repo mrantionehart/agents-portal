@@ -7,9 +7,17 @@
 // ============================================================================
 
 import Link from "next/link";
-import { Sparkles, Users } from "lucide-react";
+import { HandCoins, Sparkles, Users } from "lucide-react";
 
-export default function ClientsTabs({ active }: { active: "profiles" | "leads" }) {
+/** P4H-15 — "Available to Claim" is a sibling tab, not a sub-section of
+ *  "Client Profiles". Unassigned pooled prospects live here, labelled
+ *  the way the agent sees them, so the "my clients" view is only
+ *  rows the caller actually owns. */
+export default function ClientsTabs({
+  active,
+}: {
+  active: "profiles" | "leads" | "claim";
+}) {
   return (
     <nav
       aria-label="Clients view"
@@ -19,6 +27,12 @@ export default function ClientsTabs({ active }: { active: "profiles" | "leads" }
       "
     >
       <Tab href="/clients" label="Client Profiles" Icon={Users} active={active === "profiles"} />
+      <Tab
+        href="/clients?tab=claim"
+        label="Available to Claim"
+        Icon={HandCoins}
+        active={active === "claim"}
+      />
       <Tab href="/clients?tab=leads" label="Leads" Icon={Sparkles} active={active === "leads"} />
     </nav>
   );
@@ -32,7 +46,7 @@ function Tab({
 }: {
   href: string;
   label: string;
-  Icon: typeof Users;
+  Icon: React.ComponentType<{ className?: string }>;
   active: boolean;
 }) {
   return (
