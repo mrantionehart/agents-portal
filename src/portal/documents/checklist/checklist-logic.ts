@@ -214,3 +214,26 @@ export function deriveActionBar(
     canDownload: chosen.some((r) => r.downloadable && r.form_instance_id != null),
   }
 }
+
+// ── E-sign send gating ───────────────────────────────────────────────────────
+/** The part of GET /api/esign/status this UI is allowed to read. Both fields
+ *  are non-secret; no token ever reaches the client. */
+export interface EsignStatusLite {
+  connected?: boolean
+  needs_reconnect?: boolean
+}
+
+/** Whether the per-row "Send via My DocuSign" action may be offered.
+ *
+ *  `connected` alone is NOT the question. An account whose access token has
+ *  expired still reads `connected: true`, and Vault flags it with
+ *  `needs_reconnect`. Sending on that account fails at the provider, after the
+ *  agent has already told a client the agreement is on its way — so an account
+ *  needing reconnection is treated exactly as no account at all and the row
+ *  offers Connect instead.
+ *
+ *  An absent or unparseable status refuses: this gate fails CLOSED. */
+export function esignSendEnabled(status: EsignStatusLite | null | undefined): boolean {
+  if (!status) return false
+  return status.connected === true && status.needs_reconnect !== true
+}

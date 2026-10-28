@@ -24,6 +24,7 @@ import SendViaDocuSignButton from './SendViaDocuSignButton'
 import {
   buildChecklistRows,
   deriveActionBar,
+  esignSendEnabled,
   type ChecklistRow,
   type ChecklistStatusLabel,
   type RequirementLabel,
@@ -99,7 +100,9 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
         const res = await authFetch(`${VAULT_API_URL}/esign/status`, { method: 'GET' })
         if (!res.ok) return
         const s = await res.json().catch(() => null)
-        if (active) setEsignConnected(s?.connected === true)
+        // esignSendEnabled, not `connected`: a stored account whose token has
+        // expired still reads connected, and the send then fails at DocuSign.
+        if (active) setEsignConnected(esignSendEnabled(s))
       } catch {
         /* not connected / unavailable — Send button falls back to Connect */
       }
