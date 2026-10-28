@@ -11,13 +11,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  FileSignature,
-  Link2Off,
-  Loader2,
-  Plug,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, FileSignature, Link2Off, Loader2, Plug, ShieldCheck } from "lucide-react";
 
 import { authFetch } from "@/lib/supabase";
 
@@ -36,6 +30,22 @@ interface EsignStatus {
   connected_at: string | null;
   last_used_at: string | null;
   expires_at: string | null;
+  /**
+   * P4H-13 — DERIVED by Vault from the stored expiry, with no call to
+   * DocuSign. `connected` reports what the last OAuth exchange recorded; this
+   * reports whether the credential is still usable.
+   *
+   * The two are independent, and the pair is the state this card was getting
+   * wrong: an agent's row read connected with an access token 112 days past
+   * expiry, and because the Connect button lived in the `else` of
+   * `connected`, she was shown a green badge and no way to fix it.
+   *
+   * Optional so an older Vault deploy that does not send them renders exactly
+   * as before rather than reading `undefined` as "needs reconnect".
+   */
+  needs_reconnect?: boolean;
+  reconnect_reason?: string | null;
+  reconnect_detail?: string | null;
 }
 
 function fmtDate(iso: string | null): string {
@@ -136,6 +146,11 @@ export default function ConnectedAccountsCard() {
   }
 
   const connected = status?.connected === true;
+  // Three states, not two. "Connected" and "needs attention" are independent:
+  // a stored connection can be present and past its expiry at the same time.
+  const needsReconnect = status?.needs_reconnect === true;
+  const connectedAndHealthy = connected && !needsReconnect;
+  const connectedButStale = connected && needsReconnect;
 
   return (
     <div className="space-y-3">
@@ -161,12 +176,28 @@ export default function ConnectedAccountsCard() {
             <FileSignature className="h-4 w-4 text-[#C9A84C] shrink-0" />
             <span className="text-sm text-[#F1F1F3]">DocuSign</span>
           </div>
-          {connected ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/40 bg-emerald-900/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300">
+          {connectedAndHealthy ? (
+            <span
+              role="status"
+              aria-label="DocuSign connection status: connected"
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-700/40 bg-emerald-900/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300"
+            >
               <ShieldCheck className="h-3 w-3" /> Connected
             </span>
+          ) : connectedButStale ? (
+            <span
+              role="status"
+              aria-label="DocuSign connection status: needs reconnect"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-700/40 bg-amber-900/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300"
+            >
+              <AlertTriangle className="h-3 w-3" /> Needs reconnect
+            </span>
           ) : (
-            <span className="inline-flex items-center rounded-full border border-[#252538] bg-[#11111a] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#A1A1AA]">
+            <span
+              role="status"
+              aria-label="DocuSign connection status: not connected"
+              className="inline-flex items-center rounded-full border border-[#252538] bg-[#11111a] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#A1A1AA]"
+            >
               Not connected
             </span>
           )}
@@ -204,6 +235,33 @@ export default function ConnectedAccountsCard() {
                 <Plug className="h-3 w-3" />
               )}
               Connect DocuSign
+            </button>
+          </div>
+        )}
+
+        {connectedButStale && (
+          <div className="mt-3 space-y-2.5 rounded-md border border-amber-700/40 bg-amber-900/10 px-2.5 py-2">
+            <p className="text-[11px] leading-relaxed text-amber-200">
+              {status?.reconnect_detail ??
+                "This DocuSign connection needs to be authorised again before you send paperwork."}
+            </p>
+            <button
+              type="button"
+              onClick={connect}
+              disabled={connecting}
+              className="
+                inline-flex items-center gap-1.5 rounded-md border border-[#C9A84C]/40
+                bg-[#C9A84C]/10 px-2.5 py-1.5 text-[11px] font-medium text-[#E8D5A3]
+                hover:bg-[#C9A84C]/20 disabled:opacity-50
+                transition-colors duration-[180ms]
+              "
+            >
+              {connecting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Plug className="h-3 w-3" />
+              )}
+              Reconnect DocuSign
             </button>
           </div>
         )}
