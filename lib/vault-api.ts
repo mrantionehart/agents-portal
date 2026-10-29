@@ -31,56 +31,17 @@ class VaultAPI {
     })
   }
 
-  // Deals endpoints
-  async getDeals(filters?: Record<string, any>) {
-    try {
-      const { data } = await this.client.get('/deals', { params: filters })
-      return data
-    } catch (error) {
-      console.error('Error fetching deals:', error)
-      throw error
-    }
-  }
-
-  async getDeal(dealId: string) {
-    try {
-      const { data } = await this.client.get(`/deals/${dealId}`)
-      return data
-    } catch (error) {
-      console.error('Error fetching deal:', error)
-      throw error
-    }
-  }
-
-  async createDeal(dealData: Record<string, any>) {
-    try {
-      const { data } = await this.client.post('/deals', dealData)
-      return data
-    } catch (error) {
-      console.error('Error creating deal:', error)
-      throw error
-    }
-  }
-
-  async updateDeal(dealId: string, dealData: Record<string, any>) {
-    try {
-      const { data } = await this.client.put(`/deals/${dealId}`, dealData)
-      return data
-    } catch (error) {
-      console.error('Error updating deal:', error)
-      throw error
-    }
-  }
-
-  async deleteDeal(dealId: string) {
-    try {
-      const { data } = await this.client.delete(`/deals/${dealId}`)
-      return data
-    } catch (error) {
-      console.error('Error deleting deal:', error)
-      throw error
-    }
-  }
+  // P8-A — the Deals endpoints are gone.
+  //
+  // Vault retired POST/GET /api/deals and PUT/DELETE /api/deals/:id in P7.4C
+  // (#1338), so `getDeals`, `createDeal`, `updateDeal` and `deleteDeal` called
+  // routes that answer 404/405. `getDeal` and `deleteDeal` had exactly one
+  // caller between them — the legacy `app/deals/[id]` page, deleted here — and
+  // the other three had none at all.
+  //
+  // The rest of this client stays: PORTAL.1A guards its request interceptor
+  // (cached token, never `getSession()`), and that hazard is a property of the
+  // axios instance, not of the deal routes.
 
   // Commissions endpoints
   async getCommissions(filters?: Record<string, any>) {
