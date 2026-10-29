@@ -75,7 +75,20 @@ jest.mock("@/lib/portal-transaction-type", () => ({
   toEnumTransactionType: (t: string) => t,
 }));
 
+jest.mock("@/lib/vault-client", () => ({ VAULT_API_URL: "https://vault.test/api" }));
+
 import { POST } from "@/app/api/transactions/create/route";
+
+/** P8.1A-S — Vault's verdict on whether the lead may be linked at all. */
+// 🔑 THE REAL RESPONSE SHAPE, verified against production: Vault answers
+// `{"eligible":true}`. This fixture said `linkable` to match the query
+// parameter, which is not what the endpoint returns — so the happy path would
+// have 502'd in production while this suite stayed green.
+let VAULT: { status: number; body: unknown } | "throw" = {
+  status: 200,
+  body: { eligible: true },
+};
+const vaultCalls: string[] = [];
 
 const LEAD = "11111111-1111-4111-8111-111111111111";
 
@@ -98,6 +111,17 @@ const leadRead = () => calls.find((c) => c.table === "client_profiles");
 
 beforeEach(() => {
   calls = [];
+  vaultCalls.length = 0;
+  VAULT = { status: 200, body: { eligible: true } };
+  global.fetch = jest.fn(async (url: string) => {
+    vaultCalls.push(String(url));
+    if (VAULT === "throw") throw new Error("ECONNREFUSED");
+    return {
+      ok: VAULT.status >= 200 && VAULT.status < 300,
+      status: VAULT.status,
+      json: async () => VAULT === "throw" ? null : (VAULT as { body: unknown }).body,
+    };
+  }) as unknown as typeof fetch;
   LEAD_ROW = null;
   PROFILE_ROW = { role: "agent", tenant_id: "t-1" };
 });
@@ -162,5 +186,130 @@ describe("[P81A-L] who may attach a lead", () => {
     // A client-supplied status must not reach the insert — that is the
     // create-as-approved hole, and this route has never taken one.
     expect((insert()!.args[0] as Record<string, unknown>).status).toBe("draft");
+  });
+});
+
+// ============================================================================
+// HARTFELT-P8.1A-S · the linked client must be a BROKERAGE LEAD
+// ============================================================================
+// Ownership was the whole check and it was not enough. Measured on production:
+// of 24 profiles linkable by ownership in the live tenant, 22 were NOT eligible
+// leads — 16 review-band and 6 excluded, the DO-NOT-CONTACT canaries among
+// them.
+//
+// 🔑 THE PORTAL MUST NOT ANSWER THIS ITSELF. Classification needs
+// `dispo_buyer_profiles` (RLS on, ZERO policies) and `seller_property_bundles`
+// (broker/admin), neither readable by an agent JWT. These tests pin that it
+// ASKS, what it asks, and that anything short of an explicit `linkable: true`
+// refuses.
+// ============================================================================
+
+describe("[P81AS-AP] the Portal asks Vault whether the lead is a lead", () => {
+  beforeEach(() => {
+    LEAD_ROW = { assigned_agent_id: "u-caller", claimed_by: null };
+  });
+
+  it("[P81AS-AP1] 🔑 it asks, with the lead id and the caller's bearer", async () => {
+    await post({ client_profile_id: LEAD });
+    expect(vaultCalls).toHaveLength(1);
+    const url = new URL(vaultCalls[0]);
+    expect(url.pathname).toBe("/api/client-intelligence");
+    expect(url.searchParams.get("lead_linkable")).toBe(LEAD);
+    const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer t");
+  });
+
+  it("[P81AS-AP2] 🔑 an eligible lead is linked (the positive control)", async () => {
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(201);
+    expect((insert()!.args[0] as Record<string, unknown>).client_profile_id).toBe(LEAD);
+  });
+
+  it("[P81AS-AP3] 🛑 a NOT-A-LEAD verdict refuses, and NOTHING is written", async () => {
+    VAULT = {
+      status: 422,
+      body: {
+        linkable: false,
+        error: "That contact is not a brokerage lead and cannot be linked to a transaction.",
+        code: "CLIENT_PROFILE_NOT_A_LEAD",
+      },
+    };
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("CLIENT_PROFILE_NOT_A_LEAD");
+    expect(insert()).toBeUndefined();
+  });
+
+  it("[P81AS-AP4] 🔒 an UNREACHABLE Vault refuses — a network problem is not permission", async () => {
+    VAULT = "throw";
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(502);
+    expect((await res.json()).code).toBe("CLIENT_PROFILE_CHECK_UNAVAILABLE");
+    expect(insert()).toBeUndefined();
+  });
+
+  it("[P81AS-AP5] 🔒 an UNREADABLE answer refuses", async () => {
+    VAULT = { status: 200, body: null };
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(502);
+    expect((await res.json()).code).toBe("CLIENT_PROFILE_CHECK_UNAVAILABLE");
+    expect(insert()).toBeUndefined();
+  });
+
+  it("[P81AS-AP6] 🔒 a 200 that does not GRANT refuses", async () => {
+    // The dangerous shape: a success status with a body that never granted
+    // anything. Only an explicit `eligible: true` is permission.
+    //
+    // 🔑 This test used to use `{ eligible: true }` as the non-granting body,
+    // because the route then read `linkable`. That is Vault's REAL grant, so
+    // the assertion encoded my own mistake as correct behaviour — the suite
+    // was green while production would have refused every link.
+    for (const body of [{}, { ok: true }, { eligible: false }, { eligible: "true" }]) {
+      VAULT = { status: 200, body };
+      calls = [];
+      const res = await post({ client_profile_id: LEAD });
+      expect(res.status).toBe(502);
+      expect(insert()).toBeUndefined();
+    }
+  });
+
+  it("[P81AS-AP10] 🔒 a NON-2xx carrying eligible:true is still refused", async () => {
+    // Contrived on purpose: it is what `res.ok` is in the condition for. A
+    // mutant that dropped it and trusted the body alone passed every other test
+    // in this file, because no other case pairs a failure status with a grant.
+    for (const status of [500, 403, 422]) {
+      VAULT = { status, body: { eligible: true } };
+      calls = [];
+      const res = await post({ client_profile_id: LEAD });
+      expect(res.status).not.toBe(201);
+      expect(insert()).toBeUndefined();
+    }
+  });
+
+  it("[P81AS-AP7] 🔒 Vault's 404 passes through — the error channel stays identical", async () => {
+    VAULT = {
+      status: 404,
+      body: { linkable: false, error: "Client profile not found", code: "CLIENT_PROFILE_NOT_FOUND" },
+    };
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("CLIENT_PROFILE_NOT_FOUND");
+    expect(insert()).toBeUndefined();
+  });
+
+  it("[P81AS-AP8] 🔑 no lead id → Vault is NEVER asked, and the row is created unlinked", async () => {
+    const res = await post();
+    expect(res.status).toBe(201);
+    expect(vaultCalls).toHaveLength(0);
+    expect((insert()!.args[0] as Record<string, unknown>).client_profile_id).toBeNull();
+  });
+
+  it("[P81AS-AP9] 🔒 the local ownership check still runs FIRST — Vault is not asked at all", async () => {
+    LEAD_ROW = { assigned_agent_id: "someone-else", claimed_by: null };
+    const res = await post({ client_profile_id: LEAD });
+    expect(res.status).toBe(403);
+    // An obviously-wrong request never leaves this origin.
+    expect(vaultCalls).toHaveLength(0);
+    expect(insert()).toBeUndefined();
   });
 });

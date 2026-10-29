@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { userClient } from '@/lib/security'
 import { ensureVaultForms } from '@/lib/vault-forward'
+import { VAULT_API_URL } from '@/lib/vault-client'
 import {
   mapPortalTransactionTypeToVaultType,
   toEnumTransactionType,
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthedUser(request)
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+    // P8.1A-S — forwarded to Vault when a lead is being linked, so Vault
+    // authenticates the same caller rather than this origin vouching for them.
+    // `getAuthedUser` also accepts a cookie session, which carries no bearer to
+    // forward; today the only caller that links a lead is app/leads/page.tsx
+    // via `authFetch`, which always sends one. A cookie-only caller that linked
+    // a lead would be refused below rather than quietly unverified.
+    const authHeader = request.headers.get('authorization') || ''
 
     // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
     // Coverage: transactions_insert WITH CHECK (agent_id = auth.uid() OR
@@ -289,6 +298,79 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         )
       }
+
+      // ── P8.1A-S · and it must be a BROKERAGE LEAD ──────────────────────
+      // Ownership was the whole check until now, and it is not enough.
+      // Measured on production: of 24 profiles linkable by ownership in the
+      // live tenant, 22 were NOT eligible leads — 16 review-band and 6
+      // excluded, the DO-NOT-CONTACT canaries among them. A Deal Dispo
+      // contact, an acquisition dataset row or an internal-staff record could
+      // become the client on a brokerage transaction through a direct request
+      // to this endpoint.
+      //
+      // 🔑 THE PORTAL CANNOT ANSWER THIS ITSELF, AND MUST NOT TRY.
+      // Classification needs `dispo_buyer_profiles` (RLS on, ZERO policies)
+      // and `seller_property_bundles` (broker/admin), neither readable by an
+      // agent JWT. So it asks Vault, which runs the one authoritative
+      // predicate — the same `evaluateLeadLinkPermission` Vault's own create
+      // route calls. Restating the rule here would be a second definition that
+      // drifts from the broker's queue.
+      //
+      // 🔒 FAIL CLOSED. Unreachable, unreadable, or any answer that is not an
+      // explicit `linkable: true` refuses the link. A transaction linked to an
+      // unclassified contact is the thing this exists to prevent, so a network
+      // problem must not become permission.
+      let verdict: { ok: boolean; status: number; error: string; code: string }
+      if (!authHeader) {
+        return NextResponse.json(
+          {
+            error: 'A linked client must be verified, which needs a bearer token on this request.',
+            code: 'CLIENT_PROFILE_CHECK_NO_BEARER',
+          },
+          { status: 401 },
+        )
+      }
+      try {
+        const res = await fetch(
+          `${VAULT_API_URL}/client-intelligence?lead_linkable=${encodeURIComponent(leadId)}`,
+          { headers: { Authorization: authHeader, 'Content-Type': 'application/json' }, cache: 'no-store' },
+        )
+        // 🔑 `eligible`, READ FROM THE REAL RESPONSE. I first wrote `linkable`
+        // to match the query parameter and verified it against production
+        // before merging: Vault answers `{"eligible":true}`. The two
+        // disagreeing would have refused EVERY lead link with a 502 on the
+        // happy path, and my own test asserted the wrong shape, so the suite
+        // would not have caught it. A contract comes from the payload.
+        const body = (await res.json().catch(() => null)) as
+          | { eligible?: boolean; error?: string; code?: string }
+          | null
+        if (res.ok && body?.eligible === true) {
+          verdict = { ok: true, status: 200, error: '', code: '' }
+        } else if (body && typeof body.code === 'string') {
+          // Vault's own refusal, passed through verbatim — one string for every
+          // band, so this channel cannot be used to learn which pipeline a
+          // record belongs to.
+          verdict = { ok: false, status: res.status, error: body.error ?? 'Refused', code: body.code }
+        } else {
+          verdict = {
+            ok: false,
+            status: 502,
+            error: 'The client could not be verified. Please retry.',
+            code: 'CLIENT_PROFILE_CHECK_UNAVAILABLE',
+          }
+        }
+      } catch {
+        verdict = {
+          ok: false,
+          status: 502,
+          error: 'The client could not be verified. Please retry.',
+          code: 'CLIENT_PROFILE_CHECK_UNAVAILABLE',
+        }
+      }
+      if (!verdict.ok) {
+        return NextResponse.json({ error: verdict.error, code: verdict.code }, { status: verdict.status })
+      }
+
       linkedClientProfileId = leadId
     }
 
