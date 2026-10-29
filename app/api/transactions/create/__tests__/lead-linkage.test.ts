@@ -80,9 +80,13 @@ jest.mock("@/lib/vault-client", () => ({ VAULT_API_URL: "https://vault.test/api"
 import { POST } from "@/app/api/transactions/create/route";
 
 /** P8.1A-S — Vault's verdict on whether the lead may be linked at all. */
+// 🔑 THE REAL RESPONSE SHAPE, verified against production: Vault answers
+// `{"eligible":true}`. This fixture said `linkable` to match the query
+// parameter, which is not what the endpoint returns — so the happy path would
+// have 502'd in production while this suite stayed green.
 let VAULT: { status: number; body: unknown } | "throw" = {
   status: 200,
-  body: { linkable: true },
+  body: { eligible: true },
 };
 const vaultCalls: string[] = [];
 
@@ -108,7 +112,7 @@ const leadRead = () => calls.find((c) => c.table === "client_profiles");
 beforeEach(() => {
   calls = [];
   vaultCalls.length = 0;
-  VAULT = { status: 200, body: { linkable: true } };
+  VAULT = { status: 200, body: { eligible: true } };
   global.fetch = jest.fn(async (url: string) => {
     vaultCalls.push(String(url));
     if (VAULT === "throw") throw new Error("ECONNREFUSED");
@@ -252,13 +256,21 @@ describe("[P81AS-AP] the Portal asks Vault whether the lead is a lead", () => {
     expect(insert()).toBeUndefined();
   });
 
-  it("[P81AS-AP6] 🔒 a 200 that does not say linkable:true refuses", async () => {
+  it("[P81AS-AP6] 🔒 a 200 that does not GRANT refuses", async () => {
     // The dangerous shape: a success status with a body that never granted
-    // anything. Only an explicit `true` is permission.
-    VAULT = { status: 200, body: { eligible: true } };
-    const res = await post({ client_profile_id: LEAD });
-    expect(res.status).toBe(502);
-    expect(insert()).toBeUndefined();
+    // anything. Only an explicit `eligible: true` is permission.
+    //
+    // 🔑 This test used to use `{ eligible: true }` as the non-granting body,
+    // because the route then read `linkable`. That is Vault's REAL grant, so
+    // the assertion encoded my own mistake as correct behaviour — the suite
+    // was green while production would have refused every link.
+    for (const body of [{}, { ok: true }, { eligible: false }, { eligible: "true" }]) {
+      VAULT = { status: 200, body };
+      calls = [];
+      const res = await post({ client_profile_id: LEAD });
+      expect(res.status).toBe(502);
+      expect(insert()).toBeUndefined();
+    }
   });
 
   it("[P81AS-AP7] 🔒 Vault's 404 passes through — the error channel stays identical", async () => {

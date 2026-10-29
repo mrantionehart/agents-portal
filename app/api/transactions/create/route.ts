@@ -335,10 +335,16 @@ export async function POST(request: NextRequest) {
           `${VAULT_API_URL}/client-intelligence?lead_linkable=${encodeURIComponent(leadId)}`,
           { headers: { Authorization: authHeader, 'Content-Type': 'application/json' }, cache: 'no-store' },
         )
+        // 🔑 `eligible`, READ FROM THE REAL RESPONSE. I first wrote `linkable`
+        // to match the query parameter and verified it against production
+        // before merging: Vault answers `{"eligible":true}`. The two
+        // disagreeing would have refused EVERY lead link with a 502 on the
+        // happy path, and my own test asserted the wrong shape, so the suite
+        // would not have caught it. A contract comes from the payload.
         const body = (await res.json().catch(() => null)) as
-          | { linkable?: boolean; error?: string; code?: string }
+          | { eligible?: boolean; error?: string; code?: string }
           | null
-        if (res.ok && body?.linkable === true) {
+        if (res.ok && body?.eligible === true) {
           verdict = { ok: true, status: 200, error: '', code: '' }
         } else if (body && typeof body.code === 'string') {
           // Vault's own refusal, passed through verbatim — one string for every
