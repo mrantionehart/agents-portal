@@ -65,36 +65,19 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
     }
   }
 
-  // Keep mock data for reference (commented out)
-  const mockNotifications = [
-    {
-      id: '1',
-      type: 'lead_assigned' as const,
-      title: 'New Lead Assigned',
-      description: 'John Smith assigned you a new hot lead - 123 Oak Ave',
-      timestamp: new Date(Date.now() - 5 * 60000),
-      read: false,
-      actionUrl: '/leads',
-    },
-    {
-      id: '2',
-      type: 'deal_updated' as const,
-      title: 'Deal Status Updated',
-      description: '456 Maple St moved to Under Contract by Sarah Johnson',
-      timestamp: new Date(Date.now() - 30 * 60000),
-      read: false,
-      actionUrl: '/pipeline',
-    },
-    {
-      id: '3',
-      type: 'document_requested' as const,
-      title: 'Document Requested',
-      description: 'TC John Doe requested your latest inspection report for 789 Pine St',
-      timestamp: new Date(Date.now() - 2 * 3600000),
-      read: true,
-      actionUrl: '/documents',
-    },
-  ]
+  // P8.1A — a dead `mockNotifications` fixture stood here, carrying
+  // `actionUrl: '/leads'` and `actionUrl: '/pipeline'`. It was declared once
+  // and referenced nowhere, so neither link ever rendered.
+  //
+  // 🔑 IT COST A WRONG REPORT. Grepping `actionUrl` found `/leads` and I
+  // reported this panel as a live entry point into the broken leads page; it
+  // never was, and `/leads` was reachable by URL alone. A string in a fixture
+  // is not a link, which is the whole of what UX-DONE-1 means by a source grep
+  // not being proof.
+  //
+  // The live path is above: a real notification links to
+  // `/transaction/<linked_id>`, and `${VAULT_API_URL}/notifications` answers
+  // (401 unauthenticated, verified against production).
 
   const unreadCount = notifications.filter(n => !n.read).length
 

@@ -1,635 +1,456 @@
 'use client'
 
+// ============================================================================
+// HARTFELT-P8.1A — My Leads
+// ============================================================================
+// What this replaced: a page calling `vaultAPI.leads.list/create/delete`
+// against Vault `/api/leads`, which has never existed and answers 404, with a
+// "Convert to Deal" button calling `deals.create`, retired in P7.4C. Every
+// control on it failed, and `/leads` is reachable — `NotificationsPanel` links
+// to it on `lead_assigned`.
+//
+// 🔑 WHAT A LEAD IS, IS NOT DECIDED HERE. `/api/vault/leads` forwards to Vault's
+// `?assigned=mine`, which runs `classifyLeadQueueRows` — the same predicate as
+// the broker's Unassigned queue. 2,704 of this tenant's 2,733 profiles are Deal
+// Dispo contacts, bulk-list imports, acquisition datasets or QA records; 8 are
+// leads. Restating that rule here would be a second definition that drifts.
+//
+// 🛑 NO ADD-LEAD FORM. The old page had one, and it posted to the 404. A lead
+// arrives through intake, which is what the classifier reads as evidence that a
+// person actually arrived; a create button here would be a second intake path
+// and a second people store.
+//
+// 🔑 SEARCH, FILTERS AND PAGING ARE SERVER-SIDE. The old page fetched
+// everything and filtered in memory. One agent's set is small today, but
+// "small today" is not a pagination strategy.
+// ============================================================================
+
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
-import Link from 'next/link'
-import { Plus, Search, Trash2, Edit, Phone, Mail, AlertCircle, CheckCircle, Clock, Briefcase } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { vaultAPI } from '@/lib/vault-client'
-import ComplianceNotifications from '../components/compliance-notifications'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Search, Phone, Mail, AlertCircle, Clock, Briefcase, ChevronLeft, ChevronRight, X,
+} from 'lucide-react'
+import { authFetch } from '@/lib/supabase'
+
+const VAULT_API_URL = (
+  process.env.NEXT_PUBLIC_VAULT_API_URL ?? 'https://vault.hartfeltrealestate.com/api'
+).replace(/\/$/, '')
+
+const PAGE_SIZE = 25
 
 interface Lead {
   id: string
-  first_name: string
-  last_name: string
-  email: string
-  phone: string
-  property_address: string
-  city: string
-  state: string
-  zip: string
-  lead_source: string
-  status: 'hot' | 'warm' | 'cold'
-  notes: string
-  created_at: string
+  full_name: string | null
+  email: string | null
+  phone: string | null
+  status: string | null
+  profile_type: string | null
+  temperature: string | null
+  source: string | null
+  created_at: string | null
+  assigned_at: string | null
+}
+
+interface FollowUp {
+  id: string
+  title: string | null
+  task_type: string | null
+  status: string | null
+  due_at: string | null
+  completed_at: string | null
+}
+
+const ageDays = (iso: string | null) => {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return null
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000))
 }
 
 export default function LeadsPage() {
-  const { user, role, loading, signOut } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
+
   const [leads, setLeads] = useState<Lead[]>([])
-  const [filteredLeads, setFilteredLeads] = useState<Lead[]>([])
+  const [leadCount, setLeadCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [offset, setOffset] = useState(0)
   const [leadsLoading, setLeadsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all')
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showConvertModal, setShowConvertModal] = useState(false)
-  const [selectedLeadForConvert, setSelectedLeadForConvert] = useState<Lead | null>(null)
-  const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null)
-  const [dealData, setDealData] = useState({
-    contract_price: '',
-    notes: '',
-  })
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    property_address: '',
-    city: '',
-    state: '',
-    zip: '',
-    lead_source: '',
-    status: 'warm' as const,
-    notes: '',
-  })
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+
+  const [selected, setSelected] = useState<Lead | null>(null)
+  const [followUps, setFollowUps] = useState<FollowUp[] | null>(null)
+  const [followUpsError, setFollowUpsError] = useState<string | null>(null)
+
+  const [showConvert, setShowConvert] = useState(false)
+  const [converting, setConverting] = useState(false)
+  const [convertError, setConvertError] = useState<string | null>(null)
+  const [convertResult, setConvertResult] = useState<string | null>(null)
+  const [convertForm, setConvertForm] = useState({ property_address: '', type: 'buyer' })
 
   useEffect(() => {
-    if (user) {
-      loadLeads()
-    }
-  }, [user])
+    if (!loading && !user) router.push('/login')
+  }, [user, loading, router])
 
-  useEffect(() => {
-    filterLeads()
-  }, [leads, searchTerm, statusFilter])
-
-  const loadLeads = async () => {
-    if (!user) return
+  const loadLeads = useCallback(async () => {
+    setLeadsLoading(true)
+    setError(null)
     try {
-      setLeadsLoading(true)
-      setError(null)
-      const result = await vaultAPI.leads.list(user.id, role)
-      const leadsArray = Array.isArray(result) ? result : result.leads || []
-      setLeads(leadsArray)
-    } catch (err) {
-      console.error('Error loading leads:', err)
-      // Silently fail - just set empty data instead of showing error
+      const qs = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) })
+      if (appliedSearch.trim() !== '') qs.set('search', appliedSearch.trim())
+      if (typeFilter !== '') qs.set('type', typeFilter)
+      const res = await authFetch(`/api/vault/leads?${qs.toString()}`)
+      if (!res.ok) {
+        // 🔒 A failure is not an empty list. "No leads assigned to you" is a
+        // statement about the brokerage and the agent would act on it.
+        setError(
+          res.status === 401
+            ? "We couldn't load your leads — your session may have expired. Please refresh."
+            : `We couldn't load your leads (Vault returned ${res.status}). Please retry.`,
+        )
+        setLeads([])
+        return
+      }
+      const body = await res.json()
+      setLeads(Array.isArray(body?.data) ? body.data : [])
+      setLeadCount(typeof body?.lead_count === 'number' ? body.lead_count : 0)
+      setHasMore(Boolean(body?.page?.has_more))
+    } catch {
+      setError("We couldn't load your leads. Please retry.")
       setLeads([])
     } finally {
       setLeadsLoading(false)
     }
-  }
+  }, [appliedSearch, typeFilter, offset])
 
-  const filterLeads = () => {
-    let filtered = leads
+  useEffect(() => {
+    if (user) loadLeads()
+  }, [user, loadLeads])
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(lead =>
-        lead.first_name.toLowerCase().includes(term) ||
-        lead.last_name.toLowerCase().includes(term) ||
-        lead.email.toLowerCase().includes(term) ||
-        lead.phone.includes(term) ||
-        lead.property_address.toLowerCase().includes(term)
-      )
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.status === statusFilter)
-    }
-
-    setFilteredLeads(filtered)
-  }
-
-  const handleAddLead = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-
+  async function openLead(lead: Lead) {
+    setSelected(lead)
+    setFollowUps(null)
+    setFollowUpsError(null)
+    setConvertResult(null)
+    setConvertError(null)
+    setConvertForm({ property_address: '', type: 'buyer' })
     try {
-      const newLead = {
-        ...formData,
-        agent_id: user.id,
+      // Vault's own follow-up endpoint, owner-scoped the same way: an agent
+      // sees their own tasks. It carries CORS, so this one is a direct call —
+      // the same pattern My Follow-Ups already uses.
+      const res = await authFetch(
+        `${VAULT_API_URL}/crm/followups?client_profile_id=${encodeURIComponent(lead.id)}&limit=50`,
+      )
+      if (!res.ok) {
+        setFollowUpsError('Follow-up history could not be loaded.')
+        return
       }
-      await vaultAPI.leads.create(newLead, user.id, role)
-      setFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        property_address: '',
-        city: '',
-        state: '',
-        zip: '',
-        lead_source: '',
-        status: 'warm',
-        notes: '',
+      const body = await res.json()
+      const rows = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
+      setFollowUps(rows)
+    } catch {
+      setFollowUpsError('Follow-up history could not be loaded.')
+    }
+  }
+
+  async function submitConvert() {
+    if (!selected || converting) return // 🔒 one submission per click
+    setConverting(true)
+    setConvertError(null)
+    setConvertResult(null)
+    try {
+      const res = await authFetch('/api/transactions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: convertForm.type,
+          business_line: 'brokerage',
+          property_address: convertForm.property_address,
+          client_name: selected.full_name ?? '',
+          client_email: selected.email ?? '',
+          client_phone: selected.phone ?? '',
+          client_profile_id: selected.id,
+        }),
       })
-      setShowAddForm(false)
-      await loadLeads()
-    } catch (err) {
-      setError(`Failed to add lead: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    }
-  }
-
-  const handleDeleteLead = async (leadId: string) => {
-    if (!user || !confirm('Are you sure you want to delete this lead?')) return
-
-    try {
-      await vaultAPI.leads.delete(leadId, user.id, role)
-      await loadLeads()
-    } catch (err) {
-      setError(`Failed to delete lead: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    }
-  }
-
-  const handleConvertToDeal = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user || !selectedLeadForConvert) return
-
-    try {
-      setConvertingLeadId(selectedLeadForConvert.id)
-      const newDeal = await vaultAPI.deals.create(
-        {
-          client_name: `${selectedLeadForConvert.first_name} ${selectedLeadForConvert.last_name}`,
-          property_address: selectedLeadForConvert.property_address,
-          contract_price: parseFloat(dealData.contract_price) || 0,
-          stage: 'new',
-          status: 'new',
-          notes: dealData.notes || selectedLeadForConvert.notes,
-          agent_id: user.id,
-          created_at: new Date().toISOString(),
-        },
-        user.id,
-        role
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        // 🔑 The ACTUAL response, not a generic failure. A 403
+        // CLIENT_PROFILE_NOT_ASSIGNED and a 400 missing-address are different
+        // problems and the agent can only act on one of them.
+        setConvertError(body?.error || `Could not create the transaction (${res.status}).`)
+        return
+      }
+      setConvertResult(
+        'Draft transaction created. It is a draft — the broker reviews it before anything is sent.',
       )
-
-      // Clear the form
-      setDealData({ contract_price: '', notes: '' })
-      setShowConvertModal(false)
-      setSelectedLeadForConvert(null)
-
-      // Refresh leads and optionally redirect to pipeline
-      await loadLeads()
-      alert(`✅ Lead converted to deal! Redirecting to pipeline...`)
-      router.push('/pipeline')
-    } catch (err) {
-      setError(`Failed to convert lead: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setShowConvert(false)
+    } catch {
+      setConvertError('Could not create the transaction. Please retry.')
     } finally {
-      setConvertingLeadId(null)
-    }
-  }
-
-  const openConvertModal = (lead: Lead) => {
-    setSelectedLeadForConvert(lead)
-    setShowConvertModal(true)
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-    router.push('/login')
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'hot':
-        return <AlertCircle className="w-4 h-4 text-red-600" />
-      case 'warm':
-        return <Clock className="w-4 h-4 text-yellow-600" />
-      case 'cold':
-        return <CheckCircle className="w-4 h-4 text-blue-600" />
-      default:
-        return null
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'hot':
-        return 'bg-red-500/15 text-red-800 border-red-300'
-      case 'warm':
-        return 'bg-yellow-500/15 text-yellow-400 border-yellow-300'
-      case 'cold':
-        return 'bg-blue-500/15 text-blue-400 border-blue-300'
-      default:
-        return 'bg-[#0a0a0f] text-white border-[#1a1a2e]'
+      setConverting(false)
     }
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-  }
-
-  if (!user) {
-    return null
+    return <div className="p-8 text-text-secondary">Loading…</div>
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-[#0a0a0f] border-b border-[#1a1a2e]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-blue-600 hover:text-blue-400 font-medium">
-              ← Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-white">My Leads</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <ComplianceNotifications userId={user?.id} role={role} />
-            <button
-              onClick={handleSignOut}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-text-primary">My Leads</h1>
+        <p className="text-sm text-text-secondary mt-1">
+          Brokerage leads assigned to you. Vault is the source of truth; the broker assigns.
+        </p>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Error Banner */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
-            <p className="text-red-800 text-sm">{error}</p>
+      {/* Search + filter. Both are applied by the server. */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <form
+          className="flex-1 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setOffset(0)
+            setAppliedSearch(searchTerm)
+          }}
+        >
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input
+              aria-label="Search leads"
+              placeholder="Search name, email or phone"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-surface border border-border text-sm text-text-primary"
+            />
           </div>
-        )}
-
-        {/* Top Actions */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, phone, or address..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="ml-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            {showAddForm ? 'Cancel' : 'Add Lead'}
+          <button type="submit" className="px-4 py-2 rounded-lg bg-accent text-sm font-medium">
+            Search
           </button>
-        </div>
+        </form>
+        <select
+          aria-label="Filter by type"
+          value={typeFilter}
+          onChange={(e) => { setOffset(0); setTypeFilter(e.target.value) }}
+          className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text-primary"
+        >
+          <option value="">All types</option>
+          <option value="buyer">Buyer</option>
+          <option value="seller">Seller</option>
+          <option value="tenant">Tenant</option>
+        </select>
+      </div>
 
-        {/* Status Filters */}
-        <div className="flex gap-2 mb-8">
-          {(['all', 'hot', 'warm', 'cold'] as const).map((status) => (
+      {error && (
+        <div role="alert" className="mb-5 p-3 rounded-lg border border-red-500/30 bg-red-500/10 flex gap-2 text-sm text-red-300">
+          <AlertCircle size={16} className="shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {convertResult && (
+        <div role="status" className="mb-5 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-300">
+          {convertResult}
+        </div>
+      )}
+
+      {leadsLoading ? (
+        <div className="p-8 text-center text-text-secondary text-sm">Loading your leads…</div>
+      ) : leads.length === 0 && !error ? (
+        <div className="p-8 text-center border border-border rounded-lg">
+          <p className="text-text-primary font-medium">No leads assigned to you</p>
+          <p className="text-sm text-text-secondary mt-1">
+            {appliedSearch || typeFilter
+              ? 'No assigned lead matches this search.'
+              : 'When the broker assigns you a lead it appears here.'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-text-secondary mb-2">
+            {leadCount} {leadCount === 1 ? 'lead' : 'leads'} assigned to you
+          </p>
+          <ul className="space-y-2">
+            {leads.map((lead) => {
+              const age = ageDays(lead.created_at)
+              return (
+                <li key={lead.id}>
+                  <button
+                    onClick={() => openLead(lead)}
+                    className="w-full text-left p-4 rounded-lg border border-border hover:border-accent transition flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
+                  >
+                    <span className="flex-1 font-medium text-text-primary">
+                      {lead.full_name || 'Unnamed lead'}
+                    </span>
+                    {lead.profile_type && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-surface border border-border text-text-secondary">
+                        {lead.profile_type}
+                      </span>
+                    )}
+                    {lead.status && (
+                      <span className="text-xs text-text-secondary">{lead.status}</span>
+                    )}
+                    {age !== null && (
+                      <span className="text-xs text-text-secondary flex items-center gap-1">
+                        <Clock size={12} /> {age}d
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          <nav className="flex items-center justify-between mt-5" aria-label="Pagination">
             <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg transition ${
-                statusFilter === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0a0a0f] text-gray-200 border border-[#1a1a2e] hover:bg-[#0a0a0f]'
-              }`}
+              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+              disabled={offset === 0}
+              className="px-3 py-2 text-sm rounded-lg border border-border disabled:opacity-40 flex items-center gap-1"
             >
-              {status === 'all' ? 'All Leads' : `${status.charAt(0).toUpperCase() + status.slice(1)} (${leads.filter(l => l.status === status).length})`}
+              <ChevronLeft size={14} /> Previous
             </button>
-          ))}
-        </div>
+            <span className="text-xs text-text-secondary">
+              {offset + 1}–{offset + leads.length} of {leadCount}
+            </span>
+            <button
+              onClick={() => setOffset(offset + PAGE_SIZE)}
+              disabled={!hasMore}
+              className="px-3 py-2 text-sm rounded-lg border border-border disabled:opacity-40 flex items-center gap-1"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </nav>
+        </>
+      )}
 
-        {/* Add Lead Form */}
-        {showAddForm && (
-          <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8 mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Add New Lead</h2>
-            <form onSubmit={handleAddLead} className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Property Address</label>
-                <input
-                  type="text"
-                  value={formData.property_address}
-                  onChange={(e) => setFormData({ ...formData, property_address: e.target.value })}
-                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">City</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">State</label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                    placeholder="FL"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">ZIP</label>
-                  <input
-                    type="text"
-                    value={formData.zip}
-                    onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Lead Source</label>
-                  <select
-                    value={formData.lead_source}
-                    onChange={(e) => setFormData({ ...formData, lead_source: e.target.value })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  >
-                    <option value="">Select source...</option>
-                    <option value="Referral">Referral</option>
-                    <option value="Website">Website</option>
-                    <option value="Facebook">Facebook</option>
-                    <option value="Door Knock">Door Knock</option>
-                    <option value="Farm">Farm</option>
-                    <option value="Sphere">Sphere</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  >
-                    <option value="hot">🔥 Hot</option>
-                    <option value="warm">⏱️ Warm</option>
-                    <option value="cold">❄️ Cold</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-[#C9A84C]/30"
-                  placeholder="Add any notes about this lead..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium"
-              >
-                Add Lead
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Convert to Deal Modal */}
-        {showConvertModal && selectedLeadForConvert && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a0a0f] rounded-lg shadow-xl max-w-md w-full p-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Convert to Deal</h2>
-              <p className="text-gray-400 mb-6">
-                Converting <strong>{selectedLeadForConvert.first_name} {selectedLeadForConvert.last_name}</strong> to a deal
+      {/* ── Lead detail ─────────────────────────────────────────────── */}
+      {selected && (
+        <div className="mt-6 p-4 sm:p-6 rounded-lg border border-border bg-surface">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">
+                {selected.full_name || 'Unnamed lead'}
+              </h2>
+              <p className="text-xs text-text-secondary mt-1">
+                {selected.profile_type ?? 'lead'} · {selected.status ?? 'no status'}
+                {selected.source ? ` · ${selected.source}` : ''}
               </p>
-
-              <form onSubmit={handleConvertToDeal} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Contract Price *</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-gray-400">$</span>
-                    <input
-                      type="number"
-                      required
-                      placeholder="0.00"
-                      value={dealData.contract_price}
-                      onChange={(e) => setDealData({ ...dealData, contract_price: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-green-500"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Additional Notes</label>
-                  <textarea
-                    value={dealData.notes}
-                    onChange={(e) => setDealData({ ...dealData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-[#1a1a2e] rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="Any notes for this deal..."
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowConvertModal(false)
-                      setSelectedLeadForConvert(null)
-                      setDealData({ contract_price: '', notes: '' })
-                    }}
-                    className="flex-1 px-4 py-2 border border-[#1a1a2e] text-gray-200 rounded-lg hover:bg-[#0a0a0f] transition font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={convertingLeadId === selectedLeadForConvert.id}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:bg-green-400"
-                  >
-                    {convertingLeadId === selectedLeadForConvert.id ? 'Converting...' : 'Convert to Deal'}
-                  </button>
-                </div>
-              </form>
             </div>
+            <button aria-label="Close lead details" onClick={() => setSelected(null)}>
+              <X size={18} className="text-text-secondary" />
+            </button>
           </div>
-        )}
 
-        {/* Leads List */}
-        {leadsLoading ? (
-          <div className="text-center py-12 text-gray-400">Loading leads...</div>
-        ) : filteredLeads.length > 0 ? (
-          <div className="space-y-4">
-            {filteredLeads.map((lead) => (
-              <div
-                key={lead.id}
-                className="bg-[#0a0a0f] rounded-lg shadow p-6 hover:shadow-lg shadow-black/20 transition"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-white">
-                        {lead.first_name} {lead.last_name}
-                      </h3>
-                      <div className={`px-3 py-1 rounded-full border text-sm font-medium flex items-center gap-1 ${getStatusColor(lead.status)}`}>
-                        {getStatusIcon(lead.status)}
-                        {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-                      </div>
-                    </div>
+          <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Phone size={14} className="text-text-secondary" />
+              <dt className="sr-only">Phone</dt>
+              <dd className="text-text-primary">{selected.phone || 'No phone on file'}</dd>
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail size={14} className="text-text-secondary" />
+              <dt className="sr-only">Email</dt>
+              <dd className="text-text-primary">{selected.email || 'No email on file'}</dd>
+            </div>
+          </dl>
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      {lead.email && (
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Mail className="w-4 h-4" />
-                          <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline">
-                            {lead.email}
-                          </a>
-                        </div>
-                      )}
-                      {lead.phone && (
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Phone className="w-4 h-4" />
-                          <a href={`tel:${lead.phone}`} className="text-blue-600 hover:underline">
-                            {lead.phone}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {lead.property_address && (
-                      <p className="text-gray-200 mb-2">
-                        <span className="font-semibold">Property:</span> {lead.property_address}
-                        {lead.city && `, ${lead.city}`}
-                        {lead.state && `, ${lead.state}`}
-                        {lead.zip && ` ${lead.zip}`}
-                      </p>
-                    )}
-
-                    {lead.lead_source && (
-                      <p className="text-gray-400 text-sm mb-2">
-                        <span className="font-semibold">Source:</span> {lead.lead_source}
-                      </p>
-                    )}
-
-                    {lead.notes && (
-                      <p className="text-gray-400 text-sm italic">
-                        <span className="font-semibold">Notes:</span> {lead.notes}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 ml-4">
-                    <button
-                      onClick={() => openConvertModal(lead)}
-                      className="px-4 py-2 bg-green-500/15 text-green-400 hover:bg-green-200 rounded-lg transition text-sm font-medium flex items-center gap-2"
-                      title="Convert to deal"
-                    >
-                      <Briefcase className="w-4 h-4" />
-                      Convert
-                    </button>
-                    <button
-                      onClick={() => router.push(`/leads/${lead.id}`)}
-                      className="p-2 text-blue-600 hover:bg-blue-500/10 rounded-lg transition"
-                      title="View details"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteLead(lead.id)}
-                      className="p-2 text-red-600 hover:bg-red-500/10 rounded-lg transition"
-                      title="Delete lead"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-[#0a0a0f] rounded-lg shadow p-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-400 font-medium mb-4">
-              {searchTerm || statusFilter !== 'all' ? 'No leads match your filters.' : 'No leads yet. Add your first lead to get started!'}
-            </p>
-            {!showAddForm && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-              >
-                Add Your First Lead
-              </button>
+          <section className="mt-5">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Follow-up history</h3>
+            {followUpsError ? (
+              <p className="text-sm text-red-300">{followUpsError}</p>
+            ) : followUps === null ? (
+              <p className="text-sm text-text-secondary">Loading follow-up history…</p>
+            ) : followUps.length === 0 ? (
+              <p className="text-sm text-text-secondary">No follow-ups recorded for this lead.</p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {followUps.map((f) => (
+                  <li key={f.id} className="flex flex-wrap gap-2 text-text-secondary">
+                    <span className="text-text-primary">{f.title || f.task_type || 'Follow-up'}</span>
+                    <span>{f.status ?? ''}</span>
+                    {f.due_at && <span>due {new Date(f.due_at).toLocaleDateString()}</span>}
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-        )}
+          </section>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-4 gap-4 mt-12">
-          <div className="bg-[#0a0a0f] rounded-lg shadow p-6">
-            <p className="text-gray-400 text-sm font-medium mb-2">Total Leads</p>
-            <p className="text-3xl font-bold text-white">{leads.length}</p>
-          </div>
-          <div className="bg-red-500/10 rounded-lg shadow p-6 border border-red-500/20">
-            <p className="text-red-600 text-sm font-medium mb-2">🔥 Hot Leads</p>
-            <p className="text-3xl font-bold text-red-600">{leads.filter(l => l.status === 'hot').length}</p>
-          </div>
-          <div className="bg-yellow-500/10 rounded-lg shadow p-6 border border-yellow-500/20">
-            <p className="text-yellow-600 text-sm font-medium mb-2">⏱️ Warm Leads</p>
-            <p className="text-3xl font-bold text-yellow-600">{leads.filter(l => l.status === 'warm').length}</p>
-          </div>
-          <div className="bg-blue-500/10 rounded-lg shadow p-6 border border-blue-500/20">
-            <p className="text-blue-600 text-sm font-medium mb-2">❄️ Cold Leads</p>
-            <p className="text-3xl font-bold text-blue-600">{leads.filter(l => l.status === 'cold').length}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              onClick={() => { setShowConvert(true); setConvertError(null) }}
+              className="px-4 py-2 rounded-lg bg-accent text-sm font-medium flex items-center gap-2"
+            >
+              <Briefcase size={14} /> Convert to Transaction
+            </button>
           </div>
         </div>
-      </main>
+      )}
+
+      {/* ── Convert ─────────────────────────────────────────────────── */}
+      {showConvert && selected && (
+        <div className="mt-4 p-4 sm:p-6 rounded-lg border border-accent/40 bg-surface">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Convert {selected.full_name || 'this lead'} to a transaction
+          </h3>
+          <p className="text-xs text-text-secondary mt-1">
+            This creates a <strong>draft</strong>. The broker reviews it; nothing is sent and no
+            envelope is generated.
+          </p>
+
+          {convertError && (
+            <div role="alert" className="mt-3 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-300">
+              {convertError}
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="text-sm">
+              <span className="block text-xs text-text-secondary mb-1">Property address</span>
+              <input
+                aria-label="Property address"
+                value={convertForm.property_address}
+                onChange={(e) => setConvertForm({ ...convertForm, property_address: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-text-primary"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs text-text-secondary mb-1">Transaction type</span>
+              <select
+                aria-label="Transaction type"
+                value={convertForm.type}
+                onChange={(e) => setConvertForm({ ...convertForm, type: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-text-primary"
+              >
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="listing">Listing</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={submitConvert}
+              disabled={converting}
+              className="px-4 py-2 rounded-lg bg-accent text-sm font-medium disabled:opacity-50"
+            >
+              {converting ? 'Creating draft…' : 'Create draft transaction'}
+            </button>
+            <button
+              onClick={() => setShowConvert(false)}
+              disabled={converting}
+              className="px-4 py-2 rounded-lg border border-border text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

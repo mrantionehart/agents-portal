@@ -8,6 +8,10 @@ import {
   toEnumTransactionType,
 } from '@/lib/portal-transaction-type'
 
+/** P8.1A — the shape Vault's `resolveLinkIntent` accepts for a lead id. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -108,6 +112,7 @@ export async function POST(request: NextRequest) {
       financing_type,
       has_hoa,
       year_built,
+      client_profile_id,
     } = body
 
     // Validate required fields
@@ -235,6 +240,58 @@ export async function POST(request: NextRequest) {
       targetAgentId = assignedAgentId
     }
 
+    // ── P8.1A · link the lead this transaction came from ──────────────
+    // The Agent Portal's Convert to Transaction sends the lead's id. Vault's
+    // own POST /api/transactions decides this with `evaluateLinkAuthorization`
+    // (LINK_MANAGER_ROLES, else `assigned_agent_id === caller`); this route
+    // writes the row itself, so the same rule has to hold here.
+    //
+    // 🔒 THE TENANT HALF IS NOT RE-IMPLEMENTED. `admin` is `userClient(request)`
+    // — the caller's JWT under RLS — so `cp_agent_select_tenant` /
+    // `cp_broker_tenant_all` already refuse another tenant's profile before
+    // this code runs, and `trg_transactions_client_profile_tenant` refuses the
+    // INSERT besides. What is checked here is OWNERSHIP, which RLS does not
+    // settle on its own: that same agent policy also grants the whole tenant's
+    // `visibility='dispo_feed' AND status='dispo'` rows, so "readable" is wider
+    // than "mine" and a Buyer Drop must not become an agent's transaction.
+    //
+    // 🔑 A MALFORMED ID IS REFUSED, NOT DROPPED — the same call Vault makes.
+    // Silently discarding it would create the transaction unlinked while the
+    // agent watched a dialog that said the client was attached.
+    let linkedClientProfileId: string | null = null
+    if (client_profile_id !== undefined && client_profile_id !== null && client_profile_id !== '') {
+      if (typeof client_profile_id !== 'string' || !UUID_RE.test(client_profile_id.trim())) {
+        return NextResponse.json(
+          { error: 'client_profile_id must be a profile id', code: 'INVALID_CLIENT_PROFILE_ID' },
+          { status: 400 }
+        )
+      }
+      const leadId = client_profile_id.trim()
+      const { data: lead } = await admin
+        .from('client_profiles')
+        .select('id, assigned_agent_id, claimed_by')
+        .eq('id', leadId)
+        .maybeSingle()
+      if (!lead) {
+        // Out of tenant, or no such lead. Reported identically so the error
+        // channel cannot be used to discover which leads exist.
+        return NextResponse.json(
+          { error: 'Client profile not found', code: 'CLIENT_PROFILE_NOT_FOUND' },
+          { status: 404 }
+        )
+      }
+      const row = lead as { assigned_agent_id: string | null; claimed_by: string | null }
+      const manages = ['broker', 'admin', 'office_manager'].includes(userRole)
+      const mine = row.assigned_agent_id === user.id || row.claimed_by === user.id
+      if (!manages && !mine) {
+        return NextResponse.json(
+          { error: 'That lead is not assigned to you', code: 'CLIENT_PROFILE_NOT_ASSIGNED' },
+          { status: 403 }
+        )
+      }
+      linkedClientProfileId = leadId
+    }
+
     // Insert transaction
     const { data: transaction, error } = await admin
       .from('transactions')
@@ -245,6 +302,7 @@ export async function POST(request: NextRequest) {
         // from the commission engine; no prepared_by, no verified flag.
         agent_id: targetAgentId,
         business_line: businessLine,
+        client_profile_id: linkedClientProfileId,
         type: storedType,
         status: 'draft',
         // P4H-13 — the marker that makes this listing a RENTAL one. Vault's
