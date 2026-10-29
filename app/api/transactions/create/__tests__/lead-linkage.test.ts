@@ -273,6 +273,19 @@ describe("[P81AS-AP] the Portal asks Vault whether the lead is a lead", () => {
     }
   });
 
+  it("[P81AS-AP10] 🔒 a NON-2xx carrying eligible:true is still refused", async () => {
+    // Contrived on purpose: it is what `res.ok` is in the condition for. A
+    // mutant that dropped it and trusted the body alone passed every other test
+    // in this file, because no other case pairs a failure status with a grant.
+    for (const status of [500, 403, 422]) {
+      VAULT = { status, body: { eligible: true } };
+      calls = [];
+      const res = await post({ client_profile_id: LEAD });
+      expect(res.status).not.toBe(201);
+      expect(insert()).toBeUndefined();
+    }
+  });
+
   it("[P81AS-AP7] 🔒 Vault's 404 passes through — the error channel stays identical", async () => {
     VAULT = {
       status: 404,
