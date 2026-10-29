@@ -135,15 +135,15 @@ describe('UploadAgreementButton', () => {
     return f
   }
 
-  it('[UPB-7] a file over 4 MB is refused BEFORE the upload and names the size', async () => {
-    // Vercel rejects a body over ~4.5 MB before the Vault function runs, so
-    // waiting out the upload only to be told that is wasted time.
+  it('[UPB-7] a file over 25 MB is refused BEFORE any request and names the size', async () => {
+    // The ceiling moved: >4 MB no longer fails, it takes the direct path.
+    // What is still refused up front is what Vault itself will not accept, so
+    // the agent is not made to wait out a doomed 30 MB upload.
     mount()
-    fireEvent.change(fileInput(), { target: { files: [oversizePdf(5 * 1024 * 1024)] } })
+    fireEvent.change(fileInput(), { target: { files: [oversizePdf(26 * 1024 * 1024)] } })
 
-    expect(await screen.findByText(/5\.0 MB/i)).toBeInTheDocument()
-    expect(screen.getByText(/4 MB/i)).toBeInTheDocument()
-    // No fetch — the agent's connection is not spent on a doomed request.
+    expect(await screen.findByText(/26\.0 MB/i)).toBeInTheDocument()
+    expect(screen.getByText(/25 MB/i)).toBeInTheDocument()
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
@@ -163,8 +163,9 @@ describe('UploadAgreementButton', () => {
   })
 
   it('[UPB-9] a 413 whose body is plain text is NOT shown as "Upload failed (413)"', async () => {
-    // Vercel's 413 arrives as plain text, so res.json() throws and json.error
-    // is undefined. The fallback must still name the actual cause.
+    // Still reachable on the MULTIPART path, which a small file still uses:
+    // Vercel's 413 arrives as plain text, so res.json() throws and
+    // json.error is undefined. The fallback must still name the cause.
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 413,
@@ -173,7 +174,7 @@ describe('UploadAgreementButton', () => {
     mount()
     fireEvent.change(fileInput(), { target: { files: [pdf()] } })
 
-    expect(await screen.findByText(/upload ceiling/i)).toBeInTheDocument()
+    expect(await screen.findByText(/single-request ceiling/i)).toBeInTheDocument()
     expect(screen.queryByText(/Upload failed \(413\)/i)).not.toBeInTheDocument()
   })
 
