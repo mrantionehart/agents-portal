@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth } from '@/lib/security'
 import { VAULT_API_URL } from '@/lib/vault-client'
 
 // ============================================================================
@@ -21,6 +22,12 @@ import { VAULT_API_URL } from '@/lib/vault-client'
 // nothing else: no service-role key, no header Vault would read as identity.
 // Who may see which lead is decided in Vault by `?assigned=mine` and, beneath
 // it, by `cp_agent_select_tenant`.
+//
+// 🔑 `withAuth` IS THE GATE, not a presence check on the header. The first
+// version read `authorization` and 401'd when it was absent, which the repo's
+// route-security guard correctly rejected as unmarked: an absent header and an
+// INVALID one are different, and only the wrapper can tell them apart. It also
+// means a token Vault would refuse is refused here first.
 // ============================================================================
 
 export const dynamic = 'force-dynamic'
@@ -28,12 +35,11 @@ export const dynamic = 'force-dynamic'
 /** Only the knobs the leads page turns. An unlisted param is not forwarded. */
 const FORWARDED = ['search', 'status', 'type', 'limit', 'offset'] as const
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest) => {
   try {
+    // Forwarded verbatim so Vault authenticates the same caller `withAuth`
+    // just did, rather than this origin vouching for them.
     const authHeader = request.headers.get('authorization') || ''
-    if (!authHeader) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
 
     const incoming = new URL(request.url).searchParams
     const qs = new URLSearchParams({ assigned: 'mine' })
@@ -69,4 +75,4 @@ export async function GET(request: NextRequest) {
       { status: 502 },
     )
   }
-}
+})

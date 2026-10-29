@@ -233,3 +233,51 @@ describe('[P81A-N] paging', () => {
     await waitFor(() => expect(callsTo('offset=25').length).toBeGreaterThan(0))
   })
 })
+
+describe('[P81A-W] the double-submit guard is the HANDLER, not the attribute', () => {
+  // 🔑 [P81A-V4] clicks, waits for the control to go disabled, then clicks
+  // again — so it proves the `disabled` ATTRIBUTE. A mutant that deleted the
+  // handler's own guard survived it untouched, because a disabled button
+  // swallows the second click in jsdom either way.
+  //
+  // This fires both clicks back-to-back with no await between them, and it
+  // PASSES on the shipped code — so what it establishes is that the UI cannot
+  // double-submit, not which of the two guards stops it. RTL wraps every
+  // `fireEvent` in `act()`, which flushes the state update, so `disabled` is
+  // already applied before the second click lands.
+  //
+  // 🔑 That makes the deleted-handler-guard mutant EQUIVALENT rather than a
+  // coverage hole: with `disabled={converting}` present there is no reachable
+  // behaviour that distinguishes them. Recorded as equivalent instead of
+  // chased, because a test written only to tell two redundant guards apart
+  // would be testing the implementation, not the agent's journey.
+  it('[P81A-W1] 🔒 two clicks in a row create ONE transaction', async () => {
+    let settle: (v: unknown) => void = () => {}
+    const pending = new Promise((r) => { settle = r })
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/vault/leads')) return leadsOk([LEAD])
+      if (url.includes('/crm/followups')) return followupsOk([])
+      if (url.includes('/api/transactions/create')) {
+        await pending
+        return { ok: true, status: 201, json: async () => ({ transaction: { id: 'tx-1' } }) }
+      }
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    render(<LeadsPage />)
+    fireEvent.click(await screen.findByText('Christopher Allen'))
+    fireEvent.click(await screen.findByRole('button', { name: /Convert to Transaction/ }))
+    fireEvent.change(await screen.findByLabelText('Property address'), {
+      target: { value: '12 Elm St' },
+    })
+
+    const submit = screen.getByRole('button', { name: 'Create draft transaction' })
+    // Both in the same tick — no await between them.
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+    settle(null)
+
+    await waitFor(() => expect(callsTo('/api/transactions/create').length).toBeGreaterThan(0))
+    expect(callsTo('/api/transactions/create')).toHaveLength(1)
+  })
+})

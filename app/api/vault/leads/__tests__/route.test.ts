@@ -12,6 +12,20 @@
 
 jest.mock('@/lib/vault-client', () => ({ VAULT_API_URL: 'https://vault.test/api' }))
 
+// `withAuth` is the gate. Here it is reduced to the one decision these tests
+// are about — authenticated or not — so the assertions stay on the REQUEST the
+// proxy makes. Whether the wrapper itself authenticates correctly is
+// lib/security's own suite's job, not this file's.
+let AUTHED = true
+jest.mock('@/lib/security', () => ({
+  withAuth:
+    (handler: (req: Request, ctx: { user: { id: string } }) => Promise<Response>) =>
+    async (req: Request) =>
+      AUTHED
+        ? handler(req, { user: { id: 'agent-1' } })
+        : new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }),
+}))
+
 import { GET } from '../route'
 
 const call = (qs = '', headers: Record<string, string> = { authorization: 'Bearer agent-token' }) =>
@@ -21,6 +35,7 @@ const lastFetch = () => (global.fetch as jest.Mock).mock.calls.at(-1)!
 const lastUrl = () => new URL(lastFetch()[0] as string)
 
 beforeEach(() => {
+  AUTHED = true
   global.fetch = jest.fn(async () => ({
     status: 200,
     json: async () => ({ data: [], lead_count: 0, page: { has_more: false } }),
@@ -52,6 +67,7 @@ describe('[P81A-PX] the request it forwards', () => {
   })
 
   it('[P81A-PX4] unauthenticated → 401, and Vault is never called', async () => {
+    AUTHED = false
     const res = await call('', {})
     expect(res.status).toBe(401)
     expect(global.fetch as jest.Mock).not.toHaveBeenCalled()
