@@ -64,7 +64,22 @@ const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 // Variable specifier — see trap 2.
-const load = (specifier: string) => import(specifier)
+//
+// 🔑 This RESOLVES rather than imports. `import()` was the first attempt and a
+// mutant walked straight through it: the detail page imports
+// ComplianceCheckCard, which is also deleted, so the promise rejected on the
+// missing TRANSITIVE dependency whether or not the page itself was there —
+// restoring the page left the suite green. `require.resolve` answers the
+// question actually being asked (does this module exist) without executing its
+// graph.
+const resolves = (specifier: string): boolean => {
+  try {
+    require.resolve(specifier)
+    return true
+  } catch {
+    return false
+  }
+}
 
 const DELETED = [
   ['the legacy deals LIST page', '../../app/deals/page'],
@@ -74,14 +89,20 @@ const DELETED = [
 ] as const
 
 describe('P8-A — retired AP deals surface', () => {
-  it.each(DELETED)('[P8A-R1] %s no longer resolves', async (_label, specifier) => {
-    await expect(load(specifier)).rejects.toBeDefined()
+  it.each(DELETED)('[P8A-R1] %s no longer resolves', (_label, specifier) => {
+    expect(resolves(specifier)).toBe(false)
   })
 
   // ---- the control that makes the four above mean something -------------
-  it('[P8A-C2] the same helper RESOLVES a module that still exists', async () => {
-    await expect(load('../../components/LoadingSpinner')).resolves.toBeDefined()
-    await expect(load('../../components/ProtectedRoute')).resolves.toBeDefined()
+  it('[P8A-C2] the same helper RESOLVES modules that still exist', () => {
+    expect(resolves('../../components/LoadingSpinner')).toBe(true)
+    expect(resolves('../../components/ProtectedRoute')).toBe(true)
+    // a bracketed segment, so [P8A-R1] cannot be green merely because `[id]`
+    // confuses resolution...
+    expect(resolves('../../app/leads/[id]/page')).toBe(true)
+    // ...and a sibling `route.ts` under app/api, so it cannot be green merely
+    // because a route module resolves differently from a page.
+    expect(resolves('../../app/api/vault/commissions/route')).toBe(true)
   })
 
   it('[P8A-R5] the Vault client exposes no deal method', async () => {
