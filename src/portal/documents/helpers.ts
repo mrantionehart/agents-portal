@@ -242,6 +242,15 @@ export function statusLabel(s: DocumentRow["status"]): string {
       return "In Progress";
     case "voided":
       return "Voided";
+    // P4H — the approval states the mirror had drifted from. Without these
+    // an approved document fell through to the default and read as whatever
+    // that is, which is how a broker-approved agreement looked unstarted.
+    case "pending_approval":
+      return "Awaiting broker";
+    case "changes_requested":
+      return "Changes requested";
+    case "approved":
+      return "Approved";
     case "recommended":
       return "Recommended";
     case "required":
@@ -257,8 +266,9 @@ export function statusLabel(s: DocumentRow["status"]): string {
 export function statusTone(
   s: DocumentRow["status"]
 ): "ok" | "info" | "warn" | "muted" {
-  if (s === "signed" || s === "sent") return "ok";
-  if (s === "blocked") return "warn";
+  if (s === "signed" || s === "sent" || s === "approved") return "ok";
+  if (s === "blocked" || s === "changes_requested") return "warn";
+  if (s === "pending_approval") return "info";
   if (s === "ready") return "info";
   if (s === "in_progress") return "info";
   return "muted";

@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock, FileText, Lock } from "lucide-react";
 
+import RecordExternalEnvelope from "./RecordExternalEnvelope";
 import type { DocumentRow } from "./types";
 import {
   attentionLabel,
@@ -133,6 +134,12 @@ function DocumentRowItem({
   const tone = statusTone(d.status);
   const missing = missingFieldsCopy(d.missing_fields_count, d.status);
   const envelope = envelopeCopy(d);
+  // P4H — the external-envelope surface. Rendered only for a document the
+  // broker has APPROVED, because the record says "the approved agreement went
+  // out" and before approval there is nothing to say that about. Everything
+  // else about it — ownership verification, duplicate refusal, the checksum
+  // binding — is Vault's; this is the entry point.
+  const showExternal = d.status === "approved" && !!d.form_instance_id;
   const drawerHref = formDrawerHref(transactionId, d.form_id);
 
   return (
@@ -227,6 +234,20 @@ function DocumentRowItem({
       {d.updated_at && (
         <div className="absolute bottom-3 right-4 text-[10px] text-[#71717A]">
           updated {relativeUpdated(d.updated_at)}
+        </div>
+      )}
+      {showExternal && (
+        <div className="px-4 pb-3" data-testid={`external-${d.form_id}`}>
+          <RecordExternalEnvelope
+            transactionId={transactionId}
+            formInstanceId={d.form_instance_id!}
+            formId={d.form_id}
+            documentStatus={d.status}
+            hasPdf={d.has_envelope || d.downloadable === true || true}
+            envelopes={d.external_envelopes ?? []}
+            sendingAccountEmail={null}
+            accessToken={null}
+          />
         </div>
       )}
     </li>
