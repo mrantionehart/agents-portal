@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ACTIVE_PROFILE_SELECT, isActiveProfile } from '@/lib/security/activeProfile'
 
-// ── Middleware: authentication + is_active gate ────────────────────────
+// ── Middleware: authentication + account-standing gate ─────────────────
 //
 // After ONBOARD-001, middleware enforces authentication and NOTHING
 // else. Onboarding routing (Platform Certification-first landing for
@@ -20,8 +21,17 @@ import { NextResponse, type NextRequest } from 'next/server'
 //   3. Session + pathname === '/pending-activation' → allow (loop-safe;
 //      pending-activation is exempt from the is_active gate but still
 //      requires auth)
-//   4. Session + is_active === false → /pending-activation
-//   5. Session + is_active === true → next()
+//   4. Session + standing is not active → /pending-activation
+//   5. Session + standing IS active → next()
+//
+// ── P8.1C-SEC ──────────────────────────────────────────────────────────
+// Step 4 used to read `is_active` ALONE. `profiles` carries THREE
+// independent standing signals and a Vault soft-delete writes only
+// `deleted_at`, so a removed broker whose `is_active` was never flipped
+// walked straight through this gate for six months
+// (`349fdfb8-9d12-4826-a1a9-5e7e970b5319`). Standing is now decided by
+// `isActiveProfile` in lib/security/activeProfile.ts — the one predicate
+// this file and `requireAuth` share.
 //
 // Profile lookup uses the same SSR client (RLS-safe: profiles has a
 // self-read policy). If the lookup errors or the profile row is absent,
@@ -76,15 +86,20 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // ── STEP 4 — is_active gate. Fail closed on error / missing row. ─────
+  // ── STEP 4 — account-standing gate. Fail closed on error / missing row. ─
+  // P8.1C-SEC — was `is_active` ALONE, which admitted a profile that Vault
+  // had soft-deleted (`deleted_at` set, `is_active` left true). All three
+  // signals now, through the one predicate in lib/security/activeProfile.ts.
+  // The select goes through ACTIVE_PROFILE_SELECT because an unselected
+  // column comes back `undefined` and would read as "no marker".
   let isActive = false
   try {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_active')
+      .select(ACTIVE_PROFILE_SELECT)
       .eq('id', user.id)
       .single()
-    isActive = profile?.is_active === true
+    isActive = isActiveProfile(profile)
   } catch {
     isActive = false
   }

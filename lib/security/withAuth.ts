@@ -32,6 +32,7 @@
 import { createClient, User, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { ACTIVE_PROFILE_SELECT, isActiveProfile } from './activeProfile'
 
 export type AuthedUser = User
 
@@ -119,11 +120,11 @@ async function readCallerIsActive(
     const svc = userClient(request)
     const { data, error } = await svc
       .from('profiles')
-      .select('is_active')
+      .select(ACTIVE_PROFILE_SELECT)
       .eq('id', userId)
       .single()
     if (error) return false
-    return data?.is_active === true
+    return isActiveProfile(data)
   } catch {
     return false
   }
