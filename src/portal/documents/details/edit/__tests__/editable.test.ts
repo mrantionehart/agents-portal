@@ -445,11 +445,24 @@ describe("Workflow 3.2.B.1 boundary lint", () => {
       // decides which audience sees the approval card; a second place that
       // could compute a verdict is a second place that could disagree with
       // the first.
+      //
+      // P4H intentionally added app/api/paperwork/external-envelope — two
+      // forwarders with NO rules of their own. Vault cannot SEND an
+      // externally produced ERL-14 (it is the only form with a strict
+      // signature-anchor gate, and the rule matches nothing on such a
+      // document), so the agreement goes out through the agent's own DocuSign
+      // and is recorded. Vault owns every decision on that record: the
+      // approval state, the checksum binding, the duplicate refusal, and —
+      // the one that matters — reading the envelope back from the SENDING
+      // account to decide whether it is verified. A second place that could
+      // decide "verified" is a second place that could call an unsigned
+      // agreement executed.
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
         expect(fs.readdirSync(pwDir).sort()).toEqual([
           "checklist",
           "compliance-review",
+          "external-envelope",
           "walkthroughs",
         ]);
       }

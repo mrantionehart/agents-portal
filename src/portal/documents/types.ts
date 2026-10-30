@@ -121,6 +121,27 @@ export interface DocumentRow {
    *  materialized the row. Needed by the client-side Download button
    *  to hit the agent-scoped Vault download endpoint. */
   form_instance_id?: string | null;
+  /**
+   * P4H — envelopes the AGENT sent from their own DocuSign, recorded in Vault
+   * because Vault refuses to send an externally produced ERL-14 (it is the
+   * only form with a strict signature-anchor gate, and the rule matches
+   * nothing on such a document).
+   *
+   * Optional, and absent until Vault's /forms read is extended to carry it:
+   * the panel then shows no list and still offers the record action, which is
+   * the entry point the agent needs. Never `has_external_envelope: boolean` —
+   * the verification state is the whole point and a boolean cannot carry it.
+   */
+  external_envelopes?: Array<{
+    id: string;
+    envelope_id: string | null;
+    status: string;
+    verified: boolean;
+    sent_at: string | null;
+    sending_account_email: string | null;
+    has_executed_pdf: boolean;
+    has_certificate: boolean;
+  }> | null;
   /** AGENT.DOCS.1 — client-side hint that the form has an artifact
    *  ready for download (ready + generation, signed + envelope,
    *  signed + manual upload). Vault re-checks visibility + resolves
