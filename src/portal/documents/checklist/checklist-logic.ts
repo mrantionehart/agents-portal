@@ -7,16 +7,22 @@
 // status/requirement/selection rules live here so they are unit-testable.
 // ============================================================================
 
+import type { FormInstanceStatus } from '../shared-types'
+
 // ── Vault-side projection shapes (agent-safe; mirror the Vault cards) ──────
-export type VaultFormStatus =
-  | 'recommended'
-  | 'required'
-  | 'blocked'
-  | 'in_progress'
-  | 'ready'
-  | 'sent'
-  | 'signed'
-  | 'voided'
+/**
+ * 🔑 P4H — THIS WAS A THIRD HAND-WRITTEN COPY of Vault's status vocabulary,
+ * and it was the fifth such copy to be found drifting in two days. It listed
+ * eight statuses and none of the three approval states, so a broker-approved
+ * agreement hit `mapVaultStatusToLabel`'s default and read "Required" at the
+ * top of the Documents tab, above a panel that said "Approved".
+ *
+ * It is now an ALIAS of the canonical union in shared-types.ts — which is
+ * pure and dependency-free, so this file stays pure too. A status Vault adds
+ * is now added in exactly one place, and this file cannot silently fall
+ * behind it again.
+ */
+export type VaultFormStatus = FormInstanceStatus
 
 export interface VaultRequirementCard {
   form_id: string
@@ -53,8 +59,11 @@ export type ChecklistStatusLabel =
   | 'Required'
   | 'Preparing'
   | 'Ready'
+  | 'Pending Broker Approval'
+  | 'Changes Requested'
+  | 'Approved — Awaiting Signature'
   | 'Sent'
-  | 'Approved'
+  | 'Signed'
   | 'Hidden'
 
 export type RequirementLabel = 'Required' | 'Conditional' | 'Optional'
@@ -71,10 +80,21 @@ export function mapVaultStatusToLabel(status: VaultFormStatus): ChecklistStatusL
       return 'Preparing'
     case 'ready':
       return 'Ready'
+    case 'pending_approval':
+      return 'Pending Broker Approval'
+    case 'changes_requested':
+      return 'Changes Requested'
+    case 'approved':
+      return 'Approved — Awaiting Signature'
     case 'sent':
       return 'Sent'
+    // 🔑 `signed` used to render as 'Approved'. With a broker-approved
+    // document now labelled "Approved — Awaiting Signature", the shorter
+    // string would have sat on the MORE advanced state — the confusion that
+    // produced this report. Execution is `Signed`; approval is the broker's
+    // act earlier in the chain.
     case 'signed':
-      return 'Approved'
+      return 'Signed'
     case 'voided':
       return 'Hidden'
     default:
@@ -120,7 +140,18 @@ export function selectabilityFor(doc: VaultDocumentCard): Selectability {
     return doc.has_upload
       ? { selectable: true }
       : { selectable: false, reason: 'Upload the completed PDF first' }
-  if (doc.status === 'ready' || doc.status === 'signed') return { selectable: true }
+  // 🔑 P4H — AN APPROVED DOCUMENT IS SELECTABLE. It fell to the catch-all
+  // below and read "Not ready yet", which is the opposite of true: the broker
+  // has approved it and it is the one state that IS ready to go out.
+  if (doc.status === 'ready' || doc.status === 'signed' || doc.status === 'approved') {
+    return { selectable: true }
+  }
+  // Awaiting a decision, or returned for one. Both have a document; neither
+  // is the agent's to act on from here, and saying WHICH is the point.
+  if (doc.status === 'pending_approval')
+    return { selectable: false, reason: 'Pending broker approval' }
+  if (doc.status === 'changes_requested')
+    return { selectable: false, reason: 'Broker requested changes' }
   if (doc.status === 'in_progress')
     return { selectable: false, reason: 'Preparing' }
   return { selectable: false, reason: 'Not ready yet' }

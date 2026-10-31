@@ -58,7 +58,7 @@ describe('mapVaultStatusToLabel', () => {
     ['in_progress', 'Preparing'],
     ['ready', 'Ready'],
     ['sent', 'Sent'],
-    ['signed', 'Approved'],
+    ['signed', 'Signed'],
     ['voided', 'Hidden'],
   ]
   it.each(cases)('%s → %s', (status, label) => {

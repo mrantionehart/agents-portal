@@ -43,7 +43,14 @@ const STATUS_CLASS: Record<ChecklistStatusLabel, string> = {
   Preparing: 'bg-zinc-600/30 text-zinc-300 border-zinc-600',
   Ready: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40',
   Sent: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/40',
-  Approved: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50',
+  // P4H — the three broker-decision states, and `Signed` where `Approved`
+  // used to sit. An approved agreement is a GOOD state and must not render in
+  // the same grey as a draft, which is how it went unnoticed.
+  'Pending Broker Approval': 'bg-amber-500/10 text-amber-300 border-amber-500/40',
+  'Changes Requested': 'bg-rose-500/10 text-rose-300 border-rose-500/40',
+  'Approved — Awaiting Signature':
+    'bg-emerald-500/10 text-emerald-300 border-emerald-500/40',
+  Signed: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50',
   Hidden: 'hidden',
 }
 
@@ -376,8 +383,16 @@ export default function ChecklistTable({ transactionId, coachRecommendation }: P
                         !r.manual_only &&
                         r.generatable &&
                         r.form_instance_id &&
+                        // 🔑 P4H — hide the send for something already SENT or
+                        // SIGNED. It used to read `!== 'Approved'`, which
+                        // meant `signed`; with the labels corrected, an
+                        // APPROVED-awaiting-signature document is exactly when
+                        // a send should be offered, so it must not be hidden
+                        // here. The route re-authorises either way, and the
+                        // ERL-14 anchor gate still refuses an externally
+                        // produced document.
                         r.statusLabel !== 'Sent' &&
-                        r.statusLabel !== 'Approved' && (
+                        r.statusLabel !== 'Signed' && (
                           <SendViaDocuSignButton
                             transactionId={transactionId}
                             formInstanceId={r.form_instance_id}
