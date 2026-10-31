@@ -83,6 +83,29 @@ export interface FormInstanceRow {
   /** AGENT.SIGN.2.5.3 — canonical document lifecycle + attention overlay,
    *  stamped by Vault's /forms endpoint. Absent on legacy responses. */
   lifecycle?: DocumentLifecycle | null;
+  /**
+   * P4H — envelopes the AGENT sent from their own DocuSign, attached by
+   * Vault's /forms endpoint. Vault sends an EMPTY ARRAY when a document has
+   * none, so an absent key means a Vault build that does not report them —
+   * a distinction the panel needs, because it decides whether to offer the
+   * record action.
+   *
+   * `verified` is derived server-side from `verified_at`; the raw timestamp is
+   * deliberately not sent, so nothing here can read its presence as proof.
+   */
+  external_envelopes?: ExternalEnvelopeSummary[] | null;
+}
+
+/** One recorded external envelope, as Vault's /forms reports it. */
+export interface ExternalEnvelopeSummary {
+  id: string;
+  envelope_id: string | null;
+  status: string;
+  verified: boolean;
+  sent_at: string | null;
+  sending_account_email: string | null;
+  has_executed_pdf: boolean;
+  has_certificate: boolean;
 }
 
 /** Combined per-document row the UI renders. */
@@ -132,16 +155,7 @@ export interface DocumentRow {
    * the entry point the agent needs. Never `has_external_envelope: boolean` —
    * the verification state is the whole point and a boolean cannot carry it.
    */
-  external_envelopes?: Array<{
-    id: string;
-    envelope_id: string | null;
-    status: string;
-    verified: boolean;
-    sent_at: string | null;
-    sending_account_email: string | null;
-    has_executed_pdf: boolean;
-    has_certificate: boolean;
-  }> | null;
+  external_envelopes?: ExternalEnvelopeSummary[] | null;
   /** AGENT.DOCS.1 — client-side hint that the form has an artifact
    *  ready for download (ready + generation, signed + envelope,
    *  signed + manual upload). Vault re-checks visibility + resolves

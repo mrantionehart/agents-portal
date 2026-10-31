@@ -111,6 +111,12 @@ export function mergeDocuments(input: {
         : null;
     rows.push({
       form_id: req.form_id,
+      // P4H — PASSED THROUGH. This mapper builds DocumentRow field by field,
+      // so a field it does not name is silently dropped however correctly
+      // Vault sends it. `?? []` keeps Vault's own distinction: an empty array
+      // means "none recorded", and only a Vault build that does not report
+      // them yields undefined.
+      external_envelopes: inst?.external_envelopes ?? [],
       form_revision: req.form_revision ?? inst?.form_revision ?? null,
       form_category: req.form_category ?? inst?.form_category ?? null,
       reason: req.reason ?? null,
