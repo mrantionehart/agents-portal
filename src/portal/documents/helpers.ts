@@ -14,7 +14,7 @@ import type {
   FormInstanceRow,
   RequirementRow,
 } from "./types";
-import type { FormInstanceStatus } from "./shared-types";
+import { KNOWN_STATUSES, type FormInstanceStatus } from "./shared-types";
 
 /** Build a per-form Vault deep-link. The Vault paperwork package
  *  page hosts the form detail; agents click through there to see /
@@ -61,19 +61,26 @@ export function resolveStatus(
 ): FormInstanceStatus | "not_started" {
   if (instance) {
     const s = instance.status as FormInstanceStatus | string;
-    // Known statuses pass through; anything unknown becomes
-    // "in_progress" rather than leaking a stale label.
-    if (
-      s === "recommended" ||
-      s === "required" ||
-      s === "blocked" ||
-      s === "in_progress" ||
-      s === "ready" ||
-      s === "sent" ||
-      s === "signed" ||
-      s === "voided"
-    ) {
-      return s;
+    // 🔴 P4H — THIS LIST USED TO BE WRITTEN OUT BY HAND, and it had drifted.
+    // `approved`, `pending_approval` and `changes_requested` were absent, so
+    // Vault's `approved` fell to the `in_progress` fallback. Measured in
+    // production 2026-10-31 on Mallory's ERL-14, that produced all three
+    // reported symptoms at once: the badge read "In Progress",
+    // `missingFieldsCopy` advertised nine Generate fields as outstanding, and
+    // `showExternal` (which keys on `approved`) was false, so Record External
+    // Envelope never appeared for a broker-approved agreement.
+    //
+    // 🔑 THE DRIFT WAS THE DEFECT, not the missing entries. `KNOWN_STATUSES`
+    // is the canonical list in shared-types.ts and NOTHING consulted it — so
+    // widening the type and the labels, as a previous change did, left this
+    // copy behind and the type said one thing while the behaviour said
+    // another. It reads from that list now, and a status Vault adds reaches
+    // the Portal by being added in ONE place.
+    //
+    // Anything genuinely unknown still becomes "in_progress" rather than
+    // leaking a stale label.
+    if ((KNOWN_STATUSES as ReadonlyArray<string>).includes(s)) {
+      return s as FormInstanceStatus;
     }
     return "in_progress";
   }
@@ -209,6 +216,27 @@ export function documentCounts(rows: DocumentRow[]): DocumentCounts {
       case "sent":
         signed += 1;
         break;
+      // 🔴 P4H — THE APPROVAL STATES COUNTED TOWARD NOTHING. This switch had
+      // no case for them, so Mallory's approved ERL-14 was absent from every
+      // tile: total said 1 while ready/blocked/signed/in_progress/not_started
+      // were all 0. Same drift as `resolveStatus`, same cause — a hand-written
+      // list of statuses.
+      //
+      // Folded into the existing tiles rather than adding one: `approved` is
+      // past `ready` on the journey and the nearest honest tile, and the two
+      // pending states are work in flight. An approved document does NOT
+      // count as needing attention — it is waiting on a send, not on the
+      // agent.
+      case "approved":
+        ready += 1;
+        break;
+      case "pending_approval":
+        in_progress += 1;
+        break;
+      case "changes_requested":
+        in_progress += 1;
+        needs_attention += 1;
+        break;
       case "in_progress":
         in_progress += 1;
         if ((r.missing_fields_count ?? 0) > 0) needs_attention += 1;
@@ -296,6 +324,11 @@ export function lifecycleLabel(
     case "completed": return "Completed";
     case "imported": return "Imported";
     case "signed": return "Signed";
+    // P4H — Vault stamps these now; before, it reported all three as `draft`
+    // and the chip read "Draft" over a broker-approved agreement.
+    case "pending_approval": return "Awaiting broker";
+    case "changes_requested": return "Changes requested";
+    case "approved": return "Approved";
     default: return statusLabel(fallbackStatus);
   }
 }
@@ -313,6 +346,12 @@ export function lifecycleTone(
     case "completed":
     case "imported": return "progress";
     case "signed": return "ok";
+    // P4H — an approved agreement is a good state, not a muted one. Left at
+    // the default it rendered in the same grey as a draft, which is most of
+    // why "DRAFT" and "approved" were indistinguishable on the row.
+    case "approved": return "ok";
+    case "pending_approval": return "progress";
+    case "changes_requested": return "info";
     default: return "muted";
   }
 }
@@ -338,6 +377,15 @@ export function missingFieldsCopy(
   if (count <= 0) return null;
   if (status === "blocked") {
     return `${count} required field${count === 1 ? "" : "s"} blocked on party attestation`;
+  }
+  // 🔑 P4H — ONCE THE BROKER HAS APPROVED, these are not outstanding work.
+  // They are the fields VAULT'S RECORD does not hold, which is a different
+  // thing from the agreement being incomplete: an externally completed
+  // agreement states its terms on the page while Vault never filled them.
+  // Saying "9 required fields outstanding" next to an approved agreement
+  // tells the agent their document is unfinished when it has been approved.
+  if (status === "approved") {
+    return `${count} field${count === 1 ? "" : "s"} not recorded in Vault — the agreement is approved`;
   }
   return `${count} required field${count === 1 ? "" : "s"} outstanding`;
 }

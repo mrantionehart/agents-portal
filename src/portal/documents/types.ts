@@ -39,6 +39,11 @@ export interface RequirementRow {
 // ── AGENT.SIGN.2.5.3 — canonical document lifecycle (mirrors Vault) ──────
 export type DocumentLifecycleStatus =
   | "draft"
+  // P4H — mirrors Vault's union. Absent here, an approved document's chip
+  // fell to the default and read "Draft".
+  | "pending_approval"
+  | "changes_requested"
+  | "approved"
   | "generated"
   | "sent"
   | "viewed"
