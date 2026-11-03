@@ -17,6 +17,8 @@
 // a test can state the rule without mounting anything.
 // ============================================================================
 
+import type { EsignConnectionState } from "./checklist/checklist-logic";
+
 export type ExternalEnvelopeStatus =
   | "created" | "sent" | "viewed" | "delivered"
   | "completed" | "declined" | "voided" | "expired";
@@ -102,7 +104,7 @@ export function validateEnvelopeId(raw: string): EntryProblem | null {
 export const ENTRY_PROBLEM_COPY: Record<EntryProblem, string> = {
   empty: "Paste the envelope ID from DocuSign.",
   malformed:
-    "That does not look like a DocuSign envelope ID. Open the envelope in DocuSign and copy the ID from its details — it looks like 37653a88-a887-81f9-8054-a39d821fb0c8.",
+    "That does not look like a DocuSign envelope ID. Open the envelope in DocuSign and copy the ID from its details — 36 characters in five dash-separated groups, like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
 };
 
 /**
@@ -133,3 +135,39 @@ export const RECORD_BLOCKER_COPY: Record<RecordBlocker, string> = {
   already_recorded:
     "An envelope is already recorded here. Use Refresh status instead of recording it again.",
 };
+
+// ── the sending account ──────────────────────────────────────────────────────
+/**
+ * What to tell the agent about the account this envelope would be verified
+ * against, before they record it.
+ *
+ * 🔑 P4H — THE SURFACE USED TO BRANCH ON AN EMAIL BEING PRESENT, which made
+ * "no account is connected" the thing it said whenever it had not been handed
+ * one. It had not been handed one: the mount site passed a hardcoded null, so
+ * a pilot agent with a live DocuSign connection was told she had none. The
+ * state now comes from GET /api/esign/status through the single derivation in
+ * checklist-logic, and `unknown` exists precisely so this copy can decline to
+ * claim either way until the answer is actually in.
+ *
+ * `stale` is the state that report came from: connected, and expired. It is
+ * its own sentence because the thing to DO about it — reconnect, then record —
+ * is neither of the other two.
+ */
+export const CONNECTION_COPY: Record<EsignConnectionState, (email: string | null) => string> = {
+  checking: () => "Checking your DocuSign connection…",
+  unknown: () =>
+    "Vault could not check your DocuSign connection just now. You can still record the envelope; whether Vault can confirm it is decided when you record it.",
+  none: () =>
+    "No DocuSign account is connected, so Vault cannot confirm this envelope. It will be recorded as UNVERIFIED — a record that you sent it, not that it was signed.",
+  stale: (email) =>
+    `Your DocuSign connection${email ? ` (${email})` : ""} has expired, so Vault may not be able to confirm this envelope. Reconnect DocuSign on your Settings page first to have it recorded as verified — recorded now, it may be UNVERIFIED: a record that you sent it, not that it was signed.`,
+  ready: (email) =>
+    `Vault will check this against your connected DocuSign account${email ? ` (${email})` : ""}. If the envelope is not there, it will not be recorded.`,
+};
+
+export function connectionCopy(
+  state: EsignConnectionState,
+  email: string | null,
+): string {
+  return CONNECTION_COPY[state](email);
+}

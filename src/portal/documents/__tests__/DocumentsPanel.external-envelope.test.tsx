@@ -11,12 +11,41 @@
 
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 
+jest.mock("@/lib/supabase", () => ({ authFetch: jest.fn() }));
+import { authFetch } from "@/lib/supabase";
+
 import DocumentsPanel from "../DocumentsPanel";
 import type { DocumentRow } from "../types";
 
 const TXN = "3fbb0fac-796f-4e93-ba87-e399b55a3abf";
 const FI = "35ffc269-4240-400f-9a94-efdde2063094";
-const ENV = "37653a88-a887-81f9-8054-a39d821fb0c8";
+// Format-valid, and deliberately not any real envelope — the id that stood
+// here belongs to another transaction entirely.
+const ENV = "11111111-2222-3333-4444-555555555555";
+
+const CONNECTED = {
+  connected: true, email: "mallory.guth@hartfeltrealestate.com", needs_reconnect: false,
+};
+let esign: Record<string, unknown> = { ...CONNECTED };
+const calls: Array<{ url: string; method?: string }> = [];
+
+beforeEach(() => {
+  calls.length = 0;
+  esign = { ...CONNECTED };
+  (authFetch as jest.Mock).mockImplementation(async (url: unknown, init?: RequestInit) => {
+    calls.push({ url: String(url), method: init?.method });
+    if (String(url).includes("/api/esign/status")) {
+      return { ok: true, status: 200, json: async () => esign } as unknown as Response;
+    }
+    return {
+      ok: true, status: 200,
+      json: async () => ({ ok: true, notice: "Envelope recorded." }),
+    } as unknown as Response;
+  });
+  global.fetch = jest.fn(() => {
+    throw new Error("the mounted surface must use authFetch, never a bare fetch");
+  }) as unknown as typeof fetch;
+});
 
 const doc = (over: Partial<DocumentRow> = {}): DocumentRow =>
   ({
@@ -116,16 +145,17 @@ describe("[XAE] the external-envelope entry point in DocumentsPanel", () => {
     expect(block).toHaveTextContent(/not that it was signed/);
   });
 
-  it("[XAE-4b] the record request carries THIS document's form instance id", async () => {
+  it("[XAE-4b] the record request carries THIS document's form instance id — AND auth", async () => {
     // Mounted end to end: without this, passing an empty or wrong id through
     // the panel is invisible — the component's own URL test cannot see what
     // the panel handed it, and the POST would hit a URL missing a segment.
-    const calls: string[] = [];
-    global.fetch = jest.fn(async (url: unknown) => {
-      calls.push(String(url));
-      return { ok: true, status: 200, json: async () => ({ ok: true, notice: "Envelope recorded." }) } as unknown as Response;
-    }) as unknown as typeof fetch;
-
+    //
+    // 🔑 2026-11-03 — THIS TEST ALREADY EXISTED AND DID NOT CATCH THE DEFECT.
+    // It recorded the URL and nothing else, so a mount site that passed
+    // `accessToken={null}` into a bare `fetch` produced a request with no
+    // Authorization header at all, a 401 from the proxy before Vault was ever
+    // asked — and a green test. Asserting the path proves the request was
+    // addressed correctly, not that it could possibly succeed.
     render(
       <DocumentsPanel documents={[doc()]} error={null} transactionId={TXN} activeFormId={null} />,
     );
@@ -135,10 +165,36 @@ describe("[XAE] the external-envelope entry point in DocumentsPanel", () => {
       target: { value: ENV },
     });
     fireEvent.click(within(block).getByTestId("submit-record"));
-    await waitFor(() => expect(calls).toHaveLength(1));
-    expect(calls[0]).toBe(
-      `/api/paperwork/external-envelope/${TXN}/${FI}`,
+
+    const posts = () => calls.filter((c) => c.method === "POST");
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(posts()[0].url).toBe(`/api/paperwork/external-envelope/${TXN}/${FI}`);
+    // The request went through authFetch, which attaches the Bearer token from
+    // the cached session. Nothing is threaded in from here, so there is no
+    // longer a prop at this mount site that could arrive null.
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("[XAE-6] the MOUNTED surface reads the real connection — it is not told one", async () => {
+    // The second half of the same defect. The panel passed
+    // `sendingAccountEmail={null}`, and the form chose its sentence off that
+    // prop, so a pilot agent with a live DocuSign connection was told "No
+    // DocuSign account is connected". The panel now hands down no account
+    // information at all and the surface asks.
+    render(
+      <DocumentsPanel documents={[doc()]} error={null} transactionId={TXN} activeFormId={null} />,
     );
+    const block = screen.getByTestId("external-ERL-14");
+    fireEvent.click(within(block).getByTestId("open-record-form"));
+    await waitFor(() =>
+      expect(within(block).getByTestId("connection-notice")).toHaveTextContent(
+        /mallory\.guth@hartfeltrealestate\.com/,
+      ),
+    );
+    expect(within(block).getByTestId("connection-notice")).not.toHaveTextContent(
+      /No DocuSign account is connected/,
+    );
+    expect(calls.some((c) => c.url.includes("/api/esign/status"))).toBe(true);
   });
 
   it("[XAE-5] the panel offers no send control anywhere", () => {

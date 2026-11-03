@@ -12,6 +12,7 @@ import {
   buildChecklistRows,
   deriveActionBar,
   esignSendEnabled,
+  esignConnectionState,
   type VaultDocumentCard,
   type VaultRequirementCard,
   type VaultFormStatus,
@@ -215,5 +216,47 @@ describe('esignSendEnabled', () => {
     // The field is served today, but absent must not read as "needs
     // reconnection" or a healthy account would be refused its own send.
     expect(esignSendEnabled({ connected: true })).toBe(true)
+  })
+})
+
+// ============================================================================
+// P4H · esignConnectionState — the derivation the COPY reads
+// ============================================================================
+// esignSendEnabled collapses "no account" and "could not find out" onto the
+// same `false`, which is right for a gate and wrong for a sentence. A mutation
+// turning the absent-payload case into 'none' survived the whole suite, because
+// nothing here distinguished them — and 'none' is the sentence that told a
+// connected pilot agent she had no DocuSign account.
+describe('esignConnectionState', () => {
+  it('[ECS-1] an absent or unreadable payload is UNKNOWN, never "no account"', () => {
+    // GET /api/esign/status can answer 200 with a body that does not parse;
+    // the caller hands the resulting null straight to this function.
+    expect(esignConnectionState(null)).toBe('unknown')
+    expect(esignConnectionState(undefined)).toBe('unknown')
+  })
+
+  it('[ECS-2] a payload that says nothing is NONE — it answered', () => {
+    // An object IS an answer: the account is absent, not unmeasured.
+    expect(esignConnectionState({})).toBe('none')
+    expect(esignConnectionState({ connected: false })).toBe('none')
+  })
+
+  it('[ECS-3] connected and expired is STALE, which is neither of the above', () => {
+    expect(esignConnectionState({ connected: true, needs_reconnect: true })).toBe('stale')
+  })
+
+  it('[ECS-4] connected and current is READY', () => {
+    expect(esignConnectionState({ connected: true, needs_reconnect: false })).toBe('ready')
+    expect(esignConnectionState({ connected: true })).toBe('ready')
+  })
+
+  it('[ECS-5] the send gate is exactly "ready" — one derivation, two readers', () => {
+    for (const st of [null, undefined, {}, { connected: false },
+                      { connected: true, needs_reconnect: true }] as const) {
+      expect(esignSendEnabled(st)).toBe(esignConnectionState(st) === 'ready')
+      expect(esignSendEnabled(st)).toBe(false)
+    }
+    expect(esignSendEnabled({ connected: true })).toBe(true)
+    expect(esignConnectionState({ connected: true })).toBe('ready')
   })
 })

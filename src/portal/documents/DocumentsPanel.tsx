@@ -245,8 +245,6 @@ function DocumentRowItem({
             documentStatus={d.status}
             hasPdf={d.has_envelope || d.downloadable === true || true}
             envelopes={d.external_envelopes ?? []}
-            sendingAccountEmail={null}
-            accessToken={null}
           />
         </div>
       )}
