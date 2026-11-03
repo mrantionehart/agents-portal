@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import { supabase, authFetch } from '@/lib/supabase'
 import SidebarNav from '../components/SidebarNav'
+import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 interface ProfileData {
@@ -201,6 +202,14 @@ export default function BusinessCardPage() {
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold text-white mb-2">My Business Card</h1>
           <p className="text-gray-400 mb-8">Share your digital card with clients to connect instantly</p>
+
+          {/* === OFFICIAL BROKERAGE CARD === */}
+          {/* The agent's own headshot + public contact details, read from and
+              written to Vault (the system of record) — NOT the local profile
+              row this page edits below. Vault owns readiness and capability;
+              this page only mounts the section. Hides itself when the Vault
+              route is absent, so the rest of the page is unaffected. */}
+          <MarketingProfileSection />
 
           {/* === CUSTOM CARD IMAGE (broker-uploaded) === */}
           {profile?.business_card_url && (
