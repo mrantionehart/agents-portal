@@ -42,8 +42,8 @@ describe('where the agent stands', () => {
   it('nothing asked → the strip is absent and the button is offered', async () => {
     mockAuthFetch.mockResolvedValue(json({ success: true, data: state() }))
     render(<CardRequestPanel />)
-    expect(await screen.findByText('You have not asked for a card yet.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Request a card/i })).toBeInTheDocument()
+    expect(await screen.findByText('You have not requested a brokerage business card yet.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Request Brokerage Business Card/i })).toBeInTheDocument()
     expect(screen.queryByLabelText('Card request progress')).not.toBeInTheDocument()
   })
 
@@ -57,7 +57,7 @@ describe('where the agent stands', () => {
     expect(strip).toBeInTheDocument()
     expect(screen.getByText('Requested')).toHaveAttribute('aria-current', 'step')
     // The SERVER decides whether asking is available; the UI must not re-offer it.
-    expect(screen.queryByRole('button', { name: /Request a card/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Request Brokerage Business Card/i })).not.toBeInTheDocument()
   })
 
   it('being_made → Being made is the current step', async () => {
@@ -68,7 +68,7 @@ describe('where the agent stands', () => {
     render(<CardRequestPanel />)
     await screen.findByLabelText('Card request progress')
     expect(screen.getByText('Being made')).toHaveAttribute('aria-current', 'step')
-    expect(screen.getByText('Your card is being made now.')).toBeInTheDocument()
+    expect(screen.getByText('Your business card is being made now.')).toBeInTheDocument()
   })
 
   it('ready → Ready is current AND asking again is offered', async () => {
@@ -78,9 +78,9 @@ describe('where the agent stands', () => {
     render(<CardRequestPanel />)
     await screen.findByLabelText('Card request progress')
     expect(screen.getByText('Ready')).toHaveAttribute('aria-current', 'step')
-    expect(screen.getByText('Your card is approved and live.')).toBeInTheDocument()
+    expect(screen.getByText('Your business card is approved and live.')).toBeInTheDocument()
     // A reprint is a real need; Ready must not be a dead end.
-    expect(screen.getByRole('button', { name: /Request a card/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Request Brokerage Business Card/i })).toBeInTheDocument()
   })
 
   it('declined → the brokerage’s reason is shown to the agent', async () => {
@@ -105,7 +105,7 @@ describe('raising a request', () => {
       return json({ success: true, data: state() })
     })
     render(<CardRequestPanel />)
-    fireEvent.click(await screen.findByRole('button', { name: /Request a card/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
 
     fireEvent.click(screen.getByLabelText('I have a new headshot'))
     fireEvent.change(screen.getByLabelText(/Anything the brokerage should know/i), {
@@ -132,7 +132,7 @@ describe('raising a request', () => {
         ? json({ success: true, data: state({ state: 'requested', canRequest: false }) }, 201)
         : json({ success: true, data: state() }))
     render(<CardRequestPanel />)
-    fireEvent.click(await screen.findByRole('button', { name: /Request a card/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
     fireEvent.change(screen.getByLabelText(/Anything the brokerage should know/i), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
     await waitFor(() => {
@@ -146,8 +146,8 @@ describe('raising a request', () => {
       state: 'ready', hasApprovedCard: true, suggestedReason: 'reprint',
     }) }))
     render(<CardRequestPanel />)
-    fireEvent.click(await screen.findByRole('button', { name: /Request a card/i }))
-    expect((screen.getByLabelText('Please issue it again') as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    expect((screen.getByLabelText('I need more printed') as HTMLInputElement).checked).toBe(true)
   })
 
   it('a 409 is treated as success — their request is already waiting', async () => {
@@ -162,13 +162,13 @@ describe('raising a request', () => {
         : state({ state: 'requested', canRequest: false }) })
     })
     render(<CardRequestPanel />)
-    fireEvent.click(await screen.findByRole('button', { name: /Request a card/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
     fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
 
     // Reloaded, not scolded: the strip appears and no error is shown.
     expect(await screen.findByLabelText('Card request progress')).toBeInTheDocument()
     expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/already have a card request/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/already have a business card request/i)).not.toBeInTheDocument()
   })
 
   it('a rate limit shows a bounded message and leaves the form open', async () => {
@@ -177,7 +177,7 @@ describe('raising a request', () => {
         ? json({ success: false, code: 'RATE_LIMITED', error: 'slow down' }, 429)
         : json({ success: true, data: state() }))
     render(<CardRequestPanel />)
-    fireEvent.click(await screen.findByRole('button', { name: /Request a card/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
     fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
     expect(await screen.findByText('Too many attempts. Please try again shortly.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Send request/i })).toBeInTheDocument()
@@ -208,5 +208,49 @@ describe('partial rollout', () => {
     mockAuthFetch.mockRejectedValue(new Error('cors'))
     render(<CardRequestPanel />)
     expect(await screen.findByText(/Unable to reach the brokerage/i)).toBeInTheDocument()
+  })
+})
+
+// ── The product is the BROKERAGE's ──────────────────────────────────────────
+// The clarification that prompted this naming: the card is HartFelt Real
+// Estate's official business card. The agent asks for one; the brokerage owns
+// the design, the generation, the approval and the publication. These pin the
+// agent-facing vocabulary, and that the request carries no design input of any
+// kind — not because it is stripped, but because the panel has no such field.
+describe('it is a Brokerage Business Card, and the agent does not design it', () => {
+  it('names the product the way the brokerage does', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: state() }))
+    render(<CardRequestPanel />)
+    expect(await screen.findByRole('heading', { name: 'Brokerage Business Card' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Request Brokerage Business Card/i })).toBeInTheDocument()
+    expect(screen.getByText(/HartFelt Real Estate designs and produces your official business card/i)).toBeInTheDocument()
+  })
+
+  it('offers no control over logo, layout, colour or branding', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: state() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    // The only inputs are the four reasons and one free-text note.
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(4)
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    for (const forbidden of [/logo/i, /colou?r/i, /layout/i, /template/i, /font/i, /brand/i]) {
+      expect(screen.queryByLabelText(forbidden)).toBeNull()
+    }
+  })
+
+  it('sends a reason and a note — never a design field', async () => {
+    mockAuthFetch.mockImplementation(async (_u: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? json({ success: true, data: state({ state: 'requested', canRequest: false }) }, 201)
+        : json({ success: true, data: state() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    fireEvent.click(screen.getByLabelText('I need more printed'))
+    fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
+    await waitFor(() => {
+      const post = mockAuthFetch.mock.calls.find((c) => c[1]?.method === 'POST')
+      expect(Object.keys(JSON.parse(post![1].body))).toEqual(['reason'])
+    })
   })
 })

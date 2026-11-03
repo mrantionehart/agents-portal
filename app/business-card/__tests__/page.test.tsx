@@ -103,7 +103,7 @@ beforeEach(() => {
 describe('My Card — the agent self-service entry point', () => {
   it('mounts the Marketing Card section, so the headshot control is reachable from My Card', async () => {
     render(<BusinessCardPage />)
-    expect(await screen.findByRole('heading', { name: 'Marketing Card' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Headshot & Contact Details' })).toBeInTheDocument()
     // The capability came from Vault, not from this page.
     expect(mockAuthFetch).toHaveBeenCalledWith(
       `${VAULT_API_URL}/agent/marketing-profile`,
@@ -114,7 +114,7 @@ describe('My Card — the agent self-service entry point', () => {
 
   it('sends a picked headshot to the VAULT avatar route carrying only the image', async () => {
     render(<BusinessCardPage />)
-    await screen.findByRole('heading', { name: 'Marketing Card' })
+    await screen.findByRole('heading', { name: 'Headshot & Contact Details' })
 
     const file = new File([new Uint8Array([1, 2, 3])], 'cole.png', { type: 'image/png' })
     const input = document.getElementById('marketing-headshot-input') as HTMLInputElement
@@ -142,7 +142,7 @@ describe('My Card — the agent self-service entry point', () => {
 
   it('saves the public phone to Vault, not to the local profile row', async () => {
     render(<BusinessCardPage />)
-    await screen.findByRole('heading', { name: 'Marketing Card' })
+    await screen.findByRole('heading', { name: 'Headshot & Contact Details' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     fireEvent.change(screen.getByLabelText(/Public phone/i), { target: { value: '3055551234' } })
@@ -163,7 +163,7 @@ describe('My Card — the agent self-service entry point', () => {
 
   it('still saves the page’s own profile fields — the pre-existing journey is preserved', async () => {
     render(<BusinessCardPage />)
-    await screen.findByRole('heading', { name: 'Marketing Card' })
+    await screen.findByRole('heading', { name: 'Headshot & Contact Details' })
 
     const bio = screen.getByPlaceholderText(/A brief description about yourself/i)
     fireEvent.change(bio, { target: { value: 'Serving Broward since 2019.' } })
@@ -185,15 +185,15 @@ describe('My Card — the agent self-service entry point', () => {
     })
     render(<BusinessCardPage />)
     expect(await screen.findByRole('heading', { name: 'My Business Card' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Marketing Card' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Headshot & Contact Details' })).not.toBeInTheDocument())
   })
 })
 
 describe('My Card — asking the brokerage for a card', () => {
   it('mounts the request panel, so the ask is reachable from My Card', async () => {
     render(<BusinessCardPage />)
-    expect(await screen.findByRole('heading', { name: 'Your brokerage card' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Request a card/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Brokerage Business Card' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Request Brokerage Business Card/i })).toBeInTheDocument()
     expect(mockAuthFetch).toHaveBeenCalledWith(
       `${VAULT_API_URL}/agent/card-request`,
       expect.objectContaining({ method: 'GET', credentials: 'omit' }),
@@ -202,7 +202,7 @@ describe('My Card — asking the brokerage for a card', () => {
 
   it('both panels mount together — asking and supplying a headshot are one journey', async () => {
     render(<BusinessCardPage />)
-    expect(await screen.findByRole('heading', { name: 'Your brokerage card' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Marketing Card' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Brokerage Business Card' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Headshot & Contact Details' })).toBeInTheDocument()
   })
 })
