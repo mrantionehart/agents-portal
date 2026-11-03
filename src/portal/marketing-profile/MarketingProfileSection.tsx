@@ -220,7 +220,7 @@ export default function MarketingProfileSection() {
     <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-5">
       <div className="flex items-center gap-2">
         <IdCard className="w-5 h-5 text-[#C9A84C]" />
-        <h3 className="text-white font-semibold">Marketing Card</h3>
+        <h3 className="text-white font-semibold">Headshot &amp; Contact Details</h3>
       </div>
 
       {/* Headshot */}

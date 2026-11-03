@@ -39,7 +39,7 @@ beforeEach(() => {
 async function renderReady(s: MarketingProfileState) {
   getMarketingProfile.mockResolvedValueOnce(s)
   const utils = render(<MarketingProfileSection />)
-  await screen.findByText('Marketing Card')
+  await screen.findByText('Headshot & Contact Details')
   return utils
 }
 

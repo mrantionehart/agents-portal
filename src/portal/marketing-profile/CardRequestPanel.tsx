@@ -1,8 +1,15 @@
 'use client'
 
 // ============================================================================
-// Card requests — the agent's own panel.
+// Brokerage Business Card requests — the agent's own panel.
 // ============================================================================
+// The card is HartFelt Real Estate's, not the agent's: the brokerage owns the
+// design, generates it, approves it and publishes it. Nothing here lets an
+// agent influence any of that, and there is nothing to lock down — the
+// generator's whole input surface is the agent's name, title, brokerage email,
+// public phone, licence number and headshot. Logo, layout, colours and
+// template are constants in the renderer, with no parameter to pass.
+//
 // Three states, drawn as a strip: Requested → Being Made → Ready. The state and
 // whether asking is available are SERVER-owned (Vault computes both from the
 // request row and the approved card); this component renders them and computes
@@ -16,10 +23,10 @@ import { MarketingProfileError, NETWORK_ERROR_CODE, NON_CONTRACT_CODE } from './
 import type { CardRequestReason, CardRequestState } from './types'
 
 const REASON_LABEL: Record<CardRequestReason, string> = {
-  first_card: 'I need my first card',
+  first_card: 'I need my first business card',
   new_headshot: 'I have a new headshot',
   details_changed: 'My details changed',
-  reprint: 'Please issue it again',
+  reprint: 'I need more printed',
 }
 const REASON_ORDER: CardRequestReason[] = ['first_card', 'new_headshot', 'details_changed', 'reprint']
 const MAX_NOTE = 500
@@ -37,12 +44,12 @@ function friendlyError(code: string, status: number): string {
   if (code === NETWORK_ERROR_CODE) return 'Unable to reach the brokerage right now. Please try again.'
   if (code === NON_CONTRACT_CODE) return 'This is temporarily unavailable. Please try again.'
   switch (code) {
-    case 'REQUEST_ALREADY_OPEN': return 'You already have a card request waiting.'
-    case 'REASON_INVALID': return 'Choose why you need a card.'
+    case 'REQUEST_ALREADY_OPEN': return 'You already have a business card request waiting.'
+    case 'REASON_INVALID': return 'Choose why you need a business card.'
     case 'NOTE_TOO_LONG': return 'That note is too long (500 characters max).'
     case 'NO_TENANT': return 'Your account is not fully configured yet.'
     case 'RATE_LIMITED': return 'Too many attempts. Please try again shortly.'
-    case 'FIELD_NOT_ALLOWED': return 'This request only ever applies to your own card.'
+    case 'FIELD_NOT_ALLOWED': return 'This request only ever applies to your own business card.'
     case 'UNAUTHENTICATED': return 'Your session expired. Please sign in again.'
     case 'CARD_REQUEST_UNAVAILABLE': return 'This is temporarily unavailable. Please try again.'
     default:
@@ -145,9 +152,9 @@ export default function CardRequestPanel() {
     <div className="rounded-xl border border-white/10 bg-[#0a0a0f] p-5 mb-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-white font-semibold">Your brokerage card</h3>
+          <h3 className="text-white font-semibold">Brokerage Business Card</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            The brokerage makes your official card. Ask for one whenever you need it.
+            HartFelt Real Estate designs and produces your official business card. Request one whenever you need it.
           </p>
         </div>
         {state.canRequest && (
@@ -155,7 +162,7 @@ export default function CardRequestPanel() {
             onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black font-medium shrink-0"
           >
-            <Send className="w-4 h-4" /> Request a card
+            <Send className="w-4 h-4" /> Request Brokerage Business Card
           </button>
         )}
       </div>
@@ -186,11 +193,11 @@ export default function CardRequestPanel() {
       )}
 
       {state.state === 'none' && (
-        <p className="mt-3 text-sm text-gray-400">You have not asked for a card yet.</p>
+        <p className="mt-3 text-sm text-gray-400">You have not requested a brokerage business card yet.</p>
       )}
       {state.state === 'declined' && state.request && (
         <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="text-sm text-amber-200">Your last request was not completed.</p>
+          <p className="text-sm text-amber-200">Your last business card request was not completed.</p>
           {state.request.resolutionNote && (
             <p className="text-xs text-gray-300 mt-1">{state.request.resolutionNote}</p>
           )}
@@ -198,19 +205,19 @@ export default function CardRequestPanel() {
         </div>
       )}
       {state.state === 'requested' && (
-        <p className="mt-3 text-sm text-gray-400">The brokerage has your request. You will be told when the card is ready.</p>
+        <p className="mt-3 text-sm text-gray-400">The brokerage has your request. You will be told when your business card is ready.</p>
       )}
       {state.state === 'being_made' && (
-        <p className="mt-3 text-sm text-gray-400">Your card is being made now.</p>
+        <p className="mt-3 text-sm text-gray-400">Your business card is being made now.</p>
       )}
       {state.state === 'ready' && (
-        <p className="mt-3 text-sm text-gray-400">Your card is approved and live.</p>
+        <p className="mt-3 text-sm text-gray-400">Your business card is approved and live.</p>
       )}
 
       {open && (
         <div className="mt-4 border-t border-white/10 pt-4">
           <fieldset>
-            <legend className="text-sm text-gray-300 mb-2">Why do you need a card?</legend>
+            <legend className="text-sm text-gray-300 mb-2">Why do you need a business card?</legend>
             <div className="flex flex-col gap-1.5">
               {REASON_ORDER.map((r) => (
                 <label key={r} className="flex items-center gap-2 text-sm text-gray-200">
