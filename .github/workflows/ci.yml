@@ -47,6 +47,12 @@ jobs:
           node-version: 20
           cache: npm
 
+      # SECRET-SCAN-1: fail the build if a real credential is committed. Added
+      # after a production Supabase service_role key was found committed in an
+      # orphaned debug script (delete-agents.js). Zero deps, runs before npm ci.
+      - name: Secret scan
+        run: node scripts/security/scan-secrets.mjs
+
       # Lockfile-exact install. `npm ci` fails loudly if package.json and
       # package-lock.json have drifted, which is itself worth catching.
       - name: Install (lockfile)
