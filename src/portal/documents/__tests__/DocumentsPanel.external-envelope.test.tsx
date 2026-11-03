@@ -182,7 +182,13 @@ describe("[XAE] the external-envelope entry point in DocumentsPanel", () => {
     // DocuSign account is connected". The panel now hands down no account
     // information at all and the surface asks.
     render(
-      <DocumentsPanel documents={[doc()]} error={null} transactionId={TXN} activeFormId={null} />,
+      <DocumentsPanel
+        documents={[doc()]}
+        error={null}
+        transactionId={TXN}
+        activeFormId={null}
+        paperworkPackageUrl=""
+      />,
     );
     const block = screen.getByTestId("external-ERL-14");
     fireEvent.click(within(block).getByTestId("open-record-form"));
