@@ -19,11 +19,19 @@
 // never look like a signed agreement.
 // ============================================================================
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { authFetch } from "@/lib/supabase";
+import {
+  esignConnectionState,
+  type EsignConnectionState,
+  type EsignStatusLite,
+} from "./checklist/checklist-logic";
 
 import {
   ENTRY_PROBLEM_COPY,
   RECORD_BLOCKER_COPY,
+  connectionCopy,
   effectiveTone,
   recordBlocker,
   statusView,
@@ -52,9 +60,6 @@ export interface RecordExternalEnvelopeProps {
   readonly hasPdf: boolean;
   /** Envelopes already recorded against this document. */
   readonly envelopes: ReadonlyArray<ExternalEnvelopeRow>;
-  /** The connected DocuSign account this would be verified against. */
-  readonly sendingAccountEmail: string | null;
-  readonly accessToken: string | null;
   readonly onChanged?: () => void;
 }
 
@@ -79,7 +84,7 @@ function Badge({ label, tone, testId }: { label: string; tone: Tone; testId?: st
 
 export default function RecordExternalEnvelope({
   transactionId, formInstanceId, formId, documentStatus, hasPdf,
-  envelopes, sendingAccountEmail, accessToken, onChanged,
+  envelopes, onChanged,
 }: RecordExternalEnvelopeProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -87,6 +92,38 @@ export default function RecordExternalEnvelope({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [conn, setConn] = useState<EsignConnectionState>("checking");
+  const [connEmail, setConnEmail] = useState<string | null>(null);
+
+  // Read when the form OPENS, which is the only moment the answer is shown
+  // and the moment it is most likely to have just changed (the agent may have
+  // reconnected on /settings in another tab). Not on mount: the panel mounts
+  // one of these per approved document and none of them needs the answer until
+  // it is asked for.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setConn("checking");
+    void (async () => {
+      try {
+        const res = await authFetch("/api/esign/status", { method: "GET" });
+        if (!active) return;
+        if (!res.ok) {
+          setConn("unknown");
+          return;
+        }
+        const s = (await res.json().catch(() => null)) as EsignStatusLite | null;
+        if (!active) return;
+        setConnEmail(s?.email ?? null);
+        setConn(esignConnectionState(s));
+      } catch {
+        if (active) setConn("unknown");
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const blocker = recordBlocker({
     status: documentStatus,
@@ -95,12 +132,14 @@ export default function RecordExternalEnvelope({
   });
 
   const post = async (url: string, body?: unknown) => {
-    const res = await fetch(url, {
+    // authFetch, never a bare fetch: it attaches the Bearer token from the
+    // cached session and self-heals one 401. The bare fetch that stood here
+    // attached a token the MOUNT SITE had to supply, and the mount site
+    // supplied null — so every attempt reached the proxy unauthenticated and
+    // came back 401 before Vault was ever asked.
+    const res = await authFetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
+      headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -247,7 +286,7 @@ export default function RecordExternalEnvelope({
             id="envelope-id"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="37653a88-a887-81f9-8054-a39d821fb0c8"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             className="w-full rounded-lg border border-[#2a2a3e] bg-[#0f0f18] p-2 font-mono text-xs text-zinc-200"
           />
           <label className="block text-[11px] text-zinc-400" htmlFor="envelope-sent-at">
@@ -260,10 +299,8 @@ export default function RecordExternalEnvelope({
             onChange={(e) => setSentAt(e.target.value)}
             className="rounded-lg border border-[#2a2a3e] bg-[#0f0f18] p-2 text-xs text-zinc-200"
           />
-          <p className="text-[11px] text-zinc-500">
-            {sendingAccountEmail
-              ? `Vault will check this against your connected DocuSign account (${sendingAccountEmail}). If the envelope is not there, it will not be recorded.`
-              : "No DocuSign account is connected, so Vault cannot confirm this envelope. It will be recorded as UNVERIFIED — a record that you sent it, not that it was signed."}
+          <p className="text-[11px] text-zinc-500" data-testid="connection-notice">
+            {connectionCopy(conn, connEmail)}
           </p>
           <div className="flex items-center gap-2">
             <button
