@@ -92,6 +92,9 @@ beforeEach(() => {
     if (url === `${VAULT_API_URL}/agent/avatar`) {
       return json({ ok: true, marketingProfile: vaultState({ avatar: { hasPhoto: true, displayUrl: 'https://signed.example/x.png', updatedAt: '2026-11-03T00:00:00Z', uploadAvailable: true } }) })
     }
+    if (url === `${VAULT_API_URL}/agent/card-request`) {
+      return json({ success: true, data: { state: 'none', canRequest: true, suggestedReason: 'first_card', hasApprovedCard: false, request: null } })
+    }
     if (url === '/api/my-card') return json({ success: true })
     throw new Error(`unmocked authFetch: ${url}`)
   })
@@ -183,5 +186,23 @@ describe('My Card — the agent self-service entry point', () => {
     render(<BusinessCardPage />)
     expect(await screen.findByRole('heading', { name: 'My Business Card' })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Marketing Card' })).not.toBeInTheDocument())
+  })
+})
+
+describe('My Card — asking the brokerage for a card', () => {
+  it('mounts the request panel, so the ask is reachable from My Card', async () => {
+    render(<BusinessCardPage />)
+    expect(await screen.findByRole('heading', { name: 'Your brokerage card' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Request a card/i })).toBeInTheDocument()
+    expect(mockAuthFetch).toHaveBeenCalledWith(
+      `${VAULT_API_URL}/agent/card-request`,
+      expect.objectContaining({ method: 'GET', credentials: 'omit' }),
+    )
+  })
+
+  it('both panels mount together — asking and supplying a headshot are one journey', async () => {
+    render(<BusinessCardPage />)
+    expect(await screen.findByRole('heading', { name: 'Your brokerage card' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Marketing Card' })).toBeInTheDocument()
   })
 })

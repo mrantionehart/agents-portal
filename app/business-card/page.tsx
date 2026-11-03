@@ -6,6 +6,7 @@ import { useAuth } from '../providers'
 import { supabase, authFetch } from '@/lib/supabase'
 import SidebarNav from '../components/SidebarNav'
 import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
+import CardRequestPanel from '@/src/portal/marketing-profile/CardRequestPanel'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
 
 interface ProfileData {
@@ -209,6 +210,11 @@ export default function BusinessCardPage() {
               row this page edits below. Vault owns readiness and capability;
               this page only mounts the section. Hides itself when the Vault
               route is absent, so the rest of the page is unaffected. */}
+          {/* Asking for a card sits ABOVE the headshot/contact section: the ask
+              is the thing an agent came here to do, and the section below is
+              what they fill in to make it possible. */}
+          <CardRequestPanel />
+
           <MarketingProfileSection />
 
           {/* === CUSTOM CARD IMAGE (broker-uploaded) === */}

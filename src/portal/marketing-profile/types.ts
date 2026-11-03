@@ -50,3 +50,30 @@ export interface MarketingProfileState {
     licenseNumber: string | null
   }
 }
+
+// ── Card requests ──────────────────────────────────────────────────────────
+// Mirrors GET/POST /api/agent/card-request. Product concepts only.
+
+/** Why an agent is asking. Mirrors the DB CHECK constraint. */
+export type CardRequestReason = 'first_card' | 'new_headshot' | 'details_changed' | 'reprint'
+
+/** The three states an agent is shown, plus the two ways a request can end.
+ *  SERVER-owned: the browser renders this, it never derives it. */
+export type CardRequestAgentState = 'none' | 'requested' | 'being_made' | 'ready' | 'declined'
+
+export interface CardRequestState {
+  state: CardRequestAgentState
+  /** False while a request of theirs is live — the server decides, not the UI. */
+  canRequest: boolean
+  suggestedReason: CardRequestReason
+  hasApprovedCard: boolean
+  request: {
+    id: string
+    status: string
+    reason: string
+    note: string | null
+    requestedAt: string
+    resolvedAt: string | null
+    resolutionNote: string | null
+  } | null
+}
