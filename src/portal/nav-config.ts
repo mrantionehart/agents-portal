@@ -54,6 +54,7 @@ export type NavItem = {
     | "bell"
     | "graduation-cap"
     | "swords"
+    | "table-2"
     | "book-open"
     | "library"
     | "settings";
@@ -94,6 +95,12 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   // token). Placed next to Training as a sibling learning destination; no other
   // item reordered.
   { id: "the-ring",     label: "The Ring",      icon: "swords",          href: "/the-ring" },
+  // HARTFELT READY — Matrix Practical Simulator (agent-facing MLS listing
+  // practice; engine + routes live in Vault, called with the agent's Bearer
+  // token, exactly like The Ring). Documented authorization: "HARTFELT MATRIX
+  // SIMULATOR — APPROVED, Phases 2B–2C". Placed next to The Ring as a sibling
+  // learning destination; no other item reordered.
+  { id: "the-matrix",   label: "Matrix Simulator", icon: "table-2",      href: "/the-matrix" },
   { id: "training",     label: "Training",      icon: "graduation-cap",  href: "/training" },
   { id: "library",      label: "Library",       icon: "library",         href: "/library" },
   { id: "settings",     label: "Settings",      icon: "settings",        href: "/settings" },

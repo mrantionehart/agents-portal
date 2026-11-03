@@ -10,7 +10,7 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 14 documented items in order (DEVINTEL-P3I adds Developer Opportunities after My Follow-Ups)", () => {
+  it("ships the 15 documented items in order (HARTFELT MATRIX SIMULATOR adds Matrix Simulator after The Ring)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -23,6 +23,7 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Meetings",
       "Notifications",
       "The Ring",
+      "Matrix Simulator",
       "Training",
       "Library",
       "Settings",
@@ -48,13 +49,22 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
     for (const p of priv) expect(p.label).not.toBe("Developer Opportunities");
   });
 
-  it("COMM-1C — The Ring sits between Notifications and Training and points at /the-ring", () => {
+  it("COMM-1C — The Ring sits between Notifications and Matrix Simulator and points at /the-ring", () => {
     const labels = NAV_ITEMS.map((i) => i.label);
     expect(labels.indexOf("The Ring")).toBe(labels.indexOf("Notifications") + 1);
-    expect(labels.indexOf("The Ring")).toBe(labels.indexOf("Training") - 1);
+    expect(labels.indexOf("The Ring")).toBe(labels.indexOf("Matrix Simulator") - 1);
     const r = NAV_ITEMS.find((i) => i.id === "the-ring")!;
     expect(r.href).toBe("/the-ring");
     expect(r.brokerOnly).toBeUndefined();
+  });
+
+  it("HARTFELT MATRIX — Matrix Simulator sits between The Ring and Training, agent-visible, /the-matrix", () => {
+    const labels = NAV_ITEMS.map((i) => i.label);
+    expect(labels.indexOf("Matrix Simulator")).toBe(labels.indexOf("The Ring") + 1);
+    expect(labels.indexOf("Matrix Simulator")).toBe(labels.indexOf("Training") - 1);
+    const m = NAV_ITEMS.find((i) => i.id === "the-matrix")!;
+    expect(m.href).toBe("/the-matrix");
+    expect(m.brokerOnly).toBeUndefined();
   });
 
   it("AGENT-PORTAL-MEETINGS — Meetings sits between Calendar and Notifications", () => {
