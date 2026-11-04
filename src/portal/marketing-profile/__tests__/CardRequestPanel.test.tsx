@@ -254,3 +254,111 @@ describe('it is a Brokerage Business Card, and the agent does not design it', ()
     })
   })
 })
+
+
+// ── Printing options ────────────────────────────────────────────────────────
+// The prices come from Vault. Nothing here holds a figure of its own, and the
+// test asserts the SERVED values are what render — so a constant quietly
+// copied into the portal would not make these pass.
+const PRINT_OPTIONS = [{
+  key: 'bundle_250', quantity: 250, totalCents: 15000,
+  totalDisplay: '$150.00', unitDisplay: '$0.60 per card',
+  finish: '17-point velvet finish, rounded corners',
+}]
+const NOTICE = 'Estimated — the brokerage confirms the final price when the order is placed.'
+
+describe('choosing a printing option', () => {
+  const withOptions = (over: Record<string, unknown> = {}) =>
+    state({ printOptions: PRINT_OPTIONS, estimateNotice: NOTICE, ...over })
+
+  it('shows the option exactly as the brokerage quoted it', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: withOptions() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    expect(screen.getByText(/250 cards — \$150\.00/)).toBeInTheDocument()
+    expect(screen.getByText(/\$0\.60 per card · 17-point velvet finish, rounded corners/)).toBeInTheDocument()
+  })
+
+  it('labels the price as estimated', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: withOptions() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    expect(screen.getByText(NOTICE)).toBeInTheDocument()
+  })
+
+  it('never shows a vendor or a quote date', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: withOptions() }))
+    const { container } = render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    const text = container.textContent?.toLowerCase() ?? ''
+    // jest's `expect` takes ONE argument — the vitest `expect(x, msg)` form
+    // throws "Expect takes at most one argument". The loop variable names the
+    // case in the failure output instead.
+    for (const forbidden of ['vendor', 'supplier', 'quote', 'quoted']) {
+      expect({ forbidden, text: text.includes(forbidden) }).toEqual({ forbidden, text: false })
+    }
+  })
+
+  it('defaults to NO printing — nothing is chosen on the agent\u2019s behalf', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: withOptions() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    expect((screen.getByLabelText('No printing for now') as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('sends the option KEY, and never a price', async () => {
+    mockAuthFetch.mockImplementation(async (_u: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? json({ success: true, data: withOptions({ state: 'requested', canRequest: false }) }, 201)
+        : json({ success: true, data: withOptions() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    fireEvent.click(screen.getByLabelText(/250 cards/))
+    fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
+    await waitFor(() => {
+      const post = mockAuthFetch.mock.calls.find((c) => c[1]?.method === 'POST')
+      const body = JSON.parse(post![1].body)
+      expect(body).toEqual({ reason: 'first_card', printOptionKey: 'bundle_250' })
+      // the browser cannot name an amount
+      for (const k of ['quantity', 'total', 'totalCents', 'price']) {
+        expect({ k, present: Object.keys(body).includes(k) }).toEqual({ k, present: false })
+      }
+    })
+  })
+
+  it('sends NO option key when the agent declines printing', async () => {
+    mockAuthFetch.mockImplementation(async (_u: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? json({ success: true, data: withOptions({ state: 'requested', canRequest: false }) }, 201)
+        : json({ success: true, data: withOptions() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send request/i }))
+    await waitFor(() => {
+      const post = mockAuthFetch.mock.calls.find((c) => c[1]?.method === 'POST')
+      expect(JSON.parse(post![1].body)).toEqual({ reason: 'first_card' })
+    })
+  })
+
+  it('confirms the quantity and total back to the agent, still estimated', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: withOptions({
+      state: 'requested', canRequest: false,
+      request: {
+        id: 'r1', status: 'open', reason: 'first_card', note: null, requestedAt: 'x',
+        resolvedAt: null, resolutionNote: null,
+        printSelection: { quantity: 250, totalDisplay: '$150.00', finish: '17-point velvet finish, rounded corners', estimated: true },
+      },
+    }) }))
+    render(<CardRequestPanel />)
+    expect(await screen.findByText(/250 cards — \$150\.00/)).toBeInTheDocument()
+    expect(screen.getByText('estimated')).toBeInTheDocument()
+  })
+
+  it('shows no printing section at all when the brokerage offers none', async () => {
+    mockAuthFetch.mockResolvedValue(json({ success: true, data: state() }))
+    render(<CardRequestPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Request Brokerage Business Card/i }))
+    expect(screen.queryByText('Printing')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('No printing for now')).not.toBeInTheDocument()
+  })
+})
