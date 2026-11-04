@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
           // Get agent profile info
           const { data: agentProfile } = await admin
             .from('profiles')
-            .select('full_name, email, role')
+            .select('full_name, email, role, tenant_id')
             .eq('id', user.id)
             .single()
 
@@ -202,12 +202,21 @@ export async function POST(request: NextRequest) {
           const agentEmail = agentProfile?.email || user.email || ''
           const volName = VOLUME_NAMES[volume] || `Volume ${volume}`
 
+          // HR-CERT-SECURITY — recipients are the LEARNER's own brokerage's
+          // admins/brokers. This read had no tenant filter, so every
+          // brokerage's admins and brokers were emailed about every agent's
+          // volume completion. A learner with no tenant notifies nobody.
+          const learnerTenantId = (agentProfile as { tenant_id?: string | null } | null)?.tenant_id ?? null
+
           // [service-role: broker-fan-out] — cross-user read for
           // admin/broker recipients of the SendGrid notification.
-          const { data: admins } = await admin
-            .from('profiles')
-            .select('email, full_name')
-            .in('role', ['admin', 'broker'])
+          const { data: admins } = learnerTenantId
+            ? await admin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('tenant_id', learnerTenantId)
+                .in('role', ['admin', 'broker'])
+            : { data: [] as { email: string | null }[] }
 
           const recipients = (admins || [])
             .map((a: any) => a.email)
