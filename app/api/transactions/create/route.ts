@@ -459,53 +459,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Auto-create commission record if contract price is provided.
+    // C1 (2026-11-04) — NO commission row is written here.
     //
-    // COMMISSION-CANONICAL-FORMULA-1 — this path used to compute the split
-    // itself: `agentAmt = grossComm × agentSplit`, with no transaction fee at
-    // all. That was a THIRD commission formula. On a 400,000 deal at 3% and a
-    // 70% split it wrote agent_amount 8,400.00 where the Vault calculator
-    // produces 8,193.50 and where /api/commissions/pay would move 8,193.50 —
-    // and the row it wrote displayed 8,400.00 to the agent.
+    // This route used to insert an unpriced `pending_calculation` commission
+    // with the CALLER's token (`admin` is userClient(request)). In production
+    // `authenticated` holds SELECT only on `commissions` (ACL audit
+    // 2026-11-04), so that insert has been refused on every call — and its
+    // `{ error }` was never read, so nothing ever said so. No commission row has
+    // ever come from this path.
     //
-    // This route now records only the INPUTS. The money is computed in
-    // exactly one place: Vault's /api/commissions/calculate, which reads the
-    // agent's own profile for the split tier, the per-deal fee and the annual
-    // cap — none of which this request body carries, and none of which a
-    // caller should be able to supply. agent_amount / brokerage_amount are
-    // NOT NULL in the schema, so they are seeded at 0.00 alongside an
-    // explicit `pending_calculation` status: the zero is not a figure, it is
-    // the absence of one, and the status is what says so. Vault's pay gate
-    // refuses any commission whose net_commission has not been calculated,
-    // so a row in this state cannot be paid.
-    const price = contract_price ? parseFloat(contract_price) : 0
-    // P4H-14 — acquisitions NEVER spawn a commission row (no split/cap/payout).
-    if (price > 0 && !isAcquisition) {
-      const commRate = commission_rate_pct ? parseFloat(commission_rate_pct) : 3.0
-      const agentSplit = agent_split_pct ? parseFloat(agent_split_pct) : 70.0
-      const grossComm = price * (commRate / 100)
-
-      // COMMISSION-REFERRAL-CANONICAL-1 — this route also computed the
-      // referral amount (`grossComm × pct`, unclamped) and wrote it. Vault now
-      // treats a stored `referral_fee_amount` as AUTHORITATIVE — it is the only
-      // way a flat-dollar referral can be expressed — so that multiply was
-      // quietly becoming the money, bypassing both the calculator and its
-      // clamp. The percentage is already recorded on the transaction above
-      // (`referral_fee_pct`), which is the input Vault's calculator reads; the
-      // amount is derived there, once, alongside every other figure on the row.
-      await admin
-        .from('commissions')
-        .insert({
-          transaction_id: transaction.id,
-          agent_id: targetAgentId,
-          gross_commission: Math.round(grossComm * 100) / 100,
-          commission_rate_pct: commRate,
-          agent_split_pct: agentSplit,
-          commission_status: 'pending_calculation',
-          agent_amount: 0,
-          brokerage_amount: 0,
-        })
-    }
+    // The commission is created where the money is decided: Vault's
+    // /api/transactions/close writes it with the service role from the
+    // broker-entered gross and rate, and /api/commissions/calculate derives the
+    // split from the agent's own profile (split tier, per-deal fee, cap) —
+    // inputs a create request must not supply. Granting the browser role
+    // INSERT on `commissions` to revive this write is exactly what the C1
+    // financial-authorization work forbids.
+    //
+    // The form's rate/split fields remain an ESTIMATE only, and the page now
+    // says so. `contract_price` and `referral_fee_pct` are still recorded on
+    // the transaction above.
 
     return NextResponse.json({ transaction }, { status: 201 })
   } catch (err) {
