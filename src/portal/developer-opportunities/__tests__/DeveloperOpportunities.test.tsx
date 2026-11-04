@@ -264,12 +264,74 @@ describe('[P3I-AP-5] broker work is absent, not hidden', () => {
     for (const path of requestPaths) {
       expect(path).not.toMatch(/approvals|assign/)
     }
-    // No POST at all: every write this surface makes is a PATCH to /research.
-    expect(client).not.toMatch(/method:\s*['"]POST['"]/)
     expect(client).not.toMatch(/approvalType/)
-    // And the only write path is the research route.
+    // DEVINTEL-P12A · the write surface is now TWO calls, so it is pinned as
+    // the exact set rather than "no POST at all" — which was a proxy for the
+    // real claim and would have had to be dropped rather than tightened.
     const methods = [...client.matchAll(/method:\s*['"](\w+)['"]/g)].map((m) => m[1])
-    expect(new Set(methods)).toEqual(new Set(['PATCH']))
+    expect(new Set(methods)).toEqual(new Set(['PATCH', 'POST']))
+    // The only POST is the submit, and it is the ONLY one.
+    const posts = [...client.matchAll(/`\$\{BASE\}([^`]*)`[\s\S]{0,200}?method:\s*'POST'/g)]
+    const postPaths = [...client.matchAll(/request\(\s*`([^`]*)`,\s*\{\s*\n?\s*method:\s*'POST'/g)].map((m) => m[1])
+    expect(postPaths).toEqual(['/${encodeURIComponent(id)}/research/submit'])
+    expect(posts.length).toBe(0)   // nothing posts to a raw BASE path
+  })
+
+  it('[CRITICAL] the agent client cannot RECORD a review — only read one', () => {
+    // `research/reviews` POST is the broker's Accept / Request changes. Vault
+    // refuses an agent token there, and this side must not call it at all.
+    const client = readFileSync(join(process.cwd(), 'lib/development-opportunities/vault-dev-opportunities-client.ts'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'src/portal/developer-opportunities/DeveloperOpportunities.tsx'), 'utf8')
+    // The reviews path is REQUESTED exactly once, and that request is a GET.
+    // Matched on `request(...)` rather than on the bare string, so the comment
+    // explaining why there is no review call does not read as a second use.
+    const reviewRequests = [...client.matchAll(/request\(\s*`[^`]*research\/reviews`([^)]*)\)/g)]
+    expect(reviewRequests).toHaveLength(1)
+    expect(reviewRequests[0][1]).not.toMatch(/method:/)   // a bare request() is a GET
+    // Over what is SENT, not the whole file: the client legitimately TYPES
+    // `decision: 'accepted' | 'changes_requested'` on the review rows it
+    // RENDERS, and a file-wide match read that type as a review being posted.
+    const sent = [...client.matchAll(/JSON\.stringify\(([\s\S]*?)\),?\n/g)].map((m) => m[1])
+      .concat([...src.matchAll(/JSON\.stringify\(([\s\S]*?)\),?\n/g)].map((m) => m[1]))
+    expect(sent.length).toBeGreaterThan(0)
+    for (const body of sent) {
+      expect(body).not.toContain('decision')
+      expect(body).not.toContain('submissionId')   // the review body's own field
+    }
+    // And the component issues no request of its own at all — every call goes
+    // through the client above. Matched on a CALL SITE, since the file's own
+    // header legitimately mentions `authFetch` in prose.
+    expect(src).not.toMatch(/\b(?:await\s+)?(?:authFetch|window\.fetch|globalThis\.fetch)\s*\(/)
+    expect(src).not.toMatch(/[^.\w]fetch\s*\(/)
+  })
+
+  it('[CRITICAL] the submit sends no findings of its own', () => {
+    // Vault snapshots the SAVED row. If this posted what the screen held, an
+    // agent could submit notes and evidence that were never saved, and the
+    // broker's verdict would name something not in the record.
+    const client = readFileSync(join(process.cwd(), 'lib/development-opportunities/vault-dev-opportunities-client.ts'), 'utf8')
+    const fn = client.slice(client.indexOf('export async function submitResearchForReview'))
+    const body = fn.slice(0, fn.indexOf('\n}'))
+    expect(body).toContain('JSON.stringify({})')
+    for (const field of ['research_notes', 'evidence', 'tasks_done', 'tasksDone', 'notes']) {
+      expect(body).not.toContain(field)
+    }
+  })
+
+  it('[CRITICAL] a source is sent as addSource, never as a whole evidence_refs array', () => {
+    const client = readFileSync(join(process.cwd(), 'lib/development-opportunities/vault-dev-opportunities-client.ts'), 'utf8')
+    expect(client).toMatch(/addSource:\s*\{/)
+    // Sending the array would hand the developer attribution and the
+    // representation finding to a client that does not hold the real copy.
+    // Asserted over what is SENT: the client legitimately TYPES `evidence_refs`
+    // on the detail it is handed, so the file-wide form of this was a false
+    // positive on a type declaration.
+    const bodies = [...client.matchAll(/JSON\.stringify\(([\s\S]*?)\),?\n/g)].map((m) => m[1])
+    expect(bodies.length).toBeGreaterThan(0)
+    for (const body of bodies) {
+      expect(body).not.toContain('evidence_refs')
+      expect(body).not.toContain('evidence_snapshot')
+    }
   })
 
   it('shows the four gates as read-only facts', async () => {

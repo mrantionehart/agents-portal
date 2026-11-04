@@ -13,6 +13,13 @@ export type FormInstanceStatus =
   | "blocked"
   | "in_progress"
   | "ready"
+  // P4H — the three approval states this mirror had DRIFTED from. Vault has
+  // had them since CONTRACT-APPROVAL-1, and without them the Portal could not
+  // represent an approved document at all: `d.status === "approved"` was a
+  // type error, so no agent-facing surface could key on approval.
+  | "pending_approval"
+  | "changes_requested"
+  | "approved"
   | "sent"
   | "signed"
   | "voided";
@@ -23,6 +30,9 @@ export const KNOWN_STATUSES: ReadonlyArray<FormInstanceStatus> = [
   "blocked",
   "in_progress",
   "ready",
+  "pending_approval",
+  "changes_requested",
+  "approved",
   "sent",
   "signed",
   "voided",

@@ -7,16 +7,22 @@
 // status/requirement/selection rules live here so they are unit-testable.
 // ============================================================================
 
+import type { FormInstanceStatus } from '../shared-types'
+
 // ── Vault-side projection shapes (agent-safe; mirror the Vault cards) ──────
-export type VaultFormStatus =
-  | 'recommended'
-  | 'required'
-  | 'blocked'
-  | 'in_progress'
-  | 'ready'
-  | 'sent'
-  | 'signed'
-  | 'voided'
+/**
+ * 🔑 P4H — THIS WAS A THIRD HAND-WRITTEN COPY of Vault's status vocabulary,
+ * and it was the fifth such copy to be found drifting in two days. It listed
+ * eight statuses and none of the three approval states, so a broker-approved
+ * agreement hit `mapVaultStatusToLabel`'s default and read "Required" at the
+ * top of the Documents tab, above a panel that said "Approved".
+ *
+ * It is now an ALIAS of the canonical union in shared-types.ts — which is
+ * pure and dependency-free, so this file stays pure too. A status Vault adds
+ * is now added in exactly one place, and this file cannot silently fall
+ * behind it again.
+ */
+export type VaultFormStatus = FormInstanceStatus
 
 export interface VaultRequirementCard {
   form_id: string
@@ -53,8 +59,11 @@ export type ChecklistStatusLabel =
   | 'Required'
   | 'Preparing'
   | 'Ready'
+  | 'Pending Broker Approval'
+  | 'Changes Requested'
+  | 'Approved — Awaiting Signature'
   | 'Sent'
-  | 'Approved'
+  | 'Signed'
   | 'Hidden'
 
 export type RequirementLabel = 'Required' | 'Conditional' | 'Optional'
@@ -71,10 +80,21 @@ export function mapVaultStatusToLabel(status: VaultFormStatus): ChecklistStatusL
       return 'Preparing'
     case 'ready':
       return 'Ready'
+    case 'pending_approval':
+      return 'Pending Broker Approval'
+    case 'changes_requested':
+      return 'Changes Requested'
+    case 'approved':
+      return 'Approved — Awaiting Signature'
     case 'sent':
       return 'Sent'
+    // 🔑 `signed` used to render as 'Approved'. With a broker-approved
+    // document now labelled "Approved — Awaiting Signature", the shorter
+    // string would have sat on the MORE advanced state — the confusion that
+    // produced this report. Execution is `Signed`; approval is the broker's
+    // act earlier in the chain.
     case 'signed':
-      return 'Approved'
+      return 'Signed'
     case 'voided':
       return 'Hidden'
     default:
@@ -120,7 +140,18 @@ export function selectabilityFor(doc: VaultDocumentCard): Selectability {
     return doc.has_upload
       ? { selectable: true }
       : { selectable: false, reason: 'Upload the completed PDF first' }
-  if (doc.status === 'ready' || doc.status === 'signed') return { selectable: true }
+  // 🔑 P4H — AN APPROVED DOCUMENT IS SELECTABLE. It fell to the catch-all
+  // below and read "Not ready yet", which is the opposite of true: the broker
+  // has approved it and it is the one state that IS ready to go out.
+  if (doc.status === 'ready' || doc.status === 'signed' || doc.status === 'approved') {
+    return { selectable: true }
+  }
+  // Awaiting a decision, or returned for one. Both have a document; neither
+  // is the agent's to act on from here, and saying WHICH is the point.
+  if (doc.status === 'pending_approval')
+    return { selectable: false, reason: 'Pending broker approval' }
+  if (doc.status === 'changes_requested')
+    return { selectable: false, reason: 'Broker requested changes' }
   if (doc.status === 'in_progress')
     return { selectable: false, reason: 'Preparing' }
   return { selectable: false, reason: 'Not ready yet' }
@@ -216,24 +247,56 @@ export function deriveActionBar(
 }
 
 // ── E-sign send gating ───────────────────────────────────────────────────────
-/** The part of GET /api/esign/status this UI is allowed to read. Both fields
- *  are non-secret; no token ever reaches the client. */
+/** The part of GET /api/esign/status this UI is allowed to read. All three
+ *  fields are non-secret; no token ever reaches the client. */
 export interface EsignStatusLite {
   connected?: boolean
   needs_reconnect?: boolean
+  /** The connected account's address, for telling the agent WHICH account. */
+  email?: string | null
+}
+
+/**
+ * The account's state in the only three flavours any surface here cares about,
+ * plus `unknown` for "not answered yet / could not be read".
+ *
+ * 🔑 P4H — `connected` IS NOT THE QUESTION, and a boolean cannot carry the
+ * answer. An account whose access token has expired still reads
+ * `connected: true`; Vault flags it with `needs_reconnect`. For gating a send
+ * that collapses safely onto "no" — but for TELLING THE AGENT WHAT IS WRONG it
+ * does not, and the record-envelope surface said "No DocuSign account is
+ * connected" to a pilot agent whose account was connected the whole time.
+ *
+ * So this is the one derivation, and `esignSendEnabled` is a projection of it.
+ * A surface that needs to explain itself reads the state; a surface that needs
+ * a gate reads the boolean. They cannot disagree.
+ */
+export type EsignConnectionState = 'checking' | 'unknown' | 'none' | 'stale' | 'ready'
+
+/**
+ * 🔑 `checking` and `unknown` are deliberately NOT the same state. "Not asked
+ * yet" and "asked, and could not find out" read identically to a careless
+ * caller — and a test whose expected copy is also the initial copy passes
+ * whether or not the question was ever put. This union makes that mistake
+ * impossible to write.
+ */
+
+export function esignConnectionState(
+  status: EsignStatusLite | null | undefined
+): EsignConnectionState {
+  if (!status) return 'unknown'
+  if (status.connected !== true) return 'none'
+  return status.needs_reconnect === true ? 'stale' : 'ready'
 }
 
 /** Whether the per-row "Send via My DocuSign" action may be offered.
  *
- *  `connected` alone is NOT the question. An account whose access token has
- *  expired still reads `connected: true`, and Vault flags it with
- *  `needs_reconnect`. Sending on that account fails at the provider, after the
- *  agent has already told a client the agreement is on its way — so an account
- *  needing reconnection is treated exactly as no account at all and the row
- *  offers Connect instead.
+ *  Sending on an expired account fails at the provider, after the agent has
+ *  already told a client the agreement is on its way — so an account needing
+ *  reconnection is treated exactly as no account at all and the row offers
+ *  Connect instead.
  *
  *  An absent or unparseable status refuses: this gate fails CLOSED. */
 export function esignSendEnabled(status: EsignStatusLite | null | undefined): boolean {
-  if (!status) return false
-  return status.connected === true && status.needs_reconnect !== true
+  return esignConnectionState(status) === 'ready'
 }

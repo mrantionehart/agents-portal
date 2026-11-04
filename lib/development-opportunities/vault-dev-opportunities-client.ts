@@ -209,3 +209,103 @@ export async function setChecklistTask(id: string, taskId: string, done: boolean
     body: JSON.stringify({ checklist: { [taskId]: done } }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// DEVINTEL-P12A — submitting research, and what the broker said back
+// ---------------------------------------------------------------------------
+// 🔒 The submission and review logs are APPEND-ONLY TABLES in Vault, with
+// UPDATE, DELETE and TRUNCATE revoked and a trigger behind that. There is no
+// edit call and no withdraw call here because there is none to make — a change
+// of mind is a new revision, which is why `submitResearchForReview` is the
+// only write on this side.
+//
+// 🔒 And no review call. Accepting research or asking for changes is broker
+// work, refused for an agent token by `research/reviews` POST. It is absent
+// here rather than hidden, the same way the four gates are.
+
+export type ResearchSubmissionState =
+  | 'not_submitted' | 'awaiting_review' | 'changes_requested' | 'accepted'
+
+export interface ResearchSubmissionRow {
+  id: string
+  submitted_at: string
+  submitted_by: string
+  tasks_done: number
+  research_notes: string | null
+  evidence_snapshot: unknown
+  supersedes_submission_id: string | null
+}
+export interface ResearchReviewRow {
+  id: string
+  submission_id: string
+  decision: 'accepted' | 'changes_requested'
+  note: string | null
+  reviewed_by: string
+  reviewed_at: string
+}
+export interface ResearchLog {
+  submissions: ResearchSubmissionRow[]
+  reviews: ResearchReviewRow[]
+  state: ResearchSubmissionState
+  latestSubmissionId: string | null
+}
+
+/**
+ * The submission history and the broker's verdicts.
+ *
+ * The same endpoint the broker's workspace reads. Vault decides what an agent
+ * may see from the token: `not_assignee` for a relationship they do not hold.
+ */
+export async function getResearchLog(id: string): Promise<ResearchLog> {
+  const body = await request(`/${encodeURIComponent(id)}/research/reviews`)
+  return {
+    submissions: body?.submissions ?? [],
+    reviews: body?.reviews ?? [],
+    state: body?.state ?? 'not_submitted',
+    latestSubmissionId: body?.latestSubmissionId ?? null,
+  }
+}
+
+/**
+ * Submit the research as it currently stands, for a broker to review.
+ *
+ * 🔑 Sends NO content. Vault snapshots the row's own `research_notes` and
+ * `evidence_refs` and counts the ticked tasks itself. If this posted what the
+ * screen was holding, an agent could submit findings and evidence that were
+ * never saved, and the broker's verdict would point at something no longer in
+ * the record — so the body is empty on purpose. Do not add one.
+ */
+export async function submitResearchForReview(
+  id: string,
+): Promise<{ submissionId: string; supersedes: string | null }> {
+  const body = await request(`/${encodeURIComponent(id)}/research/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  return {
+    submissionId: body?.submission?.id ?? '',
+    supersedes: body?.supersedes ?? null,
+  }
+}
+
+/**
+ * Add ONE source document.
+ *
+ * 🔒 `addSource`, never `evidence_refs`. Vault merges this record into the
+ * array it has just read, under a compare-and-set, and validates the URL —
+ * http(s) only, bounded, deduplicated. Sending `evidence_refs` would hand the
+ * whole array to a client that does not hold the authoritative copy, and would
+ * put the developer attribution and the representation finding within reach of
+ * a typed link. Do not change this to `evidence_refs`.
+ */
+export async function addResearchSource(
+  id: string, source: { url: string; label?: string },
+): Promise<{ label: string; url: string } | null> {
+  const body = await request(`/${encodeURIComponent(id)}/research`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addSource: { url: source.url, label: source.label ?? '' } }),
+  })
+  return body?.source ?? null
+}

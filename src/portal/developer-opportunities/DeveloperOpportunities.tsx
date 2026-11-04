@@ -31,12 +31,30 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   listMyOpportunities, getOpportunity, saveResearchNotes, setChecklistTask,
+  getResearchLog, submitResearchForReview, addResearchSource,
   DevOpportunityApiError,
   type OpportunitySummary, type OpportunityDetail,
+  type ResearchLog, type ResearchSubmissionState,
 } from "@/lib/development-opportunities/vault-dev-opportunities-client";
 
 const CARD = "rounded-lg border border-[#1a1a2e] bg-[#11111a]";
 const SOFT = "rounded-md border border-[#1a1a2e] bg-[#0d0d14]";
+
+// --- DEVINTEL-P12A -------------------------------------------------------
+/** What each state is called, in the agent's own terms rather than the
+ *  column's. The broker's workspace uses the same four words. */
+export const SUBMISSION_LABEL: Record<ResearchSubmissionState, string> = {
+  not_submitted: "NOT SUBMITTED",
+  awaiting_review: "PENDING REVIEW",
+  changes_requested: "CHANGES REQUESTED",
+  accepted: "ACCEPTED",
+};
+/** The five research tasks a submission counts against — fixed, so "3 of 5"
+ *  does not change meaning when a checklist item is added. */
+export const SUBMISSION_TASK_TOTAL = 5;
+/** Vault's own bound, mirrored so the box stops a label the route would
+ *  refuse. It is a courtesy; `mergeSourceRef` is the boundary. */
+export const SOURCE_LABEL_MAX = 120;
 
 export type Gate = "RESEARCH" | "OUTREACH" | "PROPOSAL" | "AGREEMENT";
 export const GATES: readonly Gate[] = ["RESEARCH", "OUTREACH", "PROPOSAL", "AGREEMENT"];
@@ -95,6 +113,12 @@ export default function DeveloperOpportunities({
   const [notes, setNotes] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  // DEVINTEL-P12A · the submission log for the relationship on screen, and
+  // the source box. `null` means "not read yet", not "nothing submitted".
+  const [log, setLog] = useState<ResearchLog | null>(null);
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceLabel, setSourceLabel] = useState("");
+  const [sourceError, setSourceError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -130,7 +154,29 @@ export default function DeveloperOpportunities({
     }
   }, []);
 
+  /**
+   * DEVINTEL-P12A · the submission history and the broker's verdicts.
+   *
+   * Cleared first. Otherwise the previous relationship's ACCEPTED chip sits
+   * over this one's address while the read is in flight, which would tell an
+   * agent their work had been accepted when it had not been submitted.
+   */
+  const loadLog = useCallback(async (id: string) => {
+    setLog(null);
+    try {
+      setLog(await getResearchLog(id));
+    } catch {
+      // A refusal is Vault's answer, not a crash. The panel stays on
+      // "checking" rather than inventing a state.
+    }
+  }, []);
+
   useEffect(() => { if (selected) void load(selected); }, [selected, load]);
+  useEffect(() => {
+    if (!selected) return;
+    setSourceUrl(""); setSourceLabel(""); setSourceError(null);
+    void loadLog(selected);
+  }, [selected, loadLog]);
 
   async function toggle(taskId: string, next: boolean) {
     if (!selected || !detail) return;
@@ -167,6 +213,45 @@ export default function DeveloperOpportunities({
     } finally { setBusy(false); }
   }
 
+  /**
+   * Submit the research as Vault holds it.
+   *
+   * 🔑 Saves nothing first and sends no content. Vault snapshots the row's own
+   * notes and evidence — so an agent submits what is SAVED, not what is in an
+   * unsaved textarea, and a broker's verdict points at something that is
+   * actually in the record.
+   */
+  async function submit() {
+    if (!selected) return;
+    setBusy(true); setDetailError(null);
+    try {
+      await submitResearchForReview(selected);
+      await loadLog(selected);
+    } catch (e) {
+      // 409 is a real answer: already awaiting review, already accepted, or a
+      // terminal stage. Re-read so the screen shows the state that exists.
+      setDetailError(e instanceof DevOpportunityApiError && e.message
+        ? e.message
+        : "Could not submit this for review.");
+      await loadLog(selected);
+    } finally { setBusy(false); }
+  }
+
+  /** Add one source document. The URL rule is Vault's; this shows its answer. */
+  async function addSource() {
+    if (!selected || !sourceUrl.trim()) return;
+    setBusy(true); setSourceError(null);
+    try {
+      await addResearchSource(selected, { url: sourceUrl.trim(), label: sourceLabel.trim() });
+      setSourceUrl(""); setSourceLabel("");
+      await load(selected);         // the derived source list is Vault's
+    } catch (e) {
+      setSourceError(e instanceof DevOpportunityApiError && e.message
+        ? e.message
+        : "Could not add that source.");
+    } finally { setBusy(false); }
+  }
+
   if (notEntitled) {
     return (
       <div data-testid="not-entitled" className={`${CARD} p-8 text-center`}>
@@ -197,6 +282,12 @@ export default function DeveloperOpportunities({
   const d = detail;
   const primary = d?.projects.find((p) => p.link?.is_primary) ?? d?.projects[0] ?? null;
   const primaryAddress = primary?.addresses?.[0] ?? null;
+  // DEVINTEL-P12A · the verdict on the submission that is currently open. Only
+  // that one — an older submission's "changes requested" must not be shown as
+  // outstanding once a revision has replaced it.
+  const latestReview = log
+    ? log.reviews.find((r) => r.submission_id === log.latestSubmissionId) ?? null
+    : null;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
@@ -428,6 +519,172 @@ export default function DeveloperOpportunities({
                   </div>
                 )}
               </details>
+
+              {/* ------------------------------- P12A · BROKER REVIEW ----- */}
+              {/* 🔒 One write: submit. There is no accept control and no
+                  request-changes control in this file at all — those are
+                  broker work, and `research/reviews` POST refuses an agent
+                  token. Absent, not hidden, like the four gates. */}
+              <div data-testid="submission" className={`mt-4 ${SOFT} p-3`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                    Broker review
+                  </span>
+                  {log && (
+                    <span
+                      data-testid={`submission-state-${log.state}`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
+                        log.state === 'accepted' ? 'text-emerald-300 ring-emerald-500/30'
+                          : log.state === 'changes_requested' ? 'text-amber-300 ring-amber-500/30'
+                            : log.state === 'awaiting_review' ? 'text-sky-300 ring-sky-500/30'
+                              : 'text-white/50 ring-white/10'
+                      }`}
+                    >
+                      {SUBMISSION_LABEL[log.state]}
+                    </span>
+                  )}
+                </div>
+
+                {!log ? (
+                  <p data-testid="submission-loading" className="mt-1.5 text-xs text-white/40">Checking…</p>
+                ) : (
+                  <>
+                    <p data-testid="submission-explainer" className="mt-1.5 text-xs leading-relaxed text-white/55">
+                      {log.state === 'not_submitted'
+                        ? 'Your notes and ticks above save as you work. Submitting takes a snapshot of them for your broker to read — it does not lock anything.'
+                        : log.state === 'awaiting_review'
+                          ? 'Submitted. Your broker reads the snapshot you sent; carry on working meanwhile — nothing here is frozen.'
+                          : log.state === 'changes_requested'
+                            ? 'Your broker asked for changes. Make them, then submit again — the new submission replaces this one in the review queue.'
+                            : 'Your broker accepted this research. Contacting the owner is a separate decision and still needs OUTREACH approved.'}
+                    </p>
+
+                    {/* ---- the feedback to act on ------------------------ */}
+                    {log.state === 'changes_requested' && latestReview?.note && (
+                      <div data-testid="broker-feedback" className="mt-2 rounded-md bg-amber-500/5 p-2.5 ring-1 ring-amber-500/20">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                          What your broker asked for
+                        </span>
+                        <p data-testid="broker-feedback-note" className="mt-1 whitespace-pre-line text-sm leading-relaxed text-white/85">
+                          {latestReview.note}
+                        </p>
+                        <p className="mt-1 text-[11px] text-white/40">{fmt(latestReview.reviewed_at)}</p>
+                      </div>
+                    )}
+                    {log.state === 'accepted' && latestReview?.note && (
+                      <div data-testid="broker-accept-note" className="mt-2 rounded-md bg-emerald-500/5 p-2.5 ring-1 ring-emerald-500/20">
+                        <p className="whitespace-pre-line text-sm leading-relaxed text-white/85">{latestReview.note}</p>
+                      </div>
+                    )}
+
+                    {/* ---- the one write -------------------------------- */}
+                    {(log.state === 'not_submitted' || log.state === 'changes_requested') ? (
+                      <button
+                        type="button" data-testid="submit-research" disabled={busy}
+                        onClick={submit}
+                        className="mt-2.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
+                      >
+                        {log.state === 'changes_requested' ? 'Submit revision for review' : 'Submit for broker review'}
+                      </button>
+                    ) : (
+                      <p data-testid="submit-unavailable" className="mt-2.5 text-xs text-white/40">
+                        {log.state === 'awaiting_review'
+                          ? 'Waiting on your broker — there is nothing further to send.'
+                          : 'Accepted. There is nothing further to send.'}
+                      </p>
+                    )}
+
+                    {log.submissions.length > 0 && (
+                      <details data-testid="submission-history" className="mt-2.5">
+                        <summary className="cursor-pointer text-xs font-medium text-amber-300">
+                          Submission history ({log.submissions.length})
+                        </summary>
+                        <ol role="list" className="mt-2 space-y-1.5">
+                          {log.submissions.map((s) => {
+                            const r = log.reviews.find((x) => x.submission_id === s.id) ?? null
+                            return (
+                              <li key={s.id} data-testid={`history-${s.id}`} className="text-xs leading-relaxed text-white/60">
+                                <span className="text-white/85">{fmt(s.submitted_at)}</span>
+                                {' · '}{s.tasks_done} of {SUBMISSION_TASK_TOTAL} tasks
+                                {' · '}
+                                <span className={!r ? 'text-sky-300' : r.decision === 'accepted' ? 'text-emerald-300' : 'text-amber-300'}>
+                                  {!r ? 'awaiting review' : r.decision === 'accepted' ? 'accepted' : 'changes requested'}
+                                </span>
+                                {r?.note && <div className="text-white/50">{r.note}</div>}
+                              </li>
+                            )
+                          })}
+                        </ol>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-white/35">
+                          Append-only — a submission cannot be edited or withdrawn, so a correction is a
+                          new revision rather than a rewritten past.
+                        </p>
+                      </details>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ------------------------------- P12A · SOURCE DOCUMENTS -- */}
+              {/* 🔒 Sent as `addSource`, one record at a time. Vault merges it
+                  into the evidence it holds and validates the URL; this side
+                  never sends the whole array. */}
+              <div data-testid="add-source" className={`mt-3 ${SOFT} p-3`}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                  Source documents ({d.derived.sources.length})
+                </span>
+                {d.derived.sources.length === 0 ? (
+                  <p data-testid="source-list-empty" className="mt-1.5 text-xs text-white/50">
+                    None recorded yet. A finding a broker can act on names where it came from.
+                  </p>
+                ) : (
+                  <ul role="list" data-testid="source-list" className="mt-1.5 space-y-1">
+                    {d.derived.sources.map((s, i) => (
+                      <li key={`${s.url}-${i}`}>
+                        <a href={s.url} target="_blank" rel="noopener noreferrer"
+                          data-testid="source-link"
+                          className="text-xs text-amber-300 underline">{s.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="mt-2.5 space-y-2">
+                  <div>
+                    <label htmlFor="src-label" className="text-xs text-white/60">What it is</label>
+                    <input
+                      id="src-label" data-testid="source-label" type="text" value={sourceLabel}
+                      onChange={(e) => setSourceLabel(e.target.value)}
+                      placeholder="Sunbiz officer record"
+                      maxLength={SOURCE_LABEL_MAX}
+                      className="mt-1 w-full rounded-md border border-[#1a1a2e] bg-[#0d0d14] px-2.5 py-1.5 text-sm text-white placeholder:text-white/30"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="src-url" className="text-xs text-white/60">Link</label>
+                    <input
+                      id="src-url" data-testid="source-url" type="url" value={sourceUrl}
+                      onChange={(e) => { setSourceUrl(e.target.value); setSourceError(null); }}
+                      placeholder="https://…"
+                      className="mt-1 w-full rounded-md border border-[#1a1a2e] bg-[#0d0d14] px-2.5 py-1.5 text-sm text-white placeholder:text-white/30"
+                    />
+                  </div>
+                  {sourceError && (
+                    <p role="alert" data-testid="source-error" className="text-xs font-medium text-amber-300">{sourceError}</p>
+                  )}
+                  <button
+                    type="button" data-testid="add-source-button" disabled={busy || !sourceUrl.trim()}
+                    onClick={addSource}
+                    className="rounded-md px-3 py-1.5 text-sm font-medium text-white ring-1 ring-white/10 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    Add source
+                  </button>
+                  <p className="text-[11px] leading-relaxed text-white/35">
+                    A link to a page anyone can open — a county record, a corporate filing, a permit.
+                    Only http:// and https:// addresses are accepted.
+                  </p>
+                </div>
+              </div>
 
               <div className="mt-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">Follow-ups</span>

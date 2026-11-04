@@ -1302,12 +1302,18 @@ describe("Workflow 3.3.1 boundary lint", () => {
       // app/api/paperwork/checklist and LEASE-WALKTHROUGH-1 added
       // app/api/paperwork/walkthroughs (pure forwarders to Vault); guard
       // nothing else under paperwork. P4H-13 added compliance-review: one GET
-      // forwarder with no rule of its own (Vault owns the verdict).
+      // forwarder with no rule of its own (Vault owns the verdict). P4H added
+      // external-envelope: two forwarders for recording an envelope the agent
+      // sent from their OWN DocuSign, because Vault refuses to send an
+      // externally produced ERL-14. Vault owns every decision on that record,
+      // including whether it is verified — which it decides by reading the
+      // envelope back from the sending account.
       const pwDir = path.join(apiDir, "paperwork");
       if (fs.existsSync(pwDir)) {
         expect(fs.readdirSync(pwDir).sort()).toEqual([
           "checklist",
           "compliance-review",
+          "external-envelope",
           "walkthroughs",
         ]);
       }

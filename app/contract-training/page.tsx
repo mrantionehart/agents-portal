@@ -26,7 +26,16 @@ interface TrainingDocument {
   id: string
   title: string
   description: string | null
-  category: string
+  /** 🔑 Vault selects `*, contract_training_categories!category_id(...)`, so the
+   *  category arrives as an EMBEDDED object. There is no flat `category`
+   *  column on contract_training_documents — only `category_id` — so the
+   *  `category: string` that stood here was never populated by anything. */
+  contract_training_categories: {
+    id: string
+    name: string
+    slug: string
+    icon: string | null
+  } | null
   form_number: string | null
   file_url: string | null
   file_name: string | null
@@ -39,9 +48,29 @@ interface TrainingDocument {
   updated_at: string
 }
 
+/**
+ * 🔑 THE REAL PAYLOAD. GET /contract-training/categories returns the category
+ * rows themselves plus a count — `{ id, name, slug, icon, sort_order,
+ * document_count }`. The `{ category, count }` shape that stood here matched
+ * no field on either side, so `cat.category` was `undefined` and `cat.count`
+ * was `undefined`:
+ *
+ *   · the chips rendered "undefined (undefined)"
+ *   · the "All" chip summed undefined and rendered "All (NaN)"
+ *   · clicking a chip sent `?category=undefined`, which Vault resolved as a
+ *     SLUG, matched nothing, and answered with an empty document list — so the
+ *     one obvious way to find a category's documents reliably found none.
+ *
+ * Reported as "I can't find the Matrix MLS training". The documents were there
+ * the whole time; the filter that should have shown them returned nothing.
+ */
 interface Category {
-  category: string
-  count: number
+  id: string
+  name: string
+  slug: string
+  icon: string | null
+  sort_order: number | null
+  document_count: number
 }
 
 // ============================================================================
@@ -151,7 +180,7 @@ export default function ContractTrainingPage() {
   }
 
   // Total document count across all non-archived
-  const totalCount = categories.reduce((sum, c) => sum + c.count, 0)
+  const totalCount = categories.reduce((sum, c) => sum + (c.document_count ?? 0), 0)
 
   if (loading) {
     return (
@@ -210,15 +239,18 @@ export default function ContractTrainingPage() {
             </button>
             {categories.map((cat) => (
               <button
-                key={cat.category}
-                onClick={() => setSelectedCategory(cat.category)}
+                key={cat.slug}
+                // The SLUG, because that is what Vault resolves the `category`
+                // query parameter against. The NAME is what the agent reads.
+                onClick={() => setSelectedCategory(cat.slug)}
+                data-testid={`category-${cat.slug}`}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === cat.category
+                  selectedCategory === cat.slug
                     ? 'bg-[#C9A84C] text-black'
                     : 'bg-[#0a0a1a] text-gray-400 border border-[#1a1a2e] hover:border-[#C9A84C]/30 hover:text-white'
                 }`}
               >
-                {cat.category} ({cat.count})
+                {cat.name} ({cat.document_count})
               </button>
             ))}
           </div>
@@ -268,9 +300,11 @@ export default function ContractTrainingPage() {
                       {doc.form_number}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs font-medium">
-                    {doc.category}
-                  </span>
+                  {doc.contract_training_categories?.name && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs font-medium">
+                      {doc.contract_training_categories.name}
+                    </span>
+                  )}
                 </div>
 
                 {/* Description */}
