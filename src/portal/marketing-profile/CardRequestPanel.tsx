@@ -68,6 +68,9 @@ export default function CardRequestPanel() {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState<CardRequestReason>('first_card')
   const [note, setNote] = useState('')
+  // The chosen printing option, by KEY. Null = no printing requested, which is
+  // a valid request: an agent may want the artwork without a print run.
+  const [printKey, setPrintKey] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -97,10 +100,11 @@ export default function CardRequestPanel() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const next = await raiseCardRequest(reason, note)
+      const next = await raiseCardRequest(reason, note, printKey ?? undefined)
       setState(next)
       setOpen(false)
       setNote('')
+      setPrintKey(null)
     } catch (e) {
       const err = e as MarketingProfileError
       // A 409 means a request of theirs is already waiting — which is what they
@@ -108,6 +112,7 @@ export default function CardRequestPanel() {
       if (err.code === 'REQUEST_ALREADY_OPEN') {
         setOpen(false)
         setNote('')
+        setPrintKey(null)
         await load()
         return
       }
@@ -207,6 +212,18 @@ export default function CardRequestPanel() {
       {state.state === 'requested' && (
         <p className="mt-3 text-sm text-gray-400">The brokerage has your request. You will be told when your business card is ready.</p>
       )}
+      {/* What they asked to be printed, confirmed back to them. Always says
+          estimated: no payment was taken and no order was placed. */}
+      {state.request?.printSelection && (
+        <p className="mt-1 text-sm text-gray-300">
+          {state.request.printSelection.quantity} cards —{' '}
+          {state.request.printSelection.totalDisplay}{' '}
+          <span className="text-gray-500">estimated</span>
+          {state.request.printSelection.finish ? (
+            <span className="block text-xs text-gray-500">{state.request.printSelection.finish}</span>
+          ) : null}
+        </p>
+      )}
       {state.state === 'being_made' && (
         <p className="mt-3 text-sm text-gray-400">Your business card is being made now.</p>
       )}
@@ -233,6 +250,49 @@ export default function CardRequestPanel() {
               ))}
             </div>
           </fieldset>
+
+          {/* PRINTING OPTIONS — served by Vault, never priced here. Choosing
+              one is optional: an agent may want the card made without a print
+              run, so there is an explicit "no printing" choice rather than a
+              silent default. */}
+          {(state.printOptions?.length ?? 0) > 0 && (
+            <fieldset className="mt-4">
+              <legend className="text-sm text-gray-300 mb-2">Printing</legend>
+              <div className="flex flex-col gap-1.5">
+                {state.printOptions!.map((o) => (
+                  <label key={o.key} className="flex items-start gap-2 text-sm text-gray-200">
+                    <input
+                      type="radio"
+                      name="card-request-print"
+                      value={o.key}
+                      checked={printKey === o.key}
+                      onChange={() => setPrintKey(o.key)}
+                      className="mt-1"
+                    />
+                    <span>
+                      {o.quantity} cards — {o.totalDisplay}
+                      <span className="block text-xs text-gray-400">
+                        {o.unitDisplay} · {o.finish}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 text-sm text-gray-200">
+                  <input
+                    type="radio"
+                    name="card-request-print"
+                    value=""
+                    checked={printKey === null}
+                    onChange={() => setPrintKey(null)}
+                  />
+                  No printing for now
+                </label>
+              </div>
+              {state.estimateNotice && (
+                <p className="mt-2 text-xs text-gray-500">{state.estimateNotice}</p>
+              )}
+            </fieldset>
+          )}
 
           <label htmlFor="card-request-note" className="block text-sm text-gray-300 mt-3 mb-1">
             Anything the brokerage should know? (optional)
