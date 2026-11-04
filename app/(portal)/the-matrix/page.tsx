@@ -4,7 +4,7 @@
 "use client";
 
 import Link from "next/link";
-import { Table2, ClipboardCheck } from "lucide-react";
+import { Table2, ClipboardCheck, GraduationCap } from "lucide-react";
 import { matrixSimulatorEnabled } from "./_lib/matrix-flags";
 
 const CARD = "rounded-lg border border-[#13231a] bg-[#0b0f0c]";
@@ -25,6 +25,11 @@ export default function MatrixOverviewPage() {
         </div>
       ) : (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link href="/the-matrix/quiz" className={`${CARD} flex flex-col items-start gap-2 p-5 transition hover:border-[#22c55e]/50`} data-matrix-quiz-card>
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]"><GraduationCap className="h-4 w-4" aria-hidden="true" /></span>
+            <span className="text-sm font-semibold text-[#E6F5EC]">Knowledge Quiz</span>
+            <span className="text-xs text-[#9db3a6]">20-question written check. 85% with zero critical errors to pass.</span>
+          </Link>
           <Link href="/the-matrix/practice" className={`${CARD} flex flex-col items-start gap-2 p-5 transition hover:border-[#22c55e]/50`}>
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]"><Table2 className="h-4 w-4" aria-hidden="true" /></span>
             <span className="text-sm font-semibold text-[#E6F5EC]">Rental Listing Practical</span>
