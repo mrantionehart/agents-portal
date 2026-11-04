@@ -119,7 +119,11 @@ describe("P4H-14 — business-line classification on create", () => {
     expect(inserts("commissions")).toHaveLength(0);
   });
 
-  it("brokerage (priced) → one commission row, agent credited", async () => {
+  // C1 (2026-11-04): this used to expect ONE commission insert. The mock
+  // accepted it; production never did (authenticated has SELECT only on
+  // commissions), so the row never existed. The route no longer writes one —
+  // Vault's close route creates the commission with the service role.
+  it("brokerage (priced) → NO commission row from this route, agent credited", async () => {
     PROFILE_SEQ = [{ data: { role: "agent", tenant_id: "tenant-A" }, error: null }];
     SCRIPTED["transactions.single"] = { data: { id: "txn-brk", business_line: "brokerage" }, error: null };
     const r = await call({
@@ -133,7 +137,7 @@ describe("P4H-14 — business-line classification on create", () => {
     expect(t?.business_line).toBe("brokerage");
     expect(t?.agent_id).toBe("u-agent");
     expect(t?.prepared_by).toBeUndefined();
-    expect(inserts("commissions")).toHaveLength(1);
+    expect(inserts("commissions")).toHaveLength(0);
   });
 
   it("acquisition is excluded from the commission engine regardless of a price", async () => {

@@ -419,6 +419,12 @@ export default function NewTransactionPage() {
                 <p className="text-xs text-gray-400 mt-1">Defaults to 70% if left blank</p>
               </div>
             </div>
+            {form.business_line === 'brokerage' && (
+              <p className="text-xs text-amber-300/90 -mt-2" data-testid="commission-estimate-note">
+                Estimate only — the commission rate and split are not saved with this transaction. Your
+                broker records the commission at closing, and Vault calculates your split from your plan.
+              </p>
+            )}
 
             {/* GCI Preview */}
             {form.contract_price && form.business_line === 'brokerage' && (
