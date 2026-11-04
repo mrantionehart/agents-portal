@@ -41,12 +41,24 @@ describe("MatrixExperience — flag off (dark)", () => {
     delete process.env[F];
     render(<MatrixExperience />);
     expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /start exercise/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /start module a/i })).not.toBeInTheDocument();
   });
 });
 
 describe("MatrixExperience — learner journey (flag on)", () => {
   beforeEach(() => { process.env[F] = "true"; });
+
+  it("offers all three modules and starts the chosen scenario family", async () => {
+    prepareExercise.mockResolvedValue(PREPARED);
+    render(<MatrixExperience />);
+    // All three module entry points present.
+    expect(document.querySelector('[data-matrix-module="matrix-rental-a1"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-matrix-module="matrix-sales-b1"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-matrix-module="matrix-maint-c1"]')).toBeInTheDocument();
+    // Starting Module B requests the Sales scenario specifically.
+    fireEvent.click(screen.getByRole("button", { name: /start module b/i }));
+    await waitFor(() => expect(prepareExercise).toHaveBeenCalledWith("matrix-sales-b1"));
+  });
 
   it("entry → start → fields render → edit → save → submit → result", async () => {
     prepareExercise.mockResolvedValue(PREPARED);
@@ -56,7 +68,7 @@ describe("MatrixExperience — learner journey (flag on)", () => {
     render(<MatrixExperience />);
 
     // Entry point present
-    const start = screen.getByRole("button", { name: /start exercise/i });
+    const start = screen.getByRole("button", { name: /start module a/i });
     fireEvent.click(start);
 
     // Fields render (primary surface), with the injected-error hint visible
@@ -88,7 +100,7 @@ describe("MatrixExperience — learner journey (flag on)", () => {
     submitAttempt.mockRejectedValue(e);
 
     render(<MatrixExperience />);
-    fireEvent.click(screen.getByRole("button", { name: /start exercise/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start module a/i }));
     await screen.findByLabelText("Street Address");
     fireEvent.click(screen.getByRole("button", { name: /submit for review/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/street address is required/i);

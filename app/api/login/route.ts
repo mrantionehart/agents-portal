@@ -3,6 +3,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { normalizeEmail } from '@/lib/ratelimit'
 import { clientIp, requireRateLimit } from '@/lib/security'
 
+// MATRIX-BROKER-ACCESS-1 — a broker/admin authenticates successfully but is
+// landed on Vault by default (they operate out of Vault). To let a broker reach
+// an Agent Portal surface they were deep-linked to (e.g. the Matrix Broker
+// Review queue) WITHOUT weakening anything, honor a `next` param — but ONLY a
+// strictly same-origin, absolute AP path. Anything else falls back to the
+// unchanged default. Open-redirect safe: rejects protocol-relative (`//host`),
+// any scheme, backslashes, whitespace/control chars, and any value that does
+// not resolve to this origin.
+export function safeNextPath(next: unknown): string | null {
+  if (typeof next !== 'string') return null
+  if (!next.startsWith('/') || next.startsWith('//')) return null
+  if (/[\s\\]/.test(next)) return null
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(next)) return null
+  try {
+    const base = 'https://agents.hartfeltrealestate.com'
+    const u = new URL(next, base)
+    if (u.origin !== base) return null
+    if (!u.pathname.startsWith('/') || u.pathname.startsWith('//')) return null
+    return u.pathname + u.search
+  } catch {
+    return null
+  }
+}
+
 // Intentionally-public endpoint — anyone must be able to call /api/login
 // to obtain a session. Rate limits below are the throttling layer.
 // Sprint 5D marker: declares CI-enforced public intent.
@@ -10,7 +35,7 @@ export const PUBLIC_ROUTE = true
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, password, next } = await request.json()
 
     // ---- Rate limit (Sprint 5A: H1; refactored Sprint 5D) ----
     // Two sliding-window buckets so we throttle both botnet IPs and email
@@ -124,7 +149,10 @@ export async function POST(request: NextRequest) {
     if (!isActive) {
       redirectPath = '/pending-activation'
     } else if (role === 'admin' || role === 'broker') {
-      redirectPath = 'https://vault.hartfeltrealestate.com/dashboard'
+      // Default stays Vault. A broker deep-linked to an AP surface (e.g. the
+      // Matrix Broker Review queue) may be routed there via a same-origin
+      // `next` path only; any unsafe/absent value keeps the unchanged default.
+      redirectPath = safeNextPath(next) ?? 'https://vault.hartfeltrealestate.com/dashboard'
     } else {
       const { data: progress } = await supabase
         .from('training_progress')

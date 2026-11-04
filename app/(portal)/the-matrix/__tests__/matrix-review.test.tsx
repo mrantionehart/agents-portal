@@ -42,6 +42,16 @@ describe("MatrixReview", () => {
     await waitFor(() => expect(screen.queryByLabelText("Certify sub-pass")).not.toBeInTheDocument());
   });
 
+  it("returns (rejects) a submission and removes it from the queue", async () => {
+    getReviewQueue.mockResolvedValue({ queue: QUEUE });
+    certifySubmission.mockResolvedValue({ certified: false, issued: false, reviewStatus: "rejected" });
+    render(<MatrixReview />);
+    const ret = await screen.findByLabelText("Return sub-fail");
+    fireEvent.click(ret);
+    await waitFor(() => expect(certifySubmission).toHaveBeenCalledWith("sub-fail", "reject"));
+    await waitFor(() => expect(screen.queryByLabelText("Return sub-fail")).not.toBeInTheDocument());
+  });
+
   it("dark flag shows coming-soon, no queue fetch", () => {
     delete process.env[F];
     render(<MatrixReview />);

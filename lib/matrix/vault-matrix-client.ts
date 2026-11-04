@@ -103,8 +103,13 @@ export interface LatestResult {
 
 // ── Learner ───────────────────────────────────────────────────────────────
 
-export function prepareExercise(): Promise<PreparedExercise> {
-  return matrixRequest("/matrix-sim/prepare", jsonInit("POST"));
+// A scenarioId selects the module/scenario family (A=matrix-rental-a1,
+// B=matrix-sales-b1, C=matrix-maint-c1). Omitted → Vault's default scenario.
+export function prepareExercise(scenarioId?: string): Promise<PreparedExercise> {
+  return matrixRequest(
+    "/matrix-sim/prepare",
+    jsonInit("POST", scenarioId ? { scenarioId } : undefined),
+  );
 }
 export function saveDraft(attemptId: string, values: Record<string, MatrixFieldValue | "">): Promise<{ ok: true }> {
   return matrixRequest(
@@ -132,5 +137,62 @@ export function certifySubmission(
   return matrixRequest(
     `/matrix-sim/submissions/${encodeURIComponent(submissionId)}/certify`,
     jsonInit("POST", { decision, ...(note ? { note } : {}) }),
+  );
+}
+
+// ── Enrollment + readiness (controlled rollout) ──────────────────────────────
+// Readiness is INFORMATIONAL ONLY. It never grants a credential — Vault issues
+// solely on the knowledge quiz + all three broker-approved practicals, enforced
+// server-side. This surface reads status; it never writes an issuance.
+export type MatrixModuleKey = "A" | "B" | "C";
+
+export interface MatrixModuleReadiness {
+  module: MatrixModuleKey;
+  scenarioFamily: string; // rental | sales | maintenance
+  label: string;
+  approved: boolean; // a broker-approved passing practical exists for this family
+  scorePct: number | null;
+  criticalErrorCount: number | null;
+}
+
+export interface MatrixReadiness {
+  learnerId: string;
+  certificationVersion: string; // e.g. "2.0.0"
+  knowledgeQuizPassed: boolean;
+  modules: MatrixModuleReadiness[];
+  /** quiz passed AND all three modules approved. NOT a grant — Vault decides. */
+  certificationReady: boolean;
+  /** already-issued credential (any version), for audit display. */
+  issuedCredential: { certificationVersion: string; issuedAt: string } | null;
+}
+
+/** Current caller's readiness (learner self-view). */
+export function getMatrixReadiness(): Promise<MatrixReadiness> {
+  return matrixRequest("/matrix-sim/readiness", { method: "GET" });
+}
+
+/** A specific learner's readiness (broker view). */
+export function getMatrixReadinessFor(learnerId: string): Promise<MatrixReadiness> {
+  return matrixRequest(
+    `/matrix-sim/readiness?learnerId=${encodeURIComponent(learnerId)}`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Broker-only: enroll an agent in the Matrix certification through the EXISTING
+ * governed assignment API (Vault enforces broker-tier + tenant). Enrollment is
+ * assignment, NOT certification — it grants no credential.
+ */
+export function enrollMatrixLearner(
+  learnerId: string,
+): Promise<{ ok: true; assignment: unknown }> {
+  return matrixRequest(
+    "/platform/certifications/assignments",
+    jsonInit("POST", {
+      learnerId,
+      certificationId: "hartfelt-matrix-rental-practical",
+      allowDraft: true,
+    }),
   );
 }

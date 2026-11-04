@@ -33,7 +33,7 @@ export function MatrixExperience() {
   }
 
   if (ring.phase === "idle") {
-    return <EntryView onStart={() => void ring.enter()} />;
+    return <EntryView onStart={(scenarioId) => void ring.enter(scenarioId)} />;
   }
   if (ring.phase === "preparing") {
     return <Centered><Loader2 className="h-5 w-5 animate-spin text-[#22c55e]" aria-hidden="true" /><p className="mt-3 text-sm text-[#9db3a6]">Loading your exercise…</p></Centered>;
@@ -56,24 +56,75 @@ function Centered({ children }: { children: ReactNode }) {
   return <div className={`${CARD} flex flex-col items-center justify-center px-6 py-12 text-center`}>{children}</div>;
 }
 
-function EntryView({ onStart }: { onStart: () => void }) {
+// Each module is a separately-scored practical scenario family. All three use
+// the same engine, server-side scoring, ≥85% / zero-critical standard, and
+// Broker-of-Record approval — they differ only in the scenario + field schema.
+const MATRIX_MODULES: ReadonlyArray<{
+  scenarioId: string;
+  module: "A" | "B" | "C";
+  title: string;
+  description: string;
+}> = [
+  {
+    scenarioId: "matrix-rental-a1",
+    module: "A",
+    title: "Module A — Residential Rental",
+    description:
+      "Complete a fictional residential-rental MLS listing: verify AutoPop data, correct the prior agent's mistakes, and submit for Broker of Record review.",
+  },
+  {
+    scenarioId: "matrix-sales-b1",
+    module: "B",
+    title: "Module B — Residential Sales",
+    description:
+      "Complete a fictional residential-sale listing: property search, MLS area verification, classification, details, required fields, AutoPop validation, photos, remarks, and error correction, then submit for review.",
+  },
+  {
+    scenarioId: "matrix-maint-c1",
+    module: "C",
+    title: "Module C — Listing Maintenance",
+    description:
+      "Maintain a fictional active listing: status changes, corrections, price updates, photo management, supplements, and authorization, then escalate to the broker.",
+  },
+];
+
+function EntryView({ onStart }: { onStart: (scenarioId: string) => void }) {
   return (
-    <div className={`${CARD} p-6`}>
+    <div className={`${CARD} p-6`} data-matrix-module-picker>
       <div className="flex items-start gap-3">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]">
           <Table2 className="h-4 w-4" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-base font-semibold text-[#E6F5EC]">Rental Listing Practical</h2>
+          <h2 className="text-base font-semibold text-[#E6F5EC]">Choose a practical module</h2>
           <p className="mt-1 text-sm text-[#9db3a6]">
-            Complete a fictional residential-rental MLS listing: verify the AutoPop data, correct the
-            prior agent&rsquo;s mistakes, and submit for Broker of Record review. Practice only — no live MLS.
+            Each module is scored separately (≥85%, zero critical errors) and certified by your Broker
+            of Record. Practice only — fictional data, no live MLS; any step that needs live MLS
+            verification is labelled in the exercise.
           </p>
         </div>
       </div>
-      <button type="button" onClick={onStart} className={`mt-5 inline-flex h-10 items-center rounded-md px-5 text-sm font-semibold ${GREEN}`}>
-        Start Exercise
-      </button>
+      <ul className="mt-5 space-y-3">
+        {MATRIX_MODULES.map((m) => (
+          <li
+            key={m.scenarioId}
+            className="rounded-md border border-[#13231a] bg-[#060a07] p-4"
+            data-matrix-module={m.scenarioId}
+          >
+            <h3 className="text-sm font-semibold text-[#E6F5EC]">{m.title}</h3>
+            <p className="mt-1 text-xs text-[#9db3a6]">{m.description}</p>
+            <button
+              type="button"
+              onClick={() => onStart(m.scenarioId)}
+              aria-label={`Start Module ${m.module}`}
+              data-matrix-module-start={m.scenarioId}
+              className={`mt-3 inline-flex h-9 items-center rounded-md px-4 text-sm font-semibold ${GREEN}`}
+            >
+              Start Module {m.module}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

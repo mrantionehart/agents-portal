@@ -4,7 +4,7 @@
 "use client";
 
 import Link from "next/link";
-import { Table2, ClipboardCheck, GraduationCap } from "lucide-react";
+import { Table2, ClipboardCheck, GraduationCap, Award } from "lucide-react";
 import { matrixSimulatorEnabled } from "./_lib/matrix-flags";
 
 const CARD = "rounded-lg border border-[#13231a] bg-[#0b0f0c]";
@@ -34,6 +34,11 @@ export default function MatrixOverviewPage() {
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]"><Table2 className="h-4 w-4" aria-hidden="true" /></span>
             <span className="text-sm font-semibold text-[#E6F5EC]">Rental Listing Practical</span>
             <span className="text-xs text-[#9db3a6]">Residential rental entry, error correction, and submission.</span>
+          </Link>
+          <Link href="/the-matrix/readiness" className={`${CARD} flex flex-col items-start gap-2 p-5 transition hover:border-[#22c55e]/50`} data-matrix-readiness-card>
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]"><Award className="h-4 w-4" aria-hidden="true" /></span>
+            <span className="text-sm font-semibold text-[#E6F5EC]">Certification Progress</span>
+            <span className="text-xs text-[#9db3a6]">Quiz + three practicals. Track separate module approvals and readiness.</span>
           </Link>
           <Link href="/the-matrix/review" className={`${CARD} flex flex-col items-start gap-2 p-5 transition hover:border-[#22c55e]/50`}>
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#22c55e]/15 text-[#22c55e]"><ClipboardCheck className="h-4 w-4" aria-hidden="true" /></span>
