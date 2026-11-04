@@ -24,15 +24,20 @@ const progressUpdates: any[] = [];
 
 let attemptCount = 0;
 let existingProgress: any = null;
+// HR-CERT-SECURITY D1 — curriculum + caller role, read by the route's
+// eligibility check through the service-role client.
+let moduleRow: any = { required_role: null };
+let callerRole: string | null = "agent";
+const quizInsertClients: string[] = [];
 
-function chain(table: string): any {
+function chain(table: string, who = "user"): any {
   const c: any = {};
   const self = () => c;
   c.select = jest.fn(self);
   c.eq = jest.fn(self);
   c.in = jest.fn(self);
   c.insert = jest.fn(async (payload: any) => {
-    if (table === "training_quiz_results") quizInserts.push(payload);
+    if (table === "training_quiz_results") { quizInserts.push(payload); quizInsertClients.push(who); }
     if (table === "training_progress") progressInserts.push(payload);
     return { data: null, error: null };
   });
@@ -40,7 +45,12 @@ function chain(table: string): any {
     if (table === "training_progress") progressUpdates.push(payload);
     return c;
   });
-  c.maybeSingle = jest.fn(async () => ({ data: existingProgress, error: null }));
+  c.is = jest.fn(self);
+  c.maybeSingle = jest.fn(async () => {
+    if (table === "training_modules") return { data: moduleRow, error: null };
+    if (table === "profiles") return { data: callerRole === null ? null : { role: callerRole }, error: null };
+    return { data: existingProgress, error: null };
+  });
   c.single = jest.fn(async () => ({ data: null, error: null }));
   // The count query and the update are awaited on the chain itself.
   c.then = (res: any, rej: any) =>
@@ -50,12 +60,13 @@ function chain(table: string): any {
   return c;
 }
 
-const fakeClient = { from: jest.fn((t: string) => chain(t)) };
+const fakeClient = { from: jest.fn((t: string) => chain(t, "user")) };
+const fakeAdmin = { from: jest.fn((t: string) => chain(t, "service")) };
 
 jest.mock("@/lib/security", () => ({
   requireAuth: jest.fn(async () => ({ user: { id: "agent-1", email: "a@example.com" } })),
   userClient: jest.fn(() => fakeClient),
-  adminClient: jest.fn(() => fakeClient),
+  adminClient: jest.fn(() => fakeAdmin),
 }));
 
 import { POST } from "@/app/api/training/quiz/route";
@@ -89,6 +100,9 @@ beforeEach(() => {
   progressUpdates.length = 0;
   attemptCount = 0;
   existingProgress = null;
+  moduleRow = { required_role: null };
+  callerRole = "agent";
+  quizInsertClients.length = 0;
   ra.mockReset();
   ra.mockResolvedValue({ user: { id: "agent-1", email: "a@example.com" } });
   uc.mockClear();
@@ -108,12 +122,14 @@ describe("POST /api/training/quiz — authorization", () => {
     expect(progressUpdates).toHaveLength(0);
   });
 
-  it("writes own-row evidence under the USER JWT, never the service role", async () => {
+  it("writes the RESULT row with the service role (D1), progress under the user JWT", async () => {
     await POST(req({ volume: 1, module_num: 13, answers: correct }));
+    // HR-CERT-SECURITY D1: authenticated loses INSERT on training_quiz_results,
+    // so the server-graded row can only be written by the route itself.
+    expect(ac).toHaveBeenCalledTimes(1);
+    expect(ac.mock.calls[0][0]).toBe("training-quiz-result-write");
+    expect(quizInsertClients).toEqual(["service"]);
     expect(uc).toHaveBeenCalledTimes(1);
-    // The service-role client is reserved for the volume-completion fan-out,
-    // which M13 alone must not trigger.
-    expect(ac).not.toHaveBeenCalled();
   });
 
   it("stamps the row with the authenticated user, not anything from the body", async () => {
