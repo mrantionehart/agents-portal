@@ -1,0 +1,106 @@
+{
+  "vol1_m1": {
+    "passingScore": 80,
+    "key": "v1m1q1=c,v1m1q2=b,v1m1q3=b"
+  },
+  "vol1_m2": {
+    "passingScore": 80,
+    "key": "v1m2q1=c,v1m2q2=b,v1m2q3=b,v1m2q4=c"
+  },
+  "vol1_m3": {
+    "passingScore": 80,
+    "key": "v1m3q1=c,v1m3q2=c,v1m3q3=c,v1m3q4=c"
+  },
+  "vol1_m4": {
+    "passingScore": 80,
+    "key": "v1m4q1=b,v1m4q2=b,v1m4q3=c"
+  },
+  "vol1_m5": {
+    "passingScore": 80,
+    "key": "v1m5q1=b,v1m5q2=c,v1m5q3=b,v1m5q4=c"
+  },
+  "vol1_m6": {
+    "passingScore": 80,
+    "key": "v1m6q1=c,v1m6q2=b,v1m6q3=c"
+  },
+  "vol1_m7": {
+    "passingScore": 80,
+    "key": "v1m7q1=b,v1m7q2=c,v1m7q3=c"
+  },
+  "vol1_m8": {
+    "passingScore": 80,
+    "key": "v1m8q1=c,v1m8q2=b,v1m8q3=c"
+  },
+  "vol1_m9": {
+    "passingScore": 80,
+    "key": "v1m9q1=b,v1m9q2=b,v1m9q3=b"
+  },
+  "vol1_m10": {
+    "passingScore": 80,
+    "key": "v1m10q1=c,v1m10q2=b,v1m10q3=c,v1m10q4=b"
+  },
+  "vol1_m13": {
+    "passingScore": 80,
+    "key": "v1m13q1=b,v1m13q2=a,v1m13q3=c,v1m13q4=b,v1m13q5=b"
+  },
+  "vol2_m8": {
+    "passingScore": 80,
+    "key": "v2m8q1=b,v2m8q2=c,v2m8q3=b,v2m8q4=c"
+  },
+  "vol2_m9": {
+    "passingScore": 80,
+    "key": "v2m9q1=b,v2m9q2=b,v2m9q3=b,v2m9q4=b"
+  },
+  "vol2_m10": {
+    "passingScore": 80,
+    "key": "v2m10q1=b,v2m10q2=c,v2m10q3=b,v2m10q4=b"
+  },
+  "vol2_m11": {
+    "passingScore": 80,
+    "key": "v2m11q1=b,v2m11q2=b,v2m11q3=c"
+  },
+  "vol2_m12": {
+    "passingScore": 80,
+    "key": "v2m12q1=b,v2m12q2=c,v2m12q3=b,v2m12q4=b"
+  },
+  "vol2_m13": {
+    "passingScore": 80,
+    "key": "v2m13q1=c,v2m13q2=c,v2m13q3=a,v2m13q4=b"
+  },
+  "vol2_m14": {
+    "passingScore": 80,
+    "key": "v2m14q1=b,v2m14q2=c,v2m14q3=b,v2m14q4=b"
+  },
+  "vol3_m1": {
+    "passingScore": 80,
+    "key": "v3m1q1=b,v3m1q2=b,v3m1q3=b,v3m1q4=c,v3m1q5=b"
+  },
+  "vol3_m2": {
+    "passingScore": 80,
+    "key": "v3m2q1=b,v3m2q2=b,v3m2q3=b"
+  },
+  "vol3_m3": {
+    "passingScore": 80,
+    "key": "v3m3q1=b,v3m3q2=b,v3m3q3=b"
+  },
+  "vol3_m4": {
+    "passingScore": 80,
+    "key": "v3m4q1=b,v3m4q2=b,v3m4q3=b"
+  },
+  "vol3_m5": {
+    "passingScore": 80,
+    "key": "v3m5q1=b,v3m5q2=b,v3m5q3=b"
+  },
+  "vol3_m6": {
+    "passingScore": 80,
+    "key": "v3m6q1=b,v3m6q2=b,v3m6q3=b"
+  },
+  "vol3_m7": {
+    "passingScore": 80,
+    "key": "v3m7q1=c,v3m7q2=b,v3m7q3=b"
+  },
+  "vol3_m8": {
+    "passingScore": 80,
+    "key": "v3m8q1=b,v3m8q2=b,v3m8q3=b"
+  }
+}

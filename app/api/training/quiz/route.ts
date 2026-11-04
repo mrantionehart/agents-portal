@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getQuizForModule, gradeQuiz } from '@/app/data/quizzes'
 import { requireAuth, userClient, adminClient } from '@/lib/security'
+import { moduleEligibility, parseSubmission, type CurriculumRow } from '@/lib/training/quiz-submission'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
+// HR-CERT-SECURITY D1 (2026-11-04): the quiz RESULT row is now written with
+// the service role after server grading and an eligibility check — see
+// lib/training/quiz-submission.ts. training_progress stays under user JWT.
+//
 // Sprint 8B Phase 2B (PARTIAL CONVERSION):
-// Own-row writes (quiz results + training progress) now run under user JWT.
+// Own-row writes (training progress) run under user JWT.
 // The broker/admin notification fan-out at the end is a cross-user read of
 // profiles WHERE role IN ('admin','broker') + SendGrid email loop, which
 // is legitimate Category A — that block stays under service role with a
@@ -45,45 +50,69 @@ export async function POST(request: NextRequest) {
     if (auth.response) return auth.response
     const user = auth.user
 
-    const body = await request.json()
-    const { volume, module_num, answers } = body as {
-      volume: number
-      module_num: number
-      answers: Record<string, string>
-    }
-
-    if (!volume || !module_num || !answers) {
-      return NextResponse.json(
-        { error: 'Missing required fields: volume, module_num, answers' },
-        { status: 400 }
-      )
-    }
+    let body: unknown
+    try { body = await request.json() } catch { body = null }
+    const head = parseSubmission(body)
+    if ('error' in head) return NextResponse.json({ error: head.error }, { status: 400 })
+    const { volume, moduleNum: module_num } = head
 
     // Look up quiz
     const quiz = getQuizForModule(volume, module_num)
     if (!quiz) {
       return NextResponse.json({ error: 'No quiz found for this module' }, { status: 404 })
     }
+    // Keep only answers to this quiz's own questions.
+    const parsed = parseSubmission(body, quiz.questions.map((q) => q.id))
+    if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+    const answers = parsed.answers
+
+    // HR-CERT-SECURITY D1 — the result row is SERVER-written. The Vault
+    // migration that follows revokes INSERT on training_quiz_results from
+    // `authenticated`, so this is the only path a module result can take.
+    // [service-role: training-quiz-result-write]
+    const svc = adminClient('training-quiz-result-write', { userId: user.id, context: 'POST /api/training/quiz' })
+
+    // Eligibility: the module must be in the HartFelt Ready curriculum and
+    // open to the caller's role (same rule as Vault's roleMayTake).
+    const [{ data: callerProfile }, { data: moduleRow }] = await Promise.all([
+      svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      svc
+        .from('training_modules')
+        .select('required_role')
+        .is('certification_id', null)
+        .eq('volume', volume)
+        .eq('module_num', module_num)
+        .maybeSingle(),
+    ])
+    const eligibility = moduleEligibility(
+      (moduleRow as CurriculumRow | null) ?? null,
+      (callerProfile as { role?: string | null } | null)?.role ?? null,
+    )
+    if ('reason' in eligibility) {
+      return NextResponse.json({ error: 'Module not available', reason: eligibility.reason }, { status: eligibility.status })
+    }
 
     // Grade
     const result = gradeQuiz(quiz, answers)
 
-    // User-JWT client for the own-row writes below. RLS WITH CHECK
-    // (auth.uid() = user_id) is the security boundary on each insert/update.
+    // User-JWT client for the training_progress own-row writes below (not
+    // gate evidence). RLS WITH CHECK (auth.uid() = user_id) bounds them.
     const supabase = userClient(request)
 
     // Determine attempt number
-    const { count } = await supabase
+    const { count } = await svc
       .from('training_quiz_results')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('volume', volume)
       .eq('module_num', module_num)
+      .is('certification_id', null)
+      .is('quiz_id', null)
 
     const attemptNum = (count || 0) + 1
 
-    // Save quiz result
-    await supabase.from('training_quiz_results').insert({
+    // Save quiz result — server-graded score and pass flag only.
+    const { error: insertError } = await svc.from('training_quiz_results').insert({
       user_id: user.id,
       volume,
       module_num,
@@ -92,6 +121,10 @@ export async function POST(request: NextRequest) {
       answers,
       attempt_num: attemptNum,
     })
+    if (insertError) {
+      console.error('[training/quiz] result write failed', { userId: user.id, volume, module_num, code: insertError.code })
+      return NextResponse.json({ error: 'Your quiz could not be saved. Please try again.' }, { status: 500 })
+    }
 
     // If passed, update training_progress
     let volumeJustCompleted = false
