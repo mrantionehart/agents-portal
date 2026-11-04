@@ -42,7 +42,7 @@ export interface MatrixPractice {
   readonly fieldErrors: Record<string, string>;
   readonly saving: boolean;
   readonly savedAt: number | null;
-  readonly enter: () => Promise<void>;
+  readonly enter: (scenarioId?: string) => Promise<void>;
   readonly setValue: (fieldId: string, value: MatrixFieldValue | "") => void;
   readonly saveDraft: () => Promise<void>;
   readonly submit: () => Promise<void>;
@@ -59,13 +59,13 @@ export function useMatrixPractice(): MatrixPractice {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  const enter = useCallback(async () => {
+  const enter = useCallback(async (scenarioId?: string) => {
     setError(null);
     setFieldErrors({});
     setResult(null);
     setPhase("preparing");
     try {
-      const ex = await prepareExercise();
+      const ex = await prepareExercise(scenarioId);
       setExercise(ex);
       setValues(ex.values);
       setPhase("editing");

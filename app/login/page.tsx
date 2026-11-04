@@ -19,12 +19,23 @@ export default function LoginPage() {
     try {
       console.log('Starting login with:', email)
 
+      // Forward a same-origin `next` path (e.g. /the-matrix/review) so a broker
+      // deep-linked to an Agent Portal surface lands there after login. The
+      // server validates it; an absent/unsafe value is ignored (default landing
+      // is unchanged). Read from the URL directly to avoid a Suspense boundary.
+      let next: string | null = null
+      try {
+        next = new URLSearchParams(window.location.search).get('next')
+      } catch {
+        next = null
+      }
+
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(next ? { next } : {}) }),
       })
 
       const data = await response.json()

@@ -23,6 +23,10 @@ describe("Matrix Simulator overview surface", () => {
     expect(screen.getByText("Knowledge Quiz")).toBeInTheDocument();
     // The practical card is still present (not regressed).
     expect(screen.getByText("Rental Listing Practical")).toBeInTheDocument();
+    // Certification Progress (readiness) entry card present and linked.
+    const readinessCard = document.querySelector("[data-matrix-readiness-card]") as HTMLAnchorElement;
+    expect(readinessCard).toBeInTheDocument();
+    expect(readinessCard.getAttribute("href")).toBe("/the-matrix/readiness");
   });
 
   it("hides the cards behind a coming-soon state when disabled", () => {
