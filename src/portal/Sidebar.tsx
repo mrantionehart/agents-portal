@@ -24,6 +24,7 @@ import {
   Settings,
   Sparkles,
   Swords,
+  Table2,
   Users,
   X,
 } from "lucide-react";
@@ -42,6 +43,7 @@ const ICONS = {
   "bell": Bell,
   "graduation-cap": GraduationCap,
   "swords": Swords,
+  "table-2": Table2,
   "book-open": BookOpen,
   "library": Library,
   "settings": Settings,
