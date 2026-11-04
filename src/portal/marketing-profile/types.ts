@@ -61,12 +61,36 @@ export type CardRequestReason = 'first_card' | 'new_headshot' | 'details_changed
  *  SERVER-owned: the browser renders this, it never derives it. */
 export type CardRequestAgentState = 'none' | 'requested' | 'being_made' | 'ready' | 'declined'
 
+/** A printing option, exactly as Vault serves it. The portal NEVER holds a
+ *  price of its own — a constant copied here is one that drifts, and the stale
+ *  copy is the one the agent would read. */
+export interface PrintOptionVM {
+  key: string
+  quantity: number
+  totalCents: number
+  totalDisplay: string
+  unitDisplay: string
+  finish: string
+}
+
+/** What the agent chose, as stored with their request. */
+export interface PrintSelectionVM {
+  quantity: number
+  totalDisplay: string
+  finish: string | null
+  estimated: true
+}
+
 export interface CardRequestState {
   state: CardRequestAgentState
   /** False while a request of theirs is live — the server decides, not the UI. */
   canRequest: boolean
   suggestedReason: CardRequestReason
   hasApprovedCard: boolean
+  /** Server-owned catalogue. Empty when the brokerage offers none. */
+  printOptions?: PrintOptionVM[]
+  /** The disclaimer, served so the two apps cannot word it differently. */
+  estimateNotice?: string
   request: {
     id: string
     status: string
@@ -75,5 +99,6 @@ export interface CardRequestState {
     requestedAt: string
     resolvedAt: string | null
     resolutionNote: string | null
+    printSelection?: PrintSelectionVM | null
   } | null
 }

@@ -59,15 +59,25 @@ export async function getCardRequest(): Promise<CardRequestState> {
  * reloads rather than showing an error; `REQUEST_ALREADY_OPEN` is preserved as
  * the code so it can be told apart from a genuine refusal.
  */
-export async function raiseCardRequest(reason: CardRequestReason, note?: string): Promise<CardRequestState> {
+export async function raiseCardRequest(
+  reason: CardRequestReason,
+  note?: string,
+  printOptionKey?: string,
+): Promise<CardRequestState> {
   let res: Response
   try {
     res = await authFetch(REQUEST_URL, {
       method: 'POST',
       credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
-      // reason + note ONLY.
-      body: JSON.stringify(note && note.trim() ? { reason, note: note.trim() } : { reason }),
+      // reason + note + the option KEY only. Never a quantity or a total:
+      // Vault refuses those outright, and the price must be the brokerage's,
+      // not whatever a browser happened to send.
+      body: JSON.stringify({
+        reason,
+        ...(note && note.trim() ? { note: note.trim() } : {}),
+        ...(printOptionKey ? { printOptionKey } : {}),
+      }),
     })
   } catch {
     throw new MarketingProfileError(NETWORK_ERROR_CODE, 0, false)
