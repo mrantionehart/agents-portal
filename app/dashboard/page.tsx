@@ -6,8 +6,6 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
 import { vaultAPI } from '@/lib/vault-client'
-import { createClient } from '@supabase/supabase-js'
-import PolicyAcceptanceModal from '../policy-acceptance/modal'
 import ComplianceNotifications from '../components/compliance-notifications'
 import SupportModal from '@/components/SupportModal'
 import SidebarNav from '../components/SidebarNav'
@@ -21,8 +19,6 @@ export default function DashboardPage() {
   const [commissions, setCommissions] = useState<any[]>([])
   const [dealsLoading, setDealsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [policyAccepted, setPolicyAccepted] = useState(true)
-  const [checkingPolicy, setCheckingPolicy] = useState(true)
   const [supportModalOpen, setSupportModalOpen] = useState(false)
   const [vol2BannerDismissed, setVol2BannerDismissed] = useState(false)
   const [newsArticles, setNewsArticles] = useState<{ title: string; link: string; pubDate: string; source: string }[]>([])
@@ -34,32 +30,8 @@ export default function DashboardPage() {
   //   }
   // }, [user, loading, router])
 
-  useEffect(() => {
-    if (user && role) {
-      // Check policy only for agents, not for admins/brokers
-      if (role === 'agent') {
-        // Check localStorage first to avoid re-checking on every mount
-        const cachedAcceptance = localStorage.getItem(`policy_accepted_${user.id}`)
-        if (cachedAcceptance === 'true') {
-          setPolicyAccepted(true)
-          setCheckingPolicy(false)
-        } else {
-          checkPolicyAcceptance()
-        }
-      } else {
-        setPolicyAccepted(true)
-        setCheckingPolicy(false)
-      }
-      // Don't fetch data - disabled to prevent flashing
-      // fetchData()
-    } else if (user && !role) {
-      // Role is still loading, wait for it
-      setCheckingPolicy(true)
-    } else if (!loading && !user) {
-      // Auth failed or user not logged in — stop waiting
-      setCheckingPolicy(false)
-    }
-  }, [user, role, loading])
+  // A4: the policy-acknowledgment check moved to the root layout
+  // (app/components/PolicyGate.tsx), server-verified and for every role.
 
   // Fetch news headlines on mount
   useEffect(() => {
@@ -68,45 +40,6 @@ export default function DashboardPage() {
       .then(d => setNewsArticles(d.articles || []))
       .catch(() => {})
   }, [])
-
-  const checkPolicyAcceptance = async () => {
-    try {
-      setCheckingPolicy(true)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Policy check timeout')), 5000)
-        )
-
-        const queryPromise = supabase
-          .from('policy_acceptances')
-          .select('*')
-          .eq('user_id', user!.id)
-          .eq('policy_type', 'brokerage_manual')
-          .single()
-
-        const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
-
-        if (data) {
-          setPolicyAccepted(true)
-        } else {
-          setPolicyAccepted(false)
-        }
-      } else {
-        setPolicyAccepted(true)
-      }
-    } catch (err) {
-      console.log('No policy acceptance found or check failed, showing modal:', err)
-      setPolicyAccepted(false)
-    } finally {
-      setCheckingPolicy(false)
-    }
-  }
 
   const fetchData = async () => {
     try {
@@ -135,24 +68,13 @@ export default function DashboardPage() {
     router.push('/login')
   }
 
-  if (loading || checkingPolicy) {
+  if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
   if (!user) {
     router.push('/login')
     return null
-  }
-
-  // Show policy acceptance modal if not accepted
-  if (!policyAccepted) {
-    return (
-      <PolicyAcceptanceModal
-        userId={user.id}
-        userName={user.user_metadata?.full_name || user.email || 'User'}
-        onAcceptance={() => setPolicyAccepted(true)}
-      />
-    )
   }
 
   const totalDeals = deals.length

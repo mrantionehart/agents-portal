@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from './providers'
+import { PolicyGateMount } from './components/PolicyGate'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,6 +33,9 @@ export default function RootLayout({
           <div className="relative z-10">
             {children}
           </div>
+          {/* A4: server-verified policy acknowledgments, every authenticated
+              path (/home, /workspace/*, legacy routes), every role. */}
+          <PolicyGateMount />
         </AuthProvider>
       </body>
     </html>
