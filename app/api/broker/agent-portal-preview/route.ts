@@ -137,18 +137,27 @@ export async function GET(request: NextRequest) {
     payoutConnectEnabled: payoutConnectEnabled(),
   }
 
-  // 6. AUDIT the preview access. No durable audit table/helper exists in this
-  //    repo for a generic access event (the only audit tables are
-  //    transaction-scoped; `activity_log` is read-only here with no insert
-  //    helper and an unconfirmed schema). Per policy we do NOT create a table
-  //    (that would be a migration). Instead emit a structured, PII-free server
-  //    log. DURABLE AUDIT IS A KNOWN GAP — see the PR description.
-  console.warn('[agent-portal-preview] access', {
-    brokerId: auth.userId,
-    agentId: agent.id,
-    tenantId: brokerTenantId,
-    at: new Date().toISOString(),
+  // 6. AUDIT the preview access DURABLY, tenant-scoped. Written via the service
+  //    role to public.agent_portal_preview_audit (RLS on, no anon/authenticated
+  //    grants — server-only). tenant_id/actor_id come from the broker's own
+  //    resolved identity, never client input. An audit-write failure is logged
+  //    but never fails the read. (supabase-js builder has no .catch — capture
+  //    the error object, don't chain.)
+  const { error: auditErr } = await svc.from('agent_portal_preview_audit').insert({
+    tenant_id: brokerTenantId,
+    actor_id: auth.userId,
+    target_agent_id: agent.id,
+    action: 'agent_portal_preview',
+    detail: { role: agent.role },
   })
+  if (auditErr) {
+    console.warn('[agent-portal-preview] audit write failed', {
+      brokerId: auth.userId,
+      agentId: agent.id,
+      tenantId: brokerTenantId,
+      code: (auditErr as { code?: string }).code ?? null,
+    })
+  }
 
   return NextResponse.json({
     agent: {

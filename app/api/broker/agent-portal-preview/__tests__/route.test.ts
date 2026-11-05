@@ -62,8 +62,10 @@ function makeSvc(opts: {
     | { id: string; full_name: string; role: string; tenant_id: string; is_active: boolean }
     | null
 }) {
+  const inserts: { table: string; row: any }[] = []
   return {
-    from(_table: string) {
+    inserts,
+    from(table: string) {
       let requestedId: string | null = null
       const chain: any = {
         select() {
@@ -84,6 +86,10 @@ function makeSvc(opts: {
             data: opts.agentRow,
             error: opts.agentRow ? null : { message: 'no rows' },
           }
+        },
+        async insert(row: any) {
+          inserts.push({ table, row })
+          return { error: null }
         },
       }
       return chain
@@ -107,18 +113,17 @@ beforeEach(() => {
 describe('GET /api/broker/agent-portal-preview', () => {
   test('broker + same-tenant agent → 200 with role-derived nav + feature flags, no session data', async () => {
     mockRequireAdminRole.mockResolvedValue({ userId: BROKER_ID, role: 'broker' })
-    mockAdminClient.mockReturnValue(
-      makeSvc({
-        callerRow: { tenant_id: TENANT_A },
-        agentRow: {
-          id: AGENT_ID,
-          full_name: 'Agent Smith',
-          role: 'agent',
-          tenant_id: TENANT_A,
-          is_active: true,
-        },
-      }),
-    )
+    const svc = makeSvc({
+      callerRow: { tenant_id: TENANT_A },
+      agentRow: {
+        id: AGENT_ID,
+        full_name: 'Agent Smith',
+        role: 'agent',
+        tenant_id: TENANT_A,
+        is_active: true,
+      },
+    })
+    mockAdminClient.mockReturnValue(svc)
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
 
     const res = await GET(req(AGENT_ID))
@@ -168,15 +173,19 @@ describe('GET /api/broker/agent-portal-preview', () => {
     expect(serialized).not.toMatch(/"attempts"/)
     expect(serialized).not.toMatch(/"readiness"/)
 
-    // Audit: a structured, PII-free access log was emitted.
-    expect(warn).toHaveBeenCalledWith(
-      '[agent-portal-preview] access',
-      expect.objectContaining({
-        brokerId: BROKER_ID,
-        agentId: AGENT_ID,
-        tenantId: TENANT_A,
+    // Audit: a DURABLE, tenant-scoped row was written to the audit table, from
+    // the broker's own resolved identity — never client input.
+    expect(svc.inserts).toContainEqual({
+      table: 'agent_portal_preview_audit',
+      row: expect.objectContaining({
+        tenant_id: TENANT_A,
+        actor_id: BROKER_ID,
+        target_agent_id: AGENT_ID,
+        action: 'agent_portal_preview',
       }),
-    )
+    })
+    // No audit-failure log on the happy path.
+    expect(warn).not.toHaveBeenCalledWith('[agent-portal-preview] audit write failed', expect.anything())
     warn.mockRestore()
   })
 
