@@ -1,4 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { adminClient } from '@/lib/security'
+import { agentLanding, loadOnboarded } from '@/lib/training/onboarding-landing'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
@@ -59,13 +61,9 @@ export default async function HomePage() {
     redirect('https://vault.hartfeltrealestate.com/dashboard')
   }
 
-  const { data: progress } = await supabase
-    .from('training_progress')
-    .select('volume_completed')
-    .eq('user_id', user.id)
-    .eq('volume', 'volume-1')
-    .maybeSingle()
-
-  const onboarded = progress?.volume_completed === true
-  redirect(onboarded ? '/home' : '/training')
+  // ONBOARD-002 — same server-verified evidence as the login route.
+  // [service-role: onboarding-landing-read]
+  const svc = adminClient('onboarding-landing-read', { userId: user.id, context: 'GET / landing' })
+  const onboarded = await loadOnboarded(svc, user.id)
+  redirect(agentLanding(role, onboarded))
 }

@@ -51,7 +51,18 @@ jest.mock("@supabase/ssr", () => ({
 jest.mock("@/lib/ratelimit", () => ({
   normalizeEmail: (e: string) => (typeof e === "string" ? e.toLowerCase() : ""),
 }));
+// ONBOARD-002 — onboarding evidence is read with the service role:
+// training_lesson_attestations (pcert-l01) and graded Volume 1 passes.
+let ATTESTED = false;
+const evidenceChain = (table: string): any => {
+  const c: any = {};
+  for (const m of ["select", "eq", "is"]) c[m] = () => c;
+  c.limit = async () => ({ data: table === "training_lesson_attestations" && ATTESTED ? [{ lesson_id: "pcert-l01" }] : [], error: null });
+  c.then = (res: any) => Promise.resolve({ data: [], error: null }).then(res);
+  return c;
+};
 jest.mock("@/lib/security", () => ({
+  adminClient: () => ({ from: (t: string) => evidenceChain(t) }),
   clientIp: () => "127.0.0.1",
   requireRateLimit: async () => ({}),
 }));
@@ -71,6 +82,7 @@ beforeEach(() => {
   AUTH_ERROR = null;
   PROFILE_ROW = null;
   PROGRESS_ROW = null;
+  ATTESTED = false;
 });
 
 describe("/api/login · redirectPath contract", () => {
@@ -83,7 +95,7 @@ describe("/api/login · redirectPath contract", () => {
   it("active agent + onboarded → /home (unchanged)", async () => {
     AUTH_USER = { id: "u-1", email: "a@y.com" };
     PROFILE_ROW = { role: "agent", is_active: true };
-    PROGRESS_ROW = { volume_completed: true };
+    ATTESTED = true;
     const res = await POST(req({ email: "a@y.com", password: "correct" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -105,7 +117,7 @@ describe("/api/login · redirectPath contract", () => {
     AUTH_USER = { id: "u-1", email: "a@y.com" };
     PROFILE_ROW = { role: "agent", is_active: false };
     // training_progress irrelevant when inactive — pending-activation wins first
-    PROGRESS_ROW = { volume_completed: true };
+    ATTESTED = true;
     const res = await POST(req({ email: "a@y.com", password: "correct" }));
     expect(res.status).toBe(200);
     const body = await res.json();

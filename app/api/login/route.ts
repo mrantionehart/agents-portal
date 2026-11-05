@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { agentLanding, loadOnboarded } from '@/lib/training/onboarding-landing'
 import { normalizeEmail } from '@/lib/ratelimit'
-import { clientIp, requireRateLimit } from '@/lib/security'
+import { adminClient, clientIp, requireRateLimit } from '@/lib/security'
 
 // MATRIX-BROKER-ACCESS-1 — a broker/admin authenticates successfully but is
 // landed on Vault by default (they operate out of Vault). To let a broker reach
@@ -136,9 +137,9 @@ export async function POST(request: NextRequest) {
     // the sidebar — middleware no longer hard-blocks them (see
     // middleware.ts). The onboarding experience is a nudge, not a lock.
     //
-    // Reading the flag with the authenticated Supabase client relies on
-    // the standard `training_progress` RLS policy (own-row SELECT via
-    // `auth.uid() = user_id`), so no service-role client is needed.
+    // ONBOARD-002: the signal is now server-verified evidence (see
+    // lib/training/onboarding-landing.ts); the old training_progress flag was
+    // client-writable and overwritten by unrelated writers.
     // ── AP-INACTIVE-GATE ────────────────────────────────────────────────
     // profiles.is_active is the authoritative Agent Portal access signal.
     // Inactive users (invitees not yet promoted, suspended agents, or any
@@ -154,14 +155,12 @@ export async function POST(request: NextRequest) {
       // `next` path only; any unsafe/absent value keeps the unchanged default.
       redirectPath = safeNextPath(next) ?? 'https://vault.hartfeltrealestate.com/dashboard'
     } else {
-      const { data: progress } = await supabase
-        .from('training_progress')
-        .select('volume_completed')
-        .eq('user_id', data.user.id)
-        .eq('volume', 'volume-1')
-        .maybeSingle()
-      const onboarded = progress?.volume_completed === true
-      redirectPath = onboarded ? '/home' : '/training'
+      // ONBOARD-002 — server-verified onboarding evidence (pcert-l01
+      // attestation or Volume 1 passes), not client-written training_progress.
+      // [service-role: onboarding-landing-read]
+      const svc = adminClient('onboarding-landing-read', { userId: data.user.id, context: 'POST /api/login landing' })
+      const onboarded = await loadOnboarded(svc, data.user.id)
+      redirectPath = agentLanding(role, onboarded)
     }
 
     console.log(`✓ Login: ${email} (${role}) → ${redirectPath}`)

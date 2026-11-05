@@ -28,20 +28,22 @@ const read = (relPath: string) => readFileSync(resolve(REPO_ROOT, relPath), "utf
 const LOGIN_SRC = read("app/api/login/route.ts");
 const ROOT_SRC = read("app/page.tsx");
 const MIDDLEWARE_SRC = read("middleware.ts");
+// ONBOARD-002 — the landing rule lives in one shared module both entry points use.
+const LANDING_SRC = read("lib/training/onboarding-landing.ts");
 
 describe("ONBOARD-001 — /api/login/route.ts landing decision", () => {
-  it("reads the onboarding signal from training_progress (volume='volume-1', volume_completed)", () => {
-    expect(LOGIN_SRC).toMatch(/\.from\(\s*['"]training_progress['"]\s*\)/);
-    expect(LOGIN_SRC).toMatch(/\.select\(\s*['"]volume_completed['"]\s*\)/);
-    expect(LOGIN_SRC).toMatch(/\.eq\(\s*['"]volume['"]\s*,\s*['"]volume-1['"]\s*\)/);
+  it("ONBOARD-002: reads server-verified onboarding evidence, NOT training_progress", () => {
+    expect(LOGIN_SRC).toMatch(/loadOnboarded\(\s*svc\s*,\s*data\.user\.id\s*\)/);
+    expect(LOGIN_SRC).toMatch(/agentLanding\(\s*role\s*,\s*onboarded\s*\)/);
+    expect(LOGIN_SRC).not.toMatch(/\.from\(\s*['"]training_progress['"]\s*\)/);
+    expect(LANDING_SRC).toMatch(/['"]training_lesson_attestations['"]/);
+    expect(LANDING_SRC).toMatch(/ONBOARDING_LESSON_ID = ['"]pcert-l01['"]/);
+    expect(LANDING_SRC).not.toMatch(/\.from\(\s*['"]training_progress['"]\s*\)/);
   });
 
-  it("branches to '/home' for onboarded agents", () => {
-    expect(LOGIN_SRC).toContain("'/home'");
-  });
-
-  it("branches to '/training' for un-onboarded agents", () => {
-    expect(LOGIN_SRC).toContain("'/training'");
+  it("branches to '/home' for onboarded agents and '/training' for un-onboarded (shared rule)", () => {
+    expect(LANDING_SRC).toContain("'/home'");
+    expect(LANDING_SRC).toContain("'/training'");
   });
 
   it("keeps the Vault dashboard target for admin/broker roles", () => {
@@ -56,11 +58,8 @@ describe("ONBOARD-001 — /api/login/route.ts landing decision", () => {
     expect(LOGIN_SRC).not.toContain('? "/dashboard"');
   });
 
-  it("uses `maybeSingle` (not `single`) on the onboarding read — un-onboarded users have no row", () => {
-    // `.single()` throws on 0 rows; `.maybeSingle()` returns null. A fresh
-    // agent has no `training_progress` row until pcert-l01 fires the
-    // bridge, so we MUST accept null.
-    expect(LOGIN_SRC).toContain(".maybeSingle()");
+  it("a fresh agent with no evidence is un-onboarded (empty reads, not an error)", () => {
+    expect(LANDING_SRC).toMatch(/Array\.isArray\(att\) && att\.length > 0/);
   });
 });
 
@@ -80,15 +79,10 @@ describe("ONBOARD-001 — app/page.tsx (root '/') mirrors the login decision", (
     expect(ROOT_SRC).toContain("https://vault.hartfeltrealestate.com/dashboard");
   });
 
-  it("reads the same onboarding signal as the login route", () => {
-    expect(ROOT_SRC).toMatch(/\.from\(\s*['"]training_progress['"]\s*\)/);
-    expect(ROOT_SRC).toMatch(/\.select\(\s*['"]volume_completed['"]\s*\)/);
-    expect(ROOT_SRC).toMatch(/\.eq\(\s*['"]volume['"]\s*,\s*['"]volume-1['"]\s*\)/);
-  });
-
-  it("branches to /home for onboarded agents and /training for un-onboarded", () => {
-    expect(ROOT_SRC).toContain("'/home'");
-    expect(ROOT_SRC).toContain("'/training'");
+  it("uses the same onboarding evidence and landing rule as the login route", () => {
+    expect(ROOT_SRC).toMatch(/loadOnboarded\(\s*svc\s*,\s*user\.id\s*\)/);
+    expect(ROOT_SRC).toMatch(/redirect\(\s*agentLanding\(\s*role\s*,\s*onboarded\s*\)\s*\)/);
+    expect(ROOT_SRC).not.toMatch(/\.from\(\s*['"]training_progress['"]\s*\)/);
   });
 });
 
