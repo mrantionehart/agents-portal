@@ -67,9 +67,41 @@ function payoutConnectEnabled(): boolean {
   return process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === 'true'
 }
 
+/** Authorize the caller as a broker/admin via EITHER the AP cookie session
+ *  (AP's own pages) OR a trusted Bearer token (cross-service: Vault forwarding
+ *  the broker's own shared-Supabase JWT). Both paths enforce the SAME
+ *  broker/admin role check — no widening, no new allowlist. Returns the gate's
+ *  own 401/403 NextResponse when neither path authorizes. The Bearer path is
+ *  taken ONLY when the cookie path fails AND a Bearer is present, so a denied
+ *  cookie caller still triggers no service-client/DB work. */
+async function resolveBrokerCaller(
+  request: NextRequest,
+): Promise<{ userId: string; role: string } | NextResponse> {
+  const cookieAuth = await requireAdminRole()
+  if (!(cookieAuth instanceof NextResponse)) return cookieAuth
+
+  const authz = request.headers.get('authorization') || ''
+  if (!authz.startsWith('Bearer ')) return cookieAuth
+  const token = authz.slice(7).trim()
+  if (!token) return cookieAuth
+
+  const svc = adminClient('agent-portal-preview-bearer', {
+    context: '/api/broker/agent-portal-preview',
+  })
+  const { data: userData } = await svc.auth.getUser(token)
+  const user = userData?.user
+  if (!user) return cookieAuth
+  const { data: p } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  if (p && (p.role === 'broker' || p.role === 'admin')) {
+    return { userId: user.id, role: p.role as string }
+  }
+  return cookieAuth
+}
+
 export async function GET(request: NextRequest) {
-  // 1. EXISTING broker gate. Non-broker/non-admin → the gate's own 401/403.
-  const auth = await requireAdminRole()
+  // 1. Authorize: cookie session (AP pages) OR a trusted Bearer (cross-service).
+  //    Same broker/admin check either way — non-broker/unauth → the gate's 401/403.
+  const auth = await resolveBrokerCaller(request)
   if (auth instanceof NextResponse) return auth
 
   // 2. Validate input shape. A malformed id is a 400 (not found-ish), never a DB call.
