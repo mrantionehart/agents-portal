@@ -15,6 +15,7 @@
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, userClient } from '@/lib/security'
+import { passedModulesForVolume, type QuizEvidenceRow } from '@/lib/training/evidence'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,8 +24,8 @@ export const fetchCache = 'force-no-store'
 // Sprint 8B Phase 1: converted from service-role to anon-key + user JWT.
 // Policy anchors verified in Sprint 8B-P0.1:
 //   profiles          / profiles_select                       / SELECT / {public}        / true
-//   training_progress / Users can view own training progress  / SELECT / {public}        /
-//                       (auth.uid() = user_id)
+//   training_quiz_results / Users can view own quiz results    / SELECT / {public}        /
+//                       (auth.uid() = user_id)   [HR-PROGRESS-SECURITY: was training_progress]
 // The profiles read is still own-row by id = user.id in the query body.
 // The training_progress own-row policy replaces the previous service-role
 // bypass; the query's `.eq('user_id', user.id)` filter remains as a
@@ -46,12 +47,17 @@ export async function GET(request: NextRequest) {
     const supabase = userClient(request)
 
     // Fetch role + QA status + training progress in parallel
-    const [{ data: profile }, { data: progressRows }] = await Promise.all([
+    const [{ data: profile }, { data: quizRows }] = await Promise.all([
       supabase.from('profiles').select('role, is_qa_user').eq('id', user.id).single(),
+      // HR-PROGRESS-SECURITY — the gate reads graded quiz evidence, NOT the
+      // client-written training_progress row (own-row SELECT policy).
       supabase
-        .from('training_progress')
-        .select('volume, completed_modules, volume_completed')
-        .eq('user_id', user.id),
+        .from('training_quiz_results')
+        .select('volume, module_num, passed, certification_id, quiz_id')
+        .eq('user_id', user.id)
+        .eq('passed', true)
+        .is('certification_id', null)
+        .is('quiz_id', null),
     ])
 
     const role = profile?.role || 'agent'
@@ -70,19 +76,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Find vol-1 and vol-2 progress rows
-    const vol1Row = (progressRows || []).find(
-      (r: any) => r.volume === 'volume-1'
-    )
-    const vol2Row = (progressRows || []).find(
-      (r: any) => r.volume === 'volume-2'
-    )
-
-    const vol1Completed: number[] = vol1Row?.completed_modules || []
-    // Gate opens when agent has completed all base modules (1-9)
+    // HR-PROGRESS-SECURITY — completion is what the learner PASSED, as graded
+    // by the server (or, for an old EASE build, by the database). A
+    // client-written completed_modules / volume_completed no longer opens it.
+    const rows = (quizRows || []) as QuizEvidenceRow[]
+    const vol1Completed: number[] = passedModulesForVolume(rows, 1)
+    // Gate opens when agent has passed all base modules (1-9)
     const vol1Done = vol1Required.every(m => vol1Completed.includes(m))
-    const vol2Completed: number[] = vol2Row?.completed_modules || []
-    const vol2Done = vol2Row?.volume_completed === true
+    const vol2Completed: number[] = passedModulesForVolume(rows, 2)
+    const vol2Done = VOL2_REQUIRED.every(m => vol2Completed.includes(m))
 
     return NextResponse.json({
       gateOpen: vol1Done,
