@@ -25,8 +25,8 @@ afterEach(() => { if (prev === undefined) delete process.env[F]; else process.en
 
 const PREPARED = {
   attemptId: "att-1",
-  scenarioId: "matrix-rental-a1",
-  scenarioLabel: "Garden Apartment — Annual Rental",
+  scenarioId: "matrix-fl-rental-a1",
+  scenarioLabel: "Miami-Dade Condo — Annual Lease",
   briefing: "Correct the prior agent's draft.",
   fields: [
     { id: "streetAddress", label: "Street Address", type: "text", required: true },
@@ -51,13 +51,13 @@ describe("MatrixExperience — learner journey (flag on)", () => {
   it("offers all three modules and starts the chosen scenario family", async () => {
     prepareExercise.mockResolvedValue(PREPARED);
     render(<MatrixExperience />);
-    // All three module entry points present.
-    expect(document.querySelector('[data-matrix-module="matrix-rental-a1"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-matrix-module="matrix-sales-b1"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-matrix-module="matrix-maint-c1"]')).toBeInTheDocument();
-    // Starting Module B requests the Sales scenario specifically.
+    // All three module entry points present (Florida v3 scenario ids).
+    expect(document.querySelector('[data-matrix-module="matrix-fl-rental-a1"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-matrix-module="matrix-fl-sales-b1"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-matrix-module="matrix-fl-maint-c1"]')).toBeInTheDocument();
+    // Starting Module B requests the Florida Sales scenario specifically.
     fireEvent.click(screen.getByRole("button", { name: /start module b/i }));
-    await waitFor(() => expect(prepareExercise).toHaveBeenCalledWith("matrix-sales-b1"));
+    await waitFor(() => expect(prepareExercise).toHaveBeenCalledWith("matrix-fl-sales-b1"));
   });
 
   it("entry → start → fields render → edit → save → submit → result", async () => {

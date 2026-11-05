@@ -66,25 +66,25 @@ const MATRIX_MODULES: ReadonlyArray<{
   description: string;
 }> = [
   {
-    scenarioId: "matrix-rental-a1",
+    scenarioId: "matrix-fl-rental-a1",
     module: "A",
-    title: "Module A — Residential Rental",
+    title: "Module A — Residential Lease (RNT)",
     description:
-      "Complete a fictional residential-rental MLS listing: verify AutoPop data, correct the prior agent's mistakes, and submit for Broker of Record review.",
+      "Complete a fictional Florida residential-lease (RNT) MLS listing: verify Fill-from-Tax data, confirm the folio-derived MLS area, correct the prior agent's mistakes, and submit for Broker of Record review.",
   },
   {
-    scenarioId: "matrix-sales-b1",
+    scenarioId: "matrix-fl-sales-b1",
     module: "B",
-    title: "Module B — Residential Sales",
+    title: "Module B — Residential Sales (RE1/RE2)",
     description:
-      "Complete a fictional residential-sale listing: property search, MLS area verification, classification, details, required fields, AutoPop validation, photos, remarks, and error correction, then submit for review.",
+      "Complete a fictional Florida residential-sale listing: property search, folio/MLS-area verification, classification, details, required fields, Fill-from-Tax validation, photos, remarks, and error correction, then submit for review.",
   },
   {
-    scenarioId: "matrix-maint-c1",
+    scenarioId: "matrix-fl-maint-c1",
     module: "C",
     title: "Module C — Listing Maintenance",
     description:
-      "Maintain a fictional active listing: status changes, corrections, price updates, photo management, supplements, and authorization, then escalate to the broker.",
+      "Maintain a fictional active Florida listing: status/price changes (within 2 business days), corrections, photo management, supplements, and authorization, then escalate to the broker.",
   },
 ];
 
