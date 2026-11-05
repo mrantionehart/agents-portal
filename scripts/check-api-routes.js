@@ -59,6 +59,10 @@ const MARKER_PATTERNS = [
   // Auth wrappers / helpers
   /\bwithAuth\b/,
   /\brequireAuth\b/,
+  // Broker/admin role gate (lib/server-auth.ts). A real auth helper that
+  // fail-closes to 401/403; recognizing it here does not grandfather any
+  // route nor weaken enforcement — a route must still use a real auth path.
+  /\brequireAdminRole\b/,
   // Webhook signature wrappers / helpers
   /\bwithWebhookSignature\b/,
   /\brequireWebhookSignature\b/,
