@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, userClient } from '@/lib/security'
+import { verifiedCertificationDate } from '@/lib/training/evidence'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,54 +42,60 @@ export async function GET(request: NextRequest) {
       .single()
     const agentName = profile?.full_name || profile?.name || user.user_metadata?.name || user.email || 'Agent'
 
+    // HR-PROGRESS-SECURITY — a certificate is EARNED only by a HartFelt Ready
+    // certification that the designated Broker of Record granted through the
+    // evidence gate (onboarding_pipeline.hartfelt_ready_verified_at, written
+    // only by Vault complete_training). training_progress.volume_completed /
+    // certification_date are client-written and no longer earn anything.
+    // QA profiles never hold an official certificate. Own-row reads only.
+    const [{ data: pipeline }, { data: qaRow }, { data: finals }] = await Promise.all([
+      supabase
+        .from('onboarding_pipeline')
+        .select('hartfelt_ready_verified_at')
+        .eq('profile_id', user.id)
+        .not('hartfelt_ready_verified_at', 'is', null)
+        .limit(1)
+        .maybeSingle(),
+      supabase.from('profiles').select('is_qa_user').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('training_quiz_results')
+        .select('score')
+        .eq('user_id', user.id)
+        .eq('quiz_id', 'hartfelt-ready.comprehensive-final')
+        .eq('passed', true)
+        .order('score', { ascending: false })
+        .limit(1),
+    ])
+    const certifiedAt = verifiedCertificationDate(
+      pipeline as { hartfelt_ready_verified_at: string | null } | null,
+      (qaRow as { is_qa_user?: boolean | null } | null)?.is_qa_user ?? null,
+    )
+    const finalScore = ((finals as { score: number }[] | null) ?? [])[0]?.score ?? 0
+    const dateLabel = certifiedAt
+      ? new Date(certifiedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : null
+    const certFor = (volumeKey: string) => ({
+      name: agentName,
+      volume: VOLUME_LABELS[volumeKey] || volumeKey,
+      volumeKey,
+      score: finalScore,
+      date: dateLabel,
+    })
+
     // If specific volume requested, return that certificate
     if (volume) {
-      const { data: progress } = await supabase
-        .from('training_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('volume', volume)
-        .single()
-
-      if (!progress?.volume_completed) {
+      if (!certifiedAt) {
         return NextResponse.json({
           earned: false,
           volume,
-          message: 'Volume not yet completed',
+          message: 'HartFelt Ready certification has not been granted by the Broker of Record',
         })
       }
-
-      return NextResponse.json({
-        earned: true,
-        certificate: {
-          name: agentName,
-          volume: VOLUME_LABELS[volume] || volume,
-          volumeKey: volume,
-          score: progress.final_exam_score || 0,
-          date: progress.certification_date
-            ? new Date(progress.certification_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-            : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        },
-      })
+      return NextResponse.json({ earned: true, certificate: certFor(volume) })
     }
 
-    // No volume specified — return all earned certificates
-    const { data: allProgress } = await supabase
-      .from('training_progress')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('volume_completed', true)
-
-    const certificates = (allProgress || []).map(p => ({
-      name: agentName,
-      volume: VOLUME_LABELS[p.volume] || p.volume,
-      volumeKey: p.volume,
-      score: p.final_exam_score || 0,
-      date: p.certification_date
-        ? new Date(p.certification_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-        : 'N/A',
-    }))
-
+    // No volume specified — the certification covers Volumes 1-3 together.
+    const certificates = certifiedAt ? Object.keys(VOLUME_LABELS).map(certFor) : []
     return NextResponse.json({ certificates })
   } catch (err: any) {
     console.error('GET /api/training/certificate error:', err)

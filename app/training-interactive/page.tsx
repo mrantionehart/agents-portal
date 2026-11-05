@@ -1371,14 +1371,11 @@ The agent who responds first usually wins. AI makes sure that's you.`,
         'volume-2': 'Volume 2 — Elite',
         'volume-3': 'Volume 3 — AI Training',
       }
-      setCertificateData({
-        name: user?.user_metadata?.name || user?.email || 'Agent',
-        score,
-        date: today,
-        volume: volumeLabels[currentVolume || 'volume-1'] || 'Volume 1',
-      })
-
-      setAlertMessage(`🏆 CERTIFIED! Final Exam Score: ${score}%`)
+      // HR-CERT-DISPLAY — this exam is graded in the BROWSER, so passing it is
+      // not a certification and no certificate is shown. The official
+      // HartFelt Ready certificate exists only once the Broker of Record grants
+      // it through the server-graded evidence gate (see /api/training/certificate).
+      setAlertMessage(`✅ Practice final passed: ${score}%. Your official HartFelt Ready™ certificate is issued after your Broker of Record grants it.`)
       setShowAlert(true)
 
       if (supabase && user) {
@@ -1399,7 +1396,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
           // came to be NULL, so tell the agent instead of pretending.
           console.error('Failed to save certification:', err)
           setAlertMessage(
-            `⚠️ Score ${score}% passed, but it could not be saved. Tell your broker — your certification is not recorded yet.`
+            `⚠️ Score ${score}% passed, but it could not be saved. Your progress may not show until you retry.`
           )
           setShowAlert(true)
         }
@@ -1407,8 +1404,7 @@ The agent who responds first usually wins. AI makes sure that's you.`,
 
       setTimeout(() => {
         setShowAlert(false)
-        setScreen('certificate')
-      }, 3000)
+      }, 4000)
     } else {
       setAlertMessage(`❌ Score: ${score}%. You need 85% to pass the certification exam. Try again!`)
       setShowAlert(true)
