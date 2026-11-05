@@ -65,6 +65,11 @@ function makeSvc(opts: {
   const inserts: { table: string; row: any }[] = []
   return {
     inserts,
+    auth: {
+      async getUser(_token: string) {
+        return { data: { user: (opts as any).bearerUser ?? null }, error: null }
+      },
+    },
     from(table: string) {
       let requestedId: string | null = null
       const chain: any = {
@@ -97,13 +102,14 @@ function makeSvc(opts: {
   }
 }
 
-function req(agentId?: string) {
+function req(agentId?: string, bearer?: string) {
   const url = agentId
     ? `http://localhost/api/broker/agent-portal-preview?agentId=${agentId}`
     : `http://localhost/api/broker/agent-portal-preview`
-  // The route only reads `.nextUrl.searchParams`; a plain object with that
-  // shape is enough and avoids constructing a full NextRequest.
-  return { nextUrl: new URL(url) } as any
+  // The route reads `.nextUrl.searchParams` and `.headers.get('authorization')`.
+  const headers = new Headers()
+  if (bearer) headers.set('authorization', `Bearer ${bearer}`)
+  return { nextUrl: new URL(url), headers } as any
 }
 
 beforeEach(() => {
@@ -243,5 +249,44 @@ describe('GET /api/broker/agent-portal-preview', () => {
 
     const res2 = await GET(req('not-a-uuid'))
     expect(res2.status).toBe(400)
+  })
+
+  test('cross-service Bearer: a broker JWT (no cookie session) → 200 + durable audit', async () => {
+    // Cookie path fails (a Vault→AP server call has no AP cookie); the Bearer
+    // fallback validates the broker's shared-Supabase JWT and enforces the SAME
+    // broker role + tenant scope.
+    mockRequireAdminRole.mockResolvedValue(
+      NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
+    )
+    const svc = makeSvc({
+      callerRow: { role: 'broker', tenant_id: TENANT_A } as any,
+      agentRow: { id: AGENT_ID, full_name: 'Agent Smith', role: 'agent', tenant_id: TENANT_A, is_active: true },
+      bearerUser: { id: BROKER_ID },
+    } as any)
+    mockAdminClient.mockReturnValue(svc)
+
+    const res = await GET(req(AGENT_ID, 'broker-jwt'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.agent.id).toBe(AGENT_ID)
+    expect(svc.inserts).toContainEqual({
+      table: 'agent_portal_preview_audit',
+      row: expect.objectContaining({ tenant_id: TENANT_A, actor_id: BROKER_ID, target_agent_id: AGENT_ID }),
+    })
+  })
+
+  test('cross-service Bearer: a NON-broker JWT is refused (falls back to the denial)', async () => {
+    mockRequireAdminRole.mockResolvedValue(
+      NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
+    )
+    mockAdminClient.mockReturnValue(
+      makeSvc({
+        callerRow: { role: 'agent', tenant_id: TENANT_A } as any,
+        agentRow: null,
+        bearerUser: { id: BROKER_ID },
+      } as any),
+    )
+    const res = await GET(req(AGENT_ID, 'agent-jwt'))
+    expect(res.status).toBe(401)
   })
 })
