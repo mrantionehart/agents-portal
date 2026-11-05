@@ -5,7 +5,7 @@
 // QA and office-manager users, from server-verified evidence. Before: the
 // learner-writable training_progress.volume_completed flag decided it, and
 // unrelated writers reset it, sending onboarded agents back to /training.
-import { agentLanding, isOnboarded, loadOnboarded } from '@/lib/training/onboarding-landing'
+import { HOME_ROLES, agentLanding, isOnboarded, loadOnboarded } from '@/lib/training/onboarding-landing'
 
 const pass = (m: number, extra = {}) => ({ volume: 1, module_num: m, passed: true, certification_id: null, quiz_id: null, ...extra })
 const all9 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -48,6 +48,20 @@ describe('isOnboarded / agentLanding', () => {
   it('QA agents follow the same evidence (attested QA → /home, un-evidenced QA → /training)', () => {
     expect(agentLanding('agent', true)).toBe('/home')
     expect(agentLanding('agent', false)).toBe('/training')
+  })
+  it('ONBOARD-003: a role /home refuses (internal_staff) lands on /training even when onboarded', () => {
+    expect(agentLanding('internal_staff', true)).toBe('/training')
+    expect(agentLanding('internal_staff', false)).toBe('/training')
+    expect(agentLanding(null, true)).toBe('/training')
+  })
+  it('ONBOARD-003: every agent-tier role /home serves follows onboarding evidence', () => {
+    for (const r of ['agent', 'new_agent', 'tc', 'manager']) {
+      expect(agentLanding(r, true)).toBe('/home')
+      expect(agentLanding(r, false)).toBe('/training')
+    }
+  })
+  it('ONBOARD-003: HOME_ROLES is exactly Vault ALL_GATED_ROLES minus admin/broker (which land on Vault)', () => {
+    expect([...HOME_ROLES].sort()).toEqual(['agent', 'manager', 'new_agent', 'office_manager', 'tc'])
   })
   it('office_manager lands on /home (bypasses the training gate)', () => {
     expect(agentLanding('office_manager', false)).toBe('/home')
