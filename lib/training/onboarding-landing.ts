@@ -27,8 +27,21 @@ export function isOnboarded(input: { attested: boolean; vol1Passes: readonly Qui
   return VOL1_BASE.every((m) => passed.includes(m))
 }
 
+/**
+ * ONBOARD-003 — roles /home can actually serve. /home loads Vault's
+ * GET /api/platform/workspace, which admits only Vault's ALL_GATED_ROLES
+ * (agent tier + broker tier); every other role gets 403 there. Admin and
+ * broker never reach this function (they land on Vault). Keep in step with
+ * Vault src/lib/paperwork/route-helpers.ts ALL_GATED_ROLES.
+ */
+export const HOME_ROLES = ['agent', 'new_agent', 'tc', 'manager', 'office_manager'] as const
+
 /** Landing for a non-admin, non-broker, ACTIVE user. */
 export function agentLanding(role: string | null | undefined, onboarded: boolean): '/home' | '/training' {
+  // A role /home would refuse (e.g. internal_staff) lands on /training, which
+  // reads only AP's own training tables. Permissions are unchanged — this only
+  // avoids landing a user on a page that denies them.
+  if (!(HOME_ROLES as readonly string[]).includes(role ?? '')) return '/training'
   if (role === 'office_manager') return '/home'
   return onboarded ? '/home' : '/training'
 }

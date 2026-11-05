@@ -74,6 +74,17 @@ describe('POST /api/login — onboarding landing (ONBOARD-002)', () => {
     ATTESTED = true
     expect(await login()).toBe('/pending-activation')
   })
+  it('ONBOARD-003: onboarded internal_staff (QA Tester shape) → /training, not a /home that denies it', async () => {
+    PROFILE = { role: 'internal_staff', is_active: true }
+    ATTESTED = true
+    expect(await login()).toBe('/training')
+  })
+  it('admin / broker still land on Vault', async () => {
+    for (const role of ['admin', 'broker']) {
+      PROFILE = { role, is_active: true }
+      expect(await login()).toBe('https://vault.hartfeltrealestate.com/dashboard')
+    }
+  })
   it('office_manager → /home', async () => {
     PROFILE = { role: 'office_manager', is_active: true }
     expect(await login()).toBe('/home')
