@@ -83,6 +83,10 @@ export type ServiceRoleReason =
   // Graded and written server-side; `authenticated` loses INSERT on
   // training_quiz_results so a client can never author its own pass.
   | 'training-quiz-result-write'
+  // ONBOARD-002 — the caller's OWN pcert-l01 attestation + Volume 1 passes,
+  // for the post-login landing page. `authenticated` has no SELECT on
+  // training_lesson_attestations. Read-only, scoped to the caller's id.
+  | 'onboarding-landing-read'
   // SEC.3A — cross-table tenant resolution for new_leads containment.
   // RLS on new_leads is USING(true); we use service role to look up
   // posted_by → profiles.tenant_id and filter rows in the application.

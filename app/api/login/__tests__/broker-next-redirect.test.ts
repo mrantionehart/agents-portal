@@ -41,7 +41,18 @@ jest.mock("@supabase/ssr", () => ({
 jest.mock("@/lib/ratelimit", () => ({
   normalizeEmail: (e: string) => (typeof e === "string" ? e.toLowerCase() : ""),
 }));
+// ONBOARD-002 — onboarding evidence is read with the service role:
+// training_lesson_attestations (pcert-l01) and graded Volume 1 passes.
+let ATTESTED = false;
+const evidenceChain = (table: string): any => {
+  const c: any = {};
+  for (const m of ["select", "eq", "is"]) c[m] = () => c;
+  c.limit = async () => ({ data: table === "training_lesson_attestations" && ATTESTED ? [{ lesson_id: "pcert-l01" }] : [], error: null });
+  c.then = (res: any) => Promise.resolve({ data: [], error: null }).then(res);
+  return c;
+};
 jest.mock("@/lib/security", () => ({
+  adminClient: () => ({ from: (t: string) => evidenceChain(t) }),
   clientIp: () => "127.0.0.1",
   requireRateLimit: async () => ({}),
 }));
@@ -67,6 +78,7 @@ beforeEach(() => {
   AUTH_ERROR = null;
   PROFILE_ROW = null;
   PROGRESS_ROW = null;
+  ATTESTED = false;
 });
 
 const VAULT = "https://vault.hartfeltrealestate.com/dashboard";
@@ -125,7 +137,7 @@ describe("/api/login · broker next-redirect", () => {
 
   it("agent + next is IGNORED (default landing unchanged)", async () => {
     PROFILE_ROW = { role: "agent", is_active: true };
-    PROGRESS_ROW = { volume_completed: true };
+    ATTESTED = true;
     // Agents keep their onboarding-based landing; next does not apply.
     expect(await redirectFor({ email: "b@y.com", password: "ok", next: "/the-matrix/review" })).toBe(
       "/home",
