@@ -117,9 +117,11 @@ describe("ONBOARD-001 — middleware.ts is authentication-only", () => {
   });
 
   it("still redirects unauthenticated requests to /login", () => {
-    // The one thing middleware DOES keep.
-    expect(MIDDLEWARE_SRC).toMatch(
-      /NextResponse\.redirect\(\s*new URL\(\s*['"]\/login['"]/,
-    );
+    // The one thing middleware DOES keep. MATRIX-BROKER-ACCESS-1 builds the
+    // /login URL then preserves the destination as ?next= before redirecting —
+    // still auth-only, still → /login (runtime behaviour: middleware.login-next).
+    expect(MIDDLEWARE_SRC).toMatch(/new URL\(\s*['"]\/login['"]\s*,\s*request\.url\s*\)/);
+    expect(MIDDLEWARE_SRC).toMatch(/NextResponse\.redirect\(\s*loginUrl\s*\)/);
+    expect(MIDDLEWARE_SRC).toMatch(/searchParams\.set\(\s*['"]next['"]/);
   });
 });
