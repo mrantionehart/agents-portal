@@ -14,9 +14,13 @@ import {
   prepareExercise,
   saveDraft as apiSaveDraft,
   submitAttempt,
+  previewPrepareExercise,
+  previewSubmit,
   MatrixApiError,
   type PreparedExercise,
   type SubmitResult,
+  type PreviewSubmitResult,
+  type PreviewFieldGrade,
   type MatrixFieldValue,
 } from "@/lib/matrix/vault-matrix-client";
 
@@ -35,9 +39,12 @@ function messageFor(err: unknown): string {
 
 export interface MatrixPractice {
   readonly phase: MatrixPhase;
+  readonly preview: boolean;
   readonly exercise: PreparedExercise | null;
   readonly values: Record<string, MatrixFieldValue | "">;
-  readonly result: SubmitResult | null;
+  readonly result: SubmitResult | PreviewSubmitResult | null;
+  /** Broker-preview only: per-field expected-vs-actual answer review. */
+  readonly review: readonly PreviewFieldGrade[] | null;
   readonly error: string | null;
   readonly fieldErrors: Record<string, string>;
   readonly saving: boolean;
@@ -49,11 +56,19 @@ export interface MatrixPractice {
   readonly reset: () => void;
 }
 
-export function useMatrixPractice(): MatrixPractice {
+/**
+ * Drives the practical. `opts.preview` switches the SAME flow onto the
+ * broker-tier, write-nothing preview endpoints: prepare creates no attempt row,
+ * there is no draft to persist (save is a local no-op), and submit scores
+ * without recording anything. The learner path (default) is unchanged.
+ */
+export function useMatrixPractice(opts?: { preview?: boolean }): MatrixPractice {
+  const preview = opts?.preview === true;
   const [phase, setPhase] = useState<MatrixPhase>("idle");
   const [exercise, setExercise] = useState<PreparedExercise | null>(null);
   const [values, setValues] = useState<Record<string, MatrixFieldValue | "">>({});
-  const [result, setResult] = useState<SubmitResult | null>(null);
+  const [result, setResult] = useState<SubmitResult | PreviewSubmitResult | null>(null);
+  const [review, setReview] = useState<readonly PreviewFieldGrade[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -63,9 +78,10 @@ export function useMatrixPractice(): MatrixPractice {
     setError(null);
     setFieldErrors({});
     setResult(null);
+    setReview(null);
     setPhase("preparing");
     try {
-      const ex = await prepareExercise(scenarioId);
+      const ex = await (preview ? previewPrepareExercise(scenarioId) : prepareExercise(scenarioId));
       setExercise(ex);
       setValues(ex.values);
       setPhase("editing");
@@ -73,7 +89,7 @@ export function useMatrixPractice(): MatrixPractice {
       setError(messageFor(err));
       setPhase("error");
     }
-  }, []);
+  }, [preview]);
 
   const setValue = useCallback((fieldId: string, value: MatrixFieldValue | "") => {
     setValues((v) => ({ ...v, [fieldId]: value }));
@@ -82,6 +98,8 @@ export function useMatrixPractice(): MatrixPractice {
 
   const saveDraft = useCallback(async () => {
     if (!exercise) return;
+    // Preview persists NOTHING — there is no attempt row to save a draft to.
+    if (preview) { setSavedAt(Date.now()); return; }
     setSaving(true);
     try {
       await apiSaveDraft(exercise.attemptId, values);
@@ -91,7 +109,7 @@ export function useMatrixPractice(): MatrixPractice {
     } finally {
       setSaving(false);
     }
-  }, [exercise, values]);
+  }, [exercise, values, preview]);
 
   const submit = useCallback(async () => {
     if (!exercise) return;
@@ -99,6 +117,13 @@ export function useMatrixPractice(): MatrixPractice {
     setError(null);
     setPhase("submitting");
     try {
+      if (preview) {
+        const r = await previewSubmit(exercise.scenarioId, values);
+        setResult(r);
+        setReview(r.review);
+        setPhase("done");
+        return;
+      }
       // Persist the latest draft first so submit scores exactly what's on screen.
       await apiSaveDraft(exercise.attemptId, values);
       const r = await submitAttempt(exercise.attemptId);
@@ -113,20 +138,21 @@ export function useMatrixPractice(): MatrixPractice {
       setError(messageFor(err));
       setPhase("error");
     }
-  }, [exercise, values]);
+  }, [exercise, values, preview]);
 
   const reset = useCallback(() => {
     setPhase("idle");
     setExercise(null);
     setValues({});
     setResult(null);
+    setReview(null);
     setError(null);
     setFieldErrors({});
     setSavedAt(null);
   }, []);
 
   return {
-    phase, exercise, values, result, error, fieldErrors, saving, savedAt,
+    phase, preview, exercise, values, result, review, error, fieldErrors, saving, savedAt,
     enter, setValue, saveDraft, submit, reset,
   };
 }

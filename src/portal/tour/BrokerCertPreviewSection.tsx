@@ -11,7 +11,8 @@
 
 "use client";
 
-import { GraduationCap } from "lucide-react";
+import Link from "next/link";
+import { GraduationCap, Table2 } from "lucide-react";
 
 import { BrokerPreviewLauncher } from "./BrokerPreviewLauncher";
 
@@ -129,6 +130,54 @@ export function BrokerCertPreviewSection({
       <p className="mt-3 text-[11px] uppercase tracking-wide text-[#71717A]">
         Progress will not be saved · No completion write is sent
       </p>
+
+      <MatrixBrokerPreview />
     </section>
+  );
+}
+
+// Broker-only launchers for the Matrix Simulator in PREVIEW mode: the same
+// knowledge quiz + Rental/Sales/Maintenance practicals an agent runs, scored by
+// the same Vault functions, but write-nothing (broker-tier preview endpoints).
+// Opens the existing simulator components with ?preview=1 — no duplicate engine.
+function MatrixBrokerPreview() {
+  const launchers: ReadonlyArray<{ href: string; title: string; description: string }> = [
+    { href: "/the-matrix/quiz?preview=1", title: "Knowledge Quiz", description: "The 20-question written check — graded, with a broker answer review." },
+    { href: "/the-matrix/practice?preview=1", title: "Rental / Sales / Maintenance practicals", description: "Pick a module, correct the listing, and see the score + per-field answer review." },
+  ];
+  return (
+    <div className="mt-6 border-t border-[#C9A84C]/20 pt-5" data-matrix-broker-preview-section>
+      <div className="flex items-start gap-3 mb-3">
+        <Table2 className="h-5 w-5 text-[#C9A84C] shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-[15px] font-semibold text-[#F1F1F3]">Matrix Simulator — broker preview</h3>
+          <p className="text-[13px] text-[#A1A1AA] mt-1 max-w-prose">
+            Run the agent&rsquo;s Matrix knowledge quiz and practicals yourself. Scored exactly as an
+            agent is, but nothing is saved, submitted, or certified, and no agent&rsquo;s progress is
+            touched — reset any time.
+          </p>
+        </div>
+      </div>
+      <ul className="space-y-2">
+        {launchers.map((l) => (
+          <li
+            key={l.href}
+            className="flex items-center justify-between gap-3 rounded border border-[#1a1a2e] bg-[#0b0b10] px-4 py-3"
+          >
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-[#F1F1F3]">{l.title}</div>
+              <div className="text-[12px] text-[#A1A1AA] truncate">{l.description}</div>
+            </div>
+            <Link
+              href={l.href}
+              data-testid="matrix-broker-preview-launch"
+              className="shrink-0 rounded bg-[#C9A84C] px-3 py-1.5 text-[12px] font-semibold text-[#1a1407] hover:bg-[#d8b85e]"
+            >
+              Preview
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -20,8 +20,8 @@ const CARD = "rounded-lg border border-[#13231a] bg-[#0b0f0c]";
 const GREEN = "bg-[#22c55e] text-[#04120a]";
 const GREEN_TEXT = "text-[#4ade80]";
 
-export function MatrixExperience() {
-  const ring = useMatrixPractice();
+export function MatrixExperience({ preview = false }: { preview?: boolean } = {}) {
+  const ring = useMatrixPractice({ preview });
 
   if (!matrixSimulatorEnabled()) {
     return (
@@ -32,23 +32,36 @@ export function MatrixExperience() {
     );
   }
 
+  let content: ReactNode;
   if (ring.phase === "idle") {
-    return <EntryView onStart={(scenarioId) => void ring.enter(scenarioId)} />;
+    content = <EntryView onStart={(scenarioId) => void ring.enter(scenarioId)} />;
+  } else if (ring.phase === "preparing") {
+    content = <Centered><Loader2 className="h-5 w-5 animate-spin text-[#22c55e]" aria-hidden="true" /><p className="mt-3 text-sm text-[#9db3a6]">Loading your exercise…</p></Centered>;
+  } else if ((ring.phase === "editing" || ring.phase === "submitting") && ring.exercise) {
+    content = <ExerciseForm ring={ring} />;
+  } else if (ring.phase === "done" && ring.result) {
+    content = <ResultView ring={ring} />;
+  } else {
+    content = (
+      <Centered>
+        <p className="text-sm text-[#E6F5EC]">{ring.error ?? "Something went wrong."}</p>
+        <button type="button" onClick={() => void ring.enter()} className={`mt-4 inline-flex h-9 items-center rounded-md px-4 text-sm font-semibold ${GREEN}`}>Try again</button>
+      </Centered>
+    );
   }
-  if (ring.phase === "preparing") {
-    return <Centered><Loader2 className="h-5 w-5 animate-spin text-[#22c55e]" aria-hidden="true" /><p className="mt-3 text-sm text-[#9db3a6]">Loading your exercise…</p></Centered>;
-  }
-  if ((ring.phase === "editing" || ring.phase === "submitting") && ring.exercise) {
-    return <ExerciseForm ring={ring} />;
-  }
-  if (ring.phase === "done" && ring.result) {
-    return <ResultView ring={ring} />;
-  }
+
+  if (!ring.preview) return content;
   return (
-    <Centered>
-      <p className="text-sm text-[#E6F5EC]">{ring.error ?? "Something went wrong."}</p>
-      <button type="button" onClick={() => void ring.enter()} className={`mt-4 inline-flex h-9 items-center rounded-md px-4 text-sm font-semibold ${GREEN}`}>Try again</button>
-    </Centered>
+    <div className="space-y-3" data-matrix-broker-preview>
+      <div className="rounded-lg border border-[#2a4a16] bg-[#131f0a] px-4 py-3" data-testid="matrix-preview-banner">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#a3e635]">Broker preview · nothing is saved</p>
+        <p className="mt-0.5 text-xs text-[#9db3a6]">
+          You are previewing exactly what an agent sees and is scored on. No attempt, submission, or
+          credential is recorded, and no agent&rsquo;s progress is touched. Reset any time.
+        </p>
+      </div>
+      {content}
+    </div>
   );
 }
 
@@ -153,18 +166,20 @@ function ExerciseForm({ ring }: { ring: ReturnType<typeof useMatrixPractice> }) 
         ))}
 
         <div className="flex items-center gap-3 border-t border-[#13231a] pt-4">
-          <button
-            type="button"
-            onClick={() => void ring.saveDraft()}
-            disabled={ring.saving || busy}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-[#1f3a2b] px-4 text-sm font-medium text-[#9db3a6] disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" aria-hidden="true" /> {ring.saving ? "Saving…" : "Save Incomplete"}
-          </button>
+          {!ring.preview && (
+            <button
+              type="button"
+              onClick={() => void ring.saveDraft()}
+              disabled={ring.saving || busy}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-[#1f3a2b] px-4 text-sm font-medium text-[#9db3a6] disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" aria-hidden="true" /> {ring.saving ? "Saving…" : "Save Incomplete"}
+            </button>
+          )}
           <button type="submit" disabled={busy} className={`inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-semibold disabled:opacity-60 ${GREEN}`}>
-            <Send className="h-4 w-4" aria-hidden="true" /> {busy ? "Submitting…" : "Submit for Review"}
+            <Send className="h-4 w-4" aria-hidden="true" /> {busy ? "Scoring…" : ring.preview ? "Score (preview)" : "Submit for Review"}
           </button>
-          {ring.savedAt && !ring.saving && <span className="text-xs text-[#4ade80]">Draft saved</span>}
+          {!ring.preview && ring.savedAt && !ring.saving && <span className="text-xs text-[#4ade80]">Draft saved</span>}
         </div>
       </form>
     </div>
@@ -218,19 +233,22 @@ function Field({
 
 function ResultView({ ring }: { ring: ReturnType<typeof useMatrixPractice> }) {
   const r = ring.result!;
+  const preview = ring.preview;
   return (
-    <div className={`${CARD} p-6`}>
+    <div className={`${CARD} p-6`} data-testid={preview ? "matrix-preview-result" : "matrix-result"}>
       <div className="flex items-center gap-2">
         {r.passed
           ? <CheckCircle2 className="h-5 w-5 text-[#22c55e]" aria-hidden="true" />
           : <AlertTriangle className="h-5 w-5 text-[#eab308]" aria-hidden="true" />}
-        <h2 className="text-lg font-semibold text-[#E6F5EC]">Submitted for review</h2>
+        <h2 className="text-lg font-semibold text-[#E6F5EC]">{preview ? "Preview score" : "Submitted for review"}</h2>
       </div>
       <p className={`mt-2 text-3xl font-bold tabular-nums ${r.passed ? GREEN_TEXT : "text-[#eab308]"}`}>{r.scorePct}%</p>
       <p className="mt-1 text-sm text-[#9db3a6]">
-        {r.passed
-          ? "Meets the bar (≥85%, zero critical errors). A Broker of Record will review and certify."
-          : `Not yet passing${r.criticalErrorCount > 0 ? ` — ${r.criticalErrorCount} critical error(s)` : ""}. Review the coaching and try again.`}
+        {preview
+          ? `${r.passed ? "Meets the bar (≥85%, zero critical errors)." : `Below the bar${r.criticalErrorCount > 0 ? ` — ${r.criticalErrorCount} critical error(s)` : ""}.`} This is a broker preview — nothing was saved, submitted, or certified.`
+          : r.passed
+            ? "Meets the bar (≥85%, zero critical errors). A Broker of Record will review and certify."
+            : `Not yet passing${r.criticalErrorCount > 0 ? ` — ${r.criticalErrorCount} critical error(s)` : ""}. Review the coaching and try again.`}
       </p>
 
       {r.coaching.length > 0 && (
@@ -246,8 +264,31 @@ function ResultView({ ring }: { ring: ReturnType<typeof useMatrixPractice> }) {
         </div>
       )}
 
+      {preview && ring.review && ring.review.length > 0 && (
+        <div className="mt-5" data-testid="matrix-preview-answer-review">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#a3e635]">Answer review (broker only)</h3>
+          <ul className="mt-2 space-y-1.5">
+            {ring.review.map((g) => (
+              <li key={g.fieldId} className="flex flex-wrap items-center gap-x-2 text-xs">
+                {g.correct
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-[#22c55e]" aria-hidden="true" />
+                  : <AlertTriangle className="h-3.5 w-3.5 text-[#eab308]" aria-hidden="true" />}
+                <span className="text-[#c7dbcf]">{g.label}</span>
+                {!g.correct && (
+                  <span className="text-[#9db3a6]">
+                    — expected <span className="text-[#4ade80]">{String(g.expected)}</span>, got{" "}
+                    <span className="text-[#f87171]">{g.actual === "" || g.actual === null ? "(blank)" : String(g.actual)}</span>
+                  </span>
+                )}
+                {g.critical && <span className="rounded bg-[#b91c1c]/20 px-1.5 py-0.5 text-[10px] uppercase text-[#f87171]">critical</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <button type="button" onClick={() => void ring.enter()} className={`mt-6 inline-flex h-10 items-center rounded-md px-5 text-sm font-semibold ${GREEN}`}>
-        Try another
+        {preview ? "Reset preview" : "Try another"}
       </button>
     </div>
   );
