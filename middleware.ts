@@ -74,9 +74,20 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // ── STEP 2 — no session → /login ─────────────────────────────────────
+  // ── STEP 2 — no session → /login (preserving the intended destination) ─
+  // MATRIX-BROKER-ACCESS-1 — a broker deep-linked to an Agent Portal surface
+  // (e.g. the Matrix broker preview at /the-matrix/practice?preview=1) who has
+  // no AP session must land back on that surface after signing in, NOT be
+  // dropped. We carry the original in-app path as `?next=`; the /login page
+  // forwards it and /api/login honours it ONLY as a strictly same-origin AP
+  // path via safeNextPath (open-redirect safe), and ONLY for broker/admin — an
+  // agent's landing is computed server-side and ignores `next`, so this changes
+  // nothing for agents and does not weaken the default broker→Vault redirect.
   if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    const dest = pathname + request.nextUrl.search
+    if (pathname !== '/login') loginUrl.searchParams.set('next', dest)
+    return NextResponse.redirect(loginUrl)
   }
 
   // ── STEP 3 — /pending-activation is exempt from the is_active gate ───
