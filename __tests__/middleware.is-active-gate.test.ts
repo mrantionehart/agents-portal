@@ -119,8 +119,11 @@ describe("middleware · protected route without session (step 2) → /login", ()
   ])("%s with no session → redirects to /login", async (path) => {
     AUTHED_USER = null;
     const res = await middleware(req(path));
-    const loc = (res as NextResponse).headers.get("location");
-    expect(loc).toMatch(/\/login$/);
+    const loc = (res as NextResponse).headers.get("location")!;
+    // MATRIX-BROKER-ACCESS-1: the login redirect now preserves the intended
+    // destination as ?next=<path>, so assert the /login PATHNAME (not an exact
+    // tail). The dedicated middleware.login-next suite covers the next value.
+    expect(new URL(loc).pathname).toBe("/login");
   });
 });
 
