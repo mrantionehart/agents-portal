@@ -324,3 +324,74 @@ describe('[A4-OFF] enforcement off: dismissible, blocks nothing', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
+
+describe('[A4-ONCE] each version once; the server record is the only proof', () => {
+  it('[A4-ONCE1] acknowledged on the server → no prompt after refresh, sign-out/sign-in or another device (fresh mounts)', async () => {
+    const setItem = jest.spyOn(Storage.prototype, 'setItem')
+    requiredReplies = [{ status: 200, body: { required: [] } }]
+    for (let i = 0; i < 3; i++) {
+      const { unmount } = render(<PolicyGateMount />)
+      await waitFor(() => expect(requiredCalls()).toBe(i + 1))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      unmount()
+    }
+    expect(setItem).not.toHaveBeenCalled()
+    setItem.mockRestore()
+  })
+
+  it('[A4-ONCE2] after a recorded acknowledgment, the next session asks the server and shows nothing', async () => {
+    requiredReplies = [
+      { status: 200, body: { required: [POLICY] } },
+      { status: 200, body: { required: [] } },
+    ]
+    acceptReplies = [{ status: 201, body: { ok: true } }]
+    const first = render(<PolicyGate />)
+    fireEvent.click(await screen.findByRole('checkbox', { name: /I have read and acknowledge/ }))
+    fireEvent.click(ackButton())
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    first.unmount()
+    render(<PolicyGate />)
+    await waitFor(() => expect(requiredCalls()).toBe(3))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(window.localStorage.length).toBe(0)
+  })
+
+  it('[A4-ONCE3] a localStorage "accepted" flag does not hide a version the server says is owed', async () => {
+    window.localStorage.setItem('policy_acceptance', JSON.stringify({ [POLICY.id]: true, accepted: true }))
+    requiredReplies = [{ status: 200, body: { required: [POLICY] } }]
+    render(<PolicyGate />)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('[A4-NAV] a failed check never interrupts navigation', () => {
+  it('[A4-NAV1] the error is a non-modal alert; the page stays usable; navigating does not re-ask or re-open', async () => {
+    requiredReplies = [{ status: 503, body: { required: null, failClosed: true } }]
+    const onClick = jest.fn()
+    const view = render(<><button onClick={onClick}>Open deal</button><PolicyGateMount /></>)
+    expect(await screen.findByTestId('policy-gate-error')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open deal' }))
+    expect(onClick).toHaveBeenCalledTimes(1)
+    for (const p of ['/transactions', '/clients', '/home']) {
+      mockPathname = p
+      view.rerender(<><button onClick={onClick}>Open deal</button><PolicyGateMount /></>)
+    }
+    await new Promise((r) => setTimeout(r, 0))
+    expect(requiredCalls()).toBe(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('[A4-NAV2] an owed prompt dismissed with "Remind me later" stays collapsed while navigating', async () => {
+    requiredReplies = [{ status: 200, body: { required: [POLICY] } }]
+    const view = render(<PolicyGateMount />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Remind me later' }))
+    for (const p of ['/transactions', '/clients']) {
+      mockPathname = p
+      view.rerender(<PolicyGateMount />)
+    }
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('policy-gate-banner')).toBeInTheDocument()
+    expect(requiredCalls()).toBe(1)
+  })
+})
