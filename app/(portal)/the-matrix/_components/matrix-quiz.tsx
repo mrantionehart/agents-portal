@@ -28,6 +28,12 @@ import {
 } from "@/src/portal/training/certified/api";
 import { describeQuizContractProblem } from "@/src/portal/training/certified/quiz/QuizPageClient";
 import type { LearnerSafeQuiz, QuizAttemptResponse } from "@/src/portal/training/certified/types";
+import {
+  previewFetchQuiz,
+  previewSubmitQuiz,
+  type PreviewQuiz,
+  type PreviewQuizResult,
+} from "@/lib/matrix/vault-matrix-client";
 import { matrixSimulatorEnabled } from "../_lib/matrix-flags";
 
 // Stable public certification + lesson ids (Vault is the source of truth).
@@ -44,7 +50,12 @@ type Phase =
   | { kind: "ready"; quiz: LearnerSafeQuiz }
   | { kind: "submitted"; quiz: LearnerSafeQuiz; result: QuizAttemptResponse };
 
-export function MatrixKnowledgeQuiz() {
+export function MatrixKnowledgeQuiz({ preview = false }: { preview?: boolean } = {}) {
+  if (preview) return <MatrixQuizPreview />;
+  return <MatrixQuizLearner />;
+}
+
+function MatrixQuizLearner() {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -362,6 +373,163 @@ function ResultView({
         >
           Back to Matrix Simulator
         </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Broker preview (write-nothing) ───────────────────────────────────────────
+// Same 20-question check an agent takes, graded by the SAME Vault grader via
+// the broker-tier preview endpoints — but NOTHING is recorded (no quiz result,
+// no issuance), and a per-question answer review is shown (broker only). No
+// live Matrix assignment is required: this is the broker's own preview.
+function MatrixQuizPreview() {
+  const [quiz, setQuiz] = useState<PreviewQuiz | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<PreviewQuizResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setError(null);
+    setResult(null);
+    setAnswers({});
+    try {
+      const res = await previewFetchQuiz();
+      setQuiz(res.quiz);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The quiz could not be loaded.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!matrixSimulatorEnabled()) return;
+    void load();
+  }, [load]);
+
+  const submit = useCallback(async () => {
+    if (!quiz || !quiz.questions.every((q) => answers[q.id])) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await previewSubmitQuiz(answers));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submission failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [quiz, answers]);
+
+  if (!matrixSimulatorEnabled()) {
+    return (
+      <div className={`${CARD} p-6`}>
+        <h2 className="text-base font-semibold text-[#E6F5EC]">Matrix Knowledge Quiz</h2>
+        <p className="mt-2 text-sm text-[#9db3a6]">Coming soon — the written knowledge check.</p>
+      </div>
+    );
+  }
+
+  const Banner = (
+    <div className="rounded-lg border border-[#2a4a16] bg-[#131f0a] px-4 py-3" data-testid="matrix-quiz-preview-banner">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#a3e635]">Broker preview · nothing is saved</p>
+      <p className="mt-0.5 text-xs text-[#9db3a6]">The same knowledge check an agent takes, graded the same way. No attempt or result is recorded.</p>
+    </div>
+  );
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        {Banner}
+        <div className={`${CARD} p-6`} role="alert" data-testid="matrix-quiz-preview-error">
+          <p className="text-sm text-[#9db3a6]">{error}</p>
+          <button type="button" onClick={() => void load()} className="mt-4 rounded bg-[#22c55e] px-4 py-2 text-sm font-semibold text-[#04120a]">Try again</button>
+        </div>
+      </div>
+    );
+  }
+  if (!quiz) {
+    return (
+      <div className="space-y-4">
+        {Banner}
+        <div className={`${CARD} flex items-center gap-3 p-6`}>
+          <Loader2 className="h-5 w-5 animate-spin text-[#22c55e]" aria-hidden="true" />
+          <p className="text-sm text-[#9db3a6]">Loading the knowledge quiz…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (result) {
+    const byId = new Map(result.quiz.questions.map((q) => [q.id, q]));
+    return (
+      <div className="space-y-5" data-testid="matrix-quiz-preview-result">
+        {Banner}
+        <div className={`rounded-lg border p-5 ${result.result.passed ? "border-green-500/30 bg-green-500/10" : "border-amber-500/30 bg-amber-500/10"}`}>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-[#E6F5EC]">
+            {result.result.passed ? <CheckCircle2 className="h-4 w-4 text-[#4ade80]" aria-hidden="true" /> : <XCircle className="h-4 w-4 text-amber-300" aria-hidden="true" />}
+            {result.result.passed ? "Would pass" : "Would not pass"}
+          </div>
+          <div className="mt-1 text-2xl font-semibold text-[#E6F5EC]">{result.result.scorePercent}%</div>
+          <p className="mt-1 text-xs text-[#9db3a6]">{result.result.correctCount} of {result.result.totalCount} correct · preview — nothing recorded</p>
+        </div>
+        <div data-testid="matrix-quiz-preview-answer-review">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#a3e635]">Answer review (broker only)</h3>
+          <ol className="mt-2 space-y-2">
+            {result.review.map((rv, idx) => {
+              const q = byId.get(rv.id);
+              const label = (oid: string | null) => q?.options.find((o) => o.id === oid)?.label ?? "(none)";
+              return (
+                <li key={rv.id} className={`${CARD} p-3`}>
+                  <div className="flex items-start gap-2">
+                    {rv.correct ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#4ade80]" aria-hidden="true" /> : <XCircle className="mt-0.5 h-4 w-4 text-[#f87171]" aria-hidden="true" />}
+                    <div className="text-sm text-[#E6F5EC]">Q{idx + 1}. {q?.prompt}</div>
+                  </div>
+                  <p className="mt-1 pl-6 text-xs text-[#9db3a6]">Correct: <span className="text-[#4ade80]">{label(rv.correctOptionId)}</span></p>
+                  {!rv.correct && <p className="pl-6 text-xs text-[#9db3a6]">Chose: <span className="text-[#f87171]">{label(rv.chosenOptionId)}</span></p>}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        <div className="flex justify-end">
+          <button type="button" onClick={() => void load()} className="rounded bg-[#22c55e] px-4 py-2 text-sm font-semibold text-[#04120a]" data-testid="matrix-quiz-preview-reset">Reset preview</button>
+        </div>
+      </div>
+    );
+  }
+
+  const allAnswered = quiz.questions.every((q) => answers[q.id]);
+  return (
+    <div className="space-y-6" data-testid="matrix-quiz-preview-active">
+      {Banner}
+      <header className={`${CARD} p-5`}>
+        <div className="flex items-center gap-2 text-[#4ade80]"><GraduationCap className="h-4 w-4" aria-hidden="true" /><span className="text-[11px] uppercase tracking-wide">Knowledge Quiz</span></div>
+        <h2 className="mt-1 text-lg font-semibold text-[#E6F5EC]">{quiz.title}</h2>
+        <p className="mt-1 text-xs text-[#9db3a6]">{quiz.questions.length} questions · preview</p>
+      </header>
+      <ol className="space-y-4">
+        {quiz.questions.map((q, idx) => (
+          <li key={q.id} className={`${CARD} p-4`} data-matrix-quiz-preview-question={q.id}>
+            <div className="text-[11px] uppercase tracking-wide text-[#6b8577]">Question {idx + 1}</div>
+            <div className="mt-1 text-sm font-medium text-[#E6F5EC]">{q.prompt}</div>
+            <ul className="mt-3 space-y-2">
+              {q.options.map((opt) => (
+                <li key={opt.id}>
+                  <label className="flex cursor-pointer items-start gap-2 rounded border border-[#13231a] bg-[#070b08] p-2 hover:border-[#22c55e]/40">
+                    <input type="radio" name={`mqp-${q.id}`} value={opt.id} checked={answers[q.id] === opt.id} onChange={() => setAnswers((p) => ({ ...p, [q.id]: opt.id }))} disabled={busy} className="mt-1 h-4 w-4 accent-[#22c55e]" />
+                    <span className="text-sm text-[#E6F5EC]">{opt.label}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-[#6b8577]">{quiz.questions.filter((q) => answers[q.id]).length}/{quiz.questions.length} answered</span>
+        <button type="button" onClick={() => void submit()} disabled={busy || !allAnswered} className="rounded bg-[#22c55e] px-4 py-2 text-sm font-semibold text-[#04120a] disabled:cursor-not-allowed disabled:opacity-60" data-testid="matrix-quiz-preview-submit">
+          {busy ? "Scoring…" : "Score (preview)"}
+        </button>
       </div>
     </div>
   );

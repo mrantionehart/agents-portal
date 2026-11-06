@@ -196,3 +196,83 @@ export function enrollMatrixLearner(
     }),
   );
 }
+
+// ── Broker PREVIEW (write-nothing) ───────────────────────────────────────────
+// A broker runs the SAME quiz + practicals an agent runs, scored by the SAME
+// Vault functions, but NOTHING is persisted (broker-tier endpoints that touch
+// no matrix_sim_* table, no credential). Isolated + resettable by construction.
+// These never send a learnerId/tenant/score — Vault derives + decides.
+
+export interface PreviewFieldGrade {
+  fieldId: string;
+  label: string;
+  expected: MatrixFieldValue;
+  actual: MatrixFieldValue | "" | null;
+  correct: boolean;
+  critical: boolean;
+}
+export interface PreviewSubmitResult {
+  preview: true;
+  scorePct: number;
+  passed: boolean;
+  criticalErrorCount: number;
+  coaching: CoachingItem[];
+  review: PreviewFieldGrade[];
+}
+export interface PreviewQuizQuestion {
+  id: string;
+  kind: string;
+  prompt: string;
+  options: { id: string; label: string }[];
+}
+export interface PreviewQuiz {
+  quizId: string;
+  quizVersion: string;
+  title: string;
+  instructions?: string;
+  questions: PreviewQuizQuestion[];
+}
+export interface PreviewQuizReviewItem {
+  id: string;
+  prompt: string;
+  correctOptionId: string;
+  chosenOptionId: string | null;
+  correct: boolean;
+}
+export interface PreviewQuizResult {
+  preview: true;
+  result: {
+    quizId: string;
+    quizVersion: string;
+    totalCount: number;
+    correctCount: number;
+    scorePercent: number;
+    passed: boolean;
+    outcome?: string;
+  };
+  review: PreviewQuizReviewItem[];
+  quiz: PreviewQuiz;
+}
+
+/** Broker-tier practical preview: build an exercise (no attempt row). */
+export function previewPrepareExercise(scenarioId?: string): Promise<PreparedExercise> {
+  return matrixRequest(
+    "/matrix-sim/preview/prepare",
+    jsonInit("POST", scenarioId ? { scenarioId } : undefined),
+  );
+}
+/** Broker-tier practical preview: validate + score the posted values. No writes. */
+export function previewSubmit(
+  scenarioId: string,
+  values: Record<string, MatrixFieldValue | "">,
+): Promise<PreviewSubmitResult> {
+  return matrixRequest("/matrix-sim/preview/submit", jsonInit("POST", { scenarioId, values }));
+}
+/** Broker-tier quiz preview: learner-safe questions (no answer key). */
+export function previewFetchQuiz(): Promise<{ quiz: PreviewQuiz; mode: "preview" }> {
+  return matrixRequest("/matrix-sim/preview/quiz", { method: "GET" });
+}
+/** Broker-tier quiz preview: grade + broker answer review. No writes, no issuance. */
+export function previewSubmitQuiz(answers: Record<string, string>): Promise<PreviewQuizResult> {
+  return matrixRequest("/matrix-sim/preview/quiz/attempt", jsonInit("POST", { answers }));
+}
