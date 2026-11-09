@@ -159,7 +159,7 @@ export default function CommissionCalculatorPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
-                    Transaction Fee <span className="text-gray-400 text-xs">Optional</span>
+                    Residential Sales Fee <span className="text-gray-400 text-xs">Signed terms control</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">$</span>
@@ -167,11 +167,21 @@ export default function CommissionCalculatorPage() {
                       type="number"
                       value={transactionFee}
                       onChange={(e) => setTransactionFee(Number(e.target.value))}
-                      placeholder="e.g. 395"
+                      placeholder="295 — unless a signed exception applies"
                       className="flex-1 px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">Flat fee deducted from your commission</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Prospective new-agent residential sales: $295 per completed closing, before and
+                    after cap. Fees are deducted after split and excluded from cap contributions.
+                    Signed $0 or custom-fee exceptions control; existing executed agreements remain unchanged.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Residential leases: lesser of $195 or 20% of the agent’s post-referral,
+                    post-split share. This illustrative calculator does not apply lease rules,
+                    agent-specific annual thresholds or post-cap splits, or verify signed-plan authority.
+                    It is not a payout authorization.
+                  </p>
                 </div>
               </div>
             </div>
