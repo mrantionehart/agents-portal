@@ -84,6 +84,10 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   // the icon union is closed, and widening it is a bigger change than this
   // entry deserves.
   { id: "developer-opportunities", label: "Developer Opportunities", icon: "building-2", href: "/developer-opportunities" },
+  // DEAL-DISPO-AGENTS — off-market dispo deals the broker distributed to this
+  // agent, served entirely by Vault. Directly after Developer Opportunities,
+  // its sibling; agent-visible, not legacy, and NOT the old /opportunities.
+  { id: "deal-opportunities", label: "Deal Opportunities", icon: "building-2", href: "/deal-opportunities" },
   { id: "ai",           label: "AI",            icon: "sparkles",        href: "/ai" },
   { id: "calendar",     label: "Calendar",      icon: "calendar",        href: "/calendar" },
   { id: "meetings",     label: "Meetings",      icon: "calendar-clock",  href: "/meetings" },
