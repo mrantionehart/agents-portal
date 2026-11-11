@@ -57,6 +57,10 @@ const ERR: Record<string, string> = {
   message_required: "Write your question first.",
   not_found: "This opportunity is no longer available to you.",
   license_not_verified: "Your licence has not been verified yet, so deal opportunities are not available.",
+  license_expired: "Your licence is past its expiration date, so deal opportunities are not available.",
+  role_not_entitled: "Deal Opportunities are for agents. Brokers manage and publish deals in Vault → Acquisition → Deal Dispo.",
+  profile_inactive: "Your profile is not active, so deal opportunities are not available.",
+  profile_deleted: "Your profile is not active, so deal opportunities are not available.",
 };
 const errText = (e: unknown) =>
   e instanceof DealOpportunityApiError

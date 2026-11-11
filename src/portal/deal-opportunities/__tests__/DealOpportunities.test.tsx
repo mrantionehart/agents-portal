@@ -146,6 +146,11 @@ describe('a denied agent', () => {
     expect(await screen.findByTestId('deal-opp-error')).toHaveTextContent('no longer available')
     expect(screen.queryByTestId('deal-opp-respond')).toBeNull()
   })
+  it('a broker opening the agent page is told where they work instead', async () => {
+    vault({ listStatus: 403, listCode: 'role_not_entitled' })
+    render(<DealOpportunities />)
+    expect(await screen.findByTestId('deal-opps-error')).toHaveTextContent('Brokers manage and publish deals in Vault')
+  })
   it('nothing assigned → the empty state', async () => {
     mockFetch.mockImplementation(() => ok({ opportunities: [] }))
     render(<DealOpportunities />)
