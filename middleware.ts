@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ACTIVE_PROFILE_SELECT, isActiveProfile } from '@/lib/security/activeProfile'
+import { previewMutationBlockedServer } from '@/lib/security/broker-preview'
 
 // ── Middleware: authentication + account-standing gate ─────────────────
 //
@@ -117,6 +118,20 @@ export async function middleware(request: NextRequest) {
 
   if (!isActive) {
     return NextResponse.redirect(new URL('/pending-activation', request.url))
+  }
+
+  // ── STEP 4.5 — Broker Preview Mode: server-enforced read-only ─────────
+  // A validated preview context (signed, broker-bound cookie) makes the whole
+  // AP session read-only. This covers PAGE routes and SERVER ACTIONS / form
+  // POSTs (the matcher excludes /api; those are clamped in withAuth). A mutation
+  // under a present preview context is refused (403), fail-closed on a tampered
+  // context — and it cannot be escaped by removing ?preview or editing
+  // sessionStorage, because the httpOnly cookie persists.
+  if (previewMutationBlockedServer(request, user.id)) {
+    return NextResponse.json(
+      { error: 'Broker Preview Mode is read-only', code: 'preview_read_only' },
+      { status: 403 },
+    )
   }
 
   // ── STEP 5 — active → proceed ────────────────────────────────────────

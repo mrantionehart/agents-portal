@@ -33,6 +33,7 @@ import { createClient, User, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { ACTIVE_PROFILE_SELECT, isActiveProfile } from './activeProfile'
+import { previewMutationBlockedServer } from './broker-preview'
 
 export type AuthedUser = User
 
@@ -41,12 +42,20 @@ const INACTIVE_BODY = {
   error: 'Account inactive',
   code: 'inactive_account',
 } as const
+const PREVIEW_READONLY_BODY = {
+  error: 'Broker Preview Mode is read-only',
+  code: 'preview_read_only',
+} as const
 
 // Build a fresh NextResponse on every call — Sprint 5A lesson learned;
 // module-scope responses have their body stream consumed on first read.
 const unauthorized = () => NextResponse.json(UNAUTHORIZED_BODY, { status: 401 })
 const forbiddenInactive = () =>
   NextResponse.json(INACTIVE_BODY, { status: 403 })
+// Server-enforced read-only clamp for a validated Broker Preview context. 403,
+// fail-closed on tampered context. Applies to EVERY mutating API route through
+// this wrapper — the central seam, not a per-route opt-in.
+const previewReadOnly = () => NextResponse.json(PREVIEW_READONLY_BODY, { status: 403 })
 
 /**
  * Extract the authenticated user from a request. Returns null if no valid
@@ -153,6 +162,7 @@ export async function requireAuth(
   if (!user) return { response: unauthorized() }
   const active = await readCallerIsActive(request, user.id)
   if (!active) return { response: forbiddenInactive() }
+  if (previewMutationBlockedServer(request, user.id)) return { response: previewReadOnly() }
   return { user }
 }
 
@@ -221,6 +231,7 @@ export function withAuth<P = unknown>(
     if (!user) return unauthorized()
     const active = await readCallerIsActive(request, user.id)
     if (!active) return forbiddenInactive()
+    if (previewMutationBlockedServer(request, user.id)) return previewReadOnly()
     return handler(request, { user, params: route?.params })
   }
 }

@@ -25,7 +25,7 @@ import { TourRunner } from "@/src/portal/tour/TourRunner";
 import { BrokerPreviewBanner } from "@/src/portal/preview/BrokerPreviewBanner";
 import {
   brokerPreviewEnabled,
-  isBrokerTierRole,
+  isBrokerOfRecord,
   isPreviewActive,
   markPreviewActive,
 } from "@/src/portal/preview/preview-state";
@@ -54,7 +54,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   // flag is set, so the read-only clamp never blocks the audit itself.
   useEffect(() => {
     if (loading || !user || !brokerPreviewEnabled()) return;
-    if (!isBrokerTierRole(role)) return;
+    if (!isBrokerOfRecord(role)) return; // Broker of Record ONLY (role-exact broker)
     let paramSet = false;
     try {
       paramSet = new URLSearchParams(window.location.search).get("preview") === "1";
@@ -62,15 +62,27 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       paramSet = false;
     }
     if (!isPreviewActive() && paramSet) {
-      // First entry: record access (best-effort), then activate the clamp.
-      authFetch("/api/broker/preview-session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ surface: window.location.pathname }),
-      }).catch(() => {});
-      markPreviewActive();
+      // First entry: mint the SERVER preview context (sets the httpOnly cookie +
+      // audits, BoR-gated server-side) and store the returned token for this tab.
+      // Runs BEFORE the client flag is set, so the clamp never blocks this call.
+      (async () => {
+        try {
+          const res = await authFetch("/api/broker/preview-session", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ surface: window.location.pathname }),
+          });
+          const body = (await res.json().catch(() => null)) as { token?: string | null } | null;
+          if (body?.token) {
+            markPreviewActive(body.token);
+            setPreviewActive(true);
+          }
+        } catch {
+          /* mint failed — stay out of preview rather than a half-on state */
+        }
+      })();
     }
-    if (paramSet || isPreviewActive()) setPreviewActive(true);
+    if (isPreviewActive()) setPreviewActive(true);
   }, [loading, user, role]);
 
   // ⌘K opens the command bar.

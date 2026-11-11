@@ -20,11 +20,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/server-auth'
 import { adminClient } from '@/lib/security'
+import {
+  brokerPreviewEnabled,
+  signPreviewToken,
+  PREVIEW_COOKIE,
+  PREVIEW_TTL_MS,
+} from '@/lib/security/broker-preview'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminRole()
+  // Dark until activated.
+  if (!brokerPreviewEnabled()) {
+    return NextResponse.json({ ok: false, error: 'Not available' }, { status: 404 })
+  }
+  // BoR-ONLY: role-exact `broker`. Emily (office_manager) and admins are NOT
+  // admitted — Broker Preview Agent View is the Broker of Record's alone.
+  const auth = await requireAdminRole(['broker'])
   if (auth instanceof NextResponse) return auth
 
   let surface: string | null = null
@@ -67,5 +79,23 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  return NextResponse.json({ ok: true })
+  // Mint the SERVER authority: a signed, broker-bound, short-lived preview
+  // token. Set httpOnly (server-enforced, survives ?preview / sessionStorage
+  // edits — can't be escaped client-side) AND return it so the client can
+  // forward it as x-broker-preview to Vault-direct calls. null if no signing
+  // secret configured → the feature stays inert.
+  const token = signPreviewToken(auth.userId, tenantId)
+  const res = NextResponse.json({ ok: true, token: token ?? null })
+  if (token) {
+    res.cookies.set({
+      name: PREVIEW_COOKIE,
+      value: token,
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: Math.floor(PREVIEW_TTL_MS / 1000),
+    })
+  }
+  return res
 }
