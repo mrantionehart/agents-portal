@@ -21,6 +21,11 @@ import { VAULT_API_URL } from "@/lib/vault-client";
  *  pass it explicitly so the intent is legible and stable. */
 export const ACQUISITION_CERTIFICATION_ID = "hartfelt-holdings-acquisition-certified";
 
+/** The Listing Agent Ring program (FSBO / Divorce / Relocation and the rest of
+ *  the listing-conversation library). Passed explicitly so Listing practice is
+ *  NEVER the Acquisition default. Mirrors Vault's LISTING_CERTIFICATION_ID. */
+export const LISTING_CERTIFICATION_ID = "hartfelt-real-estate-listing-agent-certified";
+
 /** A Vault Ring API error. `notEnabled` is true when the route answered 404 with
  *  an empty body — the Vault feature flag is dark (text practice / assessment),
  *  which the UI renders as an honest "not available yet" state, NOT a crash. */
@@ -164,8 +169,14 @@ export interface StartAssessmentResult {
 export function prepareText(
   certificationId: string,
   level: RingLevel | null,
+  /** A learner-chosen scenario (a theme/tile pick). Omitted → the level
+   *  rotation, unchanged. Vault validates it is callable for this program. */
+  scenarioId?: string | null,
 ): Promise<TextPrepareResult> {
-  return ringRequest("/simulation/text/prepare", jsonInit("POST", { level, certificationId }));
+  return ringRequest(
+    "/simulation/text/prepare",
+    jsonInit("POST", { level, certificationId, ...(scenarioId ? { scenarioId } : {}) }),
+  );
 }
 
 export function beginText(certificationId: string, sessionId: string): Promise<TextBeginResult> {
