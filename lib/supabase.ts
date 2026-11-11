@@ -1,6 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { User } from '@supabase/supabase-js'
 
+import { previewBlocksRequest, PreviewReadOnlyError } from '@/src/portal/preview/preview-state'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -132,6 +134,16 @@ export async function authFetch(
   options: RequestInit = {},
   timeoutMs = 8000
 ): Promise<Response> {
+  // Broker Preview Mode read-only clamp. The SINGLE client chokepoint for
+  // agent-facing mutations (Ring/Matrix/Dev-Opps clients + component writes all
+  // wrap authFetch), so blocking non-GET here neutralises every write — including
+  // the Vault-direct calls AP cannot block server-side. Only the isolated Ring
+  // roleplay practice paths are permitted (safe interactive testing). No-op
+  // unless this tab is an active broker preview tab AND the capability is enabled.
+  if (previewBlocksRequest(options.method, url)) {
+    throw new PreviewReadOnlyError();
+  }
+
   // Overall bound so a hung network / refresh can never leave the caller stuck.
   // `timeoutMs` is overridable for long server operations (e.g. AGENT.SIGN.2C
   // "Send via My DocuSign" runs generate + Aspose flatten + a DocuSign API call,
