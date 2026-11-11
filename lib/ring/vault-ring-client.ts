@@ -262,8 +262,15 @@ export interface VoiceTranscript {
 export function prepareVoice(
   certificationId: string,
   level: RingLevel | null,
+  /** A learner-chosen scenario (a Listing theme/tile pick). Omitted → the level
+   *  rotation, unchanged (the body is byte-identical to before). Vault validates
+   *  it is callable for this program (RING-VOICE-THEME-1). */
+  scenarioId?: string | null,
 ): Promise<VoicePrepareResult> {
-  return ringRequest("/simulation/practice/prepare", jsonInit("POST", { level, certificationId }));
+  return ringRequest(
+    "/simulation/practice/prepare",
+    jsonInit("POST", scenarioId ? { level, certificationId, scenarioId } : { level, certificationId }),
+  );
 }
 
 /** Mint the provider call. Call ONLY after the microphone is granted — the Vault

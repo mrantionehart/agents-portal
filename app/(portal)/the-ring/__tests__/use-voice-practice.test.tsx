@@ -83,6 +83,14 @@ it("prepare moves to briefing with the session", async () => {
   expect(client.prepareVoice).toHaveBeenCalledWith("cert-acq", 2);
 });
 
+it("a Listing tile pick threads its scenarioId into voice prepare (RING-VOICE-THEME-1)", async () => {
+  client.prepareVoice.mockResolvedValue({ sessionId: "s2", scenarioLabel: "Relocation", reused: false, level: 3 });
+  const { result } = renderHook(() => useVoicePractice("cert-lst"));
+  await act(async () => { await result.current.enter(3, "lst-s26-relocation-distressed"); });
+  expect(result.current.phase).toBe("briefing");
+  expect(client.prepareVoice).toHaveBeenCalledWith("cert-lst", 3, "lst-s26-relocation-distressed");
+});
+
 it("startCall runs mic → join → connect and goes live on call_started", async () => {
   client.prepareVoice.mockResolvedValue({ sessionId: "s1", scenarioLabel: "L", reused: false, level: null });
   client.joinVoice.mockResolvedValue({ sessionId: "s1", accessToken: "tok", scenarioLabel: "L", reused: false, callId: "c1" });

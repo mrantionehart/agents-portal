@@ -20,8 +20,9 @@ jest.mock("../_lib/use-text-practice", () => ({
     begin: jest.fn(),
   }),
 }));
+const mockVoiceEnter = jest.fn();
 jest.mock("../_lib/use-voice-practice", () => ({
-  useVoicePractice: () => ({ phase: "idle", callState: "ready", callCopy: "", session: null, enter: jest.fn() }),
+  useVoicePractice: () => ({ phase: "idle", callState: "ready", callCopy: "", session: null, enter: mockVoiceEnter }),
 }));
 jest.mock("@/lib/ring/vault-ring-client", () => ({
   ACQUISITION_CERTIFICATION_ID: "hartfelt-holdings-acquisition-certified",
@@ -37,6 +38,7 @@ const VOICE_FLAG = "NEXT_PUBLIC_RING_VOICE_PRACTICE_ENABLED";
 const prevVoice = process.env[VOICE_FLAG];
 afterEach(() => {
   mockEnter.mockClear();
+  mockVoiceEnter.mockClear();
   if (prevVoice === undefined) delete process.env[VOICE_FLAG];
   else process.env[VOICE_FLAG] = prevVoice;
 });
@@ -78,10 +80,39 @@ describe("Listing Ring — theme × tier picker", () => {
     expect(mockEnter).toHaveBeenCalledWith(2, "lst-s21-relocation");
   });
 
-  it("is text-only: even with the voice flag ON, no Voice/Text channel chooser appears", () => {
-    process.env[VOICE_FLAG] = "true";
+  it("voice flag OFF: no channel chooser — straight to the (text) theme picker", () => {
+    delete process.env[VOICE_FLAG];
     renderListing();
     expect(screen.queryByRole("button", { name: /voice call/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("listing-theme-picker")).toBeInTheDocument();
+  });
+
+  // RING-VOICE-THEME-1 — Vault's voice prepare now honours the tile pick.
+  it("voice flag ON: Voice Call → the same theme picker → that exact scenario on VOICE", () => {
+    process.env[VOICE_FLAG] = "true";
+    renderListing();
+    fireEvent.click(screen.getByRole("button", { name: /voice call/i }));
+    expect(screen.getByTestId("voice-theme-entry")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Divorce — Advanced" }));
+    expect(mockVoiceEnter).toHaveBeenCalledWith(3, "lst-s20-divorce-sensitive");
+    expect(mockEnter).not.toHaveBeenCalled();
+  });
+
+  it("voice flag ON: Text Conversation → theme picker → that exact scenario on TEXT", () => {
+    process.env[VOICE_FLAG] = "true";
+    renderListing();
+    fireEvent.click(screen.getByRole("button", { name: /text conversation/i }));
+    fireEvent.click(screen.getByRole("button", { name: "FSBO — Beginner" }));
+    expect(mockEnter).toHaveBeenCalledWith(1, "lst-s03-fsbo-prospecting");
+    expect(mockVoiceEnter).not.toHaveBeenCalled();
+  });
+
+  it("voice picker can switch back to text", () => {
+    process.env[VOICE_FLAG] = "true";
+    renderListing();
+    fireEvent.click(screen.getByRole("button", { name: /voice call/i }));
+    fireEvent.click(screen.getByRole("button", { name: /switch to text conversation/i }));
+    expect(screen.queryByTestId("voice-theme-entry")).not.toBeInTheDocument();
     expect(screen.getByTestId("listing-theme-picker")).toBeInTheDocument();
   });
 

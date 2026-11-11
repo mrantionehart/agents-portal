@@ -36,9 +36,10 @@ export interface RingExperienceProps {
   /**
    * When present, the idle phase offers a conversation-type × difficulty picker
    * (e.g. FSBO / Divorce / Relocation × Beginner / Intermediate / Advanced) and
-   * each tile starts that specific scenario. Text channel only — the chosen
-   * scenario is threaded through text prepare. Omitted → the standard single
-   * "Start Practice" entry (Acquisition is unchanged).
+   * each tile starts that specific scenario, on whichever channel the learner
+   * chose (RING-VOICE-THEME-1: Vault's voice prepare honours the pick too).
+   * Omitted → the standard single "Start Practice" entry (Acquisition is
+   * unchanged).
    */
   readonly themes?: readonly ListingTheme[];
 }
@@ -57,9 +58,9 @@ type Channel = "text" | "voice";
  * slice (voice-certification is a separate, later authorization).
  */
 export function RingExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assessment, themes }: RingExperienceProps) {
-  // Themed practice (theme × tier picker) is text-only — the chosen scenario is
-  // threaded through text prepare — so it skips the voice/text channel chooser.
-  const offerChooser = !assessment && !themes && voicePracticeEnabled();
+  // Themed practice (theme × tier picker) offers the same voice/text chooser:
+  // both channels thread the chosen scenario through their prepare route.
+  const offerChooser = !assessment && voicePracticeEnabled();
   const [channel, setChannel] = useState<Channel | null>(offerChooser ? null : "text");
 
   if (channel === null) {
@@ -72,7 +73,7 @@ export function RingExperience({ certificationId = ACQUISITION_CERTIFICATION_ID,
   if (channel === "voice") {
     return (
       <div className="mx-auto w-full max-w-2xl">
-        <VoiceExperience certificationId={certificationId} onSwitchChannel={() => setChannel("text")} />
+        <VoiceExperience certificationId={certificationId} themes={themes} onSwitchChannel={() => setChannel("text")} />
       </div>
     );
   }
@@ -476,14 +477,30 @@ function ResultsView({
 
 function VoiceExperience({
   certificationId,
+  themes,
   onSwitchChannel,
 }: {
   certificationId: string;
+  themes?: readonly ListingTheme[];
   onSwitchChannel: () => void;
 }) {
   const ring = useVoicePractice(certificationId);
 
   if (ring.phase === "idle") {
+    if (themes && themes.length > 0) {
+      return (
+        <div data-testid="voice-theme-entry">
+          <ThemePicker themes={themes} busy={false} onPick={(tile) => void ring.enter(tile.level, tile.scenarioId)} />
+          <button
+            type="button"
+            onClick={onSwitchChannel}
+            className="mt-3 text-xs text-[#A1A1AA] underline hover:text-[#F1F1F3]"
+          >
+            Switch to text conversation
+          </button>
+        </div>
+      );
+    }
     return <VoiceEntryView onStart={() => void ring.enter(null)} onSwitchChannel={onSwitchChannel} />;
   }
   if (ring.phase === "preparing") {
