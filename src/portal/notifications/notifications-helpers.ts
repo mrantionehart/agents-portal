@@ -219,6 +219,8 @@ function isSafeInternalUrl(url: string): boolean {
     "/settings",
     // AP-FOLLOWUPS-1 — My Follow-Ups.
     "/follow-ups",
+    // DEAL-DISPO-AGENTS — Vault's publish notice links `/deal-opportunities?id=`.
+    "/deal-opportunities",
   ];
   return ALLOWED_PREFIXES.some((p) => url === p || url.startsWith(p + "/") || url.startsWith(p + "?"));
 }
