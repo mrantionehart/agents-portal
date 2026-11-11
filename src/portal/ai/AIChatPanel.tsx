@@ -23,6 +23,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 
+import AskPanel from "./AskPanel";
+import { useAskEnabled } from "./use-ask-enabled";
+
 import { supabase } from "@/lib/supabase";
 
 interface Message {
@@ -38,6 +41,7 @@ export interface AIChatPanelProps {
   /** Optional transaction context. When null, the payload omits
    *  context.transaction_id. */
   transactionId: string | null;
+  initialMode?: "chat" | "ask";
   /** Optional initial prompt to pre-fill the input. Used by the
    *  CommandBar to seed prompts. The user must still press Send. */
   seedPrompt?: string;
@@ -51,9 +55,12 @@ export interface AIChatPanelHandle {
 }
 
 const AIChatPanel = forwardRef<AIChatPanelHandle, AIChatPanelProps>(function AIChatPanel(
-  { transactionId, seedPrompt, greeting },
+  { transactionId, seedPrompt, greeting, initialMode = "chat" },
   ref
 ) {
+  const askEnabled = useAskEnabled();
+  const [mode, setMode] = useState(initialMode);
+  const showAsk = askEnabled && mode === "ask";
   const defaultGreeting =
     transactionId
       ? "I have this transaction's full paperwork state from Vault. Ask me what's blocking it, what's missing, or whether it's ready for broker review."
@@ -180,6 +187,11 @@ const AIChatPanel = forwardRef<AIChatPanelHandle, AIChatPanelProps>(function AIC
         </span>
       </header>
 
+      {askEnabled && <nav aria-label="AI mode" className="flex gap-3 px-4 py-2 text-sm text-[#F1F1F3]">
+        <button type="button" aria-pressed={!showAsk} onClick={() => setMode("chat")}>Chat</button>
+        <button type="button" aria-pressed={showAsk} onClick={() => setMode("ask")}>Ask HartFelt AI</button>
+      </nav>}
+      {showAsk ? <AskPanel /> : <>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
         {messages.map((m, i) => (
           <div
@@ -238,6 +250,7 @@ const AIChatPanel = forwardRef<AIChatPanelHandle, AIChatPanelProps>(function AIC
         send envelopes, approve paperwork, or finalize the package — every
         sensitive action still flows through Vault.
       </div>
+      </>}
     </div>
   );
 });
