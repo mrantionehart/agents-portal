@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { VAULT_API_URL } from "@/lib/vault-client";
+import { OnboardingChecklist, type OnboardingStep } from "./OnboardingChecklist";
 
 // ============================================================================
 // /pending-activation — invitee-facing "you're not active yet" page
@@ -62,6 +64,42 @@ async function loadProfile(): Promise<{
   }
 }
 
+// The agent's own steps from Vault. Any failure → null, and the page falls
+// back to its plain copy: the checklist is help, never a gate.
+async function loadSteps(): Promise<OnboardingStep[] | null> {
+  try {
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set() {},
+          remove() {},
+        } as unknown as {
+          get: (n: string) => string | undefined;
+          set: (n: string, v: string, o: CookieOptions) => void;
+          remove: (n: string, o: CookieOptions) => void;
+        },
+      }
+    );
+    const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+    if (!token) return null;
+    const res = await fetch(`${VAULT_API_URL}/onboarding/my-status`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { steps?: OnboardingStep[] | null };
+    return Array.isArray(body.steps) && body.steps.length > 0 ? body.steps : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function PendingActivationPage() {
   const profile = await loadProfile();
 
@@ -90,6 +128,7 @@ export default async function PendingActivationPage() {
   // Inactive → two copy variants keyed off onboarding_status. No internal
   // pipeline details rendered.
   const inOnboarding = profile?.onboarding_status === "onboarding";
+  const steps = profile ? await loadSteps() : null;
   const body = inOnboarding
     ? "Your broker is completing your setup. Your Agent Portal will unlock once your account is activated."
     : "Your account is currently inactive. Contact your broker for assistance.";
@@ -104,6 +143,7 @@ export default async function PendingActivationPage() {
           {inOnboarding ? "You're almost there" : "Account inactive"}
         </h1>
         <p className="text-zinc-300 text-sm leading-relaxed">{body}</p>
+        {steps && <OnboardingChecklist steps={steps} />}
       </div>
     </main>
   );
