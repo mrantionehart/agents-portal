@@ -22,11 +22,29 @@ import {
   pickContinueWatching,
 } from "./helpers";
 import type {
+  HubItem,
   TrainingHubResult,
   TrainingModuleRow,
   TrainingVideoProgressRow,
   TrainingVideoRow,
 } from "./types";
+
+// The Ring is a live, agent-visible destination (sidebar `/the-ring`) that
+// authenticates into the Vault simulation engine with the agent's own session.
+// It was never surfaced inside the Training Hub, so agents looking for practice
+// under "Training" never found it. Surface it here as a static, always-present
+// card that deep-links to the existing route — no Ring code is rebuilt, the card
+// just links out, exactly like the static Script/Resource catalog entries.
+// Kept DB-independent so it shows even when training_modules fails to load.
+const RING_HUB_ITEM: HubItem = {
+  id: "training/the-ring",
+  tab: "training",
+  title: "The Ring — AI Roleplay Practice",
+  category: "Practice",
+  description:
+    "Practice live real-estate conversations with an AI counterpart and get instant coaching and scoring.",
+  open_url: "/the-ring",
+};
 
 export async function loadTrainingHub(input: {
   supabase: SupabaseClient;
@@ -57,7 +75,9 @@ export async function loadTrainingHub(input: {
     const progressRows = (progressRes.data ?? []) as TrainingVideoProgressRow[];
 
     const moduleProgress = deriveModuleProgress(videos, progressRows);
-    const training = modulesToHubItems(modules, moduleProgress);
+    // The Ring leads the Training tab as a permanent practice destination,
+    // ahead of the DB-driven video modules.
+    const training = [RING_HUB_ITEM, ...modulesToHubItems(modules, moduleProgress)];
     const continueWatching = pickContinueWatching(training);
 
     return {
@@ -71,7 +91,7 @@ export async function loadTrainingHub(input: {
     return {
       kind: "error",
       message: err instanceof Error ? err.message : "Failed to load training",
-      training: [],
+      training: [RING_HUB_ITEM],
       scripts,
       resources,
       continueWatching: null,
