@@ -24,6 +24,7 @@ import type { HubTab } from "@/src/portal/training/types";
 import { BrokerCertPreviewSection } from "@/src/portal/tour/BrokerCertPreviewSection";
 import { FinalExamEntry } from "@/src/portal/training/FinalExamEntry";
 import { BrokerExamAttemptGrants } from "@/src/portal/training/BrokerExamAttemptGrants";
+import { PdiTrainingEntry } from "@/src/portal/training/pdi/PdiTrainingEntry";
 
 export default async function TrainingHubPage({
   searchParams,
@@ -78,6 +79,7 @@ export default async function TrainingHubPage({
   return (
     <Shell>
       <FinalExamEntry />
+      <PdiTrainingEntry />
       <TrainingHubClient
         training={result.training}
         scripts={result.scripts}

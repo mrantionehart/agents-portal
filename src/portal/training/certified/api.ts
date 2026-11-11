@@ -43,7 +43,7 @@ export class CertApiError extends Error {
   }
 }
 
-async function authedFetch(
+export async function authedFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
@@ -65,7 +65,7 @@ async function authedFetch(
   });
 }
 
-async function readErrorEnvelope(res: Response, prefix: string): Promise<never> {
+export async function readErrorEnvelope(res: Response, prefix: string): Promise<never> {
   let body: unknown = null;
   try {
     body = await res.json();

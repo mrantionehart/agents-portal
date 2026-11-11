@@ -32,6 +32,16 @@ import type {
   QuizAttemptResponse,
 } from "../types";
 import { FINAL_EXAM_LESSON_ID } from "../types";
+import { pdiCourseHref, resolvePdiCertificationId } from "../../pdi/pdi-config";
+
+/**
+ * Where "back to lesson" goes. `cert` is non-null ONLY for an allowlisted PDI
+ * program (see pdi-config); the platform certification keeps its exact links.
+ */
+function lessonBackHref(cert: string | null, trackId: string | null, lessonId: string): string {
+  if (cert) return pdiCourseHref(cert);
+  return trackId ? `/training/certified/${trackId}/${lessonId}` : "/training";
+}
 
 type PhaseState =
   | { kind: "loading" }
@@ -43,6 +53,7 @@ type PhaseState =
       lesson: CertifiedLesson;
       trackId: string | null;
       lessonId: string;
+      cert: string | null;
     }
   | {
       kind: "submitted";
@@ -51,6 +62,7 @@ type PhaseState =
       trackId: string | null;
       quiz: LearnerSafeQuiz;
       lessonId: string;
+      cert: string | null;
     };
 
 function findLesson(
@@ -79,9 +91,12 @@ export default function QuizPageClient() {
       return;
     }
     try {
+      // PDI programs only (allowlisted); anything else keeps the platform
+      // certification's exact default calls.
+      const cert = resolvePdiCertificationId(search?.get("cert"));
       const [catalog, quizRes] = await Promise.all([
-        fetchCatalog(),
-        fetchLearnerSafeQuiz({ lessonId }),
+        cert ? fetchCatalog(cert) : fetchCatalog(),
+        fetchLearnerSafeQuiz(cert ? { lessonId, certificationId: cert } : { lessonId }),
       ]);
       const brief = findLesson(catalog, lessonId);
       if (!brief) {
@@ -97,6 +112,7 @@ export default function QuizPageClient() {
         lesson: brief.lesson,
         trackId: brief.trackId,
         lessonId,
+        cert,
       });
     } catch (e) {
       const msg =
@@ -142,6 +158,7 @@ export default function QuizPageClient() {
             lesson: phase.lesson,
             trackId: phase.trackId,
             lessonId: phase.lessonId,
+            cert: phase.cert,
           })
         }
       />
@@ -158,6 +175,7 @@ export default function QuizPageClient() {
           trackId: phase.trackId,
           quiz: phase.quiz,
           lessonId: phase.lessonId,
+          cert: phase.cert,
         })
       }
     />
@@ -243,7 +261,7 @@ function ActiveQuiz({
           </p>
         </div>
         <Link
-          href={`/training/certified/${trackId}/${lessonId}`}
+          href={lessonBackHref(phase.cert, trackId, lessonId)}
           className="inline-block text-sm text-[#C9A84C] hover:underline"
         >
           ← Back to lesson
@@ -267,7 +285,9 @@ function ActiveQuiz({
           quiz.questions.map((q) => [q.id, answers[q.id]]),
         ),
       };
-      const result = await submitQuizAttempt({ lessonId, submission });
+      const result = await submitQuizAttempt(
+        phase.cert ? { lessonId, submission, certificationId: phase.cert } : { lessonId, submission },
+      );
       onSubmitted(result);
     } catch (e) {
       if (e instanceof CertApiError) {
@@ -288,9 +308,7 @@ function ActiveQuiz({
     }
   }, [allAnswered, quiz.quizId, quiz.quizVersion, quiz.questions, answers, lessonId, onSubmitted]);
 
-  const backHref = trackId
-    ? `/training/certified/${trackId}/${lesson.id}`
-    : "/training";
+  const backHref = lessonBackHref(phase.cert, trackId, lesson.id);
 
   return (
     <div className="max-w-[720px] mx-auto space-y-6" data-cert-quiz-active>
@@ -391,9 +409,7 @@ function SubmittedView({
 }) {
   const { result, lesson, trackId, lessonId } = phase;
   const { result: r, certification_issuance } = result;
-  const backHref = trackId
-    ? `/training/certified/${trackId}/${lesson.id}`
-    : "/training";
+  const backHref = lessonBackHref(phase.cert, trackId, lesson.id);
   const isFinalPass =
     lessonId === FINAL_EXAM_LESSON_ID && r.passed && certification_issuance;
 
