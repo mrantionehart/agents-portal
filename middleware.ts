@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ACTIVE_PROFILE_SELECT, isActiveProfile } from '@/lib/security/activeProfile'
-import { previewMutationBlockedServer } from '@/lib/security/broker-preview'
+// Edge runtime: the crypto-free half of the clamp (node:crypto cannot bundle here).
+import { previewMutationBlockedEdge } from '@/lib/security/broker-preview-edge'
 
 // ── Middleware: authentication + account-standing gate ─────────────────
 //
@@ -127,7 +128,7 @@ export async function middleware(request: NextRequest) {
   // under a present preview context is refused (403), fail-closed on a tampered
   // context — and it cannot be escaped by removing ?preview or editing
   // sessionStorage, because the httpOnly cookie persists.
-  if (previewMutationBlockedServer(request, user.id)) {
+  if (previewMutationBlockedEdge(request)) {
     return NextResponse.json(
       { error: 'Broker Preview Mode is read-only', code: 'preview_read_only' },
       { status: 403 },
