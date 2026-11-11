@@ -29,18 +29,19 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 
-export const PREVIEW_COOKIE = "ht_broker_preview";
-export const PREVIEW_HEADER = "x-broker-preview";
+import {
+  PREVIEW_COOKIE,
+  PREVIEW_HEADER,
+  brokerPreviewEnabled,
+  clampingPreviewContext,
+  readPreviewContext,
+} from "./broker-preview-edge";
+
+// Edge-safe pieces live in broker-preview-edge.ts (middleware cannot bundle
+// node:crypto); re-exported so every existing import keeps working.
+export { PREVIEW_COOKIE, PREVIEW_HEADER, brokerPreviewEnabled };
 /** Short-lived — a preview context is good for one testing sitting. */
 export const PREVIEW_TTL_MS = 30 * 60 * 1000;
-
-/** Dark-by-default capability gate (server env). Mirrors the public flag. */
-export function brokerPreviewEnabled(): boolean {
-  return (
-    process.env.NEXT_PUBLIC_BROKER_PREVIEW_ENABLED === "true" ||
-    process.env.BROKER_PREVIEW_ENABLED === "true"
-  );
-}
 
 function secret(): string | null {
   return process.env.BROKER_PREVIEW_SIGNING_SECRET || null;
@@ -104,40 +105,16 @@ export function verifyPreviewToken(token: string, expectedBrokerId: string): Pre
   return payload;
 }
 
-/** The raw preview context on a request — cookie (auto-sent on nav + same-site
- *  fetch) OR the forwarded header (authFetch to AP/Vault). */
-function readPreviewContext(request: NextRequest): string | null {
-  const cookie = request.cookies.get(PREVIEW_COOKIE)?.value;
-  if (cookie) return cookie;
-  const header = request.headers.get(PREVIEW_HEADER);
-  return header && header.length > 0 ? header : null;
-}
-
-const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
-/** Paths exempt from the clamp: the preview-session mint route itself (it runs
- *  at entry, possibly before a cookie exists) and the sign-out/clear path. */
-function isExemptPath(pathname: string): boolean {
-  return (
-    pathname.startsWith("/api/broker/preview-session") ||
-    pathname === "/logout" ||
-    pathname.startsWith("/api/auth/")
-  );
-}
-
 /**
  * THE server-enforced decision. Returns true ⇒ refuse this request (read-only
  * preview). Called from withAuth (API routes) and middleware (pages + server
  * actions). A present-but-invalid context FAILS CLOSED (blocks).
  */
 export function previewMutationBlockedServer(request: NextRequest, userId: string): boolean {
-  if (!brokerPreviewEnabled()) return false;
-  const method = (request.method || "GET").toUpperCase();
-  if (!MUTATING.has(method)) return false; // reads always allowed
-  if (isExemptPath(request.nextUrl.pathname)) return false;
-
-  const token = readPreviewContext(request);
-  if (!token) return false; // no preview context → an ordinary request, untouched
+  // Same decision as the edge clamp (feature on, mutating, not exempt, context
+  // present) — see broker-preview-edge.ts.
+  const token = clampingPreviewContext(request);
+  if (!token) return false; // no clamp applies → an ordinary request, untouched
 
   // A preview context IS present on a mutating request. Whether it validates
   // (legitimate preview → read-only) or not (tampered/expired → FAIL CLOSED),
