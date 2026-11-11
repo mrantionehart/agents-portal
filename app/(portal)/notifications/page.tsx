@@ -95,6 +95,8 @@ export default function PortalNotificationsPage() {
       const url =
         `${REST_BASE}/notifications?select=${select}` +
         `&user_id=eq.${encodeURIComponent(user.id)}` +
+        // Archived rows are not part of the active list (Vault's rule too).
+        `&archived_at=is.null` +
         `&order=created_at.desc&limit=100`;
       const res = await timedFetch(url, { headers });
       if (!res.ok) {
@@ -148,7 +150,8 @@ export default function PortalNotificationsPage() {
       const headers = await authHeaders();
       if (!headers) { setBusy(false); return; }
       const res = await timedFetch(
-        `${REST_BASE}/notifications?user_id=eq.${encodeURIComponent(user.id)}&read_at=is.null`,
+        // Never touch archived rows when marking all read.
+        `${REST_BASE}/notifications?user_id=eq.${encodeURIComponent(user.id)}&read_at=is.null&archived_at=is.null`,
         { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify({ read_at: nowIso }) }
       );
       if (!res.ok) void fetchNotifications();
