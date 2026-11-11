@@ -68,6 +68,19 @@ const CATALOG_SECTIONS: CatalogSection[] = [
     ],
   },
   {
+    key: "practice",
+    label: "🥊 Practice & Simulation",
+    // Kept narrow and collision-free: "Roleplay"/"Simulator" are intentionally
+    // NOT patterns here because the AI Academy section owns a module titled
+    // "AI Roleplay" and sections are matched in order.
+    patterns: [
+      "The Ring",
+      "FSBO",
+      "Divorce",
+      "Relocation",
+    ],
+  },
+  {
     key: "residential",
     label: "🏡 Residential Sales",
     patterns: [
