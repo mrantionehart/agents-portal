@@ -54,7 +54,9 @@ describe("practice flow", () => {
     });
     await waitFor(() => expect(result.current.phase).toBe("briefing"));
 
-    expect(m.prepareText).toHaveBeenCalledWith("acq", null);
+    // scenarioId defaults to null (the level rotation) when no specific
+    // scenario is chosen — Acquisition's behavior is unchanged.
+    expect(m.prepareText).toHaveBeenCalledWith("acq", null, null);
     expect(result.current.session?.sessionId).toBe("sess-1");
     expect(window.sessionStorage.getItem("ring:text:session:acq")).toBe("sess-1");
   });

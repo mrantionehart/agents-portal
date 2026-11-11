@@ -62,7 +62,7 @@ export interface UseTextPractice {
   analysisLongWait: boolean;
   error: string | null;
   sendError: string | null;
-  enter: (level?: RingLevel | null) => void;
+  enter: (level?: RingLevel | null, scenarioId?: string | null) => void;
   begin: () => void;
   send: (text: string) => Promise<boolean>;
   complete: () => void;
@@ -269,7 +269,7 @@ export function useTextPractice(
   // ── Public actions ─────────────────────────────────────────────────────────
 
   const enter = useCallback(
-    async (level: RingLevel | null = null) => {
+    async (level: RingLevel | null = null, scenarioId: string | null = null) => {
       if (inFlight.current) return;
       inFlight.current = true;
       setError(null);
@@ -279,7 +279,7 @@ export function useTextPractice(
       setEnded(false);
       setPhase("preparing");
       try {
-        const r = await prepareText(certificationId, level);
+        const r = await prepareText(certificationId, level, scenarioId);
         storeSessionId(storageKey, r.sessionId);
         setSession({
           sessionId: r.sessionId,
