@@ -1,7 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { User } from '@supabase/supabase-js'
 
-import { previewBlocksRequest, PreviewReadOnlyError } from '@/src/portal/preview/preview-state'
+import { previewBlocksRequest, PreviewReadOnlyError, getPreviewToken } from '@/src/portal/preview/preview-state'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -156,10 +156,16 @@ export async function authFetch(
     //    wait. NEVER calls getSession() (the LockManager hang point).
     const accessToken = await getAccessToken(2000)
 
+    // Forward the broker preview context so Vault-direct calls (cross-origin,
+    // where the httpOnly cookie is not sent) are server-enforceable too. The
+    // token grants nothing — it can only downgrade a request to read-only.
+    const previewToken = getPreviewToken()
+
     const doFetch = (token: string | undefined) => {
       const headers = new Headers(options.headers || {})
       if (token) headers.set('Authorization', `Bearer ${token}`)
       else headers.delete('Authorization')
+      if (previewToken) headers.set('x-broker-preview', previewToken)
       return fetch(url, { ...options, headers, signal: controller.signal })
     }
 

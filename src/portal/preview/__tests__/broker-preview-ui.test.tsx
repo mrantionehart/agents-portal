@@ -14,7 +14,7 @@ let mockAuth: { user: unknown; role: string | null; loading: boolean } = {
   role: "broker",
   loading: false,
 };
-const authFetchMock = jest.fn(() => Promise.resolve({ status: 200, json: async () => ({}) } as unknown as Response));
+const authFetchMock = jest.fn(() => Promise.resolve({ status: 200, json: async () => ({ ok: true, token: "tok.sig" }) } as unknown as Response));
 
 jest.mock("../../../../app/providers", () => ({ useAuth: () => mockAuth }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ replace: jest.fn() }) }));
@@ -63,16 +63,18 @@ describe("Broker Preview banner visibility", () => {
     );
   });
 
-  it("does NOT show for an AGENT even with ?preview=1 and the flag on (denied role)", async () => {
-    process.env[FLAG] = "true";
-    mockAuth = { user: { email: "agent@x" }, role: "agent", loading: false };
-    setUrl("?preview=1");
-    render(<PortalLayout><div>child</div></PortalLayout>);
-    // Let effects run, then assert absence.
-    await screen.findByTestId("topbar");
-    expect(screen.queryByTestId("broker-preview-banner")).toBeNull();
-    expect(authFetchMock).not.toHaveBeenCalled();
-  });
+  it.each(["agent", "admin", "office_manager"])(
+    "does NOT activate for a non-BoR role (%s) even with ?preview=1 + flag on — BoR only",
+    async (role) => {
+      process.env[FLAG] = "true";
+      mockAuth = { user: { email: `${role}@x` }, role, loading: false };
+      setUrl("?preview=1");
+      render(<PortalLayout><div>child</div></PortalLayout>);
+      await screen.findByTestId("topbar");
+      expect(screen.queryByTestId("broker-preview-banner")).toBeNull();
+      expect(authFetchMock).not.toHaveBeenCalled(); // no mint, no audit
+    },
+  );
 
   it("does NOT show when the capability flag is OFF (dark), even for a broker with ?preview=1", async () => {
     delete process.env[FLAG];

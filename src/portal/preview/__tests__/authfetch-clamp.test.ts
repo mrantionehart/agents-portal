@@ -22,7 +22,7 @@ afterEach(() => {
 describe("authFetch read-only clamp", () => {
   it("rejects a real mutation in preview mode before any network call", async () => {
     process.env[FLAG] = "true";
-    markPreviewActive();
+    markPreviewActive("tok.sig");
     const fetchMock = jest.fn();
     (global as unknown as { fetch: unknown }).fetch = fetchMock;
     await expect(

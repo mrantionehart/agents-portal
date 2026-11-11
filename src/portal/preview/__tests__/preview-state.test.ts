@@ -8,7 +8,7 @@
 
 import {
   brokerPreviewEnabled,
-  isBrokerTierRole,
+  isBrokerOfRecord,
   isPreviewActive,
   markPreviewActive,
   clearPreview,
@@ -37,24 +37,26 @@ describe("capability flag (dark by default)", () => {
 
   it("isPreviewActive stays false while the flag is off, even if the tab flag is set", () => {
     delete process.env[FLAG];
-    markPreviewActive();
+    markPreviewActive("tok.sig");
     expect(isPreviewActive()).toBe(false);
   });
 
   it("isPreviewActive is true only with flag ON and the per-tab marker set", () => {
     process.env[FLAG] = "true";
     expect(isPreviewActive()).toBe(false);
-    markPreviewActive();
+    markPreviewActive("tok.sig");
     expect(isPreviewActive()).toBe(true);
     clearPreview();
     expect(isPreviewActive()).toBe(false);
   });
 });
 
-describe("isBrokerTierRole", () => {
-  it("admits broker tier only", () => {
-    for (const r of ["broker", "admin", "office_manager"]) expect(isBrokerTierRole(r)).toBe(true);
-    for (const r of ["agent", "new_agent", null, undefined, ""]) expect(isBrokerTierRole(r as string)).toBe(false);
+describe("isBrokerOfRecord (BoR only)", () => {
+  it("admits ONLY role-exact broker — Emily (office_manager), admins, agents excluded", () => {
+    expect(isBrokerOfRecord("broker")).toBe(true);
+    for (const r of ["admin", "office_manager", "agent", "new_agent", null, undefined, ""]) {
+      expect(isBrokerOfRecord(r as string)).toBe(false);
+    }
   });
 });
 
@@ -75,7 +77,7 @@ describe("read-only clamp — isSafeInteractiveUrl", () => {
 describe("previewBlocksRequest", () => {
   beforeEach(() => {
     process.env[FLAG] = "true";
-    markPreviewActive();
+    markPreviewActive("tok.sig");
   });
 
   it("allows all reads", () => {
@@ -105,7 +107,7 @@ describe("previewBlocksRequest", () => {
     clearPreview();
     expect(previewBlocksRequest("POST", "/api/transactions/create")).toBe(false);
     delete process.env[FLAG];
-    markPreviewActive();
+    markPreviewActive("tok.sig");
     expect(previewBlocksRequest("POST", "/api/transactions/create")).toBe(false);
   });
 });

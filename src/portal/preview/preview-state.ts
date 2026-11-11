@@ -31,10 +31,12 @@ export function brokerPreviewEnabled(): boolean {
   return process.env.NEXT_PUBLIC_BROKER_PREVIEW_ENABLED === "true";
 }
 
-/** Roles permitted to enter preview. Mirrors nav-config's isBrokerTier. The
- *  authoritative check is server-derived role (useAuth), never a URL param. */
-export function isBrokerTierRole(role: string | null | undefined): boolean {
-  return role === "broker" || role === "admin" || role === "office_manager";
+/** Broker of Record — role-EXACT `broker`. Broker Preview Agent View is the
+ *  BoR's alone: Emily (office_manager), admins and agents are excluded. The
+ *  authoritative check is the server-derived role (useAuth) + the server-signed
+ *  preview token, never a URL param. */
+export function isBrokerOfRecord(role: string | null | undefined): boolean {
+  return role === "broker";
 }
 
 function safeSession(): Storage | null {
@@ -45,13 +47,27 @@ function safeSession(): Storage | null {
   }
 }
 
-/** Mark THIS tab as a broker preview tab. Caller must have already confirmed
- *  the flag is enabled AND the server-derived role is broker-tier. */
-export function markPreviewActive(): void {
+/** Mark THIS tab as a broker preview tab by storing the SERVER-minted preview
+ *  token. The token (not a bare "1") is what the client forwards to Vault-direct
+ *  calls as `x-broker-preview` so those are server-enforceable too; the httpOnly
+ *  cookie remains the AP-side authority. Caller must have confirmed the flag is
+ *  enabled AND the server-derived role is the Broker of Record. */
+export function markPreviewActive(token: string): void {
   try {
-    safeSession()?.setItem(PREVIEW_KEY, "1");
+    if (token) safeSession()?.setItem(PREVIEW_KEY, token);
   } catch {
     /* storage unavailable (private mode / blocked) — preview simply stays off */
+  }
+}
+
+/** The server-minted token stored for this tab, or null. Used to forward the
+ *  preview context to Vault-direct mutations. */
+export function getPreviewToken(): string | null {
+  try {
+    const v = safeSession()?.getItem(PREVIEW_KEY);
+    return v && v.length > 0 ? v : null;
+  } catch {
+    return null;
   }
 }
 
@@ -67,11 +83,7 @@ export function clearPreview(): void {
  *  enabled. Both the banner and the read-only clamp read this. */
 export function isPreviewActive(): boolean {
   if (!brokerPreviewEnabled()) return false;
-  try {
-    return safeSession()?.getItem(PREVIEW_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return getPreviewToken() != null;
 }
 
 // ── Read-only clamp allowlist ───────────────────────────────────────────────
