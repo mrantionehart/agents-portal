@@ -1,23 +1,36 @@
 // CTM-1 — Agent Portal entry: renders only when Vault's learner gate admits the
-// learner (existing authenticated client), fails closed otherwise, and gives the
-// broker a DRAFT preview pointer. Content/quiz/final stay in Vault's renderer.
+// learner, fails closed otherwise, and gives the broker a DRAFT preview pointer.
+//
+// The REAL client (src/portal/training/certified/api.ts) runs here; only the
+// session token and the network (`fetch`) are faked. Vault's responses below are
+// the ones its real route handlers give, proven in Vault's
+// programs/ctm/__tests__/ctm-draft-gate-routes.test.ts: a draft CTM answers
+// 404 {code:"unknown_certification"} to every non-broker. (CTM-1 lesson: an
+// earlier version mocked fetchProgress with a refusal production never gave.)
 import { render, screen, waitFor } from '@testing-library/react'
 
-const mockFetchProgress = jest.fn()
-jest.mock('@/src/portal/training/certified/api', () => ({
-  fetchProgress: (...a: unknown[]) => mockFetchProgress(...a),
-}))
+jest.mock('@/lib/supabase', () => ({ getAccessToken: async () => 'agent-token' }))
 jest.mock('@/lib/vault-client', () => ({ VAULT_BASE_URL: 'https://vault.test' }))
+
+const vaultResponses: { status: number; body: unknown }[] = []
+const mockFetch = jest.fn(async (url: string, init: RequestInit) => {
+  const r = vaultResponses.shift() ?? { status: 500, body: {} }
+  return {
+    ok: r.status >= 200 && r.status < 300,
+    status: r.status,
+    statusText: String(r.status),
+    json: async () => r.body,
+  } as unknown as Response
+})
+;(global as unknown as { fetch: typeof mockFetch }).fetch = mockFetch
+const mockFetchProgress = { mockResolvedValue: (v: unknown) => vaultResponses.push({ status: 200, body: v }) }
+const VAULT_DRAFT_REFUSAL = { error: "You don't have access to this training.", code: 'unknown_certification' }
 
 import {
   CtmProgramEntry,
   CTM_CERTIFICATION_ID,
   CTM_DOWNLOADS_HREF,
 } from '../CtmProgramEntry'
-
-class CertApiError extends Error {
-  constructor(public status: number) { super(`HTTP ${status}`) }
-}
 
 const progress = (over: Record<string, unknown> = {}) => ({
   certification_id: CTM_CERTIFICATION_ID,
@@ -35,14 +48,15 @@ const progress = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-beforeEach(() => mockFetchProgress.mockReset())
+beforeEach(() => { vaultResponses.length = 0; mockFetch.mockClear() })
 
 describe('CtmProgramEntry', () => {
   it('assigned learner: asks Vault for THIS program with the existing client and shows progress + links', async () => {
     mockFetchProgress.mockResolvedValue(progress())
     render(<CtmProgramEntry role="agent" />)
     expect(await screen.findByTestId('ctm-entry')).toBeInTheDocument()
-    expect(mockFetchProgress).toHaveBeenCalledWith(CTM_CERTIFICATION_ID)
+    expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/platform\/certifications\/hartfelt-real-estate-ctm-fl\/progress$/)
+    expect((mockFetch.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer agent-token')
     expect(screen.getByTestId('ctm-entry-summary')).toHaveTextContent('1 of 3 modules complete.')
     expect(screen.getByTestId('ctm-entry-open')).toHaveAttribute('href', 'https://vault.test/learning/hartfelt-real-estate-ctm-fl')
     expect(screen.getByTestId('ctm-entry-downloads')).toHaveAttribute('href', CTM_DOWNLOADS_HREF)
@@ -60,21 +74,33 @@ describe('CtmProgramEntry', () => {
     expect(await screen.findByTestId('ctm-entry-summary')).toHaveTextContent('Certified by your Broker of Record.')
   })
 
-  for (const [role, status] of [['agent', 403], ['new_agent', 404], ['office_manager', 403], ['admin', 403]] as const) {
-    it(`${role} refused by Vault (${status}: draft / unassigned / denied) sees nothing`, async () => {
-      mockFetchProgress.mockRejectedValue(new CertApiError(status))
+  for (const role of ['agent', 'new_agent', 'tc', 'office_manager', 'admin'] as const) {
+    it(`${role}: Vault refuses the DRAFT program (404 unknown_certification) → sees nothing`, async () => {
+      vaultResponses.push({ status: 404, body: VAULT_DRAFT_REFUSAL })
       const { container } = render(<CtmProgramEntry role={role} />)
-      await waitFor(() => expect(mockFetchProgress).toHaveBeenCalled())
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled())
       await waitFor(() => expect(container).toBeEmptyDOMElement())
       expect(screen.queryByTestId('ctm-entry')).toBeNull()
     })
   }
+
+  it('Vault 401 (no session) and a network failure both fail closed', async () => {
+    vaultResponses.push({ status: 401, body: { error: 'Unauthorized' } })
+    const a = render(<CtmProgramEntry role="agent" />)
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(a.container).toBeEmptyDOMElement())
+    a.unmount()
+    mockFetch.mockImplementationOnce(async () => { throw new Error('offline') })
+    const b = render(<CtmProgramEntry role="agent" />)
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(b.container).toBeEmptyDOMElement())
+  })
 
   it('broker: DRAFT preview pointer to the Vault broker Training Preview; no learner fetch', () => {
     render(<CtmProgramEntry role="broker" />)
     const card = screen.getByTestId('ctm-entry-broker-preview')
     expect(card).toHaveTextContent('DRAFT — PENDING BROKER APPROVAL')
     expect(screen.getByText('Review in Vault').closest('a')).toHaveAttribute('href', 'https://vault.test/broker-training-preview')
-    expect(mockFetchProgress).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })
