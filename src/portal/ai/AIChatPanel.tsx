@@ -24,6 +24,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { Loader2, Sparkles } from "lucide-react";
 
 import AskPanel from "./AskPanel";
+import AgentExperience from "./AgentExperience";
 import { useAskEnabled } from "./use-ask-enabled";
 
 import { supabase } from "@/lib/supabase";
@@ -191,7 +192,7 @@ const AIChatPanel = forwardRef<AIChatPanelHandle, AIChatPanelProps>(function AIC
         <button type="button" aria-pressed={!showAsk} onClick={() => setMode("chat")}>Chat</button>
         <button type="button" aria-pressed={showAsk} onClick={() => setMode("ask")}>Ask HartFelt AI</button>
       </nav>}
-      {showAsk ? <AskPanel /> : <>
+      {showAsk ? <div className="flex-1 min-h-0 overflow-y-auto"><AskPanel /><AgentExperience /></div> : <>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
         {messages.map((m, i) => (
           <div

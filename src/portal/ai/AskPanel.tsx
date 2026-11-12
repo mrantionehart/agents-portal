@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { transactionAsk } from './agent-api';
 import { askQuestion, escalateQuestion, type AskResponse } from './ask-api';
 
-export default function AskPanel() {
+export default function AskPanel({ transactionId }: { transactionId?: string }) {
   const [question, setQuestion] = useState('');
   const [lastQuestion, setLastQuestion] = useState('');
   const [conversationId, setConversationId] = useState<string>();
@@ -22,7 +23,7 @@ export default function AskPanel() {
     const text = question.trim();
     setLastQuestion(text);
     try {
-      const response = await askQuestion(text, conversationId);
+      const response = await (transactionId ? transactionAsk(transactionId, text, conversationId) : askQuestion(text, conversationId));
       setResult(response);
       if (response.conversation_id) setConversationId(response.conversation_id);
       setQuestion('');
