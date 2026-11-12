@@ -298,6 +298,25 @@ export function getVoiceResult(certificationId: string, sessionId: string): Prom
   );
 }
 
+/**
+ * RING-COACHING-HISTORY-1 — the SAVED coaching for one of the agent's own
+ * finished rounds, for History's "View Coaching".
+ *
+ * READ-ONLY by construction: it only ever GETs the existing result routes,
+ * which read the stored evaluation and never grade. Nothing here can complete,
+ * retry or re-score a round, so reopening coaching can never start a paid
+ * model call. Vault enforces ownership and tenant scope on both routes.
+ */
+export function getSavedCoaching(
+  certificationId: string,
+  sessionId: string,
+  channel: "text" | "voice",
+): Promise<ResultPoll> {
+  return channel === "voice"
+    ? getVoiceResult(certificationId, sessionId)
+    : getTextResult(certificationId, sessionId);
+}
+
 export function getVoiceTranscript(
   certificationId: string,
   sessionId: string,
