@@ -23,7 +23,6 @@ import { loadTrainingHub } from "@/src/portal/training/loader";
 import type { HubTab } from "@/src/portal/training/types";
 import { BrokerCertPreviewSection } from "@/src/portal/tour/BrokerCertPreviewSection";
 import { FinalExamEntry } from "@/src/portal/training/FinalExamEntry";
-import { CtmProgramEntry } from "@/src/portal/training/ctm/CtmProgramEntry";
 import { BrokerExamAttemptGrants } from "@/src/portal/training/BrokerExamAttemptGrants";
 
 export default async function TrainingHubPage({
@@ -79,8 +78,6 @@ export default async function TrainingHubPage({
   return (
     <Shell>
       <FinalExamEntry />
-      {/* CTM-1 — renders only when Vault's learner gate admits this user (or a broker DRAFT preview). */}
-      <CtmProgramEntry role={role} />
       <TrainingHubClient
         training={result.training}
         scripts={result.scripts}
