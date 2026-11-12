@@ -46,6 +46,9 @@ const SAFE_COLUMNS = [
   "claimed_by",
   "visibility",
   "status",
+  // source_context carries the reversible `archived_synthetic` flag used to
+  // keep disposable test/UAT lead rows out of every client view (not output).
+  "source_context",
 ].join(", ");
 
 interface RawProfile {
@@ -71,6 +74,7 @@ interface RawProfile {
   claimed_by: string | null;
   visibility: string | null;
   status: string | null;
+  source_context: { archived_synthetic?: boolean } | null;
 }
 
 // ── Access checks (mirrors AP2.1D / broker CI agent-view) ───────────
@@ -80,6 +84,11 @@ function isBrokerTier(role: string): boolean {
 }
 
 function canAccess(p: RawProfile, callerId: string, callerRole: string): boolean {
+  // Archived synthetic test/UAT leads are never surfaced in any client view —
+  // not to agents, and not to a broker in Preview Agent View. The flag is a
+  // reversible server-set marker (source_context.archived_synthetic); clearing
+  // it restores the row. Deny wins over every role/ownership branch below.
+  if (p.source_context?.archived_synthetic === true) return false;
   if (isBrokerTier(callerRole)) return true;
   if (p.assigned_agent_id === callerId) return true;
   if (p.claimed_by === callerId) return true;
