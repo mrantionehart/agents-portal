@@ -12,6 +12,7 @@ jest.mock("@/lib/supabase", () => ({ authFetch: (...a: unknown[]) => authFetchMo
 
 import {
   prepareText,
+  prepareVoice,
   beginText,
   sendTurn,
   getTextState,
@@ -43,6 +44,21 @@ describe("transport + URL construction", () => {
     expect(init.method).toBe("POST");
     expect(init.headers["Content-Type"]).toBe("application/json");
     expect(JSON.parse(init.body)).toEqual({ level: 2, certificationId: "cert-x" });
+  });
+
+  // RING-VOICE-THEME-1 — a Listing tile pick reaches voice prepare; without a
+  // pick the body is byte-identical to before.
+  it("prepareVoice sends scenarioId only when a tile was picked", async () => {
+    const res = { sessionId: "s1", scenarioLabel: "L", attemptNumber: 1, countsTowardProgression: false, reused: false, level: 3 };
+    authFetchMock.mockResolvedValue(ok(res));
+    await prepareVoice("cert-x", 3, "lst-s20-divorce-sensitive");
+    const [url, init] = authFetchMock.mock.calls[0];
+    expect(url).toBe(`${VAULT_API}/simulation/practice/prepare`);
+    expect(JSON.parse(init.body)).toEqual({ level: 3, certificationId: "cert-x", scenarioId: "lst-s20-divorce-sensitive" });
+    authFetchMock.mockClear();
+    authFetchMock.mockResolvedValue(ok(res));
+    await prepareVoice("cert-x", null);
+    expect(JSON.parse(authFetchMock.mock.calls[0][1].body)).toEqual({ level: null, certificationId: "cert-x" });
   });
 
   it("getTextState builds a query string and sends no body (GET)", async () => {
