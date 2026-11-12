@@ -9,6 +9,7 @@
 // grades on the server.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { finalExamFailMessage } from '@/lib/training/final-exam-message'
+import { certificationMessage, type Certification } from '@/lib/training/certification-status'
 import Link from 'next/link'
 
 interface Option { id: string; label: string }
@@ -39,6 +40,7 @@ interface ExamState {
   final_exam: { attempted: boolean; bestScore: number | null; passed: boolean; attemptCount: number }
   hartfelt_ready_complete: boolean
   summary: string
+  certification?: Certification
   quiz: { title: string; instructions: string | null; questions: Question[] } | null
 }
 
@@ -179,8 +181,8 @@ export default function FinalExamPage() {
     return (
       <Shell>
         <Note tone="ok">
-          <strong>Already passed</strong> at {state.final_exam.bestScore}%. Nothing further to do —
-          your broker completes the certification.
+          <strong>Already passed</strong> at {state.final_exam.bestScore}%.{' '}
+          {certificationMessage(state.certification) ?? 'Your broker completes the certification.'}
         </Note>
         <Link href="/training" className="text-sm text-[#C9A84C] underline">Back to Training</Link>
       </Shell>

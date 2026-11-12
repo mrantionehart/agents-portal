@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { GraduationCap } from 'lucide-react'
+import { certificationMessage, type Certification } from '@/lib/training/certification-status'
 
 interface Standing {
   unlocked: boolean
@@ -14,6 +15,7 @@ interface Standing {
   required_modules: number
   passed_modules: number
   final_exam: { attempted: boolean; bestScore: number | null; passed: boolean }
+  certification?: Certification
 }
 
 export function FinalExamEntry() {
@@ -52,6 +54,9 @@ export function FinalExamEntry() {
             HartFelt Ready™ — Comprehensive Final Exam
           </p>
           <p className="text-sm text-[#A1A1AA]">{body}</p>
+          {certificationMessage(s.certification) && (
+            <p className="text-sm text-[#C9A84C]" data-testid="hr-cert-status">{certificationMessage(s.certification)}</p>
+          )}
         </div>
       </div>
       {!s.final_exam.passed && (
