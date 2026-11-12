@@ -48,6 +48,8 @@ interface ChecklistItem {
     signature_notes: string | null
     reviewed_by: string | null
     reviewed_at: string | null
+    // DOC-ELIG-1 — Vault's verdict: does this document count toward compliance?
+    compliance?: { counts: boolean; reason: string; reason_text: string }
   } | null
   status: 'approved' | 'uploaded' | 'rejected' | 'missing'
 }
@@ -767,7 +769,7 @@ export default function CompliancePage() {
                                             onClick={() => handleReview(item.document!.id, 'approve')}
                                             className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition"
                                           >
-                                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                                            <CheckCircle2 className="w-3.5 h-3.5" /> {userRole === 'admin' ? 'Recommend approval' : 'Approve'}
                                           </button>
                                         )}
                                         {/* Reject with notes */}
@@ -815,6 +817,12 @@ export default function CompliancePage() {
                                     >
                                       Cancel
                                     </button>
+                                  </div>
+                                )}
+                                {/* DOC-ELIG-1 — why an uploaded document does not count yet */}
+                                {item.document?.compliance && !item.document.compliance.counts && item.status !== 'rejected' && (
+                                  <div data-testid="compliance-reason" className="px-5 py-2 bg-sky-500/10 border-t border-sky-100 text-xs text-sky-300">
+                                    {item.document.compliance.reason_text}
                                   </div>
                                 )}
                                 {/* Signature notes display */}

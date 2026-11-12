@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, userClient } from '@/lib/security'
 import { ensureVaultForms } from '@/lib/vault-forward'
+import { fetchVaultRequirementsReport, uploadedDocStatus, REVIEW_UNAVAILABLE_TEXT, type VaultDocumentReview } from '@/lib/vault-requirements-report'
 import { buildVaultChecklistItem } from '@/lib/compliance-checklist-mapping'
 import { mapPortalTransactionTypeToVaultType } from '@/lib/portal-transaction-type'
 
@@ -37,8 +38,22 @@ const folderLabels: Record<string, string> = {
   optional: 'Optional',
 }
 
-function uploadedDocProjection(doc: any) {
+// DOC-ELIG-1 — the Broker of Record's verdict for each uploaded document, as
+// Vault computes it. Set per request in GET; null ⇒ Vault unavailable.
+type Reviews = Map<string, VaultDocumentReview> | null
+
+function complianceOf(doc: any, reviews: Reviews) {
+  const r = reviews?.get(doc.id) ?? null
   return {
+    counts: r?.counts === true,
+    reason: r?.reason ?? 'unavailable',
+    reason_text: r?.reason_text ?? REVIEW_UNAVAILABLE_TEXT,
+  }
+}
+
+function uploadedDocProjection(doc: any, reviews: Reviews = null) {
+  return {
+    compliance: complianceOf(doc, reviews),
     id: doc.id,
     name: doc.name,
     status: doc.status,
@@ -113,6 +128,10 @@ export async function GET(request: NextRequest) {
     const folders: Record<string, any[]> = {}
     let source: 'vault' | 'legacy' = 'legacy'
 
+    // DOC-ELIG-1 — Vault's per-document compliance verdict (fail closed).
+    const vaultReport = await fetchVaultRequirementsReport(request, transactionId)
+    const reviews: Reviews = vaultReport.ok ? vaultReport.reviews : null
+
     // ── AGENT.SIGN.1B — Vault System A (authoritative) ────────────────
     // Map the portal transaction type onto the Vault dispatch vocabulary
     // (AGENT.SIGN.1B.5). Unsupported legacy types (referral/wholesale/
@@ -139,9 +158,11 @@ export async function GET(request: NextRequest) {
         const item = buildVaultChecklistItem(
           req,
           vaultDoc,
-          matchedDoc ? uploadedDocProjection(matchedDoc) : null,
+          matchedDoc ? uploadedDocProjection(matchedDoc, reviews) : null,
           idx++
         )
+        // A real uploaded file's status is Vault's verdict, never the raw row.
+        if (matchedDoc) item.status = uploadedDocStatus(matchedDoc.status, reviews?.get(matchedDoc.id))
         if (!folders[item.folder]) folders[item.folder] = []
         folders[item.folder].push(item)
       }
@@ -197,14 +218,8 @@ export async function GET(request: NextRequest) {
           condition_label: conditionLabel,
           folder: req.folder,
           sort_order: req.sort_order,
-          document: matchedDoc ? uploadedDocProjection(matchedDoc) : null,
-          status: matchedDoc
-            ? matchedDoc.status === 'verified'
-              ? 'approved'
-              : matchedDoc.status === 'rejected'
-              ? 'rejected'
-              : 'uploaded'
-            : 'missing',
+          document: matchedDoc ? uploadedDocProjection(matchedDoc, reviews) : null,
+          status: matchedDoc ? uploadedDocStatus(matchedDoc.status, reviews?.get(matchedDoc.id)) : 'missing',
         })
       }
     }
@@ -228,13 +243,8 @@ export async function GET(request: NextRequest) {
           signature_required: false,
           folder: 'additional',
           sort_order: 99,
-          document: uploadedDocProjection(doc),
-          status:
-            doc.status === 'verified'
-              ? 'approved'
-              : doc.status === 'rejected'
-              ? 'rejected'
-              : 'uploaded',
+          document: uploadedDocProjection(doc, reviews),
+          status: uploadedDocStatus(doc.status, reviews?.get(doc.id)),
         })
       }
     }
