@@ -8,6 +8,7 @@
 // is no answer key here to leak — Vault projects stems and options only, and
 // grades on the server.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { finalExamFailMessage } from '@/lib/training/final-exam-message'
 import Link from 'next/link'
 
 interface Option { id: string; label: string }
@@ -124,7 +125,7 @@ export default function FinalExamPage() {
           <strong>{passed ? 'Passed' : 'Not passed'} — {score}%.</strong>{' '}
           {passed
             ? 'Your HartFelt Ready final assessment is on file. Your broker completes the certification.'
-            : `You need ${outcome.pass_score}% to pass. Review the material and take it again.`}
+            : finalExamFailMessage(score, outcome.pass_score)}
         </Note>
         <p className="text-sm text-[#A1A1AA]">{state.summary}</p>
         <Link href="/training" className="text-sm text-[#C9A84C] underline">Back to Training</Link>
