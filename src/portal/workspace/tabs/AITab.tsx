@@ -1,3 +1,4 @@
+import AgentExperience from "@/src/portal/ai/AgentExperience";
 // ============================================================================
 // AGENT PORTAL 3.0 — Transaction Assistant tab (4.0D)
 // ============================================================================
@@ -17,6 +18,7 @@ export default function AITab({ transactionId, initialPrompt }: AITabProps) {
   return (
     <section>
       <h2 className="text-xs uppercase tracking-wider text-[#71717A] mb-2">AI Assistant</h2>
+      <AgentExperience transactionId={transactionId} />
       <AIAssistantPanel transactionId={transactionId} initialPrompt={initialPrompt} />
       <p className="mt-3 text-[10px] text-[#71717A] leading-relaxed">
         The assistant explains this transaction&apos;s status and can draft messages for your review. It never
