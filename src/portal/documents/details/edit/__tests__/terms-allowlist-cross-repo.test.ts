@@ -64,8 +64,11 @@ describe("P4H-13 — listing terms allowlist is a cross-repo contract", () => {
     expect(matches("listing.owners.1.address")).toBe(false);
   });
 
-  it("[APXREPO-6] the canonical set is the 14 listing patterns", () => {
+  it("[APXREPO-6] the canonical set is the 15 listing patterns", () => {
+    // 14 until P4H-15CX added the broker-authorized sale-side pattern
+    // (list_price|compensation_summary|brokerage_election). Vault's own
+    // cross-repo suite asserts the same 15 against the same digest.
     const canon = canonicalizeListingAllowlist(TERMS_PATH_ALLOWLIST_MIRROR);
-    expect(canon.split("\n")).toHaveLength(14);
+    expect(canon.split("\n")).toHaveLength(15);
   });
 });

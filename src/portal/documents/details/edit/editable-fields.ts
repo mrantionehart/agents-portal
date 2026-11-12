@@ -66,6 +66,17 @@ export const TERMS_PATH_ALLOWLIST_MIRROR: ReadonlyArray<RegExp> = [
   /^listing\.tenant_broker\.(offer_from_broker|offer_from_owner|no_offer)$/,
   /^listing\.tenant_broker\.from_(broker|owner)\.(gross_value_pct|first_month_pct|flat_amount)$/,
   /^listing\.legal_description$/,
+  // ── P4H-15CX — the SALE-side listing agreements, broker-authorized ────────
+  //
+  // Vault's ERS-20sa, EBLA-13 and CDS-1 each mark one of these REQUIRED, and
+  // none was writable in either repo, so all three were signable and none was
+  // completable. Added here in the same breath as Vault's TERMS_PATH_ALLOWLIST
+  // and the shared digest below; the two sets must stay identical.
+  //
+  // 🔑 `brokerage_election` is a REPRESENTATION choice — it selects which
+  // listing agreement governs — so Vault value-validates it against a
+  // two-member enum. Nothing defaults or infers it.
+  /^listing\.(list_price|compensation_summary|brokerage_election)$/,
 ];
 
 /** Roles whose contact fields the AGENT may complete in-portal via the
