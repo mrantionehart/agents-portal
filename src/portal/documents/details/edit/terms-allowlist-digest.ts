@@ -75,4 +75,4 @@ export function listingAllowlistDigest(
  * value on any of its 44 transactions with terms, so nothing was orphaned.
  */
 export const LISTING_ALLOWLIST_DIGEST =
-  "dbfe8fa63522150167165246c5f14bc62e2d0b79b307e15d451ff756af14dc38";
+  "e04c97a137dce3a0217e9b35572c3622c989828199c99535cdf208b6f24cdb15";

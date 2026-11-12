@@ -22,6 +22,14 @@ import TopBar from "@/src/portal/TopBar";
 import CommandBar from "@/src/portal/CommandBar";
 import { TourProvider } from "@/src/portal/tour/TourProvider";
 import { TourRunner } from "@/src/portal/tour/TourRunner";
+import { BrokerPreviewBanner } from "@/src/portal/preview/BrokerPreviewBanner";
+import {
+  brokerPreviewEnabled,
+  isBrokerOfRecord,
+  isPreviewActive,
+  markPreviewActive,
+} from "@/src/portal/preview/preview-state";
+import { authFetch } from "@/lib/supabase";
 
 import { useAuth } from "../providers";
 
@@ -31,11 +39,51 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [previewActive, setPreviewActive] = useState(false);
 
   // Redirect unauthed users. Mirrors the legacy auth gate.
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
+
+  // Broker Preview Mode. Activates ONLY when: the capability is enabled, the
+  // SERVER-DERIVED role (useAuth, from the authenticated session) is broker-tier,
+  // and either this tab arrived with ?preview=1 or is already an active preview
+  // tab. A URL param alone never activates it — an agent with ?preview=1 has an
+  // agent role and is unaffected. The audit ping fires once, BEFORE the per-tab
+  // flag is set, so the read-only clamp never blocks the audit itself.
+  useEffect(() => {
+    if (loading || !user || !brokerPreviewEnabled()) return;
+    if (!isBrokerOfRecord(role)) return; // Broker of Record ONLY (role-exact broker)
+    let paramSet = false;
+    try {
+      paramSet = new URLSearchParams(window.location.search).get("preview") === "1";
+    } catch {
+      paramSet = false;
+    }
+    if (!isPreviewActive() && paramSet) {
+      // First entry: mint the SERVER preview context (sets the httpOnly cookie +
+      // audits, BoR-gated server-side) and store the returned token for this tab.
+      // Runs BEFORE the client flag is set, so the clamp never blocks this call.
+      (async () => {
+        try {
+          const res = await authFetch("/api/broker/preview-session", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ surface: window.location.pathname }),
+          });
+          const body = (await res.json().catch(() => null)) as { token?: string | null } | null;
+          if (body?.token) {
+            markPreviewActive(body.token);
+            setPreviewActive(true);
+          }
+        } catch {
+          /* mint failed — stay out of preview rather than a half-on state */
+        }
+      })();
+    }
+    if (isPreviewActive()) setPreviewActive(true);
+  }, [loading, user, role]);
 
   // ⌘K opens the command bar.
   useEffect(() => {
@@ -71,6 +119,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         {/* Main column — offset by sidebar on md+. min-w-0 so flex
             children can shrink instead of forcing horizontal overflow. */}
         <div className="md:ml-[240px] min-h-screen flex flex-col min-w-0">
+          {previewActive && <BrokerPreviewBanner />}
           <TopBar
             userName={(user as any)?.user_metadata?.full_name ?? null}
             userEmail={user?.email ?? null}

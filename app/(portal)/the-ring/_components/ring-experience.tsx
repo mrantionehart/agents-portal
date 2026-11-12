@@ -23,6 +23,7 @@ import { useTextPractice } from "../_lib/use-text-practice";
 import { useVoicePractice } from "../_lib/use-voice-practice";
 import { voicePracticeEnabled } from "../_lib/ring-flags";
 import { isRetryableCallState } from "../_lib/practice-call-machine";
+import type { ListingTheme, ListingTile } from "../_lib/listing-themes";
 
 export interface RingExperienceProps {
   readonly certificationId?: string;
@@ -32,6 +33,15 @@ export interface RingExperienceProps {
     readonly onComplete?: () => void;
     readonly resultActions?: ReactNode;
   };
+  /**
+   * When present, the idle phase offers a conversation-type × difficulty picker
+   * (e.g. FSBO / Divorce / Relocation × Beginner / Intermediate / Advanced) and
+   * each tile starts that specific scenario, on whichever channel the learner
+   * chose (RING-VOICE-THEME-1: Vault's voice prepare honours the pick too).
+   * Omitted → the standard single "Start Practice" entry (Acquisition is
+   * unchanged).
+   */
+  readonly themes?: readonly ListingTheme[];
 }
 
 const CARD = "rounded-lg border border-[#1a1a2e] bg-[#11111a]";
@@ -47,7 +57,9 @@ type Channel = "text" | "voice";
  * matching experience runs. Certification assessment stays text-only in this
  * slice (voice-certification is a separate, later authorization).
  */
-export function RingExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assessment }: RingExperienceProps) {
+export function RingExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assessment, themes }: RingExperienceProps) {
+  // Themed practice (theme × tier picker) offers the same voice/text chooser:
+  // both channels thread the chosen scenario through their prepare route.
   const offerChooser = !assessment && voicePracticeEnabled();
   const [channel, setChannel] = useState<Channel | null>(offerChooser ? null : "text");
 
@@ -61,11 +73,11 @@ export function RingExperience({ certificationId = ACQUISITION_CERTIFICATION_ID,
   if (channel === "voice") {
     return (
       <div className="mx-auto w-full max-w-2xl">
-        <VoiceExperience certificationId={certificationId} onSwitchChannel={() => setChannel("text")} />
+        <VoiceExperience certificationId={certificationId} themes={themes} onSwitchChannel={() => setChannel("text")} />
       </div>
     );
   }
-  return <TextExperience certificationId={certificationId} assessment={assessment} />;
+  return <TextExperience certificationId={certificationId} assessment={assessment} themes={themes} />;
 }
 
 function ChannelChooser({ onPick }: { onPick: (c: Channel) => void }) {
@@ -115,7 +127,7 @@ function ChannelChooser({ onPick }: { onPick: (c: Channel) => void }) {
   );
 }
 
-function TextExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assessment }: RingExperienceProps) {
+function TextExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assessment, themes }: RingExperienceProps) {
   const ring = useTextPractice(
     certificationId,
     assessment ? { initialSessionId: assessment.sessionId } : undefined,
@@ -145,6 +157,12 @@ function TextExperience({ certificationId = ACQUISITION_CERTIFICATION_ID, assess
             <Loader2 className="h-5 w-5 animate-spin text-[#C9A84C]" aria-hidden="true" />
             <p className="mt-3 text-sm text-[#A1A1AA]">Loading your certification assessment…</p>
           </CenteredNote>
+        ) : themes && themes.length > 0 ? (
+          <ThemePicker
+            themes={themes}
+            busy={ring.phase === "preparing"}
+            onPick={(tile) => ring.enter(tile.level, tile.scenarioId)}
+          />
         ) : (
           <EntryView busy={ring.phase === "preparing"} onStart={() => ring.enter(null)} />
         ))}
@@ -226,6 +244,55 @@ function EntryView({ busy, onStart }: { busy: boolean; onStart: () => void }) {
       >
         {busy ? "Starting…" : "Start Practice"}
       </button>
+    </div>
+  );
+}
+
+function ThemePicker({
+  themes,
+  busy,
+  onPick,
+}: {
+  themes: readonly ListingTheme[];
+  busy: boolean;
+  onPick: (tile: ListingTile) => void;
+}) {
+  return (
+    <div className={`${CARD} p-6`} data-testid="listing-theme-picker">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#C9A84C]/15 text-[#C9A84C]">
+          <Swords className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-[#F1F1F3]">Listing Agent Practice</h2>
+          <p className="mt-1 text-sm text-[#A1A1AA]">
+            Pick a conversation and a difficulty. Coaching after every round — practice sharpens
+            your skills but never counts toward certification.
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 space-y-5">
+        {themes.map((theme) => (
+          <div key={theme.key} data-testid={`theme-${theme.key}`}>
+            <h3 className="text-sm font-semibold text-[#F1F1F3]">{theme.label}</h3>
+            <p className="mt-0.5 text-xs text-[#A1A1AA]">{theme.blurb}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {theme.tiles.map((tile) => (
+                <button
+                  key={tile.scenarioId}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onPick(tile)}
+                  aria-label={`${theme.label} — ${tile.tierLabel}`}
+                  className={`${CARD} px-3 py-2 text-left text-sm font-medium text-[#F1F1F3] transition hover:border-[#C9A84C]/60 disabled:opacity-60`}
+                >
+                  {tile.tierLabel}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -410,14 +477,30 @@ function ResultsView({
 
 function VoiceExperience({
   certificationId,
+  themes,
   onSwitchChannel,
 }: {
   certificationId: string;
+  themes?: readonly ListingTheme[];
   onSwitchChannel: () => void;
 }) {
   const ring = useVoicePractice(certificationId);
 
   if (ring.phase === "idle") {
+    if (themes && themes.length > 0) {
+      return (
+        <div data-testid="voice-theme-entry">
+          <ThemePicker themes={themes} busy={false} onPick={(tile) => void ring.enter(tile.level, tile.scenarioId)} />
+          <button
+            type="button"
+            onClick={onSwitchChannel}
+            className="mt-3 text-xs text-[#A1A1AA] underline hover:text-[#F1F1F3]"
+          >
+            Switch to text conversation
+          </button>
+        </div>
+      );
+    }
     return <VoiceEntryView onStart={() => void ring.enter(null)} onSwitchChannel={onSwitchChannel} />;
   }
   if (ring.phase === "preparing") {
