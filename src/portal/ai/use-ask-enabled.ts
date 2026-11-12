@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+// The MOUNTED provider (app/providers.tsx). '@/lib/auth-context' has no
+// AuthProvider anywhere in the portal: importing it white-screened every page.
+import { useAuth } from '@/app/providers';
 import { askStatus } from './ask-api';
 
 export function useAskEnabled() {

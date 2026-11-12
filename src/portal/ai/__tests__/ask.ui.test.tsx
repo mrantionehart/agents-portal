@@ -4,9 +4,9 @@ import TopBar from '../../TopBar';
 import AIChatPanel from '../AIChatPanel';
 
 // Auth/session fixtures only; all Ask transport is exercised through real modules.
-jest.mock('@/lib/auth-context', () => ({ useAuth: jest.fn() }));
+jest.mock('@/app/providers', () => ({ useAuth: jest.fn() }));
 jest.mock('@/lib/supabase', () => ({ getAccessToken: jest.fn(), supabase: { auth: { getSession: jest.fn() } } }));
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/app/providers';
 import { getAccessToken } from '@/lib/supabase';
 
 const fetchMock = jest.fn();
