@@ -26,6 +26,9 @@ module.exports = {
     // DEAL-DISPO-AGENTS — Deal Opportunities uses responsive grid/width
     // classes (sm:grid-cols-4, md:grid-cols-2, sm:w-60) found nowhere else.
     './src/portal/deal-opportunities/**/*.{js,ts,jsx,tsx,mdx}',
+    // LEAD-POOL — the Clients list (incl. the Claim button: bg-amber-500, mr-3)
+    // used classes that were never generated because this folder was unscanned.
+    './src/portal/clients/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
