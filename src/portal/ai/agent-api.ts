@@ -37,3 +37,6 @@ export async function myRequests() {
 export const createRequest = (question: string, transaction_id?: string) => agentRequest<{ id: string }>('/support/requests', { question, ...(transaction_id ? { transaction_id } : {}) });
 export const requestDetail = (id: string) => agentRequest<SupportDetail>(`/support/requests/${encodeURIComponent(id)}`);
 export const replyToRequest = (id: string, body: string) => agentRequest<{ saved: boolean }>(`/support/requests/${encodeURIComponent(id)}/messages`, { body });
+
+export interface KnowledgeSource { section_key: string; heading: string; body: string; version: string | number | null }
+export const getKnowledgeSource = (sectionKey: string) => agentRequest<KnowledgeSource>(`/ai/kb/source?section_key=${encodeURIComponent(sectionKey)}`);
