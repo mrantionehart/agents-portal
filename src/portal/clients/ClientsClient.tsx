@@ -60,7 +60,7 @@ export default function ClientsClient({
         setClaimNote({ ok: true, text: `You claimed ${name ?? "this lead"}. It is now in your Profiles tab.` });
       } else {
         if (r.reason === "taken" || r.reason === "gone") setClaimedHere((prev) => new Set(prev).add(id));
-        setClaimNote({ ok: false, text: r.message });
+        setClaimNote({ ok: false, text: r.message ?? "Could not claim the lead." });
       }
     } finally { claimInFlight.current = false; setClaimingId(null); }
   };

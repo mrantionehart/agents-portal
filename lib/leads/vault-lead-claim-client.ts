@@ -12,9 +12,13 @@ const VAULT_API_URL = (
   process.env.NEXT_PUBLIC_VAULT_API_URL ?? 'https://vault.hartfeltrealestate.com/api'
 ).replace(/\/$/, '')
 
-export type ClaimResult =
-  | { ok: true }
-  | { ok: false; reason: 'taken' | 'gone' | 'forbidden' | 'error'; message: string }
+// Flat on purpose: this repo's TS settings do not narrow a discriminated union
+// on a boolean literal, so `reason`/`message` are optional and present when !ok.
+export interface ClaimResult {
+  ok: boolean
+  reason?: 'taken' | 'gone' | 'forbidden' | 'error'
+  message?: string
+}
 
 export async function claimPooledLead(clientProfileId: string): Promise<ClaimResult> {
   let res: Response
