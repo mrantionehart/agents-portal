@@ -41,7 +41,7 @@ describe("GET /api/profile/birthday", () => {
 
   it("proxies to Vault", async () => {
     await GET(req());
-    expect(pv).toHaveBeenCalledWith(expect.anything(), "GET", "/api/profile/birthday");
+    expect(pv).toHaveBeenCalledWith(expect.anything(), "GET", "/profile/birthday");
   });
 });
 
@@ -62,7 +62,7 @@ describe("PUT /api/profile/birthday", () => {
     expect(pv).toHaveBeenCalledTimes(1);
     const [, method, path, forwarded] = pv.mock.calls[0];
     expect(method).toBe("PUT");
-    expect(path).toBe("/api/profile/birthday");
+    expect(path).toBe("/profile/birthday");
     expect(forwarded).toEqual({ birthMonth: 7, birthDay: 27, birthdayEmailEnabled: false });
     expect(forwarded).not.toHaveProperty("agentId");
     expect(forwarded).not.toHaveProperty("birthYear");
@@ -85,6 +85,6 @@ describe("PUT /api/profile/birthday", () => {
 describe("POST /api/profile/birthday/dismiss", () => {
   it("proxies POST to the Vault dismiss path", async () => {
     await DISMISS(req());
-    expect(pv).toHaveBeenCalledWith(expect.anything(), "POST", "/api/profile/birthday/dismiss");
+    expect(pv).toHaveBeenCalledWith(expect.anything(), "POST", "/profile/birthday/dismiss");
   });
 });
