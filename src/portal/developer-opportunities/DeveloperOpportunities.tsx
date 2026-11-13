@@ -119,6 +119,11 @@ export default function DeveloperOpportunities({
   const [sourceUrl, setSourceUrl] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [pageInfo, setPageInfo] = useState<{ size: number; count: number; nextCursor: string | null }>({ size: 25, count: 0, nextCursor: null });
+  const [cursorStack, setCursorStack] = useState<Array<string | null>>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+  const [pageBusy, setPageBusy] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -127,6 +132,7 @@ export default function DeveloperOpportunities({
         const page = await listMyOpportunities({ limit: 25 });
         if (!live) return;
         setRows(page.opportunities);
+        setPageInfo(page.page);
         setSelected((s) => s ?? page.opportunities[0]?.id ?? null);
       } catch (e) {
         if (!live) return;
@@ -138,6 +144,33 @@ export default function DeveloperOpportunities({
     })();
     return () => { live = false; };
   }, []);
+
+  async function movePage(direction: "next" | "previous") {
+    if (pageBusy) return;
+    const previous = direction === "previous";
+    if (previous && cursorStack.length === 0) return;
+    if (!previous && !pageInfo.nextCursor) return;
+    const cursor = previous ? cursorStack[cursorStack.length - 1] : pageInfo.nextCursor;
+    setPageBusy(true);
+    setPageError(null);
+    try {
+      const page = await listMyOpportunities({ limit: 25, cursor });
+      setRows(page.opportunities);
+      setPageInfo(page.page);
+      setSelected(page.opportunities[0]?.id ?? null);
+      if (previous) {
+        setCursorStack((stack) => stack.slice(0, -1));
+        setCurrentCursor(cursor);
+      } else {
+        setCursorStack((stack) => [...stack, currentCursor]);
+        setCurrentCursor(cursor);
+      }
+    } catch {
+      setPageError("Could not load that page. Try again.");
+    } finally {
+      setPageBusy(false);
+    }
+  }
 
   const load = useCallback(async (id: string) => {
     setDetailError(null);
@@ -293,7 +326,7 @@ export default function DeveloperOpportunities({
     <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
       <aside>
         <p data-testid="queue-count" className="mb-2 text-[11px] uppercase tracking-wider text-white/40">
-          {rows.length} assigned to you
+          {pageInfo.count} assigned on this page
         </p>
         <ul role="list" className="space-y-1.5">
           {rows.map((o) => (
@@ -316,6 +349,22 @@ export default function DeveloperOpportunities({
             </li>
           ))}
         </ul>
+        {pageError && <p role="alert" className="mt-2 text-xs text-red-300">{pageError}</p>}
+        <nav data-testid="opportunity-pagination" aria-label="Developer opportunity pages" className="mt-3 flex items-center justify-between gap-2">
+          <button type="button" aria-label="Previous page" onClick={() => void movePage("previous")}
+            disabled={pageBusy || cursorStack.length === 0}
+            className="rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-white/70 disabled:cursor-not-allowed disabled:opacity-40">
+            Previous
+          </button>
+          <span data-testid="opportunity-page-number" aria-live="polite" className="text-[11px] text-white/45">
+            Page {cursorStack.length + 1}
+          </span>
+          <button type="button" aria-label="Next page" onClick={() => void movePage("next")}
+            disabled={pageBusy || !pageInfo.nextCursor}
+            className="rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-white/70 disabled:cursor-not-allowed disabled:opacity-40">
+            {pageBusy ? "Loading…" : "Next"}
+          </button>
+        </nav>
       </aside>
 
       <section className="space-y-4">
