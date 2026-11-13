@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // ── STEP 1 — public paths / prefixes ─────────────────────────────────
-  const publicPaths = ['/login', '/forgot-password', '/reset-password', '/logout']
+  const publicPaths = ['/login', '/forgot-password', '/reset-password', '/logout', '/auth/confirm']
   const publicPrefixes = ['/card/', '/client/', '/api/client/', '/portal/']
   if (
     publicPaths.includes(pathname) ||
