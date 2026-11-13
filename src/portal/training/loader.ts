@@ -60,6 +60,11 @@ export async function loadTrainingHub(input: {
       supabase
         .from("training_modules")
         .select("id, volume, module_num, title_en, sort_order")
+        // Only PUBLISHED modules belong in an agent's hub. Every module that
+        // existed before CTM-1 is published, so this hides nothing today; it
+        // keeps a program's DRAFT module rows (e.g. CTM before activation) out
+        // of the hub, where they used to be listed by title regardless of status.
+        .eq("status", "published")
         .order("sort_order"),
       supabase
         .from("training_videos")

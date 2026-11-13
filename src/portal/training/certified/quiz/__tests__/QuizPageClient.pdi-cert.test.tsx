@@ -28,12 +28,14 @@ beforeEach(() => {
   fetchQuiz.mockReset().mockResolvedValue({ quiz: null });
 });
 
+const PLATFORM = "hartfelt-platform-certified";
+
 it("default (no cert): calls Vault exactly as before", async () => {
   mockSearch = new URLSearchParams("lesson=pcert-l12");
   render(<QuizPageClient />);
   await waitFor(() => expect(fetchCatalog).toHaveBeenCalled());
-  expect(fetchCatalog).toHaveBeenCalledWith();
-  expect(fetchQuiz).toHaveBeenCalledWith({ lessonId: "pcert-l12" });
+  expect(fetchCatalog).toHaveBeenCalledWith(PLATFORM);
+  expect(fetchQuiz).toHaveBeenCalledWith({ certificationId: PLATFORM, lessonId: "pcert-l12" });
 });
 
 it("allowlisted PDI cert: addresses the PDI program", async () => {
@@ -48,6 +50,6 @@ it("any other cert id is ignored (falls back to the default program)", async () 
   mockSearch = new URLSearchParams("lesson=bpo-l1601&cert=hartfelt-real-estate-bpo-fl-certified");
   render(<QuizPageClient />);
   await waitFor(() => expect(fetchCatalog).toHaveBeenCalled());
-  expect(fetchCatalog).toHaveBeenCalledWith();
-  expect(fetchQuiz).toHaveBeenCalledWith({ lessonId: "bpo-l1601" });
+  expect(fetchCatalog).toHaveBeenCalledWith(PLATFORM);
+  expect(fetchQuiz).toHaveBeenCalledWith({ certificationId: PLATFORM, lessonId: "bpo-l1601" });
 });

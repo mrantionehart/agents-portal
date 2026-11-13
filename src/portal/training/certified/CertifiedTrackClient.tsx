@@ -18,6 +18,8 @@ import type {
   CertifiedModule,
   CertifiedProgress,
 } from "./types";
+import { lessonHref } from "./program";
+import { HARTFELT_PLATFORM_CERTIFIED_ID } from "./types";
 import {
   findLessonProgress,
   findTrackProgressPct,
@@ -27,6 +29,8 @@ import {
 
 interface CertifiedTrackClientProps {
   trackId: string;
+  /** Allowlisted program (see program.ts). Defaults to the platform certification. */
+  certificationId?: string;
 }
 
 type LoadState =
@@ -42,6 +46,7 @@ type LoadState =
 
 export default function CertifiedTrackClient({
   trackId,
+  certificationId = HARTFELT_PLATFORM_CERTIFIED_ID,
 }: CertifiedTrackClientProps) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
@@ -49,8 +54,8 @@ export default function CertifiedTrackClient({
     setState({ kind: "loading" });
     try {
       const [catalog, progress] = await Promise.all([
-        fetchCatalog(),
-        fetchProgress(),
+        fetchCatalog(certificationId),
+        fetchProgress(certificationId),
       ]);
       const track = catalog.tracks.find((t) => t.id === trackId);
       if (!track) {
@@ -59,6 +64,12 @@ export default function CertifiedTrackClient({
       }
       setState({ kind: "loaded", catalog, progress, track });
     } catch (e) {
+      // Vault refuses a program this learner may not take (draft, unassigned,
+      // denied) with 404 — show "not available", never a retry loop.
+      if (e instanceof CertApiError && e.status === 404) {
+        setState({ kind: "not_found", message: "This training is not available to you." });
+        return;
+      }
       const msg =
         e instanceof CertApiError
           ? `${e.message} (HTTP ${e.status})`
@@ -67,7 +78,7 @@ export default function CertifiedTrackClient({
           : "Failed to load track.";
       setState({ kind: "error", message: msg, retry: () => void load() });
     }
-  }, [trackId]);
+  }, [trackId, certificationId]);
 
   useEffect(() => {
     void load();
@@ -154,6 +165,7 @@ export default function CertifiedTrackClient({
           <TrackLessonRow
             key={lesson.id}
             trackId={trackId}
+            certificationId={certificationId}
             lesson={lesson}
             catalog={catalog}
             progress={progress}
@@ -166,11 +178,13 @@ export default function CertifiedTrackClient({
 
 function TrackLessonRow({
   trackId,
+  certificationId,
   lesson,
   catalog,
   progress,
 }: {
   trackId: string;
+  certificationId: string;
   lesson: CertifiedLesson;
   catalog: CertifiedCatalog;
   progress: CertifiedProgress;
@@ -180,7 +194,7 @@ function TrackLessonRow({
   const unlocked = isPrerequisiteUnlocked(progress, lesson);
   const status = lp?.status ?? "not_started";
   const statusLabel = lessonStatusLabel(status);
-  const href = `/training/certified/${encodeURIComponent(trackId)}/${encodeURIComponent(lesson.id)}`;
+  const href = lessonHref(certificationId, trackId, lesson.id);
 
   const badgeCls =
     status === "completed"

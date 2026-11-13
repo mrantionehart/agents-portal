@@ -31,16 +31,17 @@ import type {
   LearnerSafeQuiz,
   QuizAttemptResponse,
 } from "../types";
-import { FINAL_EXAM_LESSON_ID } from "../types";
-import { pdiCourseHref, resolvePdiCertificationId } from "../../pdi/pdi-config";
+import { CTM_FINAL_EXAM_LESSON_ID, FINAL_EXAM_LESSON_ID } from "../types";
+import { lessonHref, resolveProgramParam } from "../program";
+import { pdiCourse, pdiCourseHref, resolvePdiCertificationId } from "../../pdi/pdi-config";
 
 /**
- * Where "back to lesson" goes. `cert` is non-null ONLY for an allowlisted PDI
- * program (see pdi-config); the platform certification keeps its exact links.
+ * Where "back to lesson" goes. PDI lessons live on the PDI course page, not on
+ * a certified track; every other program keeps its exact track links.
  */
-function lessonBackHref(cert: string | null, trackId: string | null, lessonId: string): string {
-  if (cert) return pdiCourseHref(cert);
-  return trackId ? `/training/certified/${trackId}/${lessonId}` : "/training";
+function backToLessonHref(certificationId: string, trackId: string | null, lessonId: string): string {
+  if (pdiCourse(certificationId)) return pdiCourseHref(certificationId);
+  return trackId ? lessonHref(certificationId, trackId, lessonId) : "/training";
 }
 
 type PhaseState =
@@ -53,7 +54,7 @@ type PhaseState =
       lesson: CertifiedLesson;
       trackId: string | null;
       lessonId: string;
-      cert: string | null;
+      certificationId: string;
     }
   | {
       kind: "submitted";
@@ -62,7 +63,7 @@ type PhaseState =
       trackId: string | null;
       quiz: LearnerSafeQuiz;
       lessonId: string;
-      cert: string | null;
+      certificationId: string;
     };
 
 function findLesson(
@@ -90,13 +91,19 @@ export default function QuizPageClient() {
       });
       return;
     }
+    // Allowlisted program (?program=). Unknown → refuse, never another program.
+    // PDI programs arrive as an allowlisted `?cert=` (pdi-config); a crafted
+    // value resolves to null and falls through to the `?program=` allowlist.
+    const certificationId: string | null =
+      resolvePdiCertificationId(search?.get("cert")) ?? resolveProgramParam(search?.get("program"));
+    if (!certificationId) {
+      setPhase({ kind: "invalid_params", message: "This training is not available." });
+      return;
+    }
     try {
-      // PDI programs only (allowlisted); anything else keeps the platform
-      // certification's exact default calls.
-      const cert = resolvePdiCertificationId(search?.get("cert"));
       const [catalog, quizRes] = await Promise.all([
-        cert ? fetchCatalog(cert) : fetchCatalog(),
-        fetchLearnerSafeQuiz(cert ? { lessonId, certificationId: cert } : { lessonId }),
+        fetchCatalog(certificationId),
+        fetchLearnerSafeQuiz({ certificationId, lessonId }),
       ]);
       const brief = findLesson(catalog, lessonId);
       if (!brief) {
@@ -112,7 +119,7 @@ export default function QuizPageClient() {
         lesson: brief.lesson,
         trackId: brief.trackId,
         lessonId,
-        cert,
+        certificationId,
       });
     } catch (e) {
       const msg =
@@ -158,7 +165,7 @@ export default function QuizPageClient() {
             lesson: phase.lesson,
             trackId: phase.trackId,
             lessonId: phase.lessonId,
-            cert: phase.cert,
+            certificationId: phase.certificationId,
           })
         }
       />
@@ -175,7 +182,7 @@ export default function QuizPageClient() {
           trackId: phase.trackId,
           quiz: phase.quiz,
           lessonId: phase.lessonId,
-          cert: phase.cert,
+          certificationId: phase.certificationId,
         })
       }
     />
@@ -225,7 +232,7 @@ function ActiveQuiz({
   phase: Extract<PhaseState, { kind: "ready" }>;
   onSubmitted: (r: QuizAttemptResponse) => void;
 }) {
-  const { quiz, lesson, trackId, lessonId } = phase;
+  const { quiz, lesson, trackId, lessonId, certificationId } = phase;
 
   // ── FAIL CLOSED ON AN INCOMPLETE PAYLOAD ────────────────────────────────
   // Do not let a learner answer ten questions and only discover at submit
@@ -261,7 +268,7 @@ function ActiveQuiz({
           </p>
         </div>
         <Link
-          href={lessonBackHref(phase.cert, trackId, lessonId)}
+          href={backToLessonHref(certificationId, trackId, lessonId)}
           className="inline-block text-sm text-[#C9A84C] hover:underline"
         >
           ← Back to lesson
@@ -285,9 +292,7 @@ function ActiveQuiz({
           quiz.questions.map((q) => [q.id, answers[q.id]]),
         ),
       };
-      const result = await submitQuizAttempt(
-        phase.cert ? { lessonId, submission, certificationId: phase.cert } : { lessonId, submission },
-      );
+      const result = await submitQuizAttempt({ certificationId, lessonId, submission });
       onSubmitted(result);
     } catch (e) {
       if (e instanceof CertApiError) {
@@ -306,9 +311,9 @@ function ActiveQuiz({
     } finally {
       setBusy(false);
     }
-  }, [allAnswered, quiz.quizId, quiz.quizVersion, quiz.questions, answers, lessonId, onSubmitted]);
+  }, [allAnswered, quiz.quizId, quiz.quizVersion, quiz.questions, answers, lessonId, certificationId, onSubmitted]);
 
-  const backHref = lessonBackHref(phase.cert, trackId, lesson.id);
+  const backHref = backToLessonHref(certificationId, trackId, lesson.id);
 
   return (
     <div className="max-w-[720px] mx-auto space-y-6" data-cert-quiz-active>
@@ -319,7 +324,7 @@ function ActiveQuiz({
         >
           ← Back to lesson
         </Link>
-        {lesson.id === FINAL_EXAM_LESSON_ID && (
+        {(lesson.id === FINAL_EXAM_LESSON_ID || lesson.id === CTM_FINAL_EXAM_LESSON_ID) && (
           <span className="rounded border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-[#C9A84C]">
             Final Exam
           </span>
@@ -407,9 +412,12 @@ function SubmittedView({
   phase: Extract<PhaseState, { kind: "submitted" }>;
   onRetake: () => void;
 }) {
-  const { result, lesson, trackId, lessonId } = phase;
+  const { result, lesson, trackId, lessonId, certificationId } = phase;
   const { result: r, certification_issuance } = result;
-  const backHref = lessonBackHref(phase.cert, trackId, lesson.id);
+  const backHref = backToLessonHref(certificationId, trackId, lesson.id);
+  // CTM: a passing final is ELIGIBILITY only. The credential is issued by the
+  // Broker of Record's approval, never by this attempt.
+  const isCtmFinalPass = lessonId === CTM_FINAL_EXAM_LESSON_ID && r.passed;
   const isFinalPass =
     lessonId === FINAL_EXAM_LESSON_ID && r.passed && certification_issuance;
 
@@ -462,6 +470,16 @@ function SubmittedView({
           </p>
         )}
       </div>
+
+      {isCtmFinalPass && (
+        <div className="rounded-lg border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-5" data-cert-ctm-eligibility>
+          <div className="text-[11px] uppercase tracking-wide text-[#C9A84C]">Eligible for certification</div>
+          <p className="mt-1 text-sm text-[#F1F1F3]">
+            You passed the certification exam. You are not certified yet: your Broker of Record reviews your
+            results and approves certification.
+          </p>
+        </div>
+      )}
 
       {isFinalPass && certification_issuance && (
         <div

@@ -11,21 +11,26 @@
 
 import Link from "next/link";
 
-import { FINAL_EXAM_LESSON_ID } from "../types";
+import { CTM_FINAL_EXAM_LESSON_ID, FINAL_EXAM_LESSON_ID, HARTFELT_PLATFORM_CERTIFIED_ID } from "../types";
+import { withProgram } from "../program";
 
 interface QuizLauncherProps {
   lessonId: string;
+  /** Program the quiz belongs to. Defaults to the platform certification. */
+  certificationId?: string;
   alreadyPassed?: boolean;
 }
 
 export default function QuizLauncher({
   lessonId,
+  certificationId = HARTFELT_PLATFORM_CERTIFIED_ID,
   alreadyPassed,
 }: QuizLauncherProps) {
-  const isFinal = lessonId === FINAL_EXAM_LESSON_ID;
+  const isCtmFinal = lessonId === CTM_FINAL_EXAM_LESSON_ID;
+  const isFinal = lessonId === FINAL_EXAM_LESSON_ID || isCtmFinal;
 
   const params = new URLSearchParams({ lesson: lessonId });
-  const href = `/training/quiz?${params.toString()}`;
+  const href = withProgram(`/training/quiz?${params.toString()}`, certificationId);
 
   return (
     <section
@@ -36,14 +41,16 @@ export default function QuizLauncher({
         {isFinal ? "Final Certification Exam" : "Knowledge quiz"}
       </h3>
       <p className="mt-1 text-xs text-[#A1A1AA]">
-        {isFinal
+        {isCtmFinal
+          ? "85% and no missed compliance-critical item. Passing makes you eligible; your Broker of Record approves certification."
+          : isFinal
           ? "Passing this exam issues your HartFelt Platform Certified credential."
           : "Answer the questions. Server scores each attempt; passing status is permanent."}
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {alreadyPassed ? (
           <div className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs text-green-300">
-            {isFinal ? "🏁 Certification issued" : "✅ Quiz passed"}
+            {isCtmFinal ? "✅ Exam passed — awaiting Broker of Record approval" : isFinal ? "🏁 Certification issued" : "✅ Quiz passed"}
           </div>
         ) : (
           <Link
