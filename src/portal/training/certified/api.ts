@@ -18,6 +18,7 @@ import type {
   QuizAttemptResponse,
   QuizAttemptSubmission,
   QuizGetResponse,
+  LessonContentResponse,
 } from "./types";
 import { HARTFELT_PLATFORM_CERTIFIED_ID } from "./types";
 
@@ -170,4 +171,29 @@ export async function submitQuizAttempt(opts: {
   );
   if (!res.ok) await readErrorEnvelope(res, "submitQuizAttempt");
   return (await res.json()) as QuizAttemptResponse;
+}
+
+/** GET /api/platform/certifications/{cert}/lessons/{id}/content — lesson prose (registry programs). */
+export async function fetchLessonContent(opts: {
+  certificationId: string;
+  lessonId: string;
+}): Promise<LessonContentResponse> {
+  const res = await authedFetch(
+    `/platform/certifications/${encodeURIComponent(opts.certificationId)}/lessons/${encodeURIComponent(opts.lessonId)}/content`,
+  );
+  if (!res.ok) await readErrorEnvelope(res, "fetchLessonContent");
+  return (await res.json()) as LessonContentResponse;
+}
+
+/** POST /api/platform/certifications/{cert}/lessons/{id}/complete { acknowledgement: true } */
+export async function acknowledgeLesson(opts: {
+  certificationId: string;
+  lessonId: string;
+}): Promise<{ ok: true; lesson_id: string; status: LessonStatus }> {
+  const res = await authedFetch(
+    `/platform/certifications/${encodeURIComponent(opts.certificationId)}/lessons/${encodeURIComponent(opts.lessonId)}/complete`,
+    { method: "POST", body: JSON.stringify({ acknowledgement: true }) },
+  );
+  if (!res.ok) await readErrorEnvelope(res, "acknowledgeLesson");
+  return (await res.json()) as { ok: true; lesson_id: string; status: LessonStatus };
 }

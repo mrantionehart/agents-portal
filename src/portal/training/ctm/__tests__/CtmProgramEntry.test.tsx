@@ -58,8 +58,19 @@ describe('CtmProgramEntry', () => {
     expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/platform\/certifications\/hartfelt-real-estate-ctm-fl\/progress$/)
     expect((mockFetch.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer agent-token')
     expect(screen.getByTestId('ctm-entry-summary')).toHaveTextContent('1 of 3 modules complete.')
-    expect(screen.getByTestId('ctm-entry-open')).toHaveAttribute('href', 'https://vault.test/learning/hartfelt-real-estate-ctm-fl')
+    // Continue training stays in the Agent Portal (agents have no interactive Vault access)
+    expect(screen.getByTestId('ctm-entry-open')).toHaveAttribute('href', '/training/certified/ctm-m01?program=hartfelt-real-estate-ctm-fl')
+    expect(screen.getByTestId('ctm-entry-open').getAttribute('href')).not.toMatch(/learning|vault/)
     expect(screen.getByTestId('ctm-entry-downloads')).toHaveAttribute('href', CTM_DOWNLOADS_HREF)
+  })
+
+  it('Continue training goes to the next lesson Vault names, inside the Agent Portal', async () => {
+    mockFetchProgress.mockResolvedValue(progress({ next_lesson: { track_id: 'ctm-m03', module_id: 'ctm-m03', lesson_id: 'ctm-l0302' } }))
+    render(<CtmProgramEntry role="agent" />)
+    expect(await screen.findByTestId('ctm-entry-open')).toHaveAttribute(
+      'href',
+      '/training/certified/ctm-m03/ctm-l0302?program=hartfelt-real-estate-ctm-fl',
+    )
   })
 
   it('final passed but not yet approved: says it awaits the Broker of Record (eligibility, not certification)', async () => {

@@ -10,8 +10,9 @@
 //     gate (`authorizeCertificationLearner`) is the only authority on whether
 //     this learner may see the program. Draft program, unassigned learner or
 //     denied role → the gate refuses → this card renders NOTHING.
-//   * CONTENT — lessons, quizzes and the final are taken in Vault's existing
-//     Certifications renderer (/learning/<id>); AP has no second renderer.
+//   * CONTENT — lessons, quizzes and the final are taken HERE, in the Agent
+//     Portal's existing certified-track pages (/training/certified/...?program=).
+//     Never Vault /learning: agents have no interactive Vault access.
 //   * DOWNLOADS — the existing Contract Training library (/contract-training),
 //     where RLS decides what each user may read.
 // Brokers see a DRAFT preview pointer to Vault's broker-only Training Preview.
@@ -24,9 +25,10 @@ import { ClipboardCheck } from 'lucide-react'
 import { fetchProgress } from '@/src/portal/training/certified/api'
 import type { CertifiedProgress } from '@/src/portal/training/certified/types'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
+import { lessonHref, trackHref } from '@/src/portal/training/certified/program'
 
 export const CTM_CERTIFICATION_ID = 'hartfelt-real-estate-ctm-fl'
-export const CTM_VAULT_PROGRAM_URL = `${VAULT_BASE_URL}/learning/${CTM_CERTIFICATION_ID}`
+export const CTM_FIRST_TRACK_ID = 'ctm-m01'
 export const CTM_VAULT_BROKER_PREVIEW_URL = `${VAULT_BASE_URL}/broker-training-preview`
 export const CTM_DOWNLOADS_HREF = '/contract-training'
 
@@ -34,6 +36,13 @@ type State =
   | { kind: 'loading' }
   | { kind: 'hidden' }
   | { kind: 'learner'; progress: CertifiedProgress }
+
+/** Agent Portal route for "Continue training": the next lesson Vault names, else Module 1. */
+export function continueHref(p: CertifiedProgress): string {
+  const next = p.next_lesson
+  if (next && next.lesson_id) return lessonHref(CTM_CERTIFICATION_ID, next.track_id || next.module_id, next.lesson_id)
+  return trackHref(CTM_CERTIFICATION_ID, CTM_FIRST_TRACK_ID)
+}
 
 function summary(p: CertifiedProgress): string {
   if (p.issuance && !p.issuance.revoked_at) return 'Certified by your Broker of Record.'
@@ -110,13 +119,13 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
         >
           Checklists &amp; downloads
         </Link>
-        <a
-          href={CTM_VAULT_PROGRAM_URL}
+        <Link
+          href={continueHref(state.progress)}
           data-testid="ctm-entry-open"
           className="rounded-md px-3 py-1.5 text-sm font-semibold bg-[#C9A84C] text-black"
         >
           Continue training
-        </a>
+        </Link>
       </div>
     </div>
   )
