@@ -34,8 +34,9 @@ export async function claimPooledLead(clientProfileId: string): Promise<ClaimRes
   if (res.ok) return { ok: true }
   if (res.status === 409) return { ok: false, reason: 'taken', message: 'Another agent claimed this lead first.' }
   if (res.status === 404) return { ok: false, reason: 'gone', message: 'This lead is no longer available to you.' }
-  if (res.status === 401 || res.status === 403) {
-    return { ok: false, reason: 'forbidden', message: 'You are not able to claim leads.' }
+  if (res.status === 401) return { ok: false, reason: 'forbidden', message: 'Please sign in again.' }
+  if (res.status === 403) {
+    return { ok: false, reason: 'forbidden', message: 'Only active agents with a verified licence can claim leads.' }
   }
   return { ok: false, reason: 'error', message: `Could not claim the lead (${res.status}).` }
 }
