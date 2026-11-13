@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { VAULT_API_URL } from "@/lib/vault-client";
+import { ACTIVE_PROFILE_SELECT, isActiveProfile } from "@/lib/security/activeProfile";
 import { OnboardingChecklist, type OnboardingStep } from "./OnboardingChecklist";
 
 // ============================================================================
@@ -51,12 +52,14 @@ async function loadProfile(): Promise<{
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("is_active, onboarding_status")
+      // Same standing predicate as the gates: a suspended or soft-deleted
+      // account with is_active=true must NOT be told it has full access.
+      .select(`${ACTIVE_PROFILE_SELECT}, onboarding_status`)
       .eq("id", user.id)
       .single();
     if (error || !data) return null;
     return {
-      is_active: data.is_active === true,
+      is_active: isActiveProfile(data),
       onboarding_status: (data.onboarding_status as string | null) ?? null,
     };
   } catch {
