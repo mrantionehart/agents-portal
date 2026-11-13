@@ -33,6 +33,16 @@ import type {
 } from "../types";
 import { CTM_FINAL_EXAM_LESSON_ID, FINAL_EXAM_LESSON_ID } from "../types";
 import { lessonHref, resolveProgramParam } from "../program";
+import { pdiCourse, pdiCourseHref, resolvePdiCertificationId } from "../../pdi/pdi-config";
+
+/**
+ * Where "back to lesson" goes. PDI lessons live on the PDI course page, not on
+ * a certified track; every other program keeps its exact track links.
+ */
+function backToLessonHref(certificationId: string, trackId: string | null, lessonId: string): string {
+  if (pdiCourse(certificationId)) return pdiCourseHref(certificationId);
+  return trackId ? lessonHref(certificationId, trackId, lessonId) : "/training";
+}
 
 type PhaseState =
   | { kind: "loading" }
@@ -82,7 +92,10 @@ export default function QuizPageClient() {
       return;
     }
     // Allowlisted program (?program=). Unknown → refuse, never another program.
-    const certificationId = resolveProgramParam(search?.get("program"));
+    // PDI programs arrive as an allowlisted `?cert=` (pdi-config); a crafted
+    // value resolves to null and falls through to the `?program=` allowlist.
+    const certificationId: string | null =
+      resolvePdiCertificationId(search?.get("cert")) ?? resolveProgramParam(search?.get("program"));
     if (!certificationId) {
       setPhase({ kind: "invalid_params", message: "This training is not available." });
       return;
@@ -255,7 +268,7 @@ function ActiveQuiz({
           </p>
         </div>
         <Link
-          href={trackId ? lessonHref(certificationId, trackId, lessonId) : "/training"}
+          href={backToLessonHref(certificationId, trackId, lessonId)}
           className="inline-block text-sm text-[#C9A84C] hover:underline"
         >
           ← Back to lesson
@@ -300,9 +313,7 @@ function ActiveQuiz({
     }
   }, [allAnswered, quiz.quizId, quiz.quizVersion, quiz.questions, answers, lessonId, certificationId, onSubmitted]);
 
-  const backHref = trackId
-    ? lessonHref(certificationId, trackId, lesson.id)
-    : "/training";
+  const backHref = backToLessonHref(certificationId, trackId, lesson.id);
 
   return (
     <div className="max-w-[720px] mx-auto space-y-6" data-cert-quiz-active>
@@ -403,9 +414,7 @@ function SubmittedView({
 }) {
   const { result, lesson, trackId, lessonId, certificationId } = phase;
   const { result: r, certification_issuance } = result;
-  const backHref = trackId
-    ? lessonHref(certificationId, trackId, lesson.id)
-    : "/training";
+  const backHref = backToLessonHref(certificationId, trackId, lesson.id);
   // CTM: a passing final is ELIGIBILITY only. The credential is issued by the
   // Broker of Record's approval, never by this attempt.
   const isCtmFinalPass = lessonId === CTM_FINAL_EXAM_LESSON_ID && r.passed;
