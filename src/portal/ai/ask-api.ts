@@ -3,7 +3,8 @@ import { getAccessToken } from '@/lib/supabase';
 
 export interface AskResponse {
   answer: string | null;
-  citations: Array<{ section_key: string; title: string; version: string | number; status: string }>;
+  citations: Array<{ section_key: string; title: string; version: string | number | null; status: string }>;
+  party_display?: Array<{ ref: string; role: string; name: string | null }>;
   conversation_id?: string;
   escalation_id?: string;
   disclaimer: string;
