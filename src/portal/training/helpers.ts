@@ -69,6 +69,12 @@ export function deriveModuleProgress(
  */
 function moduleOpenUrl(m: TrainingModuleRow): string {
   if (m.volume === 4) return `/training/certified/${encodeURIComponent(m.id)}`;
+  // CTM-1 (volume 10): the Agent Portal certified-track pages, CTM program.
+  // Only PUBLISHED modules reach the hub (loader.ts), and Vault's learner gate
+  // still refuses the program unless it is active and the learner assigned.
+  if (m.volume === 10) {
+    return `/training/certified/${encodeURIComponent(m.id)}?program=hartfelt-real-estate-ctm-fl`;
+  }
   if (m.volume === 1 || m.volume === 2 || m.volume === 3) {
     return `/training-legacy#module-${m.id}`;
   }

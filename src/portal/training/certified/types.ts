@@ -13,7 +13,10 @@
 // nothing in the AP redefines curriculum or completion logic.
 // ============================================================================
 
-export type LessonRequirementKind = "tour" | "practical" | "quiz";
+// "acknowledgement" — a reading lesson completed by the learner confirming they
+// read it (Vault: POST .../complete { acknowledgement: true }). Used by
+// registry-backed programs such as CTM.
+export type LessonRequirementKind = "tour" | "practical" | "quiz" | "acknowledgement";
 
 export type LessonActivityType =
   | "transaction_wizard"
@@ -282,3 +285,35 @@ export const HARTFELT_PLATFORM_CERTIFIED_ID =
 // Final lesson (pcert-l32) is the one whose passing attempt triggers issuance.
 // Mirrors Vault's HARTFELT_PLATFORM_CERTIFIED_FINAL_LESSON_ID.
 export const FINAL_EXAM_LESSON_ID = "pcert-l32" as const;
+
+// ─── CTM-1 · Closing & Transaction Management (registry-backed program) ─────
+export const CTM_CERTIFICATION_ID = "hartfelt-real-estate-ctm-fl" as const;
+/** CTM's certification exam. Passing it is ELIGIBILITY only — never issuance. */
+export const CTM_FINAL_EXAM_LESSON_ID = "ctm-l1701" as const;
+/** Completed only by the Broker of Record (Vault practicals route, broker-only). */
+export const CTM_BROKER_APPROVAL_LESSON_ID = "ctm-l1801" as const;
+
+/** One content block from Vault's lesson-content route (subset AP renders). */
+export type RichText = string | readonly { text: string; style?: "bold" | "italic" | "code" }[];
+export type LessonContentBlock =
+  | { kind: "paragraph" | "heading" | "quote"; text: RichText; id?: string }
+  | { kind: "list" | "ordered"; items: readonly RichText[]; id?: string }
+  | { kind: "callout"; title: RichText; text: RichText; variant?: string; id?: string }
+  | { kind: "comparison"; badLabel: string; bad: RichText; goodLabel: string; good: RichText; id?: string }
+  | {
+      kind: "table";
+      caption?: string;
+      headers?: readonly RichText[];
+      rows: readonly (readonly (RichText | { content: RichText; colSpan?: number; rowSpan?: number; header?: boolean })[])[];
+      id?: string;
+    }
+  | { kind: string; [k: string]: unknown };
+
+export interface LessonContentResponse {
+  lesson_id: string;
+  certification_id: string;
+  title: string;
+  objective: string;
+  blocks: readonly LessonContentBlock[];
+  takeaways?: readonly string[];
+}
