@@ -20,6 +20,7 @@ describe('tailwind content covers the portal shell and Deal Opportunities', () =
   it.each([
     'src/portal/Sidebar.tsx',
     'src/portal/deal-opportunities/DealOpportunities.tsx',
+    'src/portal/clients/ClientsClient.tsx',
   ])('%s is scanned', (file) => {
     expect(scanned(file)).toBe(true)
   })

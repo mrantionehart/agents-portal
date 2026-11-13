@@ -8,8 +8,9 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { claimPooledLead } from "@/lib/leads/vault-lead-claim-client";
 import { Mail, MapPin, Phone, Search, Users } from "lucide-react";
 
 import type { AssignmentBucket, ClientListItem } from "./types";
@@ -43,6 +44,26 @@ export default function ClientsClient({
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("all");
+  // LEAD-POOL · claiming from the "claim" view. A ref, not state, guards the
+  // press: two taps in one tick would both pass a state check.
+  const claimInFlight = useRef(false);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimedHere, setClaimedHere] = useState<Set<string>>(new Set());
+  const [claimNote, setClaimNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const doClaim = async (id: string, name: string | null) => {
+    if (claimInFlight.current) return;
+    claimInFlight.current = true; setClaimingId(id); setClaimNote(null);
+    try {
+      const r = await claimPooledLead(id);
+      if (r.ok) {
+        setClaimedHere((prev) => new Set(prev).add(id));
+        setClaimNote({ ok: true, text: `You claimed ${name ?? "this lead"}. It is now in your Profiles tab.` });
+      } else {
+        if (r.reason === "taken" || r.reason === "gone") setClaimedHere((prev) => new Set(prev).add(id));
+        setClaimNote({ ok: false, text: r.message });
+      }
+    } finally { claimInFlight.current = false; setClaimingId(null); }
+  };
   const [search, setSearch] = useState("");
 
   const counts = useMemo(() => clientListCounts(items), [items]);
@@ -116,12 +137,23 @@ export default function ClientsClient({
         />
       </div>
 
+      {claimNote && (
+        <p data-testid="claim-note" role="status"
+           className={`mb-4 text-sm ${claimNote.ok ? "text-emerald-400" : "text-amber-400"}`}>
+          {claimNote.text}
+        </p>
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState hasAny={items.length > 0} />
       ) : (
         <ul className="rounded-lg border border-[#1a1a2e] overflow-hidden divide-y divide-[#1a1a2e]">
-          {filtered.map((c) => (
-            <ClientRow key={c.id} c={c} />
+          {filtered.filter((c) => !claimedHere.has(c.id)).map((c) => (
+            <ClientRow key={c.id} c={c}
+              claim={view === "claim" ? {
+                busy: claimingId === c.id,
+                onClaim: () => void doClaim(c.id, c.full_name),
+              } : undefined} />
           ))}
         </ul>
       )}
@@ -136,12 +168,15 @@ export default function ClientsClient({
 
 // ── Row ─────────────────────────────────────────────────────────────
 
-function ClientRow({ c }: { c: ClientListItem }) {
+function ClientRow({ c, claim }: {
+  c: ClientListItem;
+  claim?: { busy: boolean; onClaim: () => void };
+}) {
   return (
-    <li>
+    <li className={claim ? "flex items-center" : undefined}>
       <Link
         href={`/clients/${c.id}`}
-        className="block px-4 py-3 hover:bg-[#1a1a25] transition-colors duration-[180ms]"
+        className="block min-w-0 flex-1 px-4 py-3 hover:bg-[#1a1a25] transition-colors duration-[180ms]"
       >
         <div className="flex items-start gap-3">
           <Users className="h-4 w-4 text-[#71717A] shrink-0 mt-1" />
@@ -186,6 +221,13 @@ function ClientRow({ c }: { c: ClientListItem }) {
           </div>
         </div>
       </Link>
+      {claim && (
+        <button type="button" onClick={claim.onClaim} disabled={claim.busy}
+                data-testid={`claim-${c.id}`}
+                className="mr-3 shrink-0 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50">
+          {claim.busy ? "Claiming…" : "Claim"}
+        </button>
+      )}
     </li>
   );
 }
