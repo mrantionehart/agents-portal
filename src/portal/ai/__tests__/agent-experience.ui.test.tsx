@@ -106,3 +106,31 @@ test('503 on transaction Ask and support creation reports unavailable without su
   expect(await screen.findByText('Broker assistance not available.')).toBeVisible();
   expect(screen.queryByRole('article')).toBeNull();
 });
+
+test.each(['present', 'absent', 'empty'])('transaction Ask opens citations and renders %s party_display', async state => {
+  const normal = network.getMockImplementation()!;
+  network.mockImplementation((url, options) => {
+    if (url.includes('/kb/source?')) return Promise.resolve(response({ section_key: 'policy & upload', heading: 'Published procedure', body: 'Full transaction source body', version: 2 }));
+    if (url.endsWith('/ask')) return Promise.resolve(response({ answer: 'Cited answer', disclaimer: 'Human review', citations: [
+      { section_key: 'policy & upload', title: 'Upload policy', version: 2, status: 'published' },
+      { section_key: 'transaction_parties:p1', title: 'Buyer record', version: 1, status: 'vault_record' },
+    ], ...(state === 'absent' ? {} : { party_display: state === 'empty' ? [] : [
+      { ref: 'p1', role: 'Buyer', name: 'Jamie Agent' }, { ref: 'p2', role: 'Seller', name: null },
+    ] }) }));
+    return normal(url, options);
+  });
+  mount(); await screen.findByText('Missing: Contract');
+  fireEvent.change(screen.getByLabelText('Your question'), { target: { value: 'Who is cited?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Submit question' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Open source Upload policy' }));
+  expect(await screen.findByText('Full transaction source body')).toBeVisible();
+  const askUrl = network.mock.calls.find(([url]) => url.endsWith('/tc/transactions/t1/ask'))[0];
+  expect(network).toHaveBeenCalledWith(askUrl.replace('/tc/transactions/t1/ask', '/kb/source?section_key=policy%20%26%20upload'), expect.objectContaining({ method: 'GET' }));
+  expect(screen.getByText('Buyer record · v1 · Vault record')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Open source Buyer record' })).toBeNull();
+  if (state === 'present') {
+    expect(screen.getByRole('region', { name: 'Parties cited' })).toBeVisible();
+    expect(screen.getByText('Buyer: Jamie Agent')).toBeVisible();
+    expect(screen.getByText('Seller: name not on file')).toBeVisible();
+  } else expect(screen.queryByText('Parties cited')).toBeNull();
+});

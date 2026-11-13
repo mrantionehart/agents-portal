@@ -115,3 +115,39 @@ test('switching to a denied identity immediately removes Ask', async () => {
   expect(screen.queryByRole('button', { name: 'Ask HartFelt AI' })).not.toBeInTheDocument();
   expect(fetchMock.mock.calls.every(([url]) => url.endsWith('/status'))).toBe(true);
 });
+
+test.each([200, 404, 503, 'error'])('general Ask opens source and handles %s', async status => {
+  const normal = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url, options) => {
+    if (url.includes('/ai/kb/source?')) {
+      if (status === 'error') return Promise.reject(new Error('offline'));
+      return Promise.resolve(response({ section_key: 'fl-ppm-11.7', heading: 'Source heading', body: 'Full source body', version: null }, status as number));
+    }
+    return normal(url, options);
+  });
+  mount();
+  const ui = await openAsk();
+  await submit(ui);
+  const button = await ui.findByRole('button', { name: 'Open source Contract uploads' });
+  expect(fetchMock.mock.calls.some(([url]) => url.includes('/kb/source?'))).toBe(false);
+  fireEvent.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  if (status === 200) {
+    expect(await ui.findByText('Full source body')).toBeVisible();
+    expect(ui.getByRole('heading', { name: 'Source heading' })).toBeVisible();
+  } else expect(await ui.findByText('Source unavailable')).toBeVisible();
+  const askUrl = fetchMock.mock.calls.find(([url]) => url.endsWith('/ai/ask'))[0];
+  expect(fetchMock).toHaveBeenCalledWith(askUrl.replace(/\/ai\/ask$/, '/ai/kb/source?section_key=fl-ppm-11.7'), expect.objectContaining({
+    method: 'GET', credentials: 'omit', headers: { Authorization: 'Bearer user-token' },
+  }));
+  fireEvent.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+  expect(ui.queryByRole('region', { name: 'Source Contract uploads' })).toBeNull();
+});
+
+test('Vault records retain chip text and are plain labels', async () => {
+  fetchMock.mockImplementation(async (url: string) => url.endsWith('/status') ? response({ enabled: true }) : response({ ...answer, citations: [{ ...answer.citations[0], status: 'vault_record' }] }));
+  mount(); const ui = await openAsk(); await submit(ui);
+  expect(await ui.findByText('Contract uploads · v2 · Vault record')).toBeVisible();
+  expect(ui.queryByRole('button', { name: 'Open source Contract uploads' })).toBeNull();
+});
