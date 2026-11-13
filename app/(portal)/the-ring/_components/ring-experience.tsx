@@ -420,7 +420,7 @@ function AnalyzingView({ longWait }: { longWait: boolean }) {
   );
 }
 
-function CoachingSection({ title, items }: { title: string; items: string[] }) {
+export function CoachingSection({ title, items }: { title: string; items: string[] }) {
   if (!items || items.length === 0) return null;
   return (
     <div>

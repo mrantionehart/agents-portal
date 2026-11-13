@@ -18,6 +18,7 @@ import {
   getTextState,
   completeText,
   getTextResult,
+  getSavedCoaching,
   getPracticeHistory,
   getCertificationProgress,
   startAssessment,
@@ -34,6 +35,41 @@ function err(status: number, body?: unknown) {
 const FORBIDDEN = ["tenantId", "learnerId", "mode", "authoritative", "outcome"];
 
 beforeEach(() => authFetchMock.mockReset());
+
+// RING-COACHING-HISTORY-1 — reopening saved coaching is a READ: it GETs the
+// existing result route for the round's channel and never POSTs to complete,
+// so it cannot regrade or start a paid model call.
+describe("getSavedCoaching is read-only and routes by channel", () => {
+  const ready = { status: "ready", sessionId: "s 1", coaching: { strengths: [], improvements: [], missedOpportunities: [], coaching: [] } };
+
+  it("voice → GET /simulation/practice/:id/result, nothing else", async () => {
+    authFetchMock.mockResolvedValue(ok(ready));
+    const res = await getSavedCoaching("cert-x", "s 1", "voice");
+    expect(res).toEqual(ready);
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = authFetchMock.mock.calls[0];
+    expect(url).toBe(`${VAULT_API}/simulation/practice/s%201/result?certificationId=cert-x`);
+    expect(init.method).toBe("GET");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("text → GET /simulation/text/result with sessionId + certificationId only", async () => {
+    authFetchMock.mockResolvedValue(ok(ready));
+    await getSavedCoaching("cert-x", "s 1", "text");
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = authFetchMock.mock.calls[0];
+    const u = new URL(url);
+    expect(`${u.origin}${u.pathname}`).toBe(`${VAULT_API}/simulation/text/result`);
+    expect(Object.fromEntries(u.searchParams)).toEqual({ sessionId: "s 1", certificationId: "cert-x" });
+    expect(init.method).toBe("GET");
+    for (const f of FORBIDDEN) expect(url).not.toContain(f);
+  });
+
+  it("a refusal (not the caller's round) surfaces as RingApiError, not as coaching", async () => {
+    authFetchMock.mockResolvedValue(err(404, { error: "session_not_found" }));
+    await expect(getSavedCoaching("cert-x", "other", "voice")).rejects.toBeInstanceOf(RingApiError);
+  });
+});
 
 describe("transport + URL construction", () => {
   it("prepareText POSTs to the Vault origin with only {level, certificationId}", async () => {
