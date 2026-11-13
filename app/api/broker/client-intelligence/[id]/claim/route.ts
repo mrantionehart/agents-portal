@@ -25,75 +25,37 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // LEAD-POOL (2026-11-13) · the claim is made by the database, as the
+  // caller, through claim_pooled_lead() (Vault mig 20271470000000). Agents no
+  // longer hold direct UPDATE on client_profiles: that function is the only
+  // write path, it enforces licence + brokerage + audience + first-claim-wins,
+  // and it can set only the ownership columns.
   try {
     const { id } = await params;
     const supabase = getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, full_name')
-      .eq('id', user.id)
-      .single();
+    const { data: outcome, error } = await supabase.rpc('claim_pooled_lead', { p_client_profile_id: id });
+    if (error) {
+      console.error('[AgentPortal] claim_pooled_lead failed:', error.message);
+      return NextResponse.json({ error: 'Could not claim the lead' }, { status: 503 });
+    }
+    if (outcome === 'not_eligible') {
+      return NextResponse.json({ error: 'Only active agents with a verified licence can claim leads' }, { status: 403 });
+    }
+    if (outcome === 'not_found') return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    if (outcome === 'taken') return NextResponse.json({ error: 'Profile was claimed by another agent' }, { status: 409 });
+    if (outcome !== 'claimed') return NextResponse.json({ error: 'Could not claim the lead' }, { status: 503 });
 
-    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-
-    // Check the profile is still claimable
-    const { data: existing } = await supabase
+    const { data } = await supabase
       .from('client_profiles')
-      .select('status, claimed_by')
+      .select('*')
       .eq('id', id)
-      .single();
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    if (existing.status !== 'dispo') {
-      return NextResponse.json(
-        { error: 'This profile is no longer available for claiming' },
-        { status: 409 }
-      );
-    }
-
-    if (existing.claimed_by) {
-      return NextResponse.json(
-        { error: 'This profile has already been claimed' },
-        { status: 409 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from('client_profiles')
-      .update({
-        claimed_by: user.id,
-        claimed_by_name: profile.full_name,
-        claimed_at: new Date().toISOString(),
-        assigned_agent_id: user.id,
-        assigned_agent_name: profile.full_name,
-        assigned_at: new Date().toISOString(),
-        visibility: 'assigned_agent',
-        status: 'claimed',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .eq('status', 'dispo') // Optimistic lock
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Profile was claimed by another agent' },
-        { status: 409 }
-      );
-    }
-
+      .maybeSingle();
     return NextResponse.json({ data });
   } catch (err: any) {
     console.error('[AgentPortal] Claim error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Could not claim the lead' }, { status: 500 });
   }
 }
