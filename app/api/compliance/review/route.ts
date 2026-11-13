@@ -1,3 +1,4 @@
+import { fetchVaultRequirementsReport, complianceCompleteFromReport } from '@/lib/vault-requirements-report'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
@@ -144,93 +145,7 @@ async function createNotification(
   }
 }
 
-// ── Check if all required docs are approved for a transaction ──
-async function checkComplianceComplete(admin: any, transactionId: string): Promise<{
-  complete: boolean
-  missing: number
-  unapproved: number
-  missingSignatures: number
-}> {
-  // Get transaction with conditional fields
-  const { data: tx } = await admin
-    .from('transactions')
-    .select('type, financing_type, has_hoa, year_built')
-    .eq('id', transactionId)
-    .single()
 
-  if (!tx) return { complete: false, missing: 0, unapproved: 0, missingSignatures: 0 }
-
-  // Get required documents for this type (include conditional ones)
-  const { data: reqs } = await admin
-    .from('transaction_doc_requirements')
-    .select('doc_label, signature_required, is_required, condition')
-    .eq('transaction_type', tx.type)
-    .eq('is_active', true)
-
-  if (!reqs || reqs.length === 0) return { complete: true, missing: 0, unapproved: 0, missingSignatures: 0 }
-
-  // Get uploaded docs
-  const { data: docs } = await admin
-    .from('documents')
-    .select('name, status, signature_status')
-    .eq('transaction_id', transactionId)
-    .is('deleted_at', null)
-
-  const docsByLabel: Record<string, any> = {}
-  for (const d of docs || []) {
-    docsByLabel[d.name?.toLowerCase().trim()] = d
-  }
-
-  // Evaluate conditions
-  const isFinanced = tx.financing_type !== 'cash'
-  const hasHoa = tx.has_hoa === true
-  const isPre1978 = tx.year_built ? tx.year_built < 1978 : true
-
-  let missing = 0
-  let unapproved = 0
-  let missingSignatures = 0
-
-  for (const req of reqs) {
-    const doc = docsByLabel[req.doc_label?.toLowerCase().trim()]
-    const condition = req.condition || null
-
-    // Evaluate if this requirement applies
-    let conditionMet = true
-    if (condition === 'if_financed') conditionMet = isFinanced
-    else if (condition === 'if_hoa') conditionMet = hasHoa
-    else if (condition === 'if_pre1978') conditionMet = isPre1978
-    else if (condition === 'if_uploaded') conditionMet = !!doc // only required if uploaded
-
-    // Skip requirements where condition isn't met
-    const effectiveRequired = condition === 'if_uploaded'
-      ? !!doc  // if uploaded, must be approved
-      : (req.is_required && conditionMet)
-
-    if (!effectiveRequired) continue
-
-    if (!doc) {
-      missing++
-    } else if (doc.status !== 'verified') {
-      unapproved++
-    }
-    // Check signatures
-    if (req.signature_required && doc && doc.signature_status === 'missing') {
-      missingSignatures++
-    }
-    if (req.signature_required && !doc) {
-      missingSignatures++
-    }
-  }
-
-  return {
-    complete: missing === 0 && unapproved === 0 && missingSignatures === 0,
-    missing,
-    unapproved,
-    missingSignatures,
-  }
-}
-
-// POST — approve, reject, or flag missing signature on a document
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthedUser(request)
@@ -399,7 +314,9 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Check if ALL required docs are now approved ───────────
-    const complianceStatus = await checkComplianceComplete(admin, txId)
+    // DOC-ELIG-1 — Vault decides completeness with the one eligibility rule
+    // (only Broker of Record approvals count). Unreachable ⇒ never complete.
+    const complianceStatus = complianceCompleteFromReport(await fetchVaultRequirementsReport(request, txId))
 
     if (complianceStatus.complete) {
       // Mark transaction as compliance approved

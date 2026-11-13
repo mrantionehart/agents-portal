@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, History, Swords, Award } from "lucide-react";
+import { ChevronRight, History, Swords, Award, Building2 } from "lucide-react";
 
 import { getCertificationProgress, type CertProgress } from "@/lib/ring/vault-ring-client";
 
@@ -53,6 +53,23 @@ export default function TheRingOverviewPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[#F1F1F3]">Practice</p>
               <p className="mt-0.5 text-sm text-[#A1A1AA]">Practice realistic seller conversations.</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-[#71717A]" aria-hidden="true" />
+          </div>
+        </Link>
+
+        {/* Listing Agent Practice — the Listing Ring (FSBO / Divorce / Relocation),
+            explicitly NOT the Acquisition default. */}
+        <Link href="/the-ring/listing" className={`${CARD} block p-5 transition hover:border-[#2a2a40]`}>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#C9A84C]/15 text-[#C9A84C]">
+              <Building2 className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#F1F1F3]">Listing Agent Practice</p>
+              <p className="mt-0.5 text-sm text-[#A1A1AA]">
+                FSBO, Divorce and Relocation conversations — Beginner, Intermediate or Advanced.
+              </p>
             </div>
             <ChevronRight className="h-4 w-4 text-[#71717A]" aria-hidden="true" />
           </div>

@@ -1,6 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { User } from '@supabase/supabase-js'
 
+import { previewBlocksRequest, PreviewReadOnlyError, getPreviewToken } from '@/src/portal/preview/preview-state'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -132,6 +134,16 @@ export async function authFetch(
   options: RequestInit = {},
   timeoutMs = 8000
 ): Promise<Response> {
+  // Broker Preview Mode read-only clamp. The SINGLE client chokepoint for
+  // agent-facing mutations (Ring/Matrix/Dev-Opps clients + component writes all
+  // wrap authFetch), so blocking non-GET here neutralises every write — including
+  // the Vault-direct calls AP cannot block server-side. Only the isolated Ring
+  // roleplay practice paths are permitted (safe interactive testing). No-op
+  // unless this tab is an active broker preview tab AND the capability is enabled.
+  if (previewBlocksRequest(options.method, url)) {
+    throw new PreviewReadOnlyError();
+  }
+
   // Overall bound so a hung network / refresh can never leave the caller stuck.
   // `timeoutMs` is overridable for long server operations (e.g. AGENT.SIGN.2C
   // "Send via My DocuSign" runs generate + Aspose flatten + a DocuSign API call,
@@ -144,10 +156,16 @@ export async function authFetch(
     //    wait. NEVER calls getSession() (the LockManager hang point).
     const accessToken = await getAccessToken(2000)
 
+    // Forward the broker preview context so Vault-direct calls (cross-origin,
+    // where the httpOnly cookie is not sent) are server-enforceable too. The
+    // token grants nothing — it can only downgrade a request to read-only.
+    const previewToken = getPreviewToken()
+
     const doFetch = (token: string | undefined) => {
       const headers = new Headers(options.headers || {})
       if (token) headers.set('Authorization', `Bearer ${token}`)
       else headers.delete('Authorization')
+      if (previewToken) headers.set('x-broker-preview', previewToken)
       return fetch(url, { ...options, headers, signal: controller.signal })
     }
 

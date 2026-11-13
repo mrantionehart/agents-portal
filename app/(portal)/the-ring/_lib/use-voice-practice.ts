@@ -90,7 +90,7 @@ export interface VoicePractice {
   readonly transcript: VoiceTranscript | null;
   readonly error: string | null;
   readonly analysisLongWait: boolean;
-  readonly enter: (level: RingLevel | null) => Promise<void>;
+  readonly enter: (level: RingLevel | null, scenarioId?: string | null) => Promise<void>;
   readonly startCall: () => void;
   readonly hangUp: () => void;
   readonly toggleMute: () => void;
@@ -145,14 +145,18 @@ export function useVoicePractice(
   }, [callState]);
 
   const enter = useCallback(
-    async (level: RingLevel | null) => {
+    async (level: RingLevel | null, scenarioId?: string | null) => {
       setError(null);
       setCoaching(null);
       setTranscript(null);
       moveCall("ready");
       setPhase("preparing");
       try {
-        const prepared = await prepareVoice(certificationId, level);
+        // A tile pick (RING-VOICE-THEME-1) adds the scenario; otherwise the call
+        // is exactly the pre-existing two-argument one.
+        const prepared = scenarioId
+          ? await prepareVoice(certificationId, level, scenarioId)
+          : await prepareVoice(certificationId, level);
         if (!mounted.current) return;
         setSession({
           sessionId: prepared.sessionId,

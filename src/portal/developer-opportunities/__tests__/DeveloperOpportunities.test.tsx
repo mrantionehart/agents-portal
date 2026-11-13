@@ -130,6 +130,34 @@ describe('[P3I-AP-1] the Portal sends nothing the server would have to trust', (
     await waitFor(() => expect(mockFetch).toHaveBeenCalled())
     expect(String(mockFetch.mock.calls[0][0])).toContain('limit=25')
   })
+
+  it('pages through Vault cursors without sending trusted identity parameters', async () => {
+    const cursor = '2026-10-22T09:00:00.000Z'
+    const second = { ...summary, id: 'opp-2', research_notes: 'Second assigned project' }
+    mockFetch.mockImplementation(async (url: string) => {
+      const u = String(url)
+      if (/\/opportunities\/opp-1$/.test(u)) return ok(detail())
+      if (/\/opportunities\/opp-2$/.test(u)) return ok(detail({ opportunity: { ...detail().opportunity, id: 'opp-2' } }))
+      if (u.includes('cursor=')) return ok({ opportunities: [second], page: { size: 25, count: 1, nextCursor: null } })
+      return ok({ opportunities: [summary], page: { size: 25, count: 1, nextCursor: cursor } })
+    })
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('row-opp-1')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    await waitFor(() => expect(screen.getByTestId('row-opp-2')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 2')
+    const nextCall = mockFetch.mock.calls.find(([url]) => String(url).includes('cursor='))
+    expect(nextCall).toBeTruthy()
+    expect(String(nextCall?.[0])).toContain('limit=25')
+    expect(String(nextCall?.[0]).toLowerCase()).not.toMatch(/tenant|agentid|assigned_agent_id/)
+    expect((screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+    await waitFor(() => expect(screen.getByTestId('row-opp-1')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 1')
+  })
 })
 
 describe('[P3I-AP-2] what an unentitled or empty agent sees', () => {

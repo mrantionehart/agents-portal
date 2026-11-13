@@ -12,11 +12,13 @@ jest.mock("@/lib/supabase", () => ({ authFetch: (...a: unknown[]) => authFetchMo
 
 import {
   prepareText,
+  prepareVoice,
   beginText,
   sendTurn,
   getTextState,
   completeText,
   getTextResult,
+  getSavedCoaching,
   getPracticeHistory,
   getCertificationProgress,
   startAssessment,
@@ -34,6 +36,41 @@ const FORBIDDEN = ["tenantId", "learnerId", "mode", "authoritative", "outcome"];
 
 beforeEach(() => authFetchMock.mockReset());
 
+// RING-COACHING-HISTORY-1 — reopening saved coaching is a READ: it GETs the
+// existing result route for the round's channel and never POSTs to complete,
+// so it cannot regrade or start a paid model call.
+describe("getSavedCoaching is read-only and routes by channel", () => {
+  const ready = { status: "ready", sessionId: "s 1", coaching: { strengths: [], improvements: [], missedOpportunities: [], coaching: [] } };
+
+  it("voice → GET /simulation/practice/:id/result, nothing else", async () => {
+    authFetchMock.mockResolvedValue(ok(ready));
+    const res = await getSavedCoaching("cert-x", "s 1", "voice");
+    expect(res).toEqual(ready);
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = authFetchMock.mock.calls[0];
+    expect(url).toBe(`${VAULT_API}/simulation/practice/s%201/result?certificationId=cert-x`);
+    expect(init.method).toBe("GET");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("text → GET /simulation/text/result with sessionId + certificationId only", async () => {
+    authFetchMock.mockResolvedValue(ok(ready));
+    await getSavedCoaching("cert-x", "s 1", "text");
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = authFetchMock.mock.calls[0];
+    const u = new URL(url);
+    expect(`${u.origin}${u.pathname}`).toBe(`${VAULT_API}/simulation/text/result`);
+    expect(Object.fromEntries(u.searchParams)).toEqual({ sessionId: "s 1", certificationId: "cert-x" });
+    expect(init.method).toBe("GET");
+    for (const f of FORBIDDEN) expect(url).not.toContain(f);
+  });
+
+  it("a refusal (not the caller's round) surfaces as RingApiError, not as coaching", async () => {
+    authFetchMock.mockResolvedValue(err(404, { error: "session_not_found" }));
+    await expect(getSavedCoaching("cert-x", "other", "voice")).rejects.toBeInstanceOf(RingApiError);
+  });
+});
+
 describe("transport + URL construction", () => {
   it("prepareText POSTs to the Vault origin with only {level, certificationId}", async () => {
     authFetchMock.mockResolvedValue(ok({ sessionId: "s1", scenarioLabel: "L", attemptNumber: 1, countsTowardProgression: false, reused: false, level: 1 }));
@@ -43,6 +80,21 @@ describe("transport + URL construction", () => {
     expect(init.method).toBe("POST");
     expect(init.headers["Content-Type"]).toBe("application/json");
     expect(JSON.parse(init.body)).toEqual({ level: 2, certificationId: "cert-x" });
+  });
+
+  // RING-VOICE-THEME-1 — a Listing tile pick reaches voice prepare; without a
+  // pick the body is byte-identical to before.
+  it("prepareVoice sends scenarioId only when a tile was picked", async () => {
+    const res = { sessionId: "s1", scenarioLabel: "L", attemptNumber: 1, countsTowardProgression: false, reused: false, level: 3 };
+    authFetchMock.mockResolvedValue(ok(res));
+    await prepareVoice("cert-x", 3, "lst-s20-divorce-sensitive");
+    const [url, init] = authFetchMock.mock.calls[0];
+    expect(url).toBe(`${VAULT_API}/simulation/practice/prepare`);
+    expect(JSON.parse(init.body)).toEqual({ level: 3, certificationId: "cert-x", scenarioId: "lst-s20-divorce-sensitive" });
+    authFetchMock.mockClear();
+    authFetchMock.mockResolvedValue(ok(res));
+    await prepareVoice("cert-x", null);
+    expect(JSON.parse(authFetchMock.mock.calls[0][1].body)).toEqual({ level: null, certificationId: "cert-x" });
   });
 
   it("getTextState builds a query string and sends no body (GET)", async () => {

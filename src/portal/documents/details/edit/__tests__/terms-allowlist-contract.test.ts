@@ -57,6 +57,10 @@ const TERMS_ALLOWLIST_CONTRACT: readonly string[] = [
   "^listing\\.tenant_broker\\.(offer_from_broker|offer_from_owner|no_offer)$",
   "^listing\\.tenant_broker\\.from_(broker|owner)\\.(gross_value_pct|first_month_pct|flat_amount)$",
   "^listing\\.legal_description$",
+  // P4H-15CX — broker-authorized sale-side paths, mirrored from Vault's
+  // TERMS_PATH_ALLOWLIST. ERS-20sa, EBLA-13 and CDS-1 each marked one of
+  // these REQUIRED while none was writable in either repo.
+  "^listing\\.(list_price|compensation_summary|brokerage_election)$",
 ];
 
 describe("the mirror matches the contract", () => {
@@ -67,7 +71,7 @@ describe("the mirror matches the contract", () => {
   });
 
   it("[APTAC-2] the count is pinned — a silent addition cannot slip through", () => {
-    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(27);
+    expect(TERMS_PATH_ALLOWLIST_MIRROR).toHaveLength(28);
   });
 
   it("[APTAC-3] this guard needs NO sibling checkout, which is the whole point", () => {
@@ -91,8 +95,13 @@ describe("the rental-listing paths an ERL-14 needs are offered", () => {
     });
   }
 
-  it("[APTAC-5] a sale's list_price is still not writable", () => {
-    expect(isAllowedTermsPathMirror("listing.list_price")).toBe(false);
+  it("[APTAC-5] a sale's list_price IS writable now, and only as itself", () => {
+    // Asserted the opposite until P4H-15CX. Vault's ERS-20sa could never be
+    // completed while this path was refused; the broker authorized it. A
+    // RENTAL path still must not reach it.
+    expect(isAllowedTermsPathMirror("listing.list_price")).toBe(true);
+    expect(isAllowedTermsPathMirror("listing.rental.list_price")).toBe(false);
+    expect(isAllowedTermsPathMirror("listing.list_price.amount")).toBe(false);
   });
 
   it("[APTAC-6] near-misses are refused, not accepted as prefixes", () => {

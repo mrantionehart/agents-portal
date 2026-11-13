@@ -21,6 +21,11 @@ import { VAULT_API_URL } from "@/lib/vault-client";
  *  pass it explicitly so the intent is legible and stable. */
 export const ACQUISITION_CERTIFICATION_ID = "hartfelt-holdings-acquisition-certified";
 
+/** The Listing Agent Ring program (FSBO / Divorce / Relocation and the rest of
+ *  the listing-conversation library). Passed explicitly so Listing practice is
+ *  NEVER the Acquisition default. Mirrors Vault's LISTING_CERTIFICATION_ID. */
+export const LISTING_CERTIFICATION_ID = "hartfelt-real-estate-listing-agent-certified";
+
 /** A Vault Ring API error. `notEnabled` is true when the route answered 404 with
  *  an empty body — the Vault feature flag is dark (text practice / assessment),
  *  which the UI renders as an honest "not available yet" state, NOT a crash. */
@@ -164,8 +169,14 @@ export interface StartAssessmentResult {
 export function prepareText(
   certificationId: string,
   level: RingLevel | null,
+  /** A learner-chosen scenario (a theme/tile pick). Omitted → the level
+   *  rotation, unchanged. Vault validates it is callable for this program. */
+  scenarioId?: string | null,
 ): Promise<TextPrepareResult> {
-  return ringRequest("/simulation/text/prepare", jsonInit("POST", { level, certificationId }));
+  return ringRequest(
+    "/simulation/text/prepare",
+    jsonInit("POST", { level, certificationId, ...(scenarioId ? { scenarioId } : {}) }),
+  );
 }
 
 export function beginText(certificationId: string, sessionId: string): Promise<TextBeginResult> {
@@ -251,8 +262,15 @@ export interface VoiceTranscript {
 export function prepareVoice(
   certificationId: string,
   level: RingLevel | null,
+  /** A learner-chosen scenario (a Listing theme/tile pick). Omitted → the level
+   *  rotation, unchanged (the body is byte-identical to before). Vault validates
+   *  it is callable for this program (RING-VOICE-THEME-1). */
+  scenarioId?: string | null,
 ): Promise<VoicePrepareResult> {
-  return ringRequest("/simulation/practice/prepare", jsonInit("POST", { level, certificationId }));
+  return ringRequest(
+    "/simulation/practice/prepare",
+    jsonInit("POST", scenarioId ? { level, certificationId, scenarioId } : { level, certificationId }),
+  );
 }
 
 /** Mint the provider call. Call ONLY after the microphone is granted — the Vault
@@ -278,6 +296,25 @@ export function getVoiceResult(certificationId: string, sessionId: string): Prom
     `/simulation/practice/${encodeURIComponent(sessionId)}/result?${q.toString()}`,
     { method: "GET" },
   );
+}
+
+/**
+ * RING-COACHING-HISTORY-1 — the SAVED coaching for one of the agent's own
+ * finished rounds, for History's "View Coaching".
+ *
+ * READ-ONLY by construction: it only ever GETs the existing result routes,
+ * which read the stored evaluation and never grade. Nothing here can complete,
+ * retry or re-score a round, so reopening coaching can never start a paid
+ * model call. Vault enforces ownership and tenant scope on both routes.
+ */
+export function getSavedCoaching(
+  certificationId: string,
+  sessionId: string,
+  channel: "text" | "voice",
+): Promise<ResultPoll> {
+  return channel === "voice"
+    ? getVoiceResult(certificationId, sessionId)
+    : getTextResult(certificationId, sessionId);
 }
 
 export function getVoiceTranscript(

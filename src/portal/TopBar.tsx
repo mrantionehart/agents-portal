@@ -9,8 +9,12 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Menu, Search } from "lucide-react";
+
+import AIChatPanel from "./ai/AIChatPanel";
+import { useAskEnabled } from "./ai/use-ask-enabled";
 
 import { cls } from "@/src/design/tokens";
 
@@ -31,6 +35,13 @@ export default function TopBar({
   onMenuClick,
   onCommandBarOpen,
 }: TopBarProps) {
+  const askEnabled = useAskEnabled();
+  const askButtonRef = useRef<HTMLButtonElement>(null);
+  function closeAsk() {
+    setAskOpen(false);
+    askButtonRef.current?.focus();
+  }
+  const [askOpen, setAskOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -76,6 +87,22 @@ export default function TopBar({
 
       <div className="flex-1" aria-hidden />
 
+      {askEnabled && <>
+        <button ref={askButtonRef} type="button" onClick={() => setAskOpen(true)} className={cls.buttonGhost}>Ask</button>
+        {askOpen && createPortal(<div onKeyDown={event => {
+          if (event.key === 'Escape') { event.preventDefault(); closeAsk(); }
+          if (event.key === 'Tab') {
+            const controls = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea:not(:disabled), input:not(:disabled)');
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }
+        }} role="dialog" aria-modal="true" aria-label="Ask HartFelt AI" className="fixed inset-0 z-50 bg-[#050507] p-4 overflow-y-auto">
+          <button type="button" autoFocus onClick={closeAsk} className={cls.buttonGhost}>Close Ask</button>
+          <AIChatPanel transactionId={null} initialMode="ask" />
+        </div>, document.body)}
+      </>}
       {/* Notification bell — placeholder count */}
       <button
         type="button"
