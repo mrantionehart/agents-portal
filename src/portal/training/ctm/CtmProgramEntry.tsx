@@ -46,7 +46,10 @@ export function continueHref(p: CertifiedProgress): string {
 
 function summary(p: CertifiedProgress): string {
   if (p.issuance && !p.issuance.revoked_at) return 'Certified by your Broker of Record.'
-  if (p.status === 'completed') return 'Final exam passed — awaiting Broker of Record approval.'
+  // Vault keeps the overall status in_progress until the Broker of Record's
+  // approval lesson completes, so read the exam lesson itself.
+  const examDone = p.tracks.some((t) => t.lessons.some((l) => l.lesson_id === 'ctm-l1701' && l.status === 'completed'))
+  if (p.status === 'completed' || examDone) return 'Final exam passed — awaiting Broker of Record approval.'
   const total = p.tracks.length
   const done = p.tracks.filter((t) => t.status === 'completed' || t.status === 'certified').length
   return `${done} of ${total} modules complete.`

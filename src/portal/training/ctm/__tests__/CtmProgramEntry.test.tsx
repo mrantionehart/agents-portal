@@ -73,6 +73,15 @@ describe('CtmProgramEntry', () => {
     )
   })
 
+  it('exam lesson completed while Vault status is still in_progress → awaiting approval (not "N of 18")', async () => {
+    mockFetchProgress.mockResolvedValue(progress({
+      status: 'in_progress',
+      tracks: [{ module_id: 'ctm-m17', status: 'completed', pct: 1, lessons: [{ lesson_id: 'ctm-l1701', status: 'completed' }] }],
+    }))
+    render(<CtmProgramEntry role="agent" />)
+    expect(await screen.findByTestId('ctm-entry-summary')).toHaveTextContent('awaiting Broker of Record approval')
+  })
+
   it('final passed but not yet approved: says it awaits the Broker of Record (eligibility, not certification)', async () => {
     mockFetchProgress.mockResolvedValue(progress({ status: 'completed' }))
     render(<CtmProgramEntry role="tc" />)
