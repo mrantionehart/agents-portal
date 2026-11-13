@@ -18,6 +18,14 @@ module.exports = {
     // CommissionPayoutsCard lives under src/portal/settings and uses unique
     // classes (e.g. text-emerald-400) not otherwise emitted; scan it directly.
     './src/portal/settings/**/*.{js,ts,jsx,tsx,mdx}',
+    // The portal shell's mobile drawer. Unscanned, `-translate-x-full` and
+    // `md:translate-x-0` emitted NO CSS, so on a phone the nav sat open over
+    // every page and its close button did nothing (found in the Deal Dispo
+    // UAT, 2026-11-13, at 375px). Pinned by tailwind-content.test.ts.
+    './src/portal/Sidebar.tsx',
+    // DEAL-DISPO-AGENTS — Deal Opportunities uses responsive grid/width
+    // classes (sm:grid-cols-4, md:grid-cols-2, sm:w-60) found nowhere else.
+    './src/portal/deal-opportunities/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
