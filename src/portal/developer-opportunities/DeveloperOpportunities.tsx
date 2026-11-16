@@ -340,11 +340,31 @@ export default function DeveloperOpportunities({
                 }`}
               >
                 <span className="block text-sm font-medium text-white">
-                  {o.research_notes?.split("\n")[0]?.split("—")[0]?.trim() || "Developer opportunity"}
+                  {o.projects?.find((project) => project.primary)?.name
+                    ?? o.projects?.[0]?.name
+                    ?? "Development name not available"}
                 </span>
-                <span className="mt-0.5 block text-[11px] text-white/50">
-                  {o.opportunity_type.replace(/_/g, " ").toLowerCase()} · {o.stage}
+                <span className="mt-0.5 block text-xs text-white/65">
+                  {[o.projects?.find((project) => project.primary)?.address ?? o.projects?.[0]?.address,
+                    o.projects?.find((project) => project.primary)?.city ?? o.projects?.[0]?.city,
+                    o.projects?.find((project) => project.primary)?.county ?? o.projects?.[0]?.county]
+                    .filter(Boolean).join(" · ") || "Development location not available"}
                 </span>
+                <span className="mt-1 block text-[11px] text-white/50">
+                  {o.opportunity_type.replace(/_/g, " ").toLowerCase()} · {o.stage.replace(/_/g, " ")}
+                  {o.assigned_at ? ` · assigned ${fmt(o.assigned_at)}` : " · assignment date unavailable"}
+                </span>
+                <span className="mt-1 block text-[11px] text-white/55">
+                  Developer: {o.developer?.name ?? "Not identified"}
+                  {o.developer?.name ? ` · ${o.developer.confidence}` : ""}
+                </span>
+                <span className="mt-1 block text-[11px] text-white/45">
+                  {o.projects?.find((project) => project.primary)?.developmentStage
+                    ?? o.projects?.[0]?.developmentStage
+                    ?? "Development stage not available"}
+                </span>
+                {o.developer?.source && <span className="mt-1 block text-[11px] text-amber-300">Verified source available</span>}
+                <span className="mt-1 block text-[11px] text-white/40">Project summary not available.</span>
               </button>
             </li>
           ))}
@@ -378,7 +398,7 @@ export default function DeveloperOpportunities({
             <section data-testid="section-project" className={`${CARD} p-5`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">{primary?.project_name ?? "Developer opportunity"}</h2>
+                  <h2 className="text-lg font-semibold text-white">{primary?.project_name ?? "Development name not available"}</h2>
                   <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-white/60">
                     <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300 ring-1 ring-amber-500/30">
                       {d.opportunity.opportunity_type.replace(/_/g, " ")}
@@ -420,9 +440,9 @@ export default function DeveloperOpportunities({
                       <li key={p.id} data-testid={`parcel-${p.parcel_id}`} className={`${SOFT} p-3`}>
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
-                            <span className="text-sm font-semibold text-white">{p.project_name ?? "Unnamed parcel"}</span>
+                            <span className="text-sm font-semibold text-white">{p.project_name ?? "Development name not available"}</span>
                             {p.link?.is_primary && <span className="ml-2 text-[10px] uppercase tracking-wide text-sky-300">primary</span>}
-                            <p className="mt-0.5 text-xs text-white/60">{addr ?? "No address on record"}</p>
+                            <p className="mt-0.5 text-xs text-white/60">{[addr, p.municipality, p.county].filter(Boolean).join(" · ") || "Development location not available"}</p>
                             <p className="font-mono text-xs text-white/40">Folio {p.parcel_id ?? "—"}</p>
                           </div>
                           <span className="flex gap-2">
@@ -469,10 +489,11 @@ export default function DeveloperOpportunities({
                   </div>
                   <p className="mt-1.5 text-sm text-white">{d.derived.developer.name ?? "No developer is named by an independent source"}</p>
                   {d.derived.developer.status.note && <p className="mt-1 text-xs text-white/55">{d.derived.developer.status.note}</p>}
+                  {d.derived.developer.url && <a className="mt-1 inline-block text-xs text-amber-300 underline" href={d.derived.developer.url} target="_blank" rel="noopener noreferrer">Open verified developer source</a>}
                 </div>
                 <div data-testid="owners" className={`${SOFT} p-3`}>
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">Owner of record</span>
-                  {d.owners.length === 0 ? <p className="mt-1.5 text-sm text-white/60">No owner party recorded.</p> : (
+                  {d.owners === null ? <p className="mt-1.5 text-sm text-white/60">Owner details are not included in the agent view.</p> : d.owners.length === 0 ? <p className="mt-1.5 text-sm text-white/60">No owner party recorded.</p> : (
                     <ul role="list" className="mt-1.5 space-y-1.5">
                       {d.owners.map((o, i) => {
                         const nm = Array.isArray(o.dev_developers) ? o.dev_developers[0]?.entity_name : o.dev_developers?.entity_name;
