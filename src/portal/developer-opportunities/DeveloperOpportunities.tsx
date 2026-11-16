@@ -342,7 +342,9 @@ export default function DeveloperOpportunities({
                 <span className="block text-sm font-medium text-white">
                   {o.projects?.find((project) => project.primary)?.name
                     ?? o.projects?.[0]?.name
-                    ?? "Development name not available"}
+                    ?? (o.projects?.find((project) => project.primary)?.address
+                      ? `Project at ${o.projects.find((project) => project.primary)?.address}`
+                      : o.projects?.[0]?.address ? `Project at ${o.projects[0].address}` : "Development name not available")}
                 </span>
                 <span className="mt-0.5 block text-xs text-white/65">
                   {[o.projects?.find((project) => project.primary)?.address ?? o.projects?.[0]?.address,
@@ -358,6 +360,7 @@ export default function DeveloperOpportunities({
                   Developer: {o.developer?.name ?? "Not identified"}
                   {o.developer?.name ? ` · ${o.developer.confidence}` : ""}
                 </span>
+                {o.linkedDeveloper && <span className="mt-1 block text-[11px] text-white/55">Linked company record (not independently verified): {o.linkedDeveloper}</span>}
                 <span className="mt-1 block text-[11px] text-white/45">
                   {o.projects?.find((project) => project.primary)?.developmentStage
                     ?? o.projects?.[0]?.developmentStage

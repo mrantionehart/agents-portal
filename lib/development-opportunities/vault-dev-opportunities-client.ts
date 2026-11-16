@@ -99,6 +99,7 @@ export interface OpportunitySummary {
   id: string; opportunity_type: string; stage: string; assigned_at: string | null
   projects?: Array<{ id: string; name: string | null; address: string | null; city: string | null; county: string | null; developmentStage?: string | null; primary: boolean }>
   developer?: { name: string | null; confidence: 'VERIFIED' | 'POSSIBLE' | 'UNKNOWN'; source: string | null }
+  linkedDeveloper?: string | null
 }
 /** A fact Vault has already classified. The Portal renders the confidence it
  *  is given and never computes one. */
