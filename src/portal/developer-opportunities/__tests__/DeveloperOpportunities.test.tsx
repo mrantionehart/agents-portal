@@ -79,6 +79,7 @@ const summary = {
   id: OPP, opportunity_type: 'EXCLUSIVE_LISTING', stage: 'proposed', assigned_at: '2026-10-22T09:00:00Z',
   projects: [{ id: 'p1', name: '1953 TIGERTAIL AV', address: '1953 TIGERTAIL AV', city: 'Miami', county: 'Miami-Dade', developmentStage: 'ISSUED', primary: true }],
   developer: { name: 'EPIC DEVELOPMENTS LLC', confidence: 'VERIFIED', source: 'https://example.test/source' },
+  linkedDeveloper: 'EPIC DEVELOPMENT GROUP LLC',
 }
 
 const ok = (body: unknown) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) })
@@ -106,8 +107,16 @@ describe('[P3I-AP-1] the Portal sends nothing the server would have to trust', (
     expect(card.textContent).toContain('1953 TIGERTAIL AV')
     expect(card.textContent).toContain('Miami-Dade')
     expect(card.textContent).toContain('EPIC DEVELOPMENTS LLC')
+    expect(card.textContent).toContain('Linked company record (not independently verified): EPIC DEVELOPMENT GROUP LLC')
     expect(card.textContent).toContain('ISSUED')
     expect(card.textContent).not.toContain('EXCLUSIVE LISTING.')
+  })
+
+  it('uses an existing parcel address as a transparent card label when the project name is absent', async () => {
+    const addressOnly = { ...summary, projects: [{ ...summary.projects[0], name: null }] }
+    serve({ opportunities: [addressOnly], page: { size: 25, count: 1, nextCursor: null } }, detail())
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('row-opp-1').textContent).toContain('Project at 1953 TIGERTAIL AV'))
   })
 
   it('does not expose owner records in the agent view', async () => {
