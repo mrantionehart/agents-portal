@@ -78,7 +78,9 @@ function Citation({ source }: { source: AskResponse['citations'][number] }) {
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const chipClass = 'inline-block mr-2 rounded-full border border-[#C9A84C] px-3 py-1';
-  const chipText = <>{source.title} · v{source.version}</>;
+  const hasUuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(source.title);
+  const title = hasUuid ? 'Vault record' : source.title;
+  const version = source.version?.toString().trim();
 
   async function toggle() {
     setOpen(previous => !previous);
@@ -89,11 +91,13 @@ function Citation({ source }: { source: AskResponse['citations'][number] }) {
     finally { setLoading(false); }
   }
 
-  if (source.status === 'vault_record') return <span className={chipClass}>{chipText} · Vault record</span>;
+  if (source.status === 'vault_record') return <span className={chipClass}>
+    {title}{title !== 'Vault record' && <span className="text-xs"> · Vault record</span>}
+  </span>;
   return <>
-    <button type="button" className={chipClass} aria-label={`Open source ${source.title}`}
-      aria-expanded={open} aria-controls={regionId} onClick={toggle}>{chipText}</button>
-    {open && <div id={regionId} role="region" aria-label={`Source ${source.title}`} className="my-2 space-y-2">
+    <button type="button" className={chipClass} aria-label={`Open source ${title}`}
+      aria-expanded={open} aria-controls={regionId} onClick={toggle}>{title}{version && ` · v${source.version}`}</button>
+    {open && <div id={regionId} role="region" aria-label={`Source ${title}`} className="my-2 space-y-2">
       {loading && <p>Loading source…</p>}
       {failed && <p>Source unavailable</p>}
       {content && <><h3>{content.heading}</h3><p className="whitespace-pre-wrap">{content.body}</p></>}

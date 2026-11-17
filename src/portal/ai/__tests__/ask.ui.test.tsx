@@ -129,6 +129,7 @@ test.each([200, 404, 503, 'error'])('general Ask opens source and handles %s', a
   const ui = await openAsk();
   await submit(ui);
   const button = await ui.findByRole('button', { name: 'Open source Contract uploads' });
+  expect(button.textContent).toBe('Contract uploads · v2');
   expect(fetchMock.mock.calls.some(([url]) => url.includes('/kb/source?'))).toBe(false);
   fireEvent.click(button);
   expect(button).toHaveAttribute('aria-expanded', 'true');
@@ -146,8 +147,22 @@ test.each([200, 404, 503, 'error'])('general Ask opens source and handles %s', a
 });
 
 test('Vault records retain chip text and are plain labels', async () => {
-  fetchMock.mockImplementation(async (url: string) => url.endsWith('/status') ? response({ enabled: true }) : response({ ...answer, citations: [{ ...answer.citations[0], status: 'vault_record' }] }));
+  fetchMock.mockImplementation(async (url: string) => url.endsWith('/status') ? response({ enabled: true }) : response({ ...answer, citations: [
+    { section_key: 'deadline:inspection', title: 'Deadline: Inspection', version: null, status: 'vault_record' },
+    { section_key: 'party:buyer', title: 'Party: 123e4567-e89b-12d3-a456-426614174000', version: null, status: 'vault_record' },
+  ] }));
   mount(); const ui = await openAsk(); await submit(ui);
-  expect(await ui.findByText('Contract uploads · v2 · Vault record')).toBeVisible();
-  expect(ui.queryByRole('button', { name: 'Open source Contract uploads' })).toBeNull();
+  const chip = await ui.findByText('Deadline: Inspection');
+  expect(chip).toBeVisible();
+  expect(chip.textContent).toBe('Deadline: Inspection · Vault record');
+  expect(ui.getByText('Vault record', { exact: true, selector: 'span.inline-block' })).toBeVisible();
+  expect(ui.queryByText(/123e4567/)).not.toBeInTheDocument();
+  expect(ui.queryByRole('button', { name: /Open source/ })).toBeNull();
+});
+
+test.each([null, '', '  '])('published citations omit a missing version (%p)', async version => {
+  fetchMock.mockImplementation(async (url: string) => url.endsWith('/status') ? response({ enabled: true }) : response({ ...answer, citations: [{ ...answer.citations[0], version }] }));
+  mount(); const ui = await openAsk(); await submit(ui);
+  const chip = await ui.findByRole('button', { name: 'Open source Contract uploads' });
+  expect(chip.textContent).toBe('Contract uploads');
 });
