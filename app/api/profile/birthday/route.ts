@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth.response) return auth.response
-  return proxyToVault(request, 'GET', '/api/profile/birthday')
+  return proxyToVault(request, 'GET', '/profile/birthday')
 }
 
 // PUT — self-service update. Only month/day + email preference are forwarded.
@@ -43,5 +43,5 @@ export async function PUT(request: NextRequest) {
     safe.birthdayEmailEnabled = input.birthdayEmailEnabled
   }
 
-  return proxyToVault(request, 'PUT', '/api/profile/birthday', safe)
+  return proxyToVault(request, 'PUT', '/profile/birthday', safe)
 }

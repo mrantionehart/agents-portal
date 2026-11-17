@@ -75,7 +75,12 @@ const detail = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-const summary = { id: OPP, opportunity_type: 'EXCLUSIVE_LISTING', stage: 'proposed', score: 104, assigned_agent_id: 'agent-1', assigned_at: null, research_notes: '1953 TIGERTAIL AV — EXCLUSIVE LISTING.', created_at: '2026-10-22T09:00:00Z' }
+const summary = {
+  id: OPP, opportunity_type: 'EXCLUSIVE_LISTING', stage: 'proposed', assigned_at: '2026-10-22T09:00:00Z',
+  projects: [{ id: 'p1', name: '1953 TIGERTAIL AV', address: '1953 TIGERTAIL AV', city: 'Miami', county: 'Miami-Dade', developmentStage: 'ISSUED', primary: true }],
+  developer: { name: 'EPIC DEVELOPMENTS LLC', confidence: 'VERIFIED', source: 'https://example.test/source' },
+  linkedDeveloper: 'EPIC DEVELOPMENT GROUP LLC',
+}
 
 const ok = (body: unknown) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) })
 const err = (status: number, body: unknown = {}) => ({ ok: false, status, text: async () => JSON.stringify(body) })
@@ -94,6 +99,33 @@ beforeEach(() => { mockFetch.mockReset() })
 // ---------------------------------------------------------------------------
 
 describe('[P3I-AP-1] the Portal sends nothing the server would have to trust', () => {
+  it('renders project identity and sourced developer fields without using research notes as a title', async () => {
+    serve({ opportunities: [summary], page: { size: 25, count: 1, nextCursor: null } }, detail())
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('row-opp-1')).toBeTruthy())
+    const card = screen.getByTestId('row-opp-1')
+    expect(card.textContent).toContain('1953 TIGERTAIL AV')
+    expect(card.textContent).toContain('Miami-Dade')
+    expect(card.textContent).toContain('EPIC DEVELOPMENTS LLC')
+    expect(card.textContent).toContain('Linked company record (not independently verified): EPIC DEVELOPMENT GROUP LLC')
+    expect(card.textContent).toContain('ISSUED')
+    expect(card.textContent).not.toContain('EXCLUSIVE LISTING.')
+  })
+
+  it('uses an existing parcel address as a transparent card label when the project name is absent', async () => {
+    const addressOnly = { ...summary, projects: [{ ...summary.projects[0], name: null }] }
+    serve({ opportunities: [addressOnly], page: { size: 25, count: 1, nextCursor: null } }, detail())
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('row-opp-1').textContent).toContain('Project at 1953 TIGERTAIL AV'))
+  })
+
+  it('does not expose owner records in the agent view', async () => {
+    serve({ opportunities: [summary], page: { size: 25, count: 1, nextCursor: null } }, detail({ owners: null }))
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('owners').textContent).toContain('Owner details are not included in the agent view.'))
+    expect(screen.getByTestId('owners').textContent).not.toContain('EPIC DEVELOPMENTS LLC')
+  })
+
   it('[CRITICAL] never sends a tenant, agent or assignment parameter', async () => {
     serve({ opportunities: [summary], page: { size: 25, count: 1, nextCursor: null } }, detail())
     render(<DeveloperOpportunities />)
@@ -129,6 +161,34 @@ describe('[P3I-AP-1] the Portal sends nothing the server would have to trust', (
     render(<DeveloperOpportunities />)
     await waitFor(() => expect(mockFetch).toHaveBeenCalled())
     expect(String(mockFetch.mock.calls[0][0])).toContain('limit=25')
+  })
+
+  it('pages through Vault cursors without sending trusted identity parameters', async () => {
+    const cursor = '2026-10-22T09:00:00.000Z'
+    const second = { ...summary, id: 'opp-2', research_notes: 'Second assigned project' }
+    mockFetch.mockImplementation(async (url: string) => {
+      const u = String(url)
+      if (/\/opportunities\/opp-1$/.test(u)) return ok(detail())
+      if (/\/opportunities\/opp-2$/.test(u)) return ok(detail({ opportunity: { ...detail().opportunity, id: 'opp-2' } }))
+      if (u.includes('cursor=')) return ok({ opportunities: [second], page: { size: 25, count: 1, nextCursor: null } })
+      return ok({ opportunities: [summary], page: { size: 25, count: 1, nextCursor: cursor } })
+    })
+    render(<DeveloperOpportunities />)
+    await waitFor(() => expect(screen.getByTestId('row-opp-1')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    await waitFor(() => expect(screen.getByTestId('row-opp-2')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 2')
+    const nextCall = mockFetch.mock.calls.find(([url]) => String(url).includes('cursor='))
+    expect(nextCall).toBeTruthy()
+    expect(String(nextCall?.[0])).toContain('limit=25')
+    expect(String(nextCall?.[0]).toLowerCase()).not.toMatch(/tenant|agentid|assigned_agent_id/)
+    expect((screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+    await waitFor(() => expect(screen.getByTestId('row-opp-1')).toBeTruthy())
+    expect(screen.getByTestId('opportunity-page-number').textContent).toBe('Page 1')
   })
 })
 

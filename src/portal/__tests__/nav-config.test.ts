@@ -10,7 +10,7 @@
 import { NAV_ITEMS, isBrokerTier, visibleNavItems } from "../nav-config";
 
 describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Library; HOTFIX.AP.STR.001 adds Buildings)", () => {
-  it("ships the 16 documented items in order (HARTFELT MATRIX SIMULATOR adds Matrix Simulator after The Ring)", () => {
+  it("ships the 15 documented items in order (HARTFELT MATRIX SIMULATOR adds Matrix Simulator after The Ring)", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Home",
       "Transactions",
@@ -18,7 +18,6 @@ describe("NAV_ITEMS (R5 — Training Hub absorbs Resources; AGENT.DOCS.1 adds Li
       "Buildings",
       "My Follow-Ups",
       "Developer Opportunities",
-      "Deal Opportunities",
       "AI",
       "Calendar",
       "Meetings",

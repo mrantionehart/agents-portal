@@ -34,7 +34,11 @@ export function findTrackProgressPct(
   trackId: string,
 ): number {
   const track = progress.tracks.find((t) => t.module_id === trackId);
-  return track?.pct ?? 0;
+  // Vault sends `pct` as a FRACTION (progress.ts: round(completed/total*100)/100,
+  // i.e. 0..1). The bar and label are percentages, so convert here. Showing the
+  // raw value rendered half a track as "0.5%".
+  const fraction = Math.min(Math.max(track?.pct ?? 0, 0), 1);
+  return Math.round(fraction * 100);
 }
 
 /**

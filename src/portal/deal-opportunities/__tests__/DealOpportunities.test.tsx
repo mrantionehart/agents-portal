@@ -59,12 +59,9 @@ beforeEach(() => {
 })
 
 describe('entry points', () => {
-  it('the nav carries Deal Opportunities, agent-visible, right after Developer Opportunities', () => {
-    const labels = NAV_ITEMS.map((i) => i.label)
-    expect(labels.indexOf('Deal Opportunities')).toBe(labels.indexOf('Developer Opportunities') + 1)
-    const item = NAV_ITEMS.find((i) => i.id === 'deal-opportunities')!
-    expect(item.href).toBe('/deal-opportunities')
-    expect(item.brokerOnly).toBeUndefined()
+  it('HOLDINGS / REAL ESTATE SEPARATION — Deal Opportunities is NOT in the agent nav', () => {
+    expect(NAV_ITEMS.find((i) => i.id === 'deal-opportunities')).toBeUndefined()
+    expect(NAV_ITEMS.map((i) => i.label)).not.toContain('Deal Opportunities')
   })
   it("the bell row Vault writes on publish deep-links into this page", () => {
     expect(linkTargetFor({

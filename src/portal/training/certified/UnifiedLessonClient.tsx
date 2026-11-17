@@ -43,10 +43,15 @@ import FamilyAGuidanceCard from "./activities/FamilyAGuidanceCard";
 import WizardLaunchLink from "./activities/WizardLaunchLink";
 import ChecklistLauncher from "./activities/ChecklistLauncher";
 import QuizLauncher from "./activities/QuizLauncher";
+import AcknowledgementLesson from "./activities/AcknowledgementLesson";
+import { trackHref } from "./program";
+import { CTM_BROKER_APPROVAL_LESSON_ID, HARTFELT_PLATFORM_CERTIFIED_ID } from "./types";
 
 interface UnifiedLessonClientProps {
   trackId: string;
   lessonId: string;
+  /** Allowlisted program (see program.ts). Defaults to the platform certification. */
+  certificationId?: string;
 }
 
 type LoadState =
@@ -63,6 +68,7 @@ type LoadState =
 export default function UnifiedLessonClient({
   trackId,
   lessonId,
+  certificationId = HARTFELT_PLATFORM_CERTIFIED_ID,
 }: UnifiedLessonClientProps) {
   const { user } = useAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -71,8 +77,8 @@ export default function UnifiedLessonClient({
     setState({ kind: "loading" });
     try {
       const [catalog, progress] = await Promise.all([
-        fetchCatalog(),
-        fetchProgress(),
+        fetchCatalog(certificationId),
+        fetchProgress(certificationId),
       ]);
       const track = catalog.tracks.find((t) => t.id === trackId);
       if (!track) {
@@ -86,6 +92,10 @@ export default function UnifiedLessonClient({
       }
       setState({ kind: "loaded", catalog, progress, lesson });
     } catch (e) {
+      if (e instanceof CertApiError && e.status === 404) {
+        setState({ kind: "not_found", message: "This training is not available to you." });
+        return;
+      }
       const msg =
         e instanceof CertApiError
           ? `${e.message} (HTTP ${e.status})`
@@ -94,7 +104,7 @@ export default function UnifiedLessonClient({
           : "Failed to load lesson.";
       setState({ kind: "error", message: msg, retry: () => void load() });
     }
-  }, [trackId, lessonId]);
+  }, [trackId, lessonId, certificationId]);
 
   useEffect(() => {
     void load();
@@ -102,7 +112,7 @@ export default function UnifiedLessonClient({
 
   if (state.kind === "loading") return <Loading />;
   if (state.kind === "not_found")
-    return <NotFound message={state.message} trackId={trackId} />;
+    return <NotFound message={state.message} trackId={trackId} certificationId={certificationId} />;
   if (state.kind === "error")
     return <ErrorPanel message={state.message} onRetry={state.retry} />;
 
@@ -115,7 +125,7 @@ export default function UnifiedLessonClient({
     <div className="max-w-[720px] mx-auto space-y-6">
       <div>
         <Link
-          href={`/training/certified/${encodeURIComponent(trackId)}`}
+          href={trackHref(certificationId, trackId)}
           className="text-xs text-[#71717A] hover:text-[#F1F1F3]"
         >
           ← Back to track
@@ -152,6 +162,7 @@ export default function UnifiedLessonClient({
 
       {unlocked && (
         <RequirementDispatcher
+          certificationId={certificationId}
           lesson={lesson}
           lessonProgress={lessonProgress}
           userId={user?.id ?? null}
@@ -165,16 +176,33 @@ export default function UnifiedLessonClient({
 // ─── Requirement dispatcher ────────────────────────────────────────────────
 
 function RequirementDispatcher({
+  certificationId,
   lesson,
   lessonProgress,
   userId,
   onProgressChange,
 }: {
+  certificationId: string;
   lesson: CertifiedLesson;
   lessonProgress: LessonProgress | null;
   userId: string | null;
   onProgressChange: () => void;
 }) {
+  if (lesson.requirements.length === 0 && lesson.id === CTM_BROKER_APPROVAL_LESSON_ID) {
+    // Manual lesson: only the Broker of Record completes it (Vault practicals
+    // route, broker-only). The learner has nothing to submit here.
+    const done = lessonProgress?.status === "completed";
+    return (
+      <section
+        className={`rounded border p-4 text-sm ${done ? "border-green-500/30 bg-green-500/10 text-green-300" : "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#F1F1F3]"}`}
+        data-cert-broker-approval
+      >
+        {done
+          ? "Approved by your Broker of Record."
+          : "Your Broker of Record reviews your results and approves certification. There is nothing to submit here — passing the exam makes you eligible; it does not certify you."}
+      </section>
+    );
+  }
   if (lesson.requirements.length === 0) {
     return (
       <section className="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
@@ -211,6 +239,7 @@ function RequirementDispatcher({
         <div key={kind} data-cert-requirement-kind={kind}>
           {renderRequirement({
             kind,
+            certificationId,
             lesson,
             userId,
             overallCompleted,
@@ -227,6 +256,7 @@ function RequirementDispatcher({
 
 function renderRequirement(args: {
   kind: LessonRequirementKind;
+  certificationId: string;
   lesson: CertifiedLesson;
   userId: string | null;
   overallCompleted: boolean;
@@ -235,7 +265,7 @@ function renderRequirement(args: {
   quizAlreadyPassed: boolean;
   onProgressChange: () => void;
 }) {
-  const { kind, lesson, userId, overallCompleted, tourAlreadyAttested, practicalAlreadyAttested, quizAlreadyPassed, onProgressChange } = args;
+  const { kind, certificationId, lesson, userId, overallCompleted, tourAlreadyAttested, practicalAlreadyAttested, quizAlreadyPassed, onProgressChange } = args;
   switch (kind) {
     case "tour":
       return (
@@ -301,7 +331,20 @@ function renderRequirement(args: {
       );
     case "quiz":
       return (
-        <QuizLauncher lessonId={lesson.id} alreadyPassed={overallCompleted || quizAlreadyPassed} />
+        <QuizLauncher
+          lessonId={lesson.id}
+          certificationId={certificationId}
+          alreadyPassed={overallCompleted || quizAlreadyPassed}
+        />
+      );
+    case "acknowledgement":
+      return (
+        <AcknowledgementLesson
+          certificationId={certificationId}
+          lessonId={lesson.id}
+          alreadyCompleted={overallCompleted}
+          onCompleted={onProgressChange}
+        />
       );
     default: {
       const unknown: never = kind;
@@ -325,11 +368,11 @@ function Loading() {
   );
 }
 
-function NotFound({ message, trackId }: { message: string; trackId: string }) {
+function NotFound({ message, trackId, certificationId }: { message: string; trackId: string; certificationId: string }) {
   return (
     <div className="max-w-[720px] mx-auto space-y-4">
       <Link
-        href={`/training/certified/${encodeURIComponent(trackId)}`}
+        href={trackHref(certificationId, trackId)}
         className="text-xs text-[#71717A] hover:text-[#F1F1F3]"
       >
         ← Back to track
@@ -379,7 +422,13 @@ function StatusBadge({ label }: { label: string }) {
 
 function RequirementBadge({ kind }: { kind: LessonRequirementKind }) {
   const copy =
-    kind === "tour" ? "Tour" : kind === "practical" ? "Practical" : "Quiz";
+    kind === "tour"
+      ? "Tour"
+      : kind === "practical"
+      ? "Practical"
+      : kind === "acknowledgement"
+      ? "Reading"
+      : "Quiz";
   return (
     <span
       className="inline-flex items-center rounded border border-[#C9A84C]/30 bg-[#C9A84C]/10 px-2 py-0.5 text-[11px] text-[#C9A84C]"

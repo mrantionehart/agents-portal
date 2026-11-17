@@ -117,12 +117,13 @@ describe("RING-IN-MY-TRAINING — loader always surfaces the Ring", () => {
   // .from(t).select(...).order(...) | .select(...) | .select(...).eq(...)
   function selectResult(data: unknown[]) {
     const p = Promise.resolve({ data });
-    return {
-      order: () => p,
-      eq: () => p,
+    const chain: Record<string, unknown> = {
       then: (res: (v: { data: unknown[] }) => unknown, rej?: (e: unknown) => unknown) =>
         p.then(res, rej),
     };
+    chain.order = () => chain;
+    chain.eq = () => chain;
+    return chain;
   }
   const okSupabase = {
     from: () => ({ select: () => selectResult([]) }),

@@ -15,5 +15,5 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth.response) return auth.response
-  return proxyToVault(request, 'POST', '/api/profile/birthday/dismiss')
+  return proxyToVault(request, 'POST', '/profile/birthday/dismiss')
 }

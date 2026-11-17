@@ -41,6 +41,12 @@ describe("modulesToHubItems — volume-aware open_url routing", () => {
     expect(items[0].open_url).toBe("/training-legacy#module-m_v3_ai");
   });
 
+  it("Volume 10 (CTM) modules open the Agent Portal certified track for the CTM program — never Vault", () => {
+    const modules = [buildModule({ id: "ctm-m01", volume: 10 })];
+    const items = modulesToHubItems(modules, new Map());
+    expect(items[0].open_url).toBe("/training/certified/ctm-m01?program=hartfelt-real-estate-ctm-fl");
+  });
+
   it("Volume 4 modules open the certified track page", () => {
     const modules = [buildModule({ id: "pcert-t01", volume: 4 })];
     const items = modulesToHubItems(modules, new Map());

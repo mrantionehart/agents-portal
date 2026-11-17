@@ -75,7 +75,8 @@ export interface ApprovalRow {
 }
 export interface ProjectRow {
   id: string; parcel_id: string | null; project_name: string | null
-  addresses: string[] | null; category: string | null; category_basis: string | null
+  addresses: string[] | null; municipality?: string | null; county?: string | null
+  category: string | null; category_basis: string | null
   tenure: string | null; max_total_sqft: number | null; zones: string[] | null
   units: number | null; asset_class: string | null; acreage: number | null
   link: { is_primary: boolean; link_basis: string } | null
@@ -95,9 +96,10 @@ export interface FollowupRow {
   id: string; title: string | null; status: string | null; due_at: string | null; agent_id: string | null
 }
 export interface OpportunitySummary {
-  id: string; opportunity_type: string; stage: string; score: number | null
-  assigned_agent_id: string | null; assigned_at: string | null
-  research_notes: string | null; created_at?: string | null
+  id: string; opportunity_type: string; stage: string; assigned_at: string | null
+  projects?: Array<{ id: string; name: string | null; address: string | null; city: string | null; county: string | null; developmentStage?: string | null; primary: boolean }>
+  developer?: { name: string | null; confidence: 'VERIFIED' | 'POSSIBLE' | 'UNKNOWN'; source: string | null }
+  linkedDeveloper?: string | null
 }
 /** A fact Vault has already classified. The Portal renders the confidence it
  *  is given and never computes one. */
@@ -139,10 +141,13 @@ export interface DerivedBlock {
 
 export interface OpportunityDetail {
   derived: DerivedBlock
-  opportunity: OpportunitySummary & { evidence_refs: unknown }
+  opportunity: {
+    id: string; opportunity_type: string; stage: string; assigned_at: string | null
+    research_notes: string | null; evidence_refs: unknown
+  }
   projects: ProjectRow[]
   filings: FilingRow[]
-  owners: OwnerRow[]
+  owners: OwnerRow[] | null
   approvals: ApprovalRow[]
   followups: FollowupRow[]
   viewer: { isBrokerTier: boolean; userId: string }

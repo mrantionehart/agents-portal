@@ -13,7 +13,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
-const VAULT_PATH = '/api/onboarding/hartfelt-ready/final-exam/grants'
+const VAULT_PATH = '/onboarding/hartfelt-ready/final-exam/grants'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)

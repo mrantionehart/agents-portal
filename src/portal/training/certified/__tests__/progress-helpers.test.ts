@@ -127,8 +127,11 @@ describe("findTrackProgressPct", () => {
     expect(findTrackProgressPct(progress([]), "pcert-t01")).toBe(0);
   });
   it("returns the pct value the server projected", () => {
-    const p = progress([{ module_id: "pcert-t02", pct: 42, lessons: [] }]);
+    // Vault's real shape: a fraction (0.42), shown as 42%.
+    const p = progress([{ module_id: "pcert-t02", pct: 0.42, lessons: [] }]);
     expect(findTrackProgressPct(p, "pcert-t02")).toBe(42);
+    expect(findTrackProgressPct(progress([{ module_id: "t", pct: 0.5, lessons: [] }]), "t")).toBe(50);
+    expect(findTrackProgressPct(progress([{ module_id: "t", pct: 1, lessons: [] }]), "t")).toBe(100);
   });
 });
 
