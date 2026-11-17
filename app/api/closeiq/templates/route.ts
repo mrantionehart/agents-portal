@@ -8,6 +8,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
 import { userClient } from '@/lib/security'
+import { proxyToVault } from '@/lib/vault-forward'
 
 const inflateAsync = promisify(inflate)
 
@@ -223,48 +224,11 @@ async function extractFormFields(pdfBytes: Buffer | Uint8Array): Promise<{
 // ---------------------------------------------------------------------------
 // AI-assisted field mapping: use Claude to map offer data keys to PDF fields
 // ---------------------------------------------------------------------------
-async function suggestFieldMapping(
-  pdfFieldNames: string[],
-  offerDataKeys: string[]
-): Promise<Record<string, string>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return {}
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: `You are a real estate form mapping assistant. Given a list of PDF form field names and a list of offer data keys, create a JSON mapping from offer data keys to PDF field names. Only map fields where there is a clear match. Output ONLY a valid JSON object — no markdown, no explanation.`,
-        messages: [{
-          role: 'user',
-          content: `Map these offer data keys to PDF form fields.
-
-Offer data keys: ${JSON.stringify(offerDataKeys)}
-
-PDF form field names: ${JSON.stringify(pdfFieldNames)}
-
-Return a JSON object where keys are offer data keys and values are the matching PDF field names. Only include confident matches.`,
-        }],
-      }),
-    })
-
-    if (!resp.ok) return {}
-
-    const data = await resp.json()
-    const raw = data.content?.[0]?.text || ''
-    const jsonMatch = raw.match(/\{[\s\S]*\}/)
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : {}
-  } catch (e) {
-    console.error('AI mapping suggestion failed:', e)
-    return {}
-  }
+async function suggestFieldMapping(request: NextRequest, pdfFieldNames: string[], offerDataKeys: string[]): Promise<Record<string,string>> {
+  // Optional suggestion: preserve upload success when Vault AI is unavailable.
+  const response = await proxyToVault(request, 'POST', '/ai/legacy/template-mapping', {pdfFieldNames, offerDataKeys})
+  if (!response.ok) return {}
+  return response.json()
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +361,7 @@ export async function POST(request: NextRequest) {
         'offer_date', 'appraisal_contingency', 'financing_contingency',
       ]
       const pdfFieldNames = formFields.map(f => f.name)
-      suggestedMapping = await suggestFieldMapping(pdfFieldNames, offerDataKeys)
+      suggestedMapping = await suggestFieldMapping(request, pdfFieldNames, offerDataKeys)
     }
 
     // Insert template record
