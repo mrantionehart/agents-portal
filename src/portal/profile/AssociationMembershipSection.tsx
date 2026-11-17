@@ -15,6 +15,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { authFetch } from '@/lib/supabase'
 
+/**
+ * Release gate (runbook R7). The Vault records behind this section exist only
+ * after the R7 migration is applied, so the section is not shown before then —
+ * otherwise every agent's profile would show a load error. Turning it on is a
+ * reviewed one-line change made with the Vault release.
+ */
+export const ASSOCIATION_SECTION_ENABLED = false
+
 type Statuses = { brokerage_affiliation: string; association_membership: string; mls_access: string }
 interface ElectionsResponse {
   statuses: Statuses
