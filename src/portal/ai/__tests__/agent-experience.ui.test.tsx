@@ -126,7 +126,9 @@ test.each(['present', 'absent', 'empty'])('transaction Ask opens citations and r
   expect(await screen.findByText('Full transaction source body')).toBeVisible();
   const askUrl = network.mock.calls.find(([url]) => url.endsWith('/tc/transactions/t1/ask'))[0];
   expect(network).toHaveBeenCalledWith(askUrl.replace('/tc/transactions/t1/ask', '/kb/source?section_key=policy%20%26%20upload'), expect.objectContaining({ method: 'GET' }));
-  expect(screen.getByText('Buyer record · v1 · Vault record')).toBeVisible();
+  const recordChip = screen.getByText('Buyer record');
+  expect(recordChip).toBeVisible();
+  expect(recordChip.textContent).toBe('Buyer record · Vault record');
   expect(screen.queryByRole('button', { name: 'Open source Buyer record' })).toBeNull();
   if (state === 'present') {
     expect(screen.getByRole('region', { name: 'Parties cited' })).toBeVisible();
