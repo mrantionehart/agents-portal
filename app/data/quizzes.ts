@@ -561,6 +561,152 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
   },
 
   // ═══════════════════════════════════════════
+  // VOLUME 1 — Module 14: Fair Housing & Disclosure (D6)
+  // Text approved in the counsel-cleared Attorney Review Package v5 (2026-11-13).
+  // Answer positions reshuffled per BA-6; question and option text unchanged.
+  // Pass: 10 of 12 (round(10/12*100)=83 >= 80; 9/12=75 fails).
+  // INERT until the training_modules row V1 M14 exists (staged, not applied).
+  // ═══════════════════════════════════════════
+
+  vol1_m14: {
+    title: 'Fair Housing & Disclosure Quiz',
+    passingScore: 80,
+    questions: [
+      {
+        id: 'v1m14q1',
+        question: 'A buyer asks you to show homes only in neighborhoods "where people like us live." What do you do?',
+        options: [
+          { id: 'a', text: 'Explain you cannot steer on protected characteristics, and search by the buyer\'s own objective criteria (price, size, commute, features)' },
+          { id: 'b', text: 'Show only neighborhoods that match the buyer\'s background' },
+          { id: 'c', text: 'Suggest they research neighborhood demographics and tell you which to show' },
+          { id: 'd', text: 'Show every neighborhood except the ones you think they would not like' },
+        ],
+        correct: 'a',
+      },
+      {
+        id: 'v1m14q2',
+        question: 'A seller of a single-family home (not housing for older persons) tells you not to show it to families with young children. What do you do?',
+        options: [
+          { id: 'a', text: 'Follow the instruction; it is the seller\'s home' },
+          { id: 'b', text: 'Follow it, but only if the seller puts it in writing' },
+          { id: 'c', text: 'Decline: refusing to deal based on familial status is unlawful, and you cannot carry out the instruction' },
+          { id: 'd', text: 'Show it to families, but discourage them from making offers' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m14q3',
+        question: 'Your listing remarks read "perfect for a young professional couple — no kids." What do you do?',
+        options: [
+          { id: 'a', text: 'Keep it; it describes the ideal buyer' },
+          { id: 'b', text: 'Remove only "no kids"' },
+          { id: 'c', text: 'Keep it in the MLS but not on social media' },
+          { id: 'd', text: 'Rewrite the remarks to describe the property, not the preferred buyer' },
+        ],
+        correct: 'd',
+      },
+      {
+        id: 'v1m14q4',
+        question: 'Which of these is a protected class under the federal Fair Housing Act?',
+        options: [
+          { id: 'a', text: 'Occupation' },
+          { id: 'b', text: 'Familial status' },
+          { id: 'c', text: 'Credit score' },
+          { id: 'd', text: 'Student status' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m14q5',
+        question: 'An applicant for your "no pets" rental listing has a disability and requests to keep an assistance animal. What is correct?',
+        options: [
+          { id: 'a', text: 'Refuse; the listing says no pets' },
+          { id: 'b', text: 'Allow it only with a pet deposit' },
+          { id: 'c', text: 'Ask the applicant to name their diagnosis before deciding' },
+          { id: 'd', text: 'Treat it as a reasonable-accommodation request: an assistance animal is not a pet; reliable documentation of the disability-related need may be requested if not obvious, but no pet fee and no diagnosis' },
+        ],
+        correct: 'd',
+      },
+      {
+        id: 'v1m14q6',
+        question: 'When may a community lawfully limit residency based on familial status?',
+        options: [
+          { id: 'a', text: 'Only when it qualifies as housing for older persons (55+ or 62+) under federal law' },
+          { id: 'b', text: 'Whenever the HOA votes for it' },
+          { id: 'c', text: 'When the seller prefers a quiet buyer' },
+          { id: 'd', text: 'Never, under any circumstances' },
+        ],
+        correct: 'a',
+      },
+      {
+        id: 'v1m14q7',
+        question: 'On a residential listing, the seller says the roof leaks in heavy rain and asks you not to mention it. What do you do?',
+        options: [
+          { id: 'a', text: 'Respect the seller\'s confidentiality' },
+          { id: 'b', text: 'Mention it only if a buyer asks directly' },
+          { id: 'c', text: 'Advise the seller it must be disclosed; if the seller refuses, you cannot conceal it and must not proceed on that basis' },
+          { id: 'd', text: 'Leave it to the buyer\'s inspector to find' },
+        ],
+        correct: 'c',
+      },
+      {
+        id: 'v1m14q8',
+        question: 'What must a Florida licensee disclose to a buyer of residential property?',
+        options: [
+          { id: 'a', text: 'Only defects the seller lists in writing' },
+          { id: 'b', text: 'All known facts that materially affect the property\'s value and are not readily observable to the buyer' },
+          { id: 'c', text: 'Nothing; disclosure is the seller\'s job alone' },
+          { id: 'd', text: 'Only facts discovered at inspection' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m14q9',
+        question: 'The seller of a 1972 home says to skip "the lead paperwork." What do you do?',
+        options: [
+          { id: 'a', text: 'Ensure the federal lead disclosure is completed before the buyer is bound: known lead hazards disclosed, the EPA pamphlet given, the Lead Warning Statement in the contract, and a 10-day inspection opportunity unless waived' },
+          { id: 'b', text: 'Skip it; it is optional for homes over 50 years old' },
+          { id: 'c', text: 'Order a mold inspection instead' },
+          { id: 'd', text: 'Mention it verbally at closing' },
+        ],
+        correct: 'a',
+      },
+      {
+        id: 'v1m14q10',
+        question: 'Before a Florida contract or lease for a building is signed, what radon requirement applies?',
+        options: [
+          { id: 'a', text: 'None; radon is optional' },
+          { id: 'b', text: 'A radon test result must be attached' },
+          { id: 'c', text: 'The seller must give a radon mitigation warranty' },
+          { id: 'd', text: 'The statutory radon gas notification must be provided on at least one document signed at or before the contract or lease' },
+        ],
+        correct: 'd',
+      },
+      {
+        id: 'v1m14q11',
+        question: 'Unless a single-agent or no-brokerage relationship is established in writing, a Florida licensee working with a customer is presumed to be:',
+        options: [
+          { id: 'a', text: 'A single agent' },
+          { id: 'b', text: 'A transaction broker' },
+          { id: 'c', text: 'A dual agent' },
+          { id: 'd', text: 'An unlicensed assistant' },
+        ],
+        correct: 'b',
+      },
+      {
+        id: 'v1m14q12',
+        question: 'Which duty does a single agent owe that a transaction broker does NOT?',
+        options: [
+          { id: 'a', text: 'Dealing honestly and fairly' },
+          { id: 'b', text: 'Accounting for all funds' },
+          { id: 'c', text: 'Loyalty' },
+          { id: 'd', text: 'Skill, care and diligence' },
+        ],
+        correct: 'c',
+      },
+    ],
+  },
+  // ═══════════════════════════════════════════
   // VOLUME 3 / AI Training (also mapped as vol3_m1 for legacy)
   // ═══════════════════════════════════════════
 
