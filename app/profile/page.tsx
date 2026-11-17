@@ -8,7 +8,6 @@ import { supabase, authFetch } from '@/lib/supabase'
 import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
 import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
 import MembershipsSection from '@/src/portal/profile/MembershipsSection'
-import AssociationMembershipSection, { ASSOCIATION_SECTION_ENABLED } from '@/src/portal/profile/AssociationMembershipSection'
 
 interface Profile {
   id: string
@@ -204,9 +203,6 @@ export default function ProfilePage() {
             {/* MDC-1 — My Memberships & MLS (Vault records; dark behind
                 NEXT_PUBLIC_MEMBERSHIP_COMPLIANCE_ENABLED, renders nothing while off) */}
             <MembershipsSection />
-            {/* Association membership & MLS access — distinct statuses, own election,
-                addendum status and any reimbursement notice (Vault is the record) */}
-            {ASSOCIATION_SECTION_ENABLED && <AssociationMembershipSection />}
 
             {/* Save Button */}
             <button

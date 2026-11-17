@@ -18,6 +18,12 @@ const VIEW = {
   documentation_requests: [{ id: 'r1', description: 'Upload your renewal receipt', due_date: '2026-12-15' }],
   disclosures: [{ id: 'd1', disclosure_text: 'Synthetic disclosure text.', outcome: 'amount_pending_verification', amount_cents: null, agent_acknowledged_at: null }],
   policies: [{ key: 'membership_optional', title: 'Association membership is optional', summary: 'Synthetic summary' }],
+  statuses: { brokerage_affiliation: 'affiliated', association_membership: 'nonmember', mls_access: 'active' },
+  addendum: { title: 'Association Membership & Financial Responsibility Addendum', version: '2026-11-17-draft', released: false, executed: false },
+  reimbursement_notices: [
+    { id: 'n1', issuing_association: 'Synthetic Association', amount_cents: 61500, fiscal_period: '2027', rule_basis: 'Bylaws Art. X §3', calculation_method: '1 x DR dues',
+      reimbursement_stage: 'noticed', objection_deadline: '2026-12-03T04:59:59.999Z' },
+  ],
 }
 
 const fetchMock = jest.fn()
@@ -51,7 +57,7 @@ describe('MembershipsSection', () => {
   it('nonmember election submits a declaration only — no block, no termination language', async () => {
     render(<MembershipsSection />)
     fireEvent.click(await screen.findByLabelText('I am not currently a REALTOR® association member.'))
-    expect(screen.queryByText(/terminat|deduct|blocked/i)).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'Declare or report a change' })).queryByText(/terminat|deduct|blocked/i)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Submit declaration/ }))
     await waitFor(() => expect(posts()).toHaveLength(1))
     const [url, init] = posts()[0]
@@ -104,5 +110,34 @@ describe('MembershipsSection', () => {
     const { container } = render(<MembershipsSection />)
     expect(container).toBeEmptyDOMElement()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows three separate statuses and the addendum status (consolidated)', async () => {
+    render(<MembershipsSection />)
+    const dl = await screen.findByLabelText('Your statuses')
+    expect(within(dl).getByText('Affiliated')).toBeInTheDocument()
+    expect(within(dl).getByText('Not a member')).toBeInTheDocument()
+    expect(screen.getByTestId('ap-addendum-status')).toHaveTextContent(/not executed/)
+  })
+
+  it('"intend to join" is recorded as a pending declaration', async () => {
+    render(<MembershipsSection />)
+    fireEvent.click(await screen.findByLabelText('I intend to obtain or maintain qualifying REALTOR® membership'))
+    fireEvent.click(screen.getByRole('button', { name: /Submit declaration/ }))
+    await waitFor(() => expect(posts()).toHaveLength(1))
+    expect(JSON.parse(posts()[0][1].body)).toEqual({ kind: 'membership', declared_status: 'pending', association_name: null })
+  })
+
+  it('the agent can object in writing to a reimbursement notice', async () => {
+    render(<MembershipsSection />)
+    const card = await screen.findByTestId('ap-reimbursement-n1')
+    expect(within(card).getByText(/Nothing is deducted from your commissions/)).toBeInTheDocument()
+    const btn = within(card).getByRole('button', { name: 'Submit objection' })
+    expect(btn).toBeDisabled()
+    fireEvent.change(within(card).getByLabelText('Objection to Synthetic Association notice'), { target: { value: 'I paid the association directly.' } })
+    fireEvent.click(btn)
+    await waitFor(() => expect(posts()).toHaveLength(1))
+    expect(posts()[0][0]).toBe('/api/profile/memberships/reimbursements/n1/object')
+    expect(JSON.parse(posts()[0][1].body)).toEqual({ objection: 'I paid the association directly.' })
   })
 })

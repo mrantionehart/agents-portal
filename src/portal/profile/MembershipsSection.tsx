@@ -26,7 +26,23 @@ interface View {
   mls_subscriptions: Row[]
   documentation_requests: Row[]
   disclosures: Row[]
+  statuses?: { brokerage_affiliation: string; association_membership: string; mls_access: string }
+  addendum?: { title: string; version: string; released: boolean; executed: boolean }
+  reimbursement_notices?: Row[]
   policies: Array<{ key: string; title: string; summary: string }>
+}
+
+// Declaration choices (wording adopted from the consolidated association election).
+const CHOICES = [
+  { value: 'active', label: 'I currently maintain qualifying REALTOR® membership' },
+  { value: 'pending', label: 'I intend to obtain or maintain qualifying REALTOR® membership' },
+  { value: 'nonmember', label: 'I am not currently a REALTOR® association member.' },
+  { value: 'verification_required', label: 'My membership status needs to be verified' },
+] as const
+const STATUS_LABEL: Record<string, string> = {
+  affiliated: 'Affiliated', not_active: 'Not active', not_recorded: 'Not recorded', active: 'Active', pending: 'Pending',
+  nonmember: 'Not a member', delinquent: 'Delinquent', suspended: 'Suspended', terminated: 'Terminated',
+  verification_required: 'Needs verification', inactive: 'Inactive',
 }
 
 const STATE_LABEL: Record<string, string> = {
@@ -51,7 +67,9 @@ export default function MembershipsSection() {
   const [view, setView] = useState<View | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const [isMember, setIsMember] = useState(true)
+  const [choice, setChoice] = useState<(typeof CHOICES)[number]['value']>('active')
+  const isMember = choice === 'active'
+  const [objection, setObjection] = useState<Record<string, string>>({})
   const [m, setM] = useState({ association_name: '', is_primary: true, membership_number: '', declared_renewal_date: '' })
   const [mls, setMls] = useState({ mls_provider: '', declared_renewal_date: '' })
 
@@ -101,7 +119,7 @@ export default function MembershipsSection() {
       post(
         isMember
           ? { kind: 'membership', declared_status: 'active', association_name: m.association_name.trim(), is_primary: m.is_primary, membership_number: m.membership_number.trim() || null, declared_renewal_date: m.declared_renewal_date || null }
-          : { kind: 'membership', declared_status: 'nonmember', association_name: m.association_name.trim() || null },
+          : { kind: 'membership', declared_status: choice, association_name: m.association_name.trim() || null },
       ),
       'Declaration submitted for review.',
     )
@@ -126,6 +144,23 @@ export default function MembershipsSection() {
       <p className="mb-4 text-sm text-gray-600">
         REALTOR® association membership is optional at Hartfelt. You can stay affiliated as a nonmember where the rules allow it.
       </p>
+      {view.statuses ? (
+        <dl className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Your statuses">
+          {([['Brokerage affiliation', view.statuses.brokerage_affiliation], ['Association membership', view.statuses.association_membership], ['MLS access', view.statuses.mls_access]] as const).map(([k, v]) => (
+            <div key={k} className="rounded-lg bg-gray-50 p-2">
+              <dt className="text-xs text-gray-500">{k}</dt>
+              <dd className="text-sm font-medium text-gray-900">{STATUS_LABEL[v] ?? v}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {view.addendum ? (
+        <p data-testid="ap-addendum-status" className="mb-3 text-sm text-gray-600">
+          {view.addendum.executed
+            ? `${view.addendum.title}: executed.`
+            : `${view.addendum.title}: not executed. It applies only after you and the Broker of Record sign it.`}
+        </p>
+      ) : null}
       {msg ? <p role={msg.ok ? 'status' : 'alert'} className={`mb-3 text-sm ${msg.ok ? 'text-green-700' : 'text-red-700'}`}>{msg.text}</p> : null}
 
       <div className="space-y-3">
@@ -152,12 +187,11 @@ export default function MembershipsSection() {
 
       <fieldset aria-label="Declare or report a change" className="mt-4 space-y-2 rounded-lg border border-gray-200 p-3">
         <legend className="px-1 text-sm font-medium">Declare or report a change</legend>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="mdc-member" checked={isMember} onChange={() => setIsMember(true)} /> I am a REALTOR® association member
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="mdc-member" checked={!isMember} onChange={() => setIsMember(false)} /> I am not currently a REALTOR® association member.
-        </label>
+        {CHOICES.map((c) => (
+          <label key={c.value} className="flex items-center gap-2 text-sm">
+            <input type="radio" name="mdc-member" checked={choice === c.value} onChange={() => setChoice(c.value)} /> {c.label}
+          </label>
+        ))}
         <input aria-label="Association" placeholder={isMember ? 'Association' : 'Association (optional)'} className={INPUT} value={m.association_name} onChange={(e) => setM({ ...m, association_name: e.target.value })} />
         {isMember ? (
           <>
@@ -222,6 +256,38 @@ export default function MembershipsSection() {
               I acknowledge this disclosure
             </button>
           )}
+        </div>
+      ))}
+
+      {(view.reimbursement_notices ?? []).length ? <h3 className="mt-5 text-sm font-semibold text-gray-900">Reimbursement notices</h3> : null}
+      {(view.reimbursement_notices ?? []).map((n) => (
+        <div key={n.id} className="mt-2 rounded-lg border border-gray-200 p-3 text-sm" data-testid={`ap-reimbursement-${n.id}`}>
+          <p>
+            {n.issuing_association}: {money(n.amount_cents)} for {n.fiscal_period}. Basis: {n.rule_basis}. Calculation: {n.calculation_method}.
+          </p>
+          {n.reimbursement_stage === 'noticed' ? (
+            <div className="mt-2 space-y-1">
+              <p className="text-gray-600">
+                You may object in writing until {new Date(n.objection_deadline).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. The Broker of Record reviews any objection before deciding. Nothing is deducted from your commissions.
+              </p>
+              <textarea aria-label={`Objection to ${n.issuing_association} notice`} className={INPUT} value={objection[n.id] ?? ''} onChange={(e) => setObjection({ ...objection, [n.id]: e.target.value })} />
+              <button
+                type="button"
+                className={BTN}
+                disabled={busy || (objection[n.id] ?? '').trim().length < 10}
+                onClick={() => act(() => fetch(`/api/profile/memberships/reimbursements/${n.id}/object`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ objection: objection[n.id] }) }), 'Your objection was submitted. The Broker of Record will review it before any decision.')}
+              >
+                Submit objection
+              </button>
+            </div>
+          ) : null}
+          {n.reimbursement_stage === 'objected' ? <p className="text-gray-600">Objection received {String(n.objected_at).slice(0, 10)}. Awaiting the Broker of Record&apos;s decision.</p> : null}
+          {n.reimbursement_stage === 'determined' ? (
+            <p className="text-gray-600">
+              Decision: {String(n.determination).replace(/_/g, ' ')} — {money(n.determined_amount_cents)}. {n.determination_reason}
+              {n.determined_amount_cents > 0 ? ` Payable by ${String(n.payment_due_at).slice(0, 10)}.` : ''}
+            </p>
+          ) : null}
         </div>
       ))}
 
