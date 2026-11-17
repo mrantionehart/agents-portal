@@ -14,7 +14,7 @@ const KEYS: Record<string, string> = {
   v1m14q2: 'Decline: refusing to deal based on familial status is unlawful, and you cannot carry out the instruction',
   v1m14q3: 'Rewrite the remarks to describe the property, not the preferred buyer',
   v1m14q4: 'Familial status',
-  v1m14q5: 'Treat it as a reasonable-accommodation request: an assistance animal is not a pet; reliable documentation of the disability-related need may be requested if not obvious, but no pet fee and no diagnosis',
+  v1m14q5: 'Treat it as a reasonable-accommodation request: if the disability or the need for the animal is not readily apparent, reliable supporting information may be requested, but not the diagnosis, and no pet fee or deposit may be charged for an approved animal',
   v1m14q6: 'Only when it qualifies as housing for older persons (55+ or 62+) under federal law',
   v1m14q7: 'Advise the seller it must be disclosed; if the seller refuses, you cannot conceal it and must not proceed on that basis',
   v1m14q8: "All known facts that materially affect the property's value and are not readily observable to the buyer",
