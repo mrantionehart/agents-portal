@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { loadClientDetail } from "@/src/portal/clients/loader";
+import ClientWorkPanel from "@/src/portal/clients/ClientWorkPanel";
 import {
   channelLabel,
   profileTypeLabel,
@@ -84,6 +85,17 @@ export default async function ClientDetailPage({
   }
 
   const c = result.client;
+
+  // LEAD-LIFECYCLE · this client's transactions, read with the agent's own
+  // session (RLS decides which ones they may see). A failed read is `null`,
+  // which the panel says out loud instead of showing "none".
+  const { data: txRows, error: txErr } = await supabase
+    .from("transactions")
+    .select("id, property_address, type, status")
+    .eq("client_profile_id", c.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const linkedTransactions = txErr ? null : ((txRows ?? []) as Array<{ id: string; property_address: string | null; type: string | null; status: string | null }>);
 
   return (
     <Shell clientId={clientId}>
@@ -162,18 +174,19 @@ export default async function ClientDetailPage({
         )}
       </Section>
 
-      {/* Linked transactions placeholder */}
-      <Section title="Linked Transactions" empty={true}>
-        <p className="text-xs text-[#71717A]">
-          The Portal does not auto-link transactions to this profile yet.
-          Open <Link href="/workspace" className="text-[#E8D5A3] hover:underline">Transactions</Link> to find this client&apos;s active deals.
-        </p>
-      </Section>
+      {/* LEAD-LIFECYCLE · work this client: follow-ups, contact log,
+          appointments and transactions — all keyed to this profile. */}
+      <div className="mt-6">
+        <ClientWorkPanel
+          client={{ id: c.id, full_name: c.full_name ?? null, email: c.email ?? null, phone: c.phone ?? null }}
+          transactions={linkedTransactions}
+        />
+      </div>
 
       <p className="mt-6 text-[11px] text-[#71717A]">
-        Read-only summary. The Portal does not autofill transaction fields from
-        this view — use the AI Assistant on the transaction; broker confirmation
-        is required for every change.
+        Client details above are read-only. Follow-ups and transactions you add
+        here stay attached to this client; a new transaction is a draft your
+        broker reviews.
       </p>
     </Shell>
   );
