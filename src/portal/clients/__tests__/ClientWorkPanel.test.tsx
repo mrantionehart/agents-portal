@@ -118,6 +118,13 @@ describe("ClientWorkPanel — transactions", () => {
     expect(await screen.findByTestId("transaction-error")).toHaveTextContent("not assigned to you");
   });
 
+  it("offers the full wizard for THIS client — only the id travels in the link", () => {
+    render(<ClientWorkPanel client={CLIENT} transactions={[]} />);
+    const a = screen.getByTestId("transaction-wizard-link");
+    expect(a).toHaveAttribute("href", "/workspace/new?client=cp-1");
+    expect(a.getAttribute("href")).not.toMatch(/Jane|example\.com|555/);
+  });
+
   it("an unreadable transaction list says so instead of 'none'", () => {
     render(<ClientWorkPanel client={CLIENT} transactions={null} />);
     expect(screen.getByTestId("transactions-unreadable")).toBeInTheDocument();

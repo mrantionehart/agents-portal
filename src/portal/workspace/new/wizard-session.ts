@@ -72,6 +72,13 @@ export interface WizardSession {
   draft_transaction_id: string | null;
   /** Party ids already persisted (3.3B.3D). Prevents duplicate party inserts. */
   created_party_ids: string[];
+  /**
+   * LEAD-LIFECYCLE · the lead (client_profiles.id) this transaction is for,
+   * when the agent started it from the client's page. Sent to the create
+   * route as `client_profile_id`, which re-checks ownership and lead
+   * eligibility server-side. Optional so older persisted drafts load as null.
+   */
+  client_profile_id?: string | null;
 }
 
 /** A fresh, empty session at the first step. */
@@ -86,6 +93,60 @@ export function emptySession(): WizardSession {
     completed_steps: [],
     draft_transaction_id: null,
     created_party_ids: [],
+    // client_profile_id is deliberately absent: only linkClient() sets it,
+    // so unlinked and training sessions keep their exact persisted shape.
+  };
+}
+
+/** The lead a transaction is being started for (read with the agent's session). */
+export interface LinkedClient {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export type LinkClientResult =
+  | { kind: "linked" | "already"; session: WizardSession }
+  | { kind: "conflict"; session: WizardSession };
+
+function draftHasContent(s: WizardSession): boolean {
+  return (
+    !!s.transaction_type ||
+    !!(s.property.address ?? "").trim() ||
+    s.parties.some((p) => !!(p.name ?? "").trim() || !!(p.company ?? "").trim())
+  );
+}
+
+/**
+ * LEAD-LIFECYCLE · attach a lead to the draft and fill the first party from
+ * the client's profile, so the agent does not retype the client.
+ *
+ * Never re-points an existing draft: a draft that already belongs to another
+ * lead, already created its transaction, or already has content is left
+ * exactly as it is (`conflict`) — silently linking someone else's half-typed
+ * transaction to this lead, or discarding it, would both be wrong.
+ */
+export function linkClient(s: WizardSession, c: LinkedClient): LinkClientResult {
+  if (s.client_profile_id === c.id) return { kind: "already", session: s };
+  if (s.client_profile_id || s.draft_transaction_id || draftHasContent(s)) {
+    return { kind: "conflict", session: s };
+  }
+  return {
+    kind: "linked",
+    session: {
+      ...s,
+      client_profile_id: c.id,
+      parties: [
+        {
+          role: "",
+          name: c.full_name ?? "",
+          email: c.email ?? "",
+          phone: c.phone ?? "",
+          signature_required: true,
+        },
+      ],
+    },
   };
 }
 

@@ -16,7 +16,7 @@
 
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { SubmitAdapter } from "../../training/wizard/submit-adapter";
 import { productionSubmitAdapter } from "../../training/wizard/submit-adapter";
@@ -40,6 +40,43 @@ import ClientsPartiesStep from "./ClientsPartiesStep";
 import ImportantDatesStep from "./ImportantDatesStep";
 import ReviewStep from "./ReviewStep";
 import type { UseWizardSession } from "./useWizardSession";
+import type { LinkedClient, LinkClientResult } from "./wizard-session";
+
+/** LEAD-LIFECYCLE · what happened when the wizard was opened for a lead. */
+function LeadLinkBanner({
+  outcome,
+  client,
+  unavailable,
+}: {
+  outcome: LinkClientResult["kind"] | null;
+  client: LinkedClient | null;
+  unavailable: boolean;
+}) {
+  if (unavailable) {
+    return (
+      <p role="alert" data-testid="wizard-client-unavailable"
+        className="max-w-[760px] mx-auto mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+        That client could not be opened, so this transaction is not linked to a lead.
+      </p>
+    );
+  }
+  if (!outcome || !client) return null;
+  if (outcome === "conflict") {
+    return (
+      <p role="alert" data-testid="wizard-client-conflict"
+        className="max-w-[760px] mx-auto mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+        You have an unfinished transaction draft, so it was not linked to {client.full_name ?? "this client"}.
+        Finish or cancel it, then start again from the client&apos;s page.
+      </p>
+    );
+  }
+  return (
+    <p data-testid="wizard-client-linked"
+      className="max-w-[760px] mx-auto mb-4 rounded-lg border border-[#27272A] bg-[#111113] px-3 py-2 text-sm text-[#A1A1AA]">
+      For lead <span className="text-[#F1F1F3]">{client.full_name ?? "(unnamed client)"}</span> — their details are filled in from the client profile.
+    </p>
+  );
+}
 
 function stepLabel(step: StepId): string {
   return WIZARD_STEPS.find((s) => s.id === step)?.label ?? "";
@@ -169,6 +206,13 @@ export interface WizardShellProps {
    * countdown. Production leaves it null.
    */
   banner?: ReactNode;
+  /**
+   * LEAD-LIFECYCLE · the lead this transaction is being started for, read
+   * server-side with the agent's own session. Linked once after hydration.
+   */
+  linkClient?: LinkedClient | null;
+  /** A `?client=` was given but could not be read (not found / not yours). */
+  linkClientUnavailable?: boolean;
 }
 
 export default function WizardShell({
@@ -176,8 +220,17 @@ export default function WizardShell({
   wizardConfig,
   submitAdapter = productionSubmitAdapter,
   banner = null,
+  linkClient = null,
+  linkClientUnavailable = false,
 }: WizardShellProps) {
   const wiz = useWizardSession(wizardConfig);
+  const [linkOutcome, setLinkOutcome] = useState<LinkClientResult["kind"] | null>(null);
+  const linkTried = useRef(false);
+  useEffect(() => {
+    if (!wiz.hydrated || !linkClient || linkTried.current) return;
+    linkTried.current = true;
+    setLinkOutcome(wiz.linkClient(linkClient).kind);
+  }, [wiz.hydrated, wiz, linkClient]);
   // Structured validation result for the CURRENT step (null until a failed Next).
   const [validation, setValidation] = useState<StepValidation | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -297,6 +350,7 @@ export default function WizardShell({
   return (
     <>
       {banner}
+      <LeadLinkBanner outcome={linkOutcome} client={linkClient} unavailable={linkClientUnavailable} />
       <WizardLayout
         current={current}
         stepLabel={stepLabel(current)}

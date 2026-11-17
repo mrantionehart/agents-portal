@@ -53,6 +53,9 @@ import {
   type WizardPartyDraft,
   type WizardPropertyDraft,
   type WizardSession,
+  linkClient as linkClientToSession,
+  type LinkedClient,
+  type LinkClientResult,
 } from "./wizard-session";
 
 /** Where Cancel returns to (discarding the draft). */
@@ -74,6 +77,8 @@ export interface UseWizardSession {
   /** Idempotency anchors set by the submit orchestrator (3.3B.3D). */
   setDraftTransactionId: (id: string) => void;
   addCreatedPartyId: (id: string) => void;
+  /** LEAD-LIFECYCLE · attach a lead + prefill its first party (see linkClient). */
+  linkClient: (c: LinkedClient) => LinkClientResult;
   /**
    * Explicitly persist the current session snapshot and await
    * acknowledgement. Terminal actions (submit) call this to guarantee
@@ -295,6 +300,15 @@ export function useWizardSession(
     return { ok: false, detail: result.detail };
   }, []);
 
+  const linkClient = useCallback((c: LinkedClient): LinkClientResult => {
+    const result = linkClientToSession(sessionRef.current, c);
+    if (result.kind === "linked") {
+      sessionRef.current = result.session;
+      setSession(result.session);
+    }
+    return result;
+  }, []);
+
   const mergeCompletedSteps = useCallback(
     (steps: readonly StepId[]) => {
       setSession((s) => {
@@ -321,6 +335,7 @@ export function useWizardSession(
     patchDates,
     setDraftTransactionId: setDraftId,
     addCreatedPartyId: addPartyId,
+    linkClient,
     flushSave,
     mergeCompletedSteps,
     finish,
