@@ -10,6 +10,8 @@ import { VAULT_BASE_URL } from '@/lib/vault-client'
 import { getQuizForModule } from '@/app/data/quizzes'
 import type { Quiz } from '@/app/data/quizzes'
 import QuizModal from '@/app/components/QuizModal'
+import ReadingLesson from '@/app/components/ReadingLesson'
+import { hasMedia, isReadingLesson, readingLessonStatus } from '@/lib/training/reading-lessons'
 
 type Lang = 'en' | 'es'
 
@@ -37,6 +39,8 @@ interface TrainingVideo {
   duration_en_sec: number | null
   duration_es_sec: number | null
   sort_order: number
+  body_markdown?: string | null
+  certification_id?: string | null
 }
 
 interface VideoProgress {
@@ -127,7 +131,7 @@ export default function TrainingPage() {
           setExpandedModules({ [firstMod.id]: true })
         }
         const firstPlayable = (vids as TrainingVideo[]).find(
-          v => v.youtube_id_en || v.youtube_id_es || v.r2_key_en || v.r2_key_es
+          v => hasMedia(v) || isReadingLesson(v)
         )
         if (firstPlayable) setSelectedVideoId(firstPlayable.id)
       }
@@ -183,6 +187,39 @@ export default function TrainingPage() {
       }))
     } catch (err) {
       console.error('Failed to mark video completed:', err)
+    }
+  }
+
+  // D6 reading lessons: completion is the learner's own training_video_progress
+  // row, the same record video lessons use. Only a confirmed write marks it
+  // done on screen, so the quiz never unlocks on a save that failed.
+  const [savingLessonId, setSavingLessonId] = useState<string | null>(null)
+  const [lessonError, setLessonError] = useState<string | null>(null)
+  const markLessonRead = async (videoId: string) => {
+    if (!user) return
+    setSavingLessonId(videoId)
+    setLessonError(null)
+    try {
+      const { error } = await supabase.from('training_video_progress').upsert(
+        {
+          user_id: user.id,
+          video_id: videoId,
+          watched_seconds: 0,
+          completed: true,
+          last_watched_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,video_id' }
+      )
+      if (error) throw error
+      setProgress(prev => ({
+        ...prev,
+        [videoId]: { video_id: videoId, watched_seconds: 0, completed: true },
+      }))
+    } catch (err) {
+      console.error('Failed to record lesson completion:', err)
+      setLessonError('Your progress could not be saved. Please try again.')
+    } finally {
+      setSavingLessonId(null)
     }
   }
 
@@ -272,6 +309,11 @@ export default function TrainingPage() {
     }
     return map
   }, [videos])
+
+  const lessonStatusFor = useCallback(
+    (moduleId: string) => readingLessonStatus(videosByModule[moduleId] || [], progress),
+    [videosByModule, progress]
+  )
 
   // All module numbers for the current volume (used for lock logic)
   const volumeModuleNums = useMemo(
@@ -577,6 +619,7 @@ export default function TrainingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Player column */}
             <div className="lg:col-span-2">
+              {selectedVideo && isReadingLesson(selectedVideo) && !hasMedia(selectedVideo) ? null : (
               <div className="bg-black rounded-lg overflow-hidden shadow-lg shadow-black/20 aspect-video">
                 {currentYouTubeId ? (
                   <iframe
@@ -616,10 +659,28 @@ export default function TrainingPage() {
                   </div>
                 )}
               </div>
+              )}
+
+              {selectedVideo && isReadingLesson(selectedVideo) && (
+                <div className={hasMedia(selectedVideo) ? 'mt-4' : ''}>
+                  <ReadingLesson
+                    title={(lang === 'en' ? selectedVideo.title_en || selectedVideo.title_es : selectedVideo.title_es || selectedVideo.title_en) || `Lesson ${selectedVideo.video_num}`}
+                    lessonNumber={selectedVideo.video_num}
+                    body={selectedVideo.body_markdown as string}
+                    completed={!!progress[selectedVideo.id]?.completed}
+                    saving={savingLessonId === selectedVideo.id}
+                    onComplete={() => markLessonRead(selectedVideo.id)}
+                  />
+                  {lessonError && (
+                    <p role="alert" className="mt-2 text-sm text-red-400">{lessonError}</p>
+                  )}
+                </div>
+              )}
 
               {/* Selected video details */}
               {selectedVideo && (
                 <div className="bg-[#0a0a0f] rounded-lg shadow mt-4 p-6">
+                  {!(isReadingLesson(selectedVideo) && !hasMedia(selectedVideo)) && (
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div className="flex-1">
                       <div className="text-xs font-semibold text-blue-600 mb-1">
@@ -640,6 +701,7 @@ export default function TrainingPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
                   <div className="flex items-center gap-3 flex-wrap">
                     {hasPlayableVideo && (
@@ -659,7 +721,10 @@ export default function TrainingPage() {
                       </button>
                     )}
                     {/* Show Take Quiz button if a quiz exists for this module */}
-                    {getQuizForModule(selectedVolume, selectedVideo.module_num) && (
+                    {getQuizForModule(selectedVolume, selectedVideo.module_num) && !lessonStatusFor(selectedVideo.module_id).complete && (
+                      <QuizLocked status={lessonStatusFor(selectedVideo.module_id)} />
+                    )}
+                    {getQuizForModule(selectedVolume, selectedVideo.module_num) && lessonStatusFor(selectedVideo.module_id).complete && (
                       <button
                         onClick={() => openQuiz(selectedVolume, selectedVideo.module_num)}
                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition ${
@@ -746,7 +811,8 @@ export default function TrainingPage() {
                             {modVideos.map(v => {
                               const isSelected = v.id === selectedVideoId
                               const isVidCompleted = progress[v.id]?.completed
-                              const hasVideo = !!(v.youtube_id_en || v.youtube_id_es || v.r2_key_en || v.r2_key_es)
+                              const hasVideo = hasMedia(v)
+                              const isReading = isReadingLesson(v)
                               const videoTitle =
                                 (lang === 'en' ? v.title_en : v.title_es) ||
                                 v.title_en ||
@@ -764,6 +830,8 @@ export default function TrainingPage() {
                                       <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                                     ) : hasVideo ? (
                                       <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                    ) : isReading ? (
+                                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
                                     ) : (
                                       <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     )}
@@ -782,9 +850,9 @@ export default function TrainingPage() {
                                       </div>
                                     </div>
                                     <span className="text-xs text-gray-400 whitespace-nowrap">
-                                      {formatDuration(
-                                        lang === 'en' ? v.duration_en_sec : v.duration_es_sec
-                                      )}
+                                      {isReading && !hasVideo
+                                        ? 'Reading'
+                                        : formatDuration(lang === 'en' ? v.duration_en_sec : v.duration_es_sec)}
                                     </span>
                                   </button>
                                 </li>
@@ -792,7 +860,12 @@ export default function TrainingPage() {
                             })}
                           </ul>
                           {/* Quiz button for this module */}
-                          {hasQuiz && (
+                          {hasQuiz && !lessonStatusFor(mod.id).complete && (
+                            <div className="border-t bg-[#050507] px-4 py-2.5">
+                              <QuizLocked status={lessonStatusFor(mod.id)} />
+                            </div>
+                          )}
+                          {hasQuiz && lessonStatusFor(mod.id).complete && (
                             <div className="border-t bg-[#050507] px-4 py-2.5">
                               <button
                                 onClick={(e) => {
@@ -831,6 +904,21 @@ export default function TrainingPage() {
           onClose={() => setActiveQuiz(null)}
         />
       )}
+    </div>
+  )
+}
+
+
+// D6: shown instead of the quiz button while a module's reading lessons are
+// incomplete. The server and the database refuse the quiz in that state too.
+function QuizLocked({ status }: { status: { required: number; done: number } }) {
+  return (
+    <div
+      role="status"
+      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300"
+    >
+      <Lock className="w-4 h-4" aria-hidden="true" />
+      Quiz locked — {status.done} of {status.required} lessons read
     </div>
   )
 }
