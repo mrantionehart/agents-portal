@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getQuizForModule, gradeQuiz } from '@/app/data/quizzes'
 import { requireAuth, userClient, adminClient } from '@/lib/security'
 import { moduleEligibility, parseSubmission, type CurriculumRow } from '@/lib/training/quiz-submission'
+import { readingLessonStatus, type LessonProgress, type LessonRow } from '@/lib/training/reading-lessons'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -90,6 +91,33 @@ export async function POST(request: NextRequest) {
     )
     if ('reason' in eligibility) {
       return NextResponse.json({ error: 'Module not available', reason: eligibility.reason }, { status: eligibility.status })
+    }
+
+    // D6 — a module with reading lessons opens its quiz only after the caller
+    // completed every one (their own training_video_progress rows). Modules
+    // without reading lessons are unaffected. The Vault trigger
+    // training_quiz_results_reading_prereq enforces the same rule in the
+    // database for every writer, EASE included.
+    const { data: lessonRows } = await svc
+      .from('training_videos')
+      .select('id, body_markdown, certification_id')
+      .eq('volume', volume)
+      .eq('module_num', module_num)
+      .is('certification_id', null)
+    const lessons = (lessonRows as LessonRow[] | null) ?? []
+    if (lessons.some((l) => typeof l.body_markdown === 'string' && l.body_markdown.trim() !== '')) {
+      const { data: done } = await svc
+        .from('training_video_progress')
+        .select('video_id, completed')
+        .eq('user_id', user.id)
+        .in('video_id', lessons.map((l) => l.id))
+      const status = readingLessonStatus(lessons, (done as LessonProgress[] | null) ?? [])
+      if (!status.complete) {
+        return NextResponse.json(
+          { error: `Read all ${status.required} lessons in this module before taking its quiz (${status.done} of ${status.required} done).`, reason: 'lessons_incomplete', done: status.done, required: status.required },
+          { status: 409 },
+        )
+      }
     }
 
     // Grade
