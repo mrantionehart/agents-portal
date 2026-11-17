@@ -623,7 +623,7 @@ export const MODULE_QUIZZES: Record<string, Quiz> = {
           { id: 'a', text: 'Refuse; the listing says no pets' },
           { id: 'b', text: 'Allow it only with a pet deposit' },
           { id: 'c', text: 'Ask the applicant to name their diagnosis before deciding' },
-          { id: 'd', text: 'Treat it as a reasonable-accommodation request: an assistance animal is not a pet; reliable documentation of the disability-related need may be requested if not obvious, but no pet fee and no diagnosis' },
+          { id: 'd', text: 'Treat it as a reasonable-accommodation request: if the disability or the need for the animal is not readily apparent, reliable supporting information may be requested, but not the diagnosis, and no pet fee or deposit may be charged for an approved animal' },
         ],
         correct: 'd',
       },
