@@ -13,9 +13,9 @@ import fingerprint from "./quiz-answer-key.fingerprint.json";
 const fp = fingerprint as Record<string, { passingScore: number; key: string }>;
 
 describe("quiz answer-key fingerprint (shared with EASE)", () => {
-  it("covers exactly the 26 HartFelt Ready module quizzes", () => {
+  it("covers exactly the 27 HartFelt Ready module quizzes (26 + D6 Module 14)", () => {
     expect(Object.keys(MODULE_QUIZZES).sort()).toEqual(Object.keys(fp).sort());
-    expect(Object.keys(fp)).toHaveLength(26);
+    expect(Object.keys(fp)).toHaveLength(27);
   });
 
   it.each(Object.keys(fp))("%s matches the fingerprint (ids, answers, 80%% pass mark)", (k) => {
