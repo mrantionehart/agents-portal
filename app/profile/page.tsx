@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase, authFetch } from '@/lib/supabase'
 import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
 import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
+import MembershipsSection from '@/src/portal/profile/MembershipsSection'
 
 interface Profile {
   id: string
@@ -198,6 +199,10 @@ export default function ProfilePage() {
             {/* Marketing Card — headshot + preferred public phone + readiness
                 (Vault companion contracts; server-owned readiness/capabilities) */}
             <MarketingProfileSection />
+
+            {/* MDC-1 — My Memberships & MLS (Vault records; dark behind
+                NEXT_PUBLIC_MEMBERSHIP_COMPLIANCE_ENABLED, renders nothing while off) */}
+            <MembershipsSection />
 
             {/* Save Button */}
             <button
