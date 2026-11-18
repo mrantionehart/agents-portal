@@ -25,7 +25,7 @@ jest.mock('@/lib/supabase', () => ({
   },
 }))
 jest.mock('@/src/portal/profile/ProfileBirthdaySection', () => ({ __esModule: true, default: function B() { return <div>birthday-section</div> } }))
-jest.mock('@/src/portal/profile/AssociationMembershipSection', () => ({ __esModule: true, ASSOCIATION_SECTION_ENABLED: false, default: function A() { return <div>association-section</div> } }))
+jest.mock('@/src/portal/profile/AssociationMembershipSection', () => ({ __esModule: true, ASSOCIATION_SECTION_ENABLED: true, default: function A() { return <div>association-section</div> } }))
 jest.mock('@/src/portal/marketing-profile/MarketingProfileSection', () => ({ __esModule: true, default: function M() { return <div>marketing-section</div> } }))
 
 import ProfilePage from '../page'
@@ -49,8 +49,8 @@ describe('ProfilePage — never hangs on the loading spinner (regression)', () =
     expect(screen.getByText('Save Profile')).toBeInTheDocument()
     expect(screen.getByText('marketing-section')).toBeInTheDocument()
     expect(screen.getByText('birthday-section')).toBeInTheDocument()
-    // Not shown before release R7 (the Vault records do not exist yet).
-    expect(screen.queryByText('association-section')).not.toBeInTheDocument()
+    // Released (R7b): the association section is part of the profile page.
+    expect(screen.getByText('association-section')).toBeInTheDocument()
 
     jest.useRealTimers()
   })

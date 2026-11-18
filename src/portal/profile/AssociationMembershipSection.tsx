@@ -21,7 +21,9 @@ import { authFetch } from '@/lib/supabase'
  * otherwise every agent's profile would show a load error. Turning it on is a
  * reviewed one-line change made with the Vault release.
  */
-export const ASSOCIATION_SECTION_ENABLED = false
+// R7b released 2026-11-18 (Broker of Record authorization), with Vault
+// ASSOCIATION_RECORDS_ENABLED.
+export const ASSOCIATION_SECTION_ENABLED = true
 
 type Statuses = { brokerage_affiliation: string; association_membership: string; mls_access: string }
 interface ElectionsResponse {
