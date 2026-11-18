@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase, authFetch } from '@/lib/supabase'
 import ProfileBirthdaySection from '@/src/portal/profile/ProfileBirthdaySection'
 import MarketingProfileSection from '@/src/portal/marketing-profile/MarketingProfileSection'
-import AssociationMembershipSection, { ASSOCIATION_SECTION_ENABLED } from '@/src/portal/profile/AssociationMembershipSection'
+import MembershipsSection from '@/src/portal/profile/MembershipsSection'
 
 interface Profile {
   id: string
@@ -200,9 +200,9 @@ export default function ProfilePage() {
                 (Vault companion contracts; server-owned readiness/capabilities) */}
             <MarketingProfileSection />
 
-            {/* Association membership & MLS access — distinct statuses, own election,
-                addendum status and any reimbursement notice (Vault is the record) */}
-            {ASSOCIATION_SECTION_ENABLED && <AssociationMembershipSection />}
+            {/* MDC-1 — My Memberships & MLS (Vault records; dark behind
+                NEXT_PUBLIC_MEMBERSHIP_COMPLIANCE_ENABLED, renders nothing while off) */}
+            <MembershipsSection />
 
             {/* Save Button */}
             <button

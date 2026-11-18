@@ -25,8 +25,8 @@ jest.mock('@/lib/supabase', () => ({
   },
 }))
 jest.mock('@/src/portal/profile/ProfileBirthdaySection', () => ({ __esModule: true, default: function B() { return <div>birthday-section</div> } }))
-jest.mock('@/src/portal/profile/AssociationMembershipSection', () => ({ __esModule: true, ASSOCIATION_SECTION_ENABLED: false, default: function A() { return <div>association-section</div> } }))
 jest.mock('@/src/portal/marketing-profile/MarketingProfileSection', () => ({ __esModule: true, default: function M() { return <div>marketing-section</div> } }))
+jest.mock('@/src/portal/profile/MembershipsSection', () => ({ __esModule: true, default: function MS() { return <div>memberships-section</div> } }))
 
 import ProfilePage from '../page'
 
@@ -49,8 +49,8 @@ describe('ProfilePage — never hangs on the loading spinner (regression)', () =
     expect(screen.getByText('Save Profile')).toBeInTheDocument()
     expect(screen.getByText('marketing-section')).toBeInTheDocument()
     expect(screen.getByText('birthday-section')).toBeInTheDocument()
-    // Not shown before release R7 (the Vault records do not exist yet).
-    expect(screen.queryByText('association-section')).not.toBeInTheDocument()
+    // MDC-1 — the My Memberships & MLS entry point is mounted on the profile page.
+    expect(screen.getByText('memberships-section')).toBeInTheDocument()
 
     jest.useRealTimers()
   })
