@@ -258,6 +258,12 @@ function TransactionsCard({
       </form>
       {error ? <p className="mt-2 text-xs text-amber-400" data-testid="transaction-error">{error}</p> : null}
       {created ? <p className="mt-2 text-xs text-emerald-400" data-testid="transaction-created">{created}</p> : null}
+      <p className="mt-3 text-xs text-[#71717A]">
+        Need dates and every party now?{" "}
+        <Link href={`/workspace/new?client=${encodeURIComponent(client.id)}`} className="text-[#E8D5A3] underline" data-testid="transaction-wizard-link">
+          Use the full transaction wizard for this client
+        </Link>
+      </p>
     </section>
   );
 }

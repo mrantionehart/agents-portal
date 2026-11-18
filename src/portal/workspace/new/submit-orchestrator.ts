@@ -33,6 +33,13 @@ export interface SubmitCallbacks {
 
 export interface SubmitDeps {
   fetchImpl?: typeof fetch;
+  /**
+   * LEAD-LIFECYCLE · fetch used for the CREATE call only. A linked lead is
+   * verified by the create route against Vault, which needs the caller's
+   * bearer token — a cookie-only request is refused (401
+   * CLIENT_PROFILE_CHECK_NO_BEARER). Defaults to `fetchImpl`.
+   */
+  createFetchImpl?: typeof fetch;
 }
 
 export interface SubmitResult {
@@ -78,6 +85,9 @@ export function toCreateBody(session: WizardSession): Record<string, unknown> {
     client_name: primary ? s(primary.name) || s(primary.company) : "",
     client_email: primary ? s(primary.email) || undefined : undefined,
     client_phone: primary ? s(primary.phone) || undefined : undefined,
+    // LEAD-LIFECYCLE · the lead this transaction is for. The route re-checks
+    // ownership + eligibility; a refusal is shown, never a silent unlink.
+    ...(session.client_profile_id ? { client_profile_id: session.client_profile_id } : {}),
   };
 }
 
@@ -121,7 +131,7 @@ export async function submitWizard(
   if (!transactionId) {
     let created;
     try {
-      created = await postJson(doFetch, "/api/transactions/create", toCreateBody(session));
+      created = await postJson(deps.createFetchImpl ?? doFetch, "/api/transactions/create", toCreateBody(session));
     } catch {
       return { ok: false, stage: "create", error: "Network error creating the transaction." };
     }
