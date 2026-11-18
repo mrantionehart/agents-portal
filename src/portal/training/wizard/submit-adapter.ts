@@ -25,6 +25,7 @@ import {
   type SubmitResult,
 } from "../../workspace/new/submit-orchestrator";
 import type { WizardSession } from "../../workspace/new/wizard-session";
+import { authFetch } from "@/lib/supabase";
 
 import {
   SessionApiError,
@@ -51,7 +52,18 @@ export const productionSubmitAdapter: SubmitAdapter = (
   session,
   callbacks,
   deps,
-) => submitWizard(session, callbacks, deps);
+) =>
+  submitWizard(session, callbacks, {
+    ...deps,
+    // LEAD-LIFECYCLE · a linked lead is verified with the caller's bearer
+    // token; unlinked drafts keep the exact request they always sent.
+    createFetchImpl:
+      deps?.createFetchImpl ??
+      (session.client_profile_id
+        ? ((url: RequestInfo | URL, init?: RequestInit) =>
+            authFetch(String(url), init ?? {}, 20000)) as typeof fetch
+        : undefined),
+  });
 
 export interface CreateTrainingSubmitAdapterOptions {
   /** The Vault API session UUID to complete. */
