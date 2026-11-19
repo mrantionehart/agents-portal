@@ -36,7 +36,7 @@ const EARNEST_OPTIONS = [
 ];
 
 const SELECT =
-  "w-full rounded-md border border-[#1a1a2e] bg-[#0b0b12] px-3 py-2 text-sm text-[#F1F1F3] focus:outline-none focus:border-[#C9A84C] disabled:opacity-60";
+  "w-full rounded-md border border-[#1a1a2e] bg-[#0a0a0f] px-3 py-2 text-sm text-[#F1F1F3] focus:outline-none focus:border-[#C9A84C] disabled:opacity-60";
 
 export default function DealFactsCard({
   transactionId,
@@ -151,7 +151,7 @@ export default function DealFactsCard({
         <div className="mt-4 flex items-center gap-3 flex-wrap">
           <button
             type="button"
-            className="rounded-md bg-[#C9A84C] px-3 py-1.5 text-sm font-medium text-[#0b0b12] disabled:opacity-50"
+            className="rounded-md bg-[#C9A84C] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"
             disabled={!changed || busy}
             onClick={save}
           >
