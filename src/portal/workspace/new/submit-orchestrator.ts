@@ -74,6 +74,8 @@ export function toCreateBody(session: WizardSession): Record<string, unknown> {
 
   return {
     type: session.transaction_type,
+    // P4H-14 — required by the create route; chosen explicitly on step 1.
+    ...(session.business_line ? { business_line: session.business_line } : {}),
     property_address: s(property.address),
     city: s(property.city),
     state: s(property.state),
