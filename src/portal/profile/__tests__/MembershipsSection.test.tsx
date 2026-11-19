@@ -140,4 +140,22 @@ describe('MembershipsSection', () => {
     expect(posts()[0][0]).toBe('/api/profile/memberships/reimbursements/n1/object')
     expect(JSON.parse(posts()[0][1].body)).toEqual({ objection: 'I paid the association directly.' })
   })
+
+  // Production QA 2026-11-19: on the dark-themed profile page this WHITE card
+  // inherited light text, so unstyled labels (association name, the four
+  // declaration options, their legend) and typed input text were invisible.
+  // jsdom applies no stylesheet, so this pins the colour CONTRACT; the visual
+  // was verified in the production browser.
+  it('white card on a dark page: the section forces dark text, and every text input sets its own background and text colour', async () => {
+    render(<MembershipsSection />)
+    const section = await screen.findByRole('region', { name: 'My Memberships & MLS' })
+    expect(section.className).toMatch(/\bbg-white\b/)
+    expect(section.className).toMatch(/\btext-gray-900\b/)
+    const fields = section.querySelectorAll('input:not([type=file]):not([type=radio]):not([type=checkbox]), textarea')
+    expect(fields.length).toBeGreaterThan(0)
+    fields.forEach((el) => {
+      expect(el.className).toMatch(/\bbg-white\b/)
+      expect(el.className).toMatch(/\btext-gray-900\b/)
+    })
+  })
 })
