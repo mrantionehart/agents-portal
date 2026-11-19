@@ -12,7 +12,14 @@ jest.mock("@/src/portal/training/certified/api", () => {
   return { fetchCatalog: jest.fn(), fetchProgress: jest.fn(), CertApiError, authedFetch: jest.fn(), readErrorEnvelope: jest.fn() };
 });
 
+jest.mock("../pdi-api", () => ({
+  ...jest.requireActual("../pdi-api"),
+  fetchPdi3Availability: jest.fn(async () => ({ state: "locked", reason: "not_eligible" })),
+  requestPdi3: jest.fn(),
+}));
+
 import { render, screen, waitFor } from "@testing-library/react";
+import * as pdiApiModule from "../pdi-api";
 
 import * as api from "@/src/portal/training/certified/api";
 import { PdiTrainingEntry } from "../PdiTrainingEntry";
@@ -26,11 +33,17 @@ import {
 } from "../pdi-config";
 
 const fetchCatalog = api.fetchCatalog as jest.MockedFunction<typeof api.fetchCatalog>;
+const pdiApi = pdiApiModule as unknown as {
+  fetchPdi3Availability: jest.Mock; requestPdi3: jest.Mock;
+};
 const { CertApiError } = api as unknown as { CertApiError: new (m: string, s: number, c: string | null, d: unknown) => Error };
 const FLAG = "NEXT_PUBLIC_PDI_TRAINING_ENABLED";
 
 beforeEach(() => {
   fetchCatalog.mockReset();
+  pdiApi.fetchPdi3Availability.mockReset();
+  pdiApi.fetchPdi3Availability.mockResolvedValue({ state: "locked", reason: "not_eligible" });
+  pdiApi.requestPdi3.mockReset();
   delete process.env[FLAG];
 });
 
@@ -82,12 +95,54 @@ describe("PDI landing page", () => {
     expect(screen.queryByRole("link", { name: /PDI-/ })).not.toBeInTheDocument();
   });
 
-  it("optional courses show their prerequisite", async () => {
+  it("PDI-2 is required after PDI-1; only PDI-3 is optional; prerequisites shown", async () => {
     process.env[FLAG] = "true";
     fetchCatalog.mockImplementation(async (cert?: string) => ({ certification_id: cert ?? "", version: "1.0.0", tracks: [] }));
     render(<PdiLandingClient />);
     expect(await screen.findByText("Requires the PDI-1 certification.")).toBeInTheDocument();
-    expect(screen.getAllByText("Optional")).toHaveLength(2);
+    expect(screen.getByText("Required after PDI-1")).toBeInTheDocument();
+    expect(screen.getAllByText("Optional")).toHaveLength(1);
+  });
+
+  it("PDI-3 not assigned but available: offers a request that reloads the courses", async () => {
+    process.env[FLAG] = "true";
+    let pdi3Assigned = false;
+    fetchCatalog.mockImplementation(async (cert?: string) => {
+      if (cert === PDI3_CERTIFICATION_ID && !pdi3Assigned) throw new CertApiError("Learning access denied", 403, "no_assignment", null);
+      return { certification_id: cert ?? "", version: "1.0.0", tracks: [] };
+    });
+    pdiApi.fetchPdi3Availability.mockImplementation(async () => (pdi3Assigned ? { state: "assigned" } : { state: "available" }));
+    pdiApi.requestPdi3.mockImplementation(async () => { pdi3Assigned = true; });
+    render(<PdiLandingClient />);
+    const btn = await screen.findByRole("button", { name: "Request PDI-3" });
+    btn.click();
+    expect(await screen.findByRole("link", { name: /PDI-3 · Investment & Development Opportunity Identification/ })).toBeInTheDocument();
+    expect(pdiApi.requestPdi3).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Request PDI-3" })).not.toBeInTheDocument();
+  });
+
+  it("PDI-3 locked on prerequisites: discoverable, but no request button", async () => {
+    process.env[FLAG] = "true";
+    fetchCatalog.mockImplementation(async (cert?: string) => {
+      if (cert === PDI1_CERTIFICATION_ID) return { certification_id: cert, version: "1.0.0", tracks: [] };
+      throw new CertApiError("Learning access denied", 403, "no_assignment", null);
+    });
+    pdiApi.fetchPdi3Availability.mockResolvedValue({ state: "locked", reason: "prerequisites" });
+    render(<PdiLandingClient />);
+    expect(await screen.findByText("Available to request after you complete PDI-1 and PDI-2.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Request PDI-3" })).not.toBeInTheDocument();
+  });
+
+  it("PDI-3 is not shown at all to a learner with no PDI course, or when not eligible", async () => {
+    process.env[FLAG] = "true";
+    fetchCatalog.mockImplementation(async (cert?: string) => {
+      if (cert === PDI1_CERTIFICATION_ID) return { certification_id: cert, version: "1.0.0", tracks: [] };
+      throw new CertApiError("Learning access denied", 403, "no_assignment", null);
+    });
+    pdiApi.fetchPdi3Availability.mockResolvedValue({ state: "locked", reason: "not_eligible" });
+    render(<PdiLandingClient />);
+    await screen.findByRole("link", { name: /PDI-1/ });
+    expect(screen.queryByText(/PDI-3/)).not.toBeInTheDocument();
   });
 });
 
