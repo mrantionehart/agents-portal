@@ -140,4 +140,18 @@ describe('MembershipsSection', () => {
     expect(posts()[0][0]).toBe('/api/profile/memberships/reimbursements/n1/object')
     expect(JSON.parse(posts()[0][1].body)).toEqual({ objection: 'I paid the association directly.' })
   })
+
+  // Production defect (2026-11-19): the profile page sets `text-white` for its dark
+  // theme and this white card set no text colour of its own, so the four election
+  // choices, policy text and typed values rendered white-on-white. jsdom applies no
+  // Tailwind CSS, so this asserts the classes that set the colour, not the pixels.
+  it('the white card sets its own dark text colour so nothing inherits the page’s white text', async () => {
+    render(<MembershipsSection />)
+    const section = await screen.findByRole('region', { name: 'My Memberships & MLS' })
+    expect(section.className).toMatch(/\bbg-white\b/)
+    expect(section.className).toMatch(/\btext-gray-900\b/)
+    for (const name of ['Association', 'MLS']) {
+      expect(screen.getByRole('textbox', { name }).className).toMatch(/\btext-gray-900\b/)
+    }
+  })
 })
