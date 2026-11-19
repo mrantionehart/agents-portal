@@ -34,6 +34,7 @@ export interface PartyRowErrors {
 
 export interface WizardFieldErrors {
   transaction_type?: string;
+  business_line?: string;
   property?: { address?: string };
   parties?: { form?: string; rows?: PartyRowErrors[] };
   dates?: {
@@ -76,6 +77,15 @@ function validateType(session: WizardSession): StepValidation {
       valid: false,
       fieldErrors: { transaction_type: "Select a transaction type." },
       messages: ["Select a transaction type."],
+    };
+  }
+  // P4H-14 — explicit, never inferred. Only the production wizard carries the
+  // field; a session without the key (training) is not asked.
+  if ("business_line" in session && !session.business_line) {
+    return {
+      valid: false,
+      fieldErrors: { business_line: "Choose Brokerage or Acquisition." },
+      messages: ["Choose Brokerage or Acquisition."],
     };
   }
   return OK;

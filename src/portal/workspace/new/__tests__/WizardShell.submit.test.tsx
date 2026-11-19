@@ -52,7 +52,7 @@ function seedValidCreate() {
       setStep(
         {
           ...emptySession(),
-          transaction_type: "purchase",
+          transaction_type: "purchase", business_line: "brokerage",
           property: { address: "123 Main St" },
           parties: [{ role: "buyer", name: "Jane", signature_required: true }],
         },
@@ -157,7 +157,7 @@ it("pre-submit guard: invalid data jumps back to the offending step, no fetch", 
     WIZARD_SESSION_KEY,
     JSON.stringify(
       setStep(
-        { ...emptySession(), transaction_type: "purchase", parties: [{ role: "buyer", name: "J" }] },
+        { ...emptySession(), transaction_type: "purchase", business_line: "brokerage", parties: [{ role: "buyer", name: "J" }] },
         "create"
       )
     )

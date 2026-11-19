@@ -79,6 +79,13 @@ export interface WizardSession {
    * eligibility server-side. Optional so older persisted drafts load as null.
    */
   client_profile_id?: string | null;
+  /**
+   * P4H-14 — the explicit business line the create route REQUIRES
+   * (brokerage | acquisition). Never defaulted or inferred from the type: the
+   * wizard sent nothing here, so every wizard create was refused with
+   * "business_line is required". Optional so older persisted drafts load.
+   */
+  business_line?: "brokerage" | "acquisition" | null;
 }
 
 /** A fresh, empty session at the first step. */
@@ -157,6 +164,13 @@ export function setTransactionType(
   transaction_type: string | null
 ): WizardSession {
   return { ...s, transaction_type };
+}
+
+export function setBusinessLine(
+  s: WizardSession,
+  business_line: "brokerage" | "acquisition" | null
+): WizardSession {
+  return { ...s, business_line };
 }
 
 export function mergeProperty(

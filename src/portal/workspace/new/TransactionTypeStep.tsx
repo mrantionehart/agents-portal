@@ -19,14 +19,56 @@ export interface TransactionTypeStepProps {
   value: string | null;
   onSelect: (type: CanonicalTransactionType) => void;
   error?: string;
+  /** P4H-14 — shown only when the session carries a business line (production wizard). */
+  businessLine?: "brokerage" | "acquisition" | null;
+  onBusinessLine?: (line: "brokerage" | "acquisition") => void;
+  businessLineError?: string;
 }
+
+const BUSINESS_LINES: { id: "brokerage" | "acquisition"; label: string; hint: string }[] = [
+  { id: "brokerage", label: "Brokerage", hint: "HartFelt Real Estate represents a client — commissions, splits & caps apply." },
+  { id: "acquisition", label: "Acquisition", hint: "HartFelt Holdings buys as principal — no agent commission, split, cap, or payout." },
+];
 
 export default function TransactionTypeStep({
   value,
   onSelect,
   error,
+  businessLine,
+  onBusinessLine,
+  businessLineError,
 }: TransactionTypeStepProps) {
   return (
+    <>
+    {onBusinessLine && (
+      <fieldset className="mb-6">
+        <legend className="text-sm font-medium text-[#E4E4E7] mb-3">Business line</legend>
+        <div role="radiogroup" aria-label="Business line" aria-invalid={businessLineError ? true : undefined} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {BUSINESS_LINES.map((b) => {
+            const selected = businessLine === b.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onBusinessLine(b.id)}
+                className={`rounded-xl border p-4 text-left transition-colors duration-[180ms] ${selected ? "border-[#C9A84C]/50 bg-[#C9A84C]/10" : "border-[#1a1a2e] bg-[#0b0b10] hover:border-[#252538]"}`}
+              >
+                <span className={`flex items-center gap-1.5 text-sm font-semibold ${selected ? "text-[#F1F1F3]" : "text-[#E4E4E7]"}`}>
+                  {b.label}
+                  {selected && <Check className="h-3.5 w-3.5 text-[#C9A84C]" />}
+                </span>
+                <span className="mt-0.5 block text-xs text-[#71717A]">{b.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+        {businessLineError && (
+          <p role="alert" className="mt-2 text-xs text-red-400">{businessLineError}</p>
+        )}
+      </fieldset>
+    )}
     <fieldset>
       <legend className="text-sm font-medium text-[#E4E4E7] mb-3">
         What kind of transaction is this?
@@ -87,5 +129,6 @@ export default function TransactionTypeStep({
         </p>
       )}
     </fieldset>
+    </>
   );
 }
