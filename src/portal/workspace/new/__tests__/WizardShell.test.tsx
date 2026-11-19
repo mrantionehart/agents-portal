@@ -66,7 +66,7 @@ describe("WizardShell — navigation", () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
 
-    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ })); // type valid
+    fireEvent.click(screen.getByRole("radio", { name: /^Brokerage/ })); fireEvent.click(screen.getByRole("radio", { name: /Purchase/ })); // type valid
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
 
     expect(await screen.findByTestId("wizard-step-property")).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe("WizardShell — navigation", () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
 
-    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Brokerage/ })); fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
     fireEvent.click(screen.getByRole("button", { name: /Back/ })); // → type
@@ -88,7 +88,7 @@ describe("WizardShell — navigation", () => {
   it("the Stepper jumps back to a visited step", async () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
-    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Brokerage/ })); fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
 
@@ -115,7 +115,7 @@ describe("WizardShell — validation gate (real rules)", () => {
   it("blocks Next on property when the address is empty", async () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
-    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Brokerage/ })); fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property
     await screen.findByTestId("wizard-step-property");
 
@@ -129,7 +129,7 @@ describe("WizardShell — validation gate (real rules)", () => {
   it("Back NEVER validates (bypasses a failing current step) and clears errors", async () => {
     render(<WizardShell />);
     await screen.findByTestId("wizard-step-type");
-    fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Brokerage/ })); fireEvent.click(screen.getByRole("radio", { name: /Purchase/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ })); // → property (empty)
     await screen.findByTestId("wizard-step-property");
 

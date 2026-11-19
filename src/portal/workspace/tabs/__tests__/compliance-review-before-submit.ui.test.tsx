@@ -70,6 +70,11 @@ const reviewCalls = (f: jest.Mock) =>
   f.mock.calls.filter((c) => String(c[0]).includes("/compliance-review/"));
 const submitCalls = (f: jest.Mock) =>
   f.mock.calls.filter((c) => String(c[0]).includes("/submit-review"));
+// FL-CAT-1 — the tab also mounts DealFactsCard, which reads the deal facts
+// once (GET .../compliance-facts). That read is not part of the submission
+// sequence these tests pin, so they measure the sequence without it.
+const isFactsRead = (c: unknown[]) => String(c[0]).includes("/compliance-facts");
+const sequenceCalls = (f: jest.Mock) => f.mock.calls.filter((c) => !isFactsRead(c));
 
 const clickSubmit = () =>
   fireEvent.click(screen.getByRole("button", { name: /submit for review/i }));
@@ -145,7 +150,11 @@ describe("the mounted ComplianceTab", () => {
     expect(reviewCalls(fetchImpl as unknown as jest.Mock)[0][1]).toMatchObject({
       method: "POST",
     });
-    const order = (fetchImpl as unknown as jest.Mock).mock.calls.map((c) => String(c[0]));
+    const order = sequenceCalls(fetchImpl as unknown as jest.Mock).map((c) => String(c[0]));
+    // the only other call is the one deal-facts read, and it is a GET
+    const facts = (fetchImpl as unknown as jest.Mock).mock.calls.filter(isFactsRead);
+    expect(facts.length).toBeLessThanOrEqual(1);
+    for (const c of facts) expect((c[1] as RequestInit | undefined)?.method ?? "GET").toBe("GET");
     expect(order[0]).toContain("compliance-review");
     expect(order[1]).toContain("submit-review");
   });
@@ -191,7 +200,7 @@ describe("the mounted ComplianceTab", () => {
     clickSubmit();
     await waitFor(() => expect(screen.getByText(/submitted/i)).toBeInTheDocument());
 
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sequenceCalls(fetchImpl as unknown as jest.Mock)).toHaveLength(1);
     expect(reviewCalls(fetchImpl as unknown as jest.Mock)).toHaveLength(0);
     expect(submitCalls(fetchImpl as unknown as jest.Mock)).toHaveLength(1);
   });

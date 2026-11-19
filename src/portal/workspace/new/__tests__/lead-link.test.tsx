@@ -61,7 +61,7 @@ it("a fresh wizard opened for a lead is linked and the client is pre-filled — 
 
 it("Create sends client_profile_id with the bearer-carrying fetch, then adds parties", async () => {
   seed(setStep({
-    ...emptySession(), client_profile_id: LEAD.id, transaction_type: "purchase",
+    ...emptySession(), client_profile_id: LEAD.id, transaction_type: "purchase", business_line: "brokerage",
     property: { address: "22 Oak Ave" }, parties: [{ role: "buyer", name: "Jane Lead", email: "jane@example.com", signature_required: true }],
   }, "create"));
   mockAuthFetch.mockResolvedValue(json(201, { transaction: { id: "txn-lead" } }));
@@ -85,7 +85,7 @@ it("Create sends client_profile_id with the bearer-carrying fetch, then adds par
 
 it("a refused link (e.g. not your lead) is shown and nothing navigates", async () => {
   seed(setStep({
-    ...emptySession(), client_profile_id: LEAD.id, transaction_type: "purchase",
+    ...emptySession(), client_profile_id: LEAD.id, transaction_type: "purchase", business_line: "brokerage",
     property: { address: "22 Oak Ave" }, parties: [{ role: "buyer", name: "Jane Lead", signature_required: true }],
   }, "create"));
   mockAuthFetch.mockResolvedValue(json(403, { error: "That lead is not assigned to you" }));
@@ -97,7 +97,7 @@ it("a refused link (e.g. not your lead) is shown and nothing navigates", async (
 });
 
 it("an unfinished draft for something else is NOT re-pointed at the lead", async () => {
-  const other = { ...emptySession(), transaction_type: "listing", property: { address: "9 Elm St" } };
+  const other = { ...emptySession(), transaction_type: "listing", business_line: "brokerage" as const, property: { address: "9 Elm St" } };
   seed(other);
   render(<WizardShell linkClient={LEAD} />);
   expect(await screen.findByTestId("wizard-client-conflict")).toHaveTextContent("not linked to Jane Lead");
@@ -108,7 +108,7 @@ it("an unfinished draft for something else is NOT re-pointed at the lead", async
 
 it("an unreadable client says so; an unlinked draft keeps the plain cookie request with no lead id", async () => {
   seed(setStep({
-    ...emptySession(), transaction_type: "purchase", property: { address: "1 Main St" },
+    ...emptySession(), transaction_type: "purchase", business_line: "brokerage", property: { address: "1 Main St" },
     parties: [{ role: "buyer", name: "Walk In", signature_required: true }],
   }, "create"));
   render(<WizardShell linkClientUnavailable />);

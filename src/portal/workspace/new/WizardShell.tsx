@@ -135,6 +135,9 @@ function StepBody({
             value={session.transaction_type}
             onSelect={wiz.setType}
             error={fieldErrors.transaction_type}
+            {...("business_line" in session
+              ? { businessLine: session.business_line ?? null, onBusinessLine: wiz.setBusinessLine, businessLineError: fieldErrors.business_line }
+              : {})}
           />
         </div>
       );

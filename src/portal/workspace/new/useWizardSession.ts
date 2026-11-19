@@ -49,6 +49,7 @@ import {
   setParties,
   setStep,
   setTransactionType,
+  setBusinessLine as setSessionBusinessLine,
   type WizardDatesDraft,
   type WizardPartyDraft,
   type WizardPropertyDraft,
@@ -71,6 +72,7 @@ export interface UseWizardSession {
   /** Discard the draft (clear the store) and leave the wizard. */
   cancel: () => void;
   setType: (type: string | null) => void;
+  setBusinessLine: (line: "brokerage" | "acquisition" | null) => void;
   patchProperty: (patch: Partial<WizardPropertyDraft>) => void;
   replaceParties: (parties: WizardPartyDraft[]) => void;
   patchDates: (patch: Partial<WizardDatesDraft>) => void;
@@ -140,6 +142,12 @@ export function useWizardSession(
   const searchParams = useSearchParams();
 
   const store = config?.store ?? productionLocalStorageStore;
+  // P4H-14 — only the production wizard creates a real transaction, so only
+  // it carries (and requires) an explicit business line. Training sessions
+  // keep their exact persisted shape.
+  const asksBusinessLine = !config?.store;
+  const withLine = (s: WizardSession): WizardSession =>
+    asksBusinessLine && !("business_line" in s) ? { ...s, business_line: null } : s;
   const stepHrefFn = config?.stepHref ?? defaultStepHref;
   const exitHref = config?.exitHref ?? WIZARD_EXIT_HREF;
   const onLoadError = config?.onLoadError;
@@ -158,7 +166,7 @@ export function useWizardSession(
 
   // SSR-safe: start empty so server and first client render match; the
   // real restore happens in the mount effect below.
-  const [session, setSession] = useState<WizardSession>(() => emptySession());
+  const [session, setSession] = useState<WizardSession>(() => withLine(emptySession()));
   const [hydrated, setHydrated] = useState(false);
   const didRestore = useRef(false);
   // Once finished (submit success), stop persisting so the cleared draft
@@ -179,7 +187,7 @@ export function useWizardSession(
         return;
       }
 
-      const restored = result.session ?? emptySession();
+      const restored = withLine(result.session ?? emptySession());
       const urlRaw = searchParams?.get("step") ?? null;
       const urlValid = isValidStep(urlRaw);
       const effectiveStep: StepId = urlValid
@@ -247,6 +255,10 @@ export function useWizardSession(
 
   const setType = useCallback(
     (type: string | null) => setSession((s) => setTransactionType(s, type)),
+    [],
+  );
+  const setBusinessLine = useCallback(
+    (line: "brokerage" | "acquisition" | null) => setSession((s) => setSessionBusinessLine(s, line)),
     [],
   );
   const patchProperty = useCallback(
@@ -330,6 +342,7 @@ export function useWizardSession(
     goBack,
     cancel,
     setType,
+    setBusinessLine,
     patchProperty,
     replaceParties,
     patchDates,
