@@ -53,7 +53,10 @@ const STATE_LABEL: Record<string, string> = {
   broker_approved: 'Broker approved',
 }
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const INPUT = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm'
+// The profile page is dark-themed; this card is white. The section forces dark
+// text and every input sets its own colours, or unstyled labels and typed text
+// render white on white (production QA 2026-11-19).
+const INPUT = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400'
 const BTN = 'inline-flex items-center gap-1 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50'
 
 function money(cents: number | null | undefined) {
@@ -137,7 +140,7 @@ export default function MembershipsSection() {
   }
 
   return (
-    <section id="memberships" aria-label="My Memberships & MLS" className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <section id="memberships" aria-label="My Memberships & MLS" className="rounded-lg border border-gray-200 bg-white p-6 text-gray-900 shadow-sm">
       <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold text-gray-900">
         <BadgeCheck className="h-5 w-5" /> MY MEMBERSHIPS &amp; MLS
       </h2>
