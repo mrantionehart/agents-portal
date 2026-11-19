@@ -291,6 +291,32 @@ export default function MembershipsSection() {
               {n.determined_amount_cents > 0 ? ` Payable by ${String(n.payment_due_at).slice(0, 10)}.` : ''}
             </p>
           ) : null}
+          {n.balance ? (
+            <p className="mt-1" data-testid={`ap-balance-${n.id}`}>
+              Paid {money(n.balance.paid_cents)} · credited {money(n.balance.credited_cents + n.balance.waived_cents)} · <span className="font-medium">outstanding {money(n.balance.outstanding_cents)}</span>
+            </p>
+          ) : null}
+          {(n.payments ?? []).length ? (
+            <ul className="mt-1 text-gray-600" aria-label="Payments and credits">
+              {(n.payments as Row[]).map((p, i) => <li key={i}>{String(p.effective_on).slice(0, 10)} · {String(p.entry_kind).replace(/_/g, ' ')} · {money(p.amount_cents)}</li>)}
+            </ul>
+          ) : null}
+          {n.itemized_notice ? (
+            <details className="mt-2">
+              <summary className="cursor-pointer underline">Read the itemized notice</summary>
+              <pre className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs text-gray-900" data-testid={`ap-notice-text-${n.id}`}>{n.itemized_notice.body_text}</pre>
+            </details>
+          ) : null}
+          {n.final_demand ? (
+            <details className="mt-2">
+              <summary className="cursor-pointer underline">Read the final demand</summary>
+              <pre className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs text-gray-900" data-testid={`ap-demand-text-${n.id}`}>{n.final_demand.body_text}</pre>
+            </details>
+          ) : null}
+          <label className="mt-2 inline-flex cursor-pointer items-center gap-1 underline">
+            <Upload className="h-4 w-4" /> Upload a document about this notice
+            <input type="file" className="sr-only" aria-label={`Upload a document about the ${n.issuing_association} notice`} accept="application/pdf,image/*" disabled={busy} onChange={upload('reimbursement_agent_response', { financial_item_id: n.id })} />
+          </label>
         </div>
       ))}
 
