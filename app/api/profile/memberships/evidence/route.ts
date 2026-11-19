@@ -10,7 +10,8 @@ import { membershipSectionEnabled } from '@/src/portal/profile/membership-flag'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const FORWARDED = ['kind', 'membership_id', 'mls_subscription_id', 'request_id'] as const
+// financial_item_id: a response on the agent's OWN reimbursement case (R7d); Vault re-checks it.
+const FORWARDED = ['kind', 'membership_id', 'mls_subscription_id', 'request_id', 'financial_item_id'] as const
 const MAX_BYTES = 10 * 1024 * 1024
 
 export async function POST(request: NextRequest) {

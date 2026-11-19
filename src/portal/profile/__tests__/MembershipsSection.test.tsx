@@ -158,4 +158,38 @@ describe('MembershipsSection', () => {
       expect(el.className).toMatch(/\btext-gray-900\b/)
     })
   })
+
+  // R7d — the agent sees the exact stored notice and final demand, the payments
+  // and credits recorded by the Broker of Record and the balance, and can upload
+  // a document about the notice on that case only.
+  it('R7d: a determined case shows the stored notice, the final demand, payments and balance; upload targets the case', async () => {
+    const R7D = {
+      ...VIEW,
+      reimbursement_notices: [{
+        id: 'n9', issuing_association: 'MIAMI REALTORS', amount_cents: 61500, fiscal_period: '2027', rule_basis: 'Bylaws Art. X §2(B)', calculation_method: '1 x DR dues',
+        reimbursement_stage: 'determined', determination: 'reduced', determined_amount_cents: 30000, determination_reason: 'Partial credit for proof of payment', payment_due_at: '2027-01-30T00:00:00Z',
+        itemized_notice: { body_text: 'ITEMIZED REIMBURSEMENT NOTICE\nSynthetic text' },
+        final_demand: { body_text: 'FINAL REIMBURSEMENT DEMAND\nAmount due: $250.00' },
+        payments: [{ entry_kind: 'credit_prior_recovery', amount_cents: 5000, effective_on: '2026-12-01' }, { entry_kind: 'payment_received', amount_cents: 20000, effective_on: '2027-01-05' }],
+        balance: { paid_cents: 20000, credited_cents: 5000, waived_cents: 0, applied_cents: 25000, outstanding_cents: 5000 },
+      }],
+    }
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/profile/memberships' && (!init || !init.method || init.method === 'GET')) return { ok: true, json: async () => R7D }
+      return { ok: true, json: async () => ({ ok: true }) }
+    })
+    render(<MembershipsSection />)
+    const box = await screen.findByTestId('ap-reimbursement-n9')
+    expect(within(box).getByTestId('ap-balance-n9')).toHaveTextContent('outstanding $50.00')
+    expect(within(box).getByRole('list', { name: 'Payments and credits' })).toHaveTextContent('2027-01-05 · payment received · $200.00')
+    expect(within(box).getByTestId('ap-notice-text-n9')).toHaveTextContent('ITEMIZED REIMBURSEMENT NOTICE')
+    expect(within(box).getByTestId('ap-demand-text-n9')).toHaveTextContent('Amount due: $250.00')
+    const input = within(box).getByLabelText('Upload a document about the MIAMI REALTORS notice')
+    fireEvent.change(input, { target: { files: [new File(['%PDF'], 'paid.pdf', { type: 'application/pdf' })] } })
+    await waitFor(() => expect(posts()).toHaveLength(1))
+    const fd = posts()[0][1].body as FormData
+    expect(fd.get('kind')).toBe('reimbursement_agent_response')
+    expect(fd.get('financial_item_id')).toBe('n9')
+    expect(fd.get('agent_id')).toBeNull()
+  })
 })
