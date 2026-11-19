@@ -47,6 +47,7 @@ import { categoryLabel, statusLabel, statusTone } from "../../documents/helpers"
 import { humanSeverity, severityTone } from "../../documents/details/helpers";
 // Transaction OS 3.3E — in-workspace Submit for Review action.
 import SubmitForReviewButton from "../compliance/SubmitForReviewButton";
+import DealFactsCard from "../compliance/DealFactsCard";
 
 export interface ComplianceTabProps {
   state: ComplianceTabState;
@@ -81,6 +82,7 @@ export default function ComplianceTab({ state, transactionId }: ComplianceTabPro
   return (
     <div className="space-y-5">
       <ReadinessHeader state={state} />
+      <DealFactsCard transactionId={transactionId} />
       <BlockersSection items={state.blockers} />
       <WarningsSection items={state.warnings} />
       <RequiredFormsSection items={state.requiredForms} />
