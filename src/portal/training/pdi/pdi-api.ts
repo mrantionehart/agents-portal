@@ -94,3 +94,20 @@ export async function submitPractical(
   }
   return ((await res.json()) as { submission: PracticalSubmission }).submission;
 }
+
+// ── PDI-3 (optional advanced) — availability + learner request ─────────────
+export type Pdi3Availability =
+  | { state: "assigned" }
+  | { state: "available" }
+  | { state: "locked"; reason: string };
+
+export async function fetchPdi3Availability(): Promise<Pdi3Availability> {
+  const res = await authedFetch(`/platform/certifications/pdi-advanced`);
+  if (!res.ok) await readErrorEnvelope(res, "fetchPdi3Availability");
+  return (await res.json()) as Pdi3Availability;
+}
+
+export async function requestPdi3(): Promise<void> {
+  const res = await authedFetch(`/platform/certifications/pdi-advanced`, { method: "POST" });
+  if (!res.ok) await readErrorEnvelope(res, "requestPdi3");
+}

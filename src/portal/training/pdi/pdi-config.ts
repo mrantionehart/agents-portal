@@ -23,7 +23,7 @@ export interface PdiCourseMeta {
   readonly certificationId: string;
   readonly code: "PDI-1" | "PDI-2" | "PDI-3";
   readonly title: string;
-  readonly requirement: "Required for new agents" | "Optional";
+  readonly requirement: "Required for new agents" | "Required after PDI-1" | "Optional";
   readonly prerequisite: string | null;
   readonly practicalLessonId: string;
   readonly summary: string;
@@ -43,7 +43,7 @@ export const PDI_COURSES: readonly PdiCourseMeta[] = [
     certificationId: PDI2_CERTIFICATION_ID,
     code: "PDI-2",
     title: "Land, Zoning & Development Research",
-    requirement: "Optional",
+    requirement: "Required after PDI-1",
     prerequisite: "Requires the PDI-1 certification.",
     practicalLessonId: "pdi2-l1301",
     summary: "Future land use, zoning, density, FAR, setbacks, flood, utilities and environmental screens.",
