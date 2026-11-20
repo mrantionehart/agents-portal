@@ -40,7 +40,7 @@ test.each(['false', 'error', 'loading'])('status %s hides both entry points and 
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   expect(screen.queryByRole('button', { name: 'Ask' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Ask HartFelt AI' })).not.toBeInTheDocument();
-  expect(fetchMock.mock.calls.every(([url]) => url.endsWith('/status'))).toBe(true);
+  expect(fetchMock.mock.calls.filter(([url]) => !String(url).includes('/rest/v1/notifications')).every(([url]) => url.endsWith('/status'))).toBe(true);
 });
 
 test.each([1280, 375])('agent journey renders answer, sources, disclaimer and retains follow-up conversation at width %i', async width => {
@@ -95,7 +95,7 @@ test('existing panel mode opens Ask and returns to existing Chat', async () => {
   expect(screen.getByRole('textbox', { name: 'Your question' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
   expect(screen.getByRole('button', { name: 'Send' })).toBeVisible();
-  expect(fetchMock.mock.calls.every(([url]) => url.endsWith('/status'))).toBe(true);
+  expect(fetchMock.mock.calls.filter(([url]) => !String(url).includes('/rest/v1/notifications')).every(([url]) => url.endsWith('/status'))).toBe(true);
 });
 
 test('closing Ask restores focus to its entry point', async () => {
@@ -113,7 +113,7 @@ test('switching to a denied identity immediately removes Ask', async () => {
   view.rerender(<><TopBar userName="Staff" userEmail="staff@test.com" role="office_manager" /><AIChatPanel transactionId={null} /></>);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Ask HartFelt AI' })).not.toBeInTheDocument();
-  expect(fetchMock.mock.calls.every(([url]) => url.endsWith('/status'))).toBe(true);
+  expect(fetchMock.mock.calls.filter(([url]) => !String(url).includes('/rest/v1/notifications')).every(([url]) => url.endsWith('/status'))).toBe(true);
 });
 
 test.each([200, 404, 503, 'error'])('general Ask opens source and handles %s', async status => {

@@ -11,7 +11,10 @@
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { Bell, Menu, Search } from "lucide-react";
+import { useAuth } from "@/app/providers";
+import { useUnreadNotificationCount } from "./useUnreadNotificationCount";
 
 import AIChatPanel from "./ai/AIChatPanel";
 import { useAskEnabled } from "./ai/use-ask-enabled";
@@ -35,6 +38,8 @@ export default function TopBar({
   onMenuClick,
   onCommandBarOpen,
 }: TopBarProps) {
+  const auth = useAuth() as { user?: { id?: string } | null } | undefined;
+  const unread = useUnreadNotificationCount(auth?.user?.id);
   const askEnabled = useAskEnabled();
   const askButtonRef = useRef<HTMLButtonElement>(null);
   function closeAsk() {
@@ -103,14 +108,21 @@ export default function TopBar({
           <AIChatPanel transactionId={null} initialMode="ask" />
         </div>, document.body)}
       </>}
-      {/* Notification bell — placeholder count */}
-      <button
-        type="button"
+      {/* Notification bell — links to Notifications with the unread count
+          (was a placeholder with no count and no action). */}
+      <Link
+        href="/notifications"
         className={cls.buttonGhost + " relative"}
-        aria-label="Notifications"
+        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        data-testid="topbar-notifications"
       >
         <Bell className="h-4 w-4" />
-      </button>
+        {unread ? (
+          <span data-testid="topbar-unread" className="absolute -top-1 -right-1 inline-flex h-4 items-center justify-center rounded-full bg-[#C9A84C] px-1 text-[10px] font-bold leading-none text-black">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        ) : null}
+      </Link>
 
       {/* User pill + menu */}
       <div className="relative">
