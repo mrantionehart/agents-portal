@@ -4,8 +4,9 @@
   "description": "HartFelt Real Estate - Agent Portal",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/check-api-routes.js",
+    "prebuild": "node scripts/deploy-guard/deploy-guard.mjs pre agent_portal && node scripts/check-api-routes.js",
     "build": "next build",
+    "postbuild": "node scripts/deploy-guard/deploy-guard.mjs post agent_portal",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",

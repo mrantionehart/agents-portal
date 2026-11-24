@@ -81,3 +81,22 @@ redirects, middleware, session cookies — report **UI E2E: UNVERIFIED** for tha
 and say why a component test cannot cover it.
 
 The required `verify` check and strict branch protection are unchanged by this standard.
+
+## Production deployments — DEPLOY-GUARD-1 (Claude Code and Codex)
+
+Production (branch `master`) is guarded by Vault's database (`deploy_guard_*`).
+`next build` runs `scripts/deploy-guard/deploy-guard.mjs` before and after
+compiling; only the newest recorded push to `master` (or a Broker-of-Record
+rollback target authorized in Vault → Ops Health) may become production. These
+instructions supplement that gate; they do not replace it.
+
+- **Never** run `vercel redeploy <url>`, `vercel promote`, `vercel rollback`,
+  `vercel deploy --prod` (from a working tree) or `--prebuilt`, nor the
+  dashboard's Redeploy/Instant Rollback on a remembered deployment. To rebuild
+  after an env change: `node scripts/deploy-guard/redeploy-production.mjs agent_portal`.
+- A deployment is done only when
+  `node scripts/deploy-guard/verify-production.mjs agent_portal --expect <commit>`
+  prints VERIFIED. A merged PR or a READY build is not a deployment.
+- A "REFUSED" build is the guard working: deploy the head, never work around it.
+- Do not change the CI secret, the prebuild/postbuild hooks or the guard script
+  without explicit owner authorization.
