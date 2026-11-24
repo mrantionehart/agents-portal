@@ -1,0 +1,60 @@
+name: Deploy guard — record production head
+
+# DEPLOY-GUARD-1. Every push to the production branch is recorded in Vault's
+# deploy_guard_heads, so the Vercel build gate (scripts/deploy-guard) can tell
+# the newest production commit from an older one. Runs on GitHub, independent
+# of Vault being up, with a per-repository secret that only allows recording
+# heads for THIS app. The anon key is public by design; the secret is not and
+# is never printed.
+#
+# Required repository config:
+#   secret    DEPLOY_GUARD_CI_SECRET
+#   variable  DEPLOY_GUARD_SUPABASE_URL, DEPLOY_GUARD_SUPABASE_ANON_KEY
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-guard-record-head
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record the pushed head
+        env:
+          URL: ${{ vars.DEPLOY_GUARD_SUPABASE_URL }}
+          ANON: ${{ vars.DEPLOY_GUARD_SUPABASE_ANON_KEY }}
+          SECRET: ${{ secrets.DEPLOY_GUARD_CI_SECRET }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
+          PUSHER: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL}" ] || [ -z "${ANON}" ] || [ -z "${SECRET}" ]; then
+            echo "::error::Deploy guard is not configured for this repository (URL/anon key/secret missing)."
+            exit 1
+          fi
+          body=$(jq -n --arg s "$SECRET" --arg sha "$SHA" --arg ref "$REF" --arg before "$BEFORE" \
+            --arg forced "$FORCED" --arg pusher "$PUSHER" --arg run "$RUN_URL" \
+            '{p_secret:$s, p_action:"record_head", p_app:"agent_portal", p_sha:$sha, p_ref:$ref,
+              p_detail:{before:$before, forced:($forced=="true"), pusher:$pusher, run_url:$run}}')
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' -X POST "${URL}/rest/v1/rpc/deploy_guard_ci" \
+              -H "apikey: ${ANON}" -H "Authorization: Bearer ${ANON}" -H "Content-Type: application/json" \
+              --data-binary "$body" || echo 000)
+            if [ "$code" = "200" ]; then echo "Recorded ${SHA:0:9} as the production head."; exit 0; fi
+            echo "Attempt ${attempt}: HTTP ${code}"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not record the production head. Production builds of ${SHA:0:9} will wait, then be refused when enforcement is on."
+          exit 1
