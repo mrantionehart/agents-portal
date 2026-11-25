@@ -12,24 +12,37 @@ interface VaultRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: any
   headers?: Record<string, string>
+  /**
+   * @deprecated IGNORED. FINSEC P0-4: identity used to be asserted to Vault
+   * with client-set `X-User-ID` / `X-User-Role` headers — values any browser
+   * can forge. Identity now travels ONLY as the caller's Supabase Bearer JWT
+   * (see `authFetch`). The fields remain so existing call sites compile; they
+   * are never read and never sent.
+   */
   userId?: string
+  /** @deprecated IGNORED — see `userId`. */
   userRole?: string | null
 }
 
+// Lazily loaded so server code that only needs VAULT_API_URL (the /api/vault/*
+// proxies) never pulls the browser Supabase client into its module graph.
+async function bearerFetch(url: string, init: RequestInit, timeoutMs?: number): Promise<Response> {
+  const { authFetch } = await import('@/lib/supabase')
+  return authFetch(url, init, timeoutMs)
+}
+
 /**
- * Make authenticated request to Vault API
+ * Make authenticated request to Vault API.
+ *
+ * Authentication is the caller's Supabase access token as
+ * `Authorization: Bearer <jwt>` (attached by authFetch from the cached
+ * session). No identity header of any other kind is ever sent.
  */
 async function vaultRequest(
   endpoint: string,
   options: VaultRequestOptions = {}
 ): Promise<any> {
-  const {
-    method = 'GET',
-    body,
-    headers = {},
-    userId,
-    userRole,
-  } = options
+  const { method = 'GET', body, headers = {} } = options
 
   const url = `${VAULT_API_URL}${endpoint}`
 
@@ -41,26 +54,12 @@ async function vaultRequest(
     },
   }
 
-  if (userId) {
-    requestOptions.headers = {
-      ...requestOptions.headers,
-      'X-User-ID': userId,
-    }
-  }
-
-  if (userRole) {
-    requestOptions.headers = {
-      ...requestOptions.headers,
-      'X-User-Role': userRole,
-    }
-  }
-
   if (body && method !== 'GET') {
     requestOptions.body = JSON.stringify(body)
   }
 
   try {
-    const response = await fetch(url, requestOptions)
+    const response = await bearerFetch(url, requestOptions)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: response.statusText }))
@@ -74,6 +73,13 @@ async function vaultRequest(
     // This allows pages to load without crashing
     return { data: [], deals: [], commissions: [], leads: [], documents: [] }
   }
+}
+
+/** Multipart upload with the same Bearer-only authentication as vaultRequest. */
+async function vaultUpload(endpoint: string, formData: FormData): Promise<any> {
+  // Uploads (and AI analysis of them) outlast authFetch's 8s default.
+  const res = await bearerFetch(`${VAULT_API_URL}${endpoint}`, { method: 'POST', body: formData }, 60000)
+  return res.json()
 }
 
 /**
@@ -93,14 +99,7 @@ export const vaultAPI = {
         formData.append('stage', stage)
       }
 
-      return fetch(`${VAULT_API_URL}/documents`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-User-ID': userId,
-          ...(userRole && { 'X-User-Role': userRole }),
-        },
-      }).then(r => r.json())
+      return vaultUpload('/documents', formData)
     },
   },
 
@@ -138,14 +137,7 @@ export const vaultAPI = {
       const formData = new FormData()
       formData.append('file', document)
 
-      return fetch(`${VAULT_API_URL}/ai/analyze-document`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-User-ID': userId,
-          ...(userRole && { 'X-User-Role': userRole }),
-        },
-      }).then(r => r.json())
+      return vaultUpload('/ai/analyze-document', formData)
     },
 
     complianceCheck: (data: any, userId: string, userRole?: string | null) =>
@@ -160,14 +152,7 @@ export const vaultAPI = {
       const formData = new FormData()
       formData.append('file', document)
 
-      return fetch(`${VAULT_API_URL}/ai/extract-deadlines`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-User-ID': userId,
-          ...(userRole && { 'X-User-Role': userRole }),
-        },
-      }).then(r => r.json())
+      return vaultUpload('/ai/extract-deadlines', formData)
     },
 
     chat: (message: string, userId: string, userRole?: string | null) =>
@@ -553,14 +538,7 @@ export const vaultAPI = {
       formData.append('file', file)
       formData.append('documentName', documentName)
 
-      return fetch(`${VAULT_API_URL}/onboarding/documents`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-User-ID': userId,
-          ...(userRole && { 'X-User-Role': userRole }),
-        },
-      }).then(r => r.json())
+      return vaultUpload('/onboarding/documents', formData)
     },
 
     // Get DocuSign signing link

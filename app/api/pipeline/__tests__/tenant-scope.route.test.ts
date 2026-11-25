@@ -14,31 +14,22 @@
 // an RLS regression cannot alone widen the scope again.
 // ============================================================================
 
-jest.mock("@/lib/security", () => ({
-  userClient: jest.fn(),
-}));
-
-jest.mock("@supabase/supabase-js", () => ({
-  createClient: jest.fn(() => ({
-    auth: {
-      getUser: jest.fn(async () => ({
-        data: { user: { id: "broker-1" } },
-        error: null,
-      })),
-    },
-  })),
-}));
-
-jest.mock("@supabase/ssr", () => ({
-  createServerClient: jest.fn(() => ({
-    auth: {
-      getUser: jest.fn(async () => ({
-        data: { user: { id: "broker-1" } },
-        error: null,
-      })),
-    },
-  })),
-}));
+// FINSEC P0-4: the route now authenticates through the shared requireAuth
+// gate (session + is_active). This suite is about the roster predicate, so the
+// gate is reduced to authenticated / not; the gate itself is exercised for real
+// in __tests__/api/finsec-p0-4-commission-endpoints.test.ts.
+let AUTHED = true;
+jest.mock("@/lib/security", () => {
+  const { NextResponse } = jest.requireActual("next/server");
+  return {
+    userClient: jest.fn(),
+    requireAuth: jest.fn(async () =>
+      AUTHED
+        ? { user: { id: "broker-1" } }
+        : { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
+    ),
+  };
+});
 
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/pipeline/route";
@@ -168,20 +159,21 @@ describe("P4H-15 — broker-view agent roster is tenant-scoped", () => {
     expect(profilesCalls).toHaveLength(1);
   });
 
-  it("[P4H-15.4] a tenant-less broker FAILS CLOSED — no roster SELECT at all", async () => {
+  it("[P4H-15.4] a tenant-less broker FAILS CLOSED — 403, no roster or transaction SELECT", async () => {
     const fx = makeClient({
       profileRow: { role: "broker", tenant_id: null },
     });
     uc.mockReturnValue(fx.client);
 
+    // FINSEC P0-4 tightened this from "200 with an empty roster" to a 403: a
+    // broker-tier caller with no tenant cannot be tenant-scoped, so the
+    // all-agents transaction read is refused too, not just the roster.
     const res = await GET(req());
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
     const profilesCalls = fx.log.filter((c) => c.table === "profiles");
     // Only the self-read for role; no second profiles SELECT when tenant is NULL.
     expect(profilesCalls).toHaveLength(1);
-
-    const body = await res.json();
-    expect(body.agents).toEqual([]);
+    expect(fx.log.some((c) => c.table === "transactions")).toBe(false);
   });
 
   it("[P4H-15.5] an office_manager is NOT elevated to broker on this route", async () => {
@@ -200,18 +192,7 @@ describe("P4H-15 — broker-view agent roster is tenant-scoped", () => {
 
 describe("P4H-15 — unauthenticated", () => {
   it("[P4H-15.6] no user → 401 and no DB access", async () => {
-    const { createClient } = jest.requireMock("@supabase/supabase-js");
-    createClient.mockReturnValueOnce({
-      auth: {
-        getUser: jest.fn(async () => ({ data: { user: null }, error: null })),
-      },
-    });
-    const { createServerClient } = jest.requireMock("@supabase/ssr");
-    createServerClient.mockReturnValueOnce({
-      auth: {
-        getUser: jest.fn(async () => ({ data: { user: null }, error: null })),
-      },
-    });
+    AUTHED = false;
     uc.mockReturnValue({
       from: () => {
         throw new Error("userClient should not be invoked when unauthenticated");
@@ -220,5 +201,6 @@ describe("P4H-15 — unauthenticated", () => {
 
     const res = await GET(req());
     expect(res.status).toBe(401);
+    AUTHED = true;
   });
 });

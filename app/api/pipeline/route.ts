@@ -1,44 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 import { TYPE_GROUPS, TYPE_GROUP_ORDER, groupTransactionsByType } from '@/app/api/pipeline/type-groups'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
-
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
 
 // Pipeline stages mapped to transaction statuses
 const STAGE_MAP: Record<string, { label: string; statuses: string[]; probability: number }> = {
@@ -60,8 +26,12 @@ const STAGE_ORDER = ['cultivate', 'appointment', 'active', 'under_contract', 'cl
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC P0-4 — the shared gate: 401 without a session, 403 for an
+    // inactive/suspended/deleted account (the local getAuthedUser copy this
+    // replaced skipped the is_active check entirely).
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
     // Coverage: transactions_select / commissions_select (agent_id = auth.uid()
@@ -84,9 +54,41 @@ export async function GET(request: NextRequest) {
     const role = profile?.role || 'agent'
     const callerTenantId = (profile?.tenant_id as string | null) ?? null
 
-    // Get target agent (broker can view any agent, or "all")
+    // FINSEC P0-4 — who may be asked about. `agent_id` used to be taken from
+    // the query string for ANY role, with RLS as the only defence, and the
+    // broker "all agents" view had no tenant predicate at all. Now:
+    //   • broker/admin: tenant-scoped in code. No tenant → 403 (fail closed).
+    //     A requested agent_id must be a profile in the caller's own tenant,
+    //     otherwise 403 — and every transaction read carries the tenant term.
+    //   • every other role (agent, office_manager, unknown, missing profile):
+    //     own pipeline only. Asking for someone else's agent_id is a 403.
+    const isBrokerTier = ['broker', 'admin'].includes(role)
     const { searchParams } = new URL(request.url)
-    const targetAgent = searchParams.get('agent_id') || (role === 'agent' ? user.id : null)
+    const requestedAgent = searchParams.get('agent_id') || null
+
+    let targetAgent: string | null
+    if (isBrokerTier) {
+      if (!callerTenantId) {
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+      }
+      if (requestedAgent) {
+        const { data: targetProfile } = await admin
+          .from('profiles')
+          .select('id')
+          .eq('id', requestedAgent)
+          .eq('tenant_id', callerTenantId)
+          .maybeSingle()
+        if (!targetProfile) {
+          return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+        }
+      }
+      targetAgent = requestedAgent
+    } else {
+      if (requestedAgent && requestedAgent !== user.id) {
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+      }
+      targetAgent = user.id
+    }
 
     // Get transactions
     let txQuery = admin
@@ -95,6 +97,9 @@ export async function GET(request: NextRequest) {
       .is('deleted_at', null)
       .not('status', 'eq', 'archived')
 
+    if (isBrokerTier) {
+      txQuery = txQuery.eq('tenant_id', callerTenantId as string)
+    }
     if (targetAgent) {
       txQuery = txQuery.eq('agent_id', targetAgent)
     }
@@ -220,7 +225,7 @@ export async function GET(request: NextRequest) {
     // every active profile across every brokerage if RLS failed open.
     // Fail closed when the caller has no tenant assignment.
     let agents: any[] = []
-    if (['broker', 'admin'].includes(role) && callerTenantId) {
+    if (isBrokerTier && callerTenantId) {
       const { data: agentList } = await admin
         .from('profiles')
         .select('id, full_name, email')

@@ -39,6 +39,9 @@ import {
   assessmentEntryEnabled,
   voicePracticeEnabled,
 } from '@/app/(portal)/the-ring/_lib/ring-flags'
+// FINSEC D5 — the payout rail is hard-disabled in code; the preview reports the
+// same constant the agent's Portal renders from, never an env value.
+import { payoutConnectEnabled } from '@/src/portal/payouts/payout-rail'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,11 +64,6 @@ const SESSION_SCOPED_OMITTED = [
   'notifications',
 ] as const
 
-/** Read the payout-rail flag the same way CommissionPayoutsCard does. There is
- *  no exported helper for it, so the env read is mirrored here verbatim. */
-function payoutConnectEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === 'true'
-}
 
 /** Authorize the caller as a broker/admin via EITHER the AP cookie session
  *  (AP's own pages) OR a trusted Bearer token (cross-service: Vault forwarding
