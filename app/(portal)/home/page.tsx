@@ -155,8 +155,8 @@ export default async function PortalHomePage() {
             hides itself when the agent's setup is complete (or snoozed). ── */}
       <MarketingCardPrompt />
 
-      {/* ── Commission payout readiness prompt — nudges Stripe Connect setup;
-            hides itself when payout-ready / not-configured (or snoozed). ── */}
+      {/* ── Commission payout readiness prompt — hard-disabled (FINSEC D5);
+            renders nothing and makes no network call. ── */}
       <PayoutReadinessPrompt />
 
       {/* ── Summary sentence ───────────────────────────────────── */}

@@ -1,97 +1,46 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import PayoutReadinessPrompt from '@/src/portal/home/PayoutReadinessPrompt'
+// ============================================================================
+// FINSEC D5 — PayoutReadinessPrompt: hard-disabled in code
+// ============================================================================
+// The prompt used to call Vault /stripe/connect and nudge "Connect with Stripe"
+// whenever NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED === "true". The env var is set to
+// "true" here deliberately: it must no longer have any effect.
+// ============================================================================
+import { render, screen, act } from '@testing-library/react'
 
-jest.mock('next/link', () => ({
-  __esModule: true,
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
-}))
 jest.mock('@/lib/supabase', () => ({ authFetch: jest.fn() }))
 import { authFetch } from '@/lib/supabase'
-const mockFetch = authFetch as jest.Mock
+const mockAuthFetch = authFetch as jest.Mock
 
-const res = (readiness: string, ok = true) => ({ ok, json: async () => ({ readiness }) })
+import PayoutReadinessPrompt from '@/src/portal/home/PayoutReadinessPrompt'
+
+const originalFetch = global.fetch
+let fetchSpy: jest.Mock
 
 beforeEach(() => {
   jest.clearAllMocks()
-  // Existing behavior suite exercises the ENABLED rail.
   process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED = 'true'
+  fetchSpy = jest.fn(async () => ({ ok: true, json: async () => ({ readiness: 'not_started' }) }))
+  global.fetch = fetchSpy as unknown as typeof fetch
+  mockAuthFetch.mockResolvedValue({ ok: true, json: async () => ({ readiness: 'not_started' }) })
   try { sessionStorage.clear() } catch { /* jsdom has it */ }
 })
 afterEach(() => {
   delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
+  global.fetch = originalFetch
 })
 
-describe('PayoutReadinessPrompt', () => {
-  it('renders nothing while loading', () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
+describe('FINSEC D5 — PayoutReadinessPrompt (rail hard-disabled)', () => {
+  it('[D5-P1] renders nothing, no connect CTA, no fetch — even with the env flag "true"', async () => {
     const { container } = render(<PayoutReadinessPrompt />)
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('hides when payout-ready', async () => {
-    mockFetch.mockResolvedValue(res('ready'))
-    const { container } = render(<PayoutReadinessPrompt />)
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('hides when payouts not configured on the brokerage', async () => {
-    mockFetch.mockResolvedValue(res('not_configured'))
-    const { container } = render(<PayoutReadinessPrompt />)
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('hides on a non-ok response (fail silently)', async () => {
-    mockFetch.mockResolvedValue(res('not_started', false))
-    const { container } = render(<PayoutReadinessPrompt />)
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('shows the setup prompt when not_started, CTA → /settings', async () => {
-    mockFetch.mockResolvedValue(res('not_started'))
-    render(<PayoutReadinessPrompt />)
-    expect(await screen.findByText('Finish Your Commission Payout Setup')).toBeInTheDocument()
-    const cta = screen.getByText('Set Up Payouts')
-    expect(cta.closest('a')).toHaveAttribute('href', '/settings')
-  })
-
-  it('shows a verification prompt when pending_verification', async () => {
-    mockFetch.mockResolvedValue(res('pending_verification'))
-    render(<PayoutReadinessPrompt />)
-    expect(await screen.findByText('Stripe Verification In Progress')).toBeInTheDocument()
-    expect(screen.getByText('Check Status')).toBeInTheDocument()
-  })
-
-  it('Maybe Later snoozes it away', async () => {
-    mockFetch.mockResolvedValue(res('incomplete'))
-    const { container } = render(<PayoutReadinessPrompt />)
-    fireEvent.click(await screen.findByText('Maybe Later'))
-    expect(container).toBeEmptyDOMElement()
-    expect(sessionStorage.getItem('hf_payout_readiness_prompt_dismissed')).toBe('1')
-  })
-
-  it('stays hidden when already snoozed', async () => {
-    sessionStorage.setItem('hf_payout_readiness_prompt_dismissed', '1')
-    mockFetch.mockResolvedValue(res('not_started'))
-    const { container } = render(<PayoutReadinessPrompt />)
-    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  describe('rail disabled (payout provider transition)', () => {
-    beforeEach(() => {
-      delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
-    })
-
-    it('renders nothing and never calls the connect endpoint', async () => {
-      mockFetch.mockResolvedValue(res('not_started'))
-      const { container } = render(<PayoutReadinessPrompt />)
-      // Give any (erroneous) effect a tick to fire.
+    await act(async () => {
       await Promise.resolve()
-      expect(container).toBeEmptyDOMElement()
-      expect(mockFetch).not.toHaveBeenCalled()
+      await new Promise((r) => setTimeout(r, 0))
     })
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(screen.queryByText(/Set Up Payouts/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Stripe/i)).not.toBeInTheDocument()
+    expect(mockAuthFetch).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

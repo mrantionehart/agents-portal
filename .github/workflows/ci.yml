@@ -69,8 +69,8 @@ jobs:
       # The suite. This is the step that executes the training authorization
       # tests (lib/training/__tests__/video-authorization.test.ts).
       #
-      # Two suites are excluded, both for reasons that predate this workflow
-      # and neither of which is a product defect. The first CI run measured
+      # One suite is excluded, for a reason that predates this workflow
+      # and is not a product defect. The first CI run measured
       # the baseline: 150 suites / 2254 tests, of which 148 / 2252 pass.
       #
       #   documents/details/edit/__tests__/editable.test.ts
@@ -81,21 +81,17 @@ jobs:
       #     anyone with both repos side by side. The right fix is to make it
       #     skip when the Vault path is absent, in that repo's own change.
       #
-      #   app/(portal)/home/__tests__/page.test.tsx
-      #     Fails to LOAD: its @supabase/ssr mock provides createServerClient
-      #     but not createBrowserClient, and the suite transitively imports
-      #     PayoutReadinessPrompt -> lib/supabase.ts, which calls
-      #     createBrowserClient at module scope. A one-line mock gap, but it
-      #     belongs to the payouts work, and it cannot be verified from here
-      #     while this machine cannot run jest — so it is reported, not
-      #     silently rewritten.
+      #   (app/(portal)/home/__tests__/page.test.tsx was excluded here because
+      #   it failed to LOAD via PayoutReadinessPrompt -> lib/supabase.ts. FINSEC
+      #   D5 hard-disabled that prompt, which no longer imports lib/supabase, so
+      #   the suite loads and passes and is back in the gate.)
       #
       # Deleting an entry from this list is how each one gets fixed; the list
       # is in the workflow rather than jest.config.js so it stays visible in
       # the gate itself.
       - name: Tests
         run: |
-          npm test -- --ci --runInBand             --testPathIgnorePatterns               "/node_modules/"               "src/portal/documents/details/edit/__tests__/editable.test.ts"               "app/\(portal\)/home/__tests__/page.test.tsx"
+          npm test -- --ci --runInBand             --testPathIgnorePatterns               "/node_modules/"               "src/portal/documents/details/edit/__tests__/editable.test.ts"
 
       # Typecheck reports but does not gate. The repo's current `tsc --noEmit`
       # status could not be established before this workflow existed — the

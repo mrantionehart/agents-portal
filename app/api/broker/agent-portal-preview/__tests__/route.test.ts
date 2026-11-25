@@ -290,3 +290,24 @@ describe('GET /api/broker/agent-portal-preview', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('FINSEC D5 — preview reflects the hard-disabled payout rail', () => {
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED
+  })
+
+  test('[D5-PV1] payoutConnectEnabled is false even when the env var is "true"', async () => {
+    process.env.NEXT_PUBLIC_PAYOUT_CONNECT_ENABLED = 'true'
+    mockRequireAdminRole.mockResolvedValue({ userId: BROKER_ID, role: 'broker' })
+    mockAdminClient.mockReturnValue(
+      makeSvc({
+        callerRow: { tenant_id: TENANT_A },
+        agentRow: { id: AGENT_ID, full_name: 'Agent Smith', role: 'agent', tenant_id: TENANT_A, is_active: true },
+      }),
+    )
+    const res = await GET(req(AGENT_ID))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.features.payoutConnectEnabled).toBe(false)
+  })
+})
