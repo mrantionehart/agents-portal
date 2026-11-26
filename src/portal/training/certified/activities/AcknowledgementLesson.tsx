@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { CertApiError, acknowledgeLesson, fetchLessonContent } from "../api";
+import { CtmBrokerPreviewNotice, useCtmBrokerPreview } from "@/src/portal/training/ctm/preview";
 import type { LessonContentBlock, LessonContentResponse, RichText } from "../types";
 
 interface Props {
@@ -30,6 +31,7 @@ type Load =
   | { kind: "ready"; content: LessonContentResponse };
 
 export default function AcknowledgementLesson({ certificationId, lessonId, alreadyCompleted, onCompleted }: Props) {
+  const brokerPreview = useCtmBrokerPreview(certificationId);
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -82,7 +84,9 @@ export default function AcknowledgementLesson({ certificationId, lessonId, alrea
         ))}
       </article>
       <div className="flex flex-wrap items-center gap-3">
-        {alreadyCompleted ? (
+        {brokerPreview ? (
+          <CtmBrokerPreviewNotice what="agents mark this lesson complete here." />
+        ) : alreadyCompleted ? (
           <div className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs text-green-300" data-cert-acknowledged>
             ✅ Lesson completed
           </div>

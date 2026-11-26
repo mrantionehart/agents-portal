@@ -33,6 +33,7 @@ import type {
 } from "../types";
 import { CTM_FINAL_EXAM_LESSON_ID, FINAL_EXAM_LESSON_ID } from "../types";
 import { lessonHref, resolveProgramParam } from "../program";
+import { CtmBrokerPreviewNotice, useCtmBrokerPreview } from "@/src/portal/training/ctm/preview";
 import { pdiCourse, pdiCourseHref, resolvePdiCertificationId } from "../../pdi/pdi-config";
 
 /**
@@ -233,6 +234,7 @@ function ActiveQuiz({
   onSubmitted: (r: QuizAttemptResponse) => void;
 }) {
   const { quiz, lesson, trackId, lessonId, certificationId } = phase;
+  const brokerPreview = useCtmBrokerPreview(certificationId);
 
   // ── FAIL CLOSED ON AN INCOMPLETE PAYLOAD ────────────────────────────────
   // Do not let a learner answer ten questions and only discover at submit
@@ -388,8 +390,9 @@ function ActiveQuiz({
           )}
         </div>
       )}
+      {brokerPreview && <CtmBrokerPreviewNotice what="agents submit their answers here and are scored by Vault." />}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <button
+        {!brokerPreview && <button
           type="button"
           onClick={submit}
           disabled={busy || !allAnswered}
@@ -397,7 +400,7 @@ function ActiveQuiz({
           data-cert-quiz-submit
         >
           {busy ? "Submitting…" : "Submit quiz"}
-        </button>
+        </button>}
       </div>
     </div>
   );

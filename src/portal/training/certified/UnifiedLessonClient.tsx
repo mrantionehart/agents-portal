@@ -45,6 +45,7 @@ import ChecklistLauncher from "./activities/ChecklistLauncher";
 import QuizLauncher from "./activities/QuizLauncher";
 import AcknowledgementLesson from "./activities/AcknowledgementLesson";
 import { trackHref } from "./program";
+import { CtmBrokerPreviewNotice, isCtmBrokerPreview } from "@/src/portal/training/ctm/preview";
 import { CTM_BROKER_APPROVAL_LESSON_ID, HARTFELT_PLATFORM_CERTIFIED_ID } from "./types";
 
 interface UnifiedLessonClientProps {
@@ -70,7 +71,8 @@ export default function UnifiedLessonClient({
   lessonId,
   certificationId = HARTFELT_PLATFORM_CERTIFIED_ID,
 }: UnifiedLessonClientProps) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const brokerPreview = isCtmBrokerPreview(certificationId, role);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
   const load = useCallback(async () => {
@@ -118,7 +120,8 @@ export default function UnifiedLessonClient({
 
   const { catalog, progress, lesson } = state;
   const lessonProgress = findLessonProgress(progress, lessonId);
-  const unlocked = isPrerequisiteUnlocked(progress, lesson);
+  // Broker preview: every lesson opens; Vault still refuses every write.
+  const unlocked = brokerPreview || isPrerequisiteUnlocked(progress, lesson);
   const displayStatus = lessonStatusLabel(lessonProgress?.status ?? "not_started");
 
   return (
@@ -152,6 +155,8 @@ export default function UnifiedLessonClient({
           </p>
         )}
       </header>
+
+      {brokerPreview && <CtmBrokerPreviewNotice what="you see this lesson as an agent does." />}
 
       {!unlocked && lesson.prerequisite_lesson_id && (
         <PrereqLocked

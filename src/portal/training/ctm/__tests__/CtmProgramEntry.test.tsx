@@ -117,12 +117,26 @@ describe('CtmProgramEntry', () => {
     await waitFor(() => expect(b.container).toBeEmptyDOMElement())
   })
 
-  it('broker: DRAFT preview pointer to the Vault broker Training Preview; no learner fetch', () => {
+  it('broker (Broker Agent View): the agent card with Required badge, a Preview link into the lessons and Review in Vault', async () => {
+    mockFetchProgress.mockResolvedValue(progress())
+    render(<CtmProgramEntry role="broker" />)
+    expect(await screen.findByTestId('ctm-entry')).toBeInTheDocument()
+    expect(screen.getByTestId('ctm-entry-required')).toHaveTextContent('Required training')
+    expect(screen.getByTestId('ctm-entry-summary')).toHaveTextContent('Nothing is recorded')
+    expect(screen.getByTestId('ctm-entry-open')).toHaveTextContent('Preview training')
+    expect(screen.getByTestId('ctm-entry-open')).toHaveAttribute('href', expect.stringMatching(/\/training\/certified\/ctm-m01\?program=hartfelt-real-estate-ctm-fl$/))
+    expect(screen.getByTestId('ctm-entry-vault')).toHaveAttribute('href', 'https://vault.test/broker-training-preview')
+    // Only a READ: the broker card never writes.
+    expect(mockFetch.mock.calls.every((c) => !c[1] || !c[1].method || c[1].method === 'GET')).toBe(true)
+  })
+
+  it('broker: falls back to the Vault pointer when Vault refuses the read', async () => {
+    vaultResponses.push({ status: 404, body: VAULT_DRAFT_REFUSAL })
     render(<CtmProgramEntry role="broker" />)
     const card = screen.getByTestId('ctm-entry-broker-preview')
     expect(card).toHaveTextContent('Required training for eligible agents')
     expect(card).not.toHaveTextContent('DRAFT')
-    expect(screen.getByText('Review in Vault').closest('a')).toHaveAttribute('href', 'https://vault.test/broker-training-preview')
-    expect(mockFetch).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('ctm-entry-broker-preview')).toBeInTheDocument()
   })
 })

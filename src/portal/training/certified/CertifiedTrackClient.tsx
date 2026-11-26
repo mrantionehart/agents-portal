@@ -19,6 +19,7 @@ import type {
   CertifiedProgress,
 } from "./types";
 import { lessonHref } from "./program";
+import { useCtmBrokerPreview } from "@/src/portal/training/ctm/preview";
 import { HARTFELT_PLATFORM_CERTIFIED_ID } from "./types";
 import {
   findLessonProgress,
@@ -191,7 +192,8 @@ function TrackLessonRow({
 }) {
   void catalog;
   const lp = findLessonProgress(progress, lesson.id);
-  const unlocked = isPrerequisiteUnlocked(progress, lesson);
+  const brokerPreview = useCtmBrokerPreview(certificationId);
+  const unlocked = brokerPreview || isPrerequisiteUnlocked(progress, lesson);
   const status = lp?.status ?? "not_started";
   const statusLabel = lessonStatusLabel(status);
   const href = lessonHref(certificationId, trackId, lesson.id);
