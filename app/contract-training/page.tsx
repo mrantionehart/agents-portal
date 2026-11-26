@@ -85,6 +85,14 @@ export default function ContractTrainingPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  // `?category=<slug>` preselects a category (the CTM card links straight to
+  // its checklists). Read after mount from window.location: no Suspense
+  // boundary needed and no server/client mismatch. An unknown slug matches no
+  // documents; the chips still let the user pick another.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('category')
+    if (c && /^[a-z0-9-]{1,80}$/.test(c)) setSelectedCategory(c)
+  }, [])
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
