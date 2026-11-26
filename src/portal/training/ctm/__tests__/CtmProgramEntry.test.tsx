@@ -139,4 +139,17 @@ describe('CtmProgramEntry', () => {
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId('ctm-entry-broker-preview')).toBeInTheDocument()
   })
+
+  it('module list: shown only after Vault admits the caller, hidden when Vault refuses', async () => {
+    const modules = [{ id: 'training/module/ctm-m01', title: 'Residential Buyer Transactions & Closings', open_url: '/training/certified/ctm-m01?program=hartfelt-real-estate-ctm-fl' }]
+    mockFetchProgress.mockResolvedValue(progress())
+    const a = render(<CtmProgramEntry role="agent" modules={modules} />)
+    expect(await screen.findByTestId('ctm-entry-modules')).toHaveTextContent('Residential Buyer Transactions & Closings')
+    a.unmount()
+    vaultResponses.push({ status: 404, body: VAULT_DRAFT_REFUSAL })
+    const b = render(<CtmProgramEntry role="agent" modules={modules} />)
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    expect(b.container).toBeEmptyDOMElement()
+    expect(screen.queryByText('Residential Buyer Transactions & Closings')).toBeNull()
+  })
 })

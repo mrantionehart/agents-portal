@@ -37,3 +37,17 @@ describe('Training hub lists only PUBLISHED modules', () => {
     expect(res.training[0]?.id).toBe('training/the-ring')
   })
 })
+
+describe('CTM modules never reach the open hub list (assignment-only training)', () => {
+  it('PUBLISHED CTM modules are kept out of `training` and handed to the gated CTM card', async () => {
+    for (const m of MODULES) if (m.volume === 10) m.status = 'published'
+    try {
+      const res = await loadTrainingHub({ supabase: fakeSupabase(), callerId: 'agent-1' })
+      expect(res.training.map((i) => i.title).join(' | ')).not.toMatch(/Residential Buyer Transactions|Certification Exam/)
+      expect(res.kind === 'ok' && res.ctmModules?.map((m) => m.title)).toEqual(['Residential Buyer Transactions & Closings', 'Certification Exam'])
+      expect(res.kind === 'ok' && res.ctmModules?.[0].open_url).toBe('/training/certified/ctm-m01?program=hartfelt-real-estate-ctm-fl')
+    } finally {
+      for (const m of MODULES) if (m.volume === 10) m.status = 'draft'
+    }
+  })
+})
