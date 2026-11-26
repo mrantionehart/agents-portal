@@ -6,6 +6,7 @@ import { useAuth } from '../providers'
 import Link from 'next/link'
 import { BarChart3, FileText, Briefcase, BookOpen, Users, HelpCircle, Calculator, Sparkles, TrendingUp, Mail, CalendarIcon, Trophy, Gift, Plus, Store, Newspaper, ExternalLink, Clock } from 'lucide-react'
 import { vaultAPI } from '@/lib/vault-client'
+import { totalPayable, pendingCalculationCount, PENDING_CALCULATION_LABEL } from '@/lib/commissionPayable'
 import ComplianceNotifications from '../components/compliance-notifications'
 import SupportModal from '@/components/SupportModal'
 import SidebarNav from '../components/SidebarNav'
@@ -79,7 +80,17 @@ export default function DashboardPage() {
 
   const totalDeals = deals.length
   const totalGrossCommission = commissions.reduce((sum, c) => sum + (c.gross_commission || 0), 0)
-  const totalEarned = commissions.reduce((sum, c) => sum + (c.agent_amount || 0), 0)
+  // FINSEC closeout (P1) - "Net Earned" read `agent_amount`, which is not what
+  // Vault pays (net_commission) and is never null, so an uncalculated row read
+  // as earned money. Only the canonical payable figure is summed now; rows
+  // still awaiting Vault's calculation are counted, never estimated.
+  const totalEarned = totalPayable(commissions)
+  const pendingCount = pendingCalculationCount(commissions)
+  const allPending = commissions.length > 0 && pendingCount === commissions.length
+  // Volume was `totalDeals * 500000` - an invented $500K per deal. Only a
+  // recorded contract price counts; none recorded means no figure.
+  const pricedDeals = deals.filter((d) => d?.contract_price != null && Number.isFinite(Number(d.contract_price)))
+  const totalVolume = pricedDeals.reduce((sum, d) => sum + Number(d.contract_price), 0)
 
   // Phase 2 retirement: broker/admin view branch removed.
   // Brokers and admins operate in Vault; this dashboard serves agents only.
@@ -160,10 +171,10 @@ export default function DashboardPage() {
           <div className="grid grid-cols-4 gap-6">
             <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-t-4 border-amber-500">
               <p className="text-gray-400 text-sm font-medium mb-2">Volume</p>
-              <p className="text-3xl font-bold text-amber-600">{totalDeals > 0 ? `$${(totalDeals * 500000 / 1000000).toFixed(1)}M` : '$0'}</p>
+              <p className="text-3xl font-bold text-amber-600">{pricedDeals.length > 0 ? `$${(totalVolume / 1000000).toFixed(1)}M` : '—'}</p>
             </div>
             <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-t-4 border-green-500">
-              <p className="text-gray-400 text-sm font-medium mb-2">Closings</p>
+              <p className="text-gray-400 text-sm font-medium mb-2">Deals</p>
               <p className="text-3xl font-bold text-green-600">{totalDeals}</p>
             </div>
             <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-t-4 border-cyan-500">
@@ -264,9 +275,19 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 mt-2">Gross earnings</p>
           </div>
           <div className="bg-[#0a0a0f] rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <p className="text-gray-400 text-sm font-medium mb-1">Net Earned</p>
-            <p className="text-4xl font-bold text-white">${(totalEarned / 1000).toFixed(1)}K</p>
-            <p className="text-xs text-gray-400 mt-2">After splits & fees</p>
+            <p className="text-gray-400 text-sm font-medium mb-1">Payable to You</p>
+            <p className="text-4xl font-bold text-white" data-testid="dashboard-payable">
+              {commissions.length === 0
+                ? '—'
+                : allPending
+                  ? PENDING_CALCULATION_LABEL
+                  : `$${(totalEarned / 1000).toFixed(1)}K`}
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              {pendingCount > 0 && !allPending
+                ? `Calculated by Vault · ${pendingCount} pending calculation`
+                : 'Calculated by Vault (net commission)'}
+            </p>
           </div>
         </div>
 

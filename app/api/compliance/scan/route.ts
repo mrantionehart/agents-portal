@@ -9,11 +9,9 @@
 // Auth: Supabase session cookie (portal) OR Bearer token (EASE).
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
 import { sendExpoPushToUsers } from '@/lib/push-notifications';
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -45,55 +43,6 @@ function getDbClient(request: NextRequest) {
   return userClient(request);
 }
 
-async function getAuthedUser(
-  request: NextRequest
-): Promise<{ userId: string } | null> {
-  // 1. Bearer token (mobile / curl)
-  const auth = request.headers.get('authorization') || '';
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim();
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data, error } = await sb.auth.getUser(token);
-      if (error || !data.user) return null;
-      return { userId: data.user.id };
-    } catch {
-      return null;
-    }
-  }
-
-  // 2. SSR cookie (portal)
-  try {
-    const stubResponse = NextResponse.json({});
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name);
-          },
-        },
-      }
-    );
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-    return { userId: user.id };
-  } catch {
-    return null;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,10 +61,10 @@ interface ComplianceIssue {
 export async function POST(request: NextRequest) {
   try {
     // ---- Auth ----
-    const caller = await getAuthedUser(request);
-    if (!caller) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const caller = { userId: auth.user.id }
 
     // ---- Parse body ----
     const body = await request.json();
@@ -140,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (caller.userId !== agent_id) {
       const { data: callerProfile, error: roleErr } = await admin
         .from('profiles')
-        .select('role')
+        .select('role, tenant_id')
         .eq('id', caller.userId)
         .single();
 
@@ -156,6 +105,26 @@ export async function POST(request: NextRequest) {
       if (!allowedRoles.includes(callerRole)) {
         console.warn(
           `[security:compliance-scan] cross-user denied caller=${caller.userId} target=${agent_id} role=${callerRole}`
+        );
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      }
+
+      // FINSEC closeout — the role alone let a broker in one brokerage scan
+      // (and write compliance issues for) an agent in another. The target must
+      // be in the caller's own tenant; no caller tenant → fail closed. A
+      // missing or foreign target answers the same 403.
+      const callerTenantId = (callerProfile.tenant_id as string | null) ?? null;
+      const { data: targetProfile } = callerTenantId
+        ? await admin
+            .from('profiles')
+            .select('id')
+            .eq('id', agent_id)
+            .eq('tenant_id', callerTenantId)
+            .maybeSingle()
+        : { data: null };
+      if (!targetProfile) {
+        console.warn(
+          `[security:compliance-scan] cross-tenant denied caller=${caller.userId} target=${agent_id}`
         );
         return NextResponse.json({ error: 'forbidden' }, { status: 403 });
       }

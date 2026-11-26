@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Bell, X, AlertCircle, CheckCircle, FileText, Users, TrendingUp, Clock, CalendarDays } from 'lucide-react'
 import { VAULT_API_URL } from '@/lib/vault-client'
+// FINSEC closeout — identity is the Supabase Bearer JWT (authFetch); no
+// client-set X-User-ID header.
+import { authFetch } from '@/lib/supabase'
 
 interface Notification {
   id: string
@@ -34,11 +37,7 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${VAULT_API_URL}/notifications`, {
-        headers: {
-          'X-User-ID': userId,
-        },
-      })
+      const response = await authFetch(`${VAULT_API_URL}/notifications`)
 
       if (response.ok) {
         const data = await response.json()
@@ -89,11 +88,10 @@ export default function NotificationsPanel({ userId, role }: NotificationsPanelP
       ))
 
       // Call backend to persist
-      await fetch(`${VAULT_API_URL}/notifications`, {
+      await authFetch(`${VAULT_API_URL}/notifications`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-User-ID': userId,
         },
         body: JSON.stringify({
           notificationId: id,

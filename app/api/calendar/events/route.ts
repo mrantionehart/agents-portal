@@ -1,51 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
 import { sendExpoPushToUsers } from '@/lib/push-notifications'
-import { adminClient } from '@/lib/security'
+import { requireAuth, adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /* ── Auth helper (Bearer token for EASE, cookies for portal) ──────── */
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
 
 /* ── GET /api/calendar/events?month=2026-04&agent_id=xxx ──────────── */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 
@@ -93,8 +62,10 @@ export async function GET(request: NextRequest) {
 /* ── POST /api/calendar/events — create a new event ───────────────── */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 
@@ -304,8 +275,10 @@ export async function POST(request: NextRequest) {
 /* ── DELETE /api/calendar/events?id=xxx ────────────────────────────── */
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     const admin = adminClient('calendar-broker-mgmt', { userId: user.id, context: '/api/calendar/events' })
 

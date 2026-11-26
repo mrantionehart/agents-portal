@@ -32,10 +32,10 @@
 //   TRAINING_SIGNED_URL_TTL_SEC     optional, default 14400 (4 hours)
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { requireAuth } from '@/lib/security';
 import {
   resolveCallerRole,
   resolveVideoByKey,
@@ -75,55 +75,6 @@ function getR2Client(): { client: S3Client; bucket: string } {
   return { client, bucket };
 }
 
-async function getAuthedUser(
-  request: NextRequest
-): Promise<{ userId: string } | null> {
-  // 1. Bearer token (mobile / curl)
-  const auth = request.headers.get('authorization') || '';
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim();
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data, error } = await sb.auth.getUser(token);
-      if (error || !data.user) return null;
-      return { userId: data.user.id };
-    } catch {
-      return null;
-    }
-  }
-
-  // 2. SSR cookie (portal)
-  try {
-    const stubResponse = NextResponse.json({});
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name);
-          },
-        },
-      }
-    );
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-    return { userId: user.id };
-  } catch {
-    return null;
-  }
-}
 
 function sanitizeKey(raw: string | null): string | null {
   if (!raw) return null;
@@ -139,10 +90,18 @@ function sanitizeKey(raw: string | null): string | null {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    // FINSEC closeout — shared gate (lib/security requireAuth: Bearer for
+    // EASE, cookie for the portal, plus the is_active/suspended/deleted
+    // check the local copy skipped). The EASE contract keeps its lowercase
+    // 401 body; an inactive account gets the gate's own 403.
+    const auth = await requireAuth(request)
+    if (auth.response) {
+      if (auth.response.status === 401) {
+        return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      }
+      return auth.response
     }
+    const user = { userId: auth.user.id }
 
     const { searchParams } = new URL(request.url);
     const key = sanitizeKey(searchParams.get('key'));

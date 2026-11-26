@@ -55,14 +55,14 @@ const legacyProgress: CapProgress = {
 
 describe('the historical $13,050 is projected, never earned', () => {
   it('shows verified $0 and the full $25,000 remaining', () => {
-    render(<CompensationTerms plan={plan} capProgress={null} cap={capBlock()} error={null} />)
+    render(<CompensationTerms termsVerified plan={plan} capProgress={null} cap={capBlock()} error={null} />)
     expect(screen.getByTestId('cap-verified')).toHaveTextContent('$0')
     expect(screen.getByTestId('cap-remaining')).toHaveTextContent('$25,000')
     expect(screen.getByTestId('cap-projected')).toHaveTextContent('$13,050')
   })
 
   it('uses the mandated labels, and never calls projected money "contributed"', () => {
-    render(<CompensationTerms plan={plan} capProgress={null} cap={capBlock()} error={null} />)
+    render(<CompensationTerms termsVerified plan={plan} capProgress={null} cap={capBlock()} error={null} />)
     expect(screen.getByText(/Verified Cap Contributions/i)).toBeInTheDocument()
     expect(screen.getByText(/Remaining Annual Cap/i)).toBeInTheDocument()
     expect(screen.getByText(/Projected — Not Yet Credited/i)).toBeInTheDocument()
@@ -71,7 +71,7 @@ describe('the historical $13,050 is projected, never earned', () => {
   })
 
   it('the progress bar tracks VERIFIED money, so it is empty at zero', () => {
-    render(<CompensationTerms plan={plan} capProgress={null} cap={capBlock()} error={null} />)
+    render(<CompensationTerms termsVerified plan={plan} capProgress={null} cap={capBlock()} error={null} />)
     expect(screen.getByTestId('cap-bar')).toHaveStyle({ width: '0%' })
   })
 })
@@ -79,7 +79,7 @@ describe('the historical $13,050 is projected, never earned', () => {
 describe('partial receipts and reversals', () => {
   it('a partial verified receipt moves verified and remaining only', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan} capProgress={null}
         cap={capBlock({
           verified_contributions: 1800, remaining_annual_cap: 23200,
@@ -97,7 +97,7 @@ describe('partial receipts and reversals', () => {
 
   it('shows what is awaiting broker verification', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan} capProgress={null}
         cap={capBlock({ awaiting_verification_count: 2, awaiting_verification_amount: 4200 })}
         error={null}
@@ -109,7 +109,7 @@ describe('partial receipts and reversals', () => {
 
   it('reports the cap met only when verified receipts reach it', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan} capProgress={null}
         cap={capBlock({
           verified_contributions: 25000, remaining_annual_cap: 0,
@@ -124,7 +124,7 @@ describe('partial receipts and reversals', () => {
 
   it('a huge PROJECTED balance never turns the bar green or fills it', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan} capProgress={null}
         cap={capBlock({ projected_contributions: 90000, projected_not_yet_credited: 90000 })}
         error={null}
@@ -138,7 +138,7 @@ describe('partial receipts and reversals', () => {
 describe('a failed verified read NEVER falls back to projected', () => {
   it('shows an explicit notice and no verified figure', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan} capProgress={null}
         cap={capBlock({
           verified_contributions: null, remaining_annual_cap: null,
@@ -160,7 +160,7 @@ describe('a failed verified read NEVER falls back to projected', () => {
 
 describe('an older Vault response without the cap block', () => {
   it('labels the projected figure as projected, not as contributed', () => {
-    render(<CompensationTerms plan={plan} capProgress={legacyProgress} cap={null} error={null} />)
+    render(<CompensationTerms termsVerified plan={plan} capProgress={legacyProgress} cap={null} error={null} />)
     expect(screen.getByText(/\$13,050 projected/i)).toBeInTheDocument()
     expect(screen.getByText(/Forecast only/i)).toBeInTheDocument()
     expect(screen.queryByText(/13,050 contributed/i)).not.toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('an older Vault response without the cap block', () => {
   })
 
   it('renders nothing cap-related when Vault sent neither', () => {
-    render(<CompensationTerms plan={plan} capProgress={null} cap={null} error={null} />)
+    render(<CompensationTerms termsVerified plan={plan} capProgress={null} cap={null} error={null} />)
     expect(screen.queryByTestId('cap-bar')).not.toBeInTheDocument()
     expect(screen.queryByTestId('cap-block')).not.toBeInTheDocument()
   })

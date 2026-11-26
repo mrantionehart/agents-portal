@@ -1,43 +1,10 @@
 import { fetchVaultRequirementsReport, complianceCompleteFromReport } from '@/lib/vault-requirements-report'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
 
 // ── Send email via SendGrid ──────────────────────────────────
 async function sendComplianceEmail(to: string, subject: string, htmlBody: string) {
@@ -148,8 +115,10 @@ async function createNotification(
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint D-3 Track D: was service-role; now user JWT + RLS.
     // Coverage matrix (PF-1 + PF-DVL + Phase 4B + Track C policies):
@@ -179,12 +148,20 @@ export async function POST(request: NextRequest) {
     // Check role
     const { data: profile } = await admin
       .from('profiles')
-      .select('role, full_name, email')
+      .select('role, full_name, email, tenant_id')
       .eq('id', user.id)
       .single()
 
     if (!profile || !['broker', 'admin'].includes(profile.role)) {
       return NextResponse.json({ error: 'Only broker/admin can review documents' }, { status: 403 })
+    }
+    // FINSEC closeout — review authority is tenant-bound. documents carry no
+    // tenant of their own; the transaction's tenant is the boundary. RLS on
+    // documents was role-only (Vault SEC-DOCUMENTS-TENANT-1), so it is checked
+    // here too. No caller tenant → fail closed.
+    const callerTenantId = (profile.tenant_id as string | null) ?? null
+    if (!callerTenantId) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -202,12 +179,13 @@ export async function POST(request: NextRequest) {
     // Get document with transaction info
     const { data: doc } = await admin
       .from('documents')
-      .select('*, transactions!inner(id, agent_id, property_address, city, type)')
+      .select('*, transactions!inner(id, agent_id, tenant_id, property_address, city, type)')
       .eq('id', document_id)
       .is('deleted_at', null)
       .single()
 
-    if (!doc) {
+    // A foreign-tenant document is reported exactly like a missing one.
+    if (!doc || doc.transactions?.tenant_id !== callerTenantId) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 

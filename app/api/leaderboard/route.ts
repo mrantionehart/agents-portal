@@ -2,46 +2,18 @@
 // GET/POST /api/leaderboard — CRUD for manual wins (Agents Portal)
 // ============================================================================
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req)
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(req)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
     // Coverage: manual_wins "Authenticated users can view all manual wins"
@@ -73,8 +45,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req)
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(req)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
     // Coverage: "Managers can insert manual wins" — WITH CHECK on
@@ -113,8 +87,10 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req)
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(req)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
     // Coverage: "Managers can update manual wins" — broker/admin/office_manager.
@@ -138,8 +114,10 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req)
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(req)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
     // Coverage: "Managers can delete manual wins" — broker/admin/office_manager.

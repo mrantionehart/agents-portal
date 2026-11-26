@@ -7,6 +7,14 @@ const rpc = jest.fn()
 const update = jest.fn()
 let user: { id: string } | null = { id: 'agent-1' }
 
+// FINSEC closeout — the route now runs the shared gate first (session +
+// is_active); exercised for real in __tests__/api/finsec-closeout-auth-tenant.test.ts.
+jest.mock('@/lib/security', () => ({
+  requireAuth: async () => {
+    const { NextResponse } = jest.requireActual('next/server')
+    return user ? { user } : { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  },
+}))
 jest.mock('next/headers', () => ({ cookies: () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }))
 jest.mock('@supabase/ssr', () => ({
   createServerClient: () => ({
@@ -19,9 +27,10 @@ jest.mock('@supabase/ssr', () => ({
   }),
 }))
 
+import { NextRequest } from 'next/server'
 import { POST } from '../route'
 
-const call = () => POST(new Request('http://x/api', { method: 'POST' }), { params: Promise.resolve({ id: 'lead-1' }) })
+const call = () => POST(new NextRequest('http://x/api', { method: 'POST' }), { params: Promise.resolve({ id: 'lead-1' }) })
 
 beforeEach(() => { rpc.mockReset(); update.mockReset(); user = { id: 'agent-1' } })
 

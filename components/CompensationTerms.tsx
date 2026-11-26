@@ -22,7 +22,7 @@ export interface CompensationPlan {
   annualCap: number
   /** HFOF-P1 — 'override' when a broker-authorized custom split is in force.
    *  agentSplitPct/brokerageSplitPct above are ALWAYS the effective figures. */
-  splitSource?: 'tier' | 'override'
+  splitSource?: 'tier' | 'override' | 'signed_terms'
   /** Set when a percentage sits on the profile but did NOT apply. */
   splitOverrideRefusal?: string | null
   splitRequestedPct?: number | null
@@ -59,6 +59,24 @@ export interface CapBlock {
   actual_unavailable: boolean
 }
 
+/**
+ * FEE-NO-ASSUME-1 (Vault src/lib/compensation/agent-plan.ts SignedPlanTerms)
+ * — the agent's verified signed terms, present only when terms_verified.
+ */
+export interface SignedTerms {
+  planVersion: string
+  agentSplitPct: number
+  annualThreshold: number | null
+  postThresholdAgentPct: number
+  transactionFee: number
+  leaseFee: { flat: number; pct: number } | null
+  effectiveFrom: string
+}
+
+/** Shown when Vault marks the terms unverified but sends no notice text. */
+export const TERMS_BEING_VERIFIED_FALLBACK =
+  'Your compensation terms are being verified by the Broker of Record. No split, fee or cap is shown until your signed agreement is recorded.'
+
 export interface CapProgress {
   cap_year: number
   annual_cap: number
@@ -94,12 +112,26 @@ export default function CompensationTerms({
   capProgress,
   cap,
   error,
+  termsVerified,
+  termsNotice,
+  signedTerms,
 }: {
   plan: CompensationPlan | null
   capProgress: CapProgress | null
   /** Vault's authoritative projected-vs-actual block. Preferred when present. */
   cap?: CapBlock | null
   error?: string | null
+  /**
+   * Vault `terms_verified`. ONLY `true` shows figures. false OR missing means
+   * the plan is profile defaults ($295 / $25,000 / tier split), not the
+   * agent's executed agreement, and none of those figures may be presented as
+   * "Your Compensation".
+   */
+  termsVerified?: boolean | null
+  /** Vault `terms_notice` (UNVERIFIED_TERMS_NOTICE) — rendered verbatim. */
+  termsNotice?: string | null
+  /** Vault `signed_terms` — the executed agreement, when verified. */
+  signedTerms?: SignedTerms | null
 }) {
   if (error) {
     return (
@@ -110,6 +142,25 @@ export default function CompensationTerms({
     )
   }
   if (!plan) return null
+
+  // FINSEC closeout / FEE-NO-ASSUME-1 — unverified (or an older payload with
+  // no flag): the notice, and no split / fee / cap / cap-progress figure.
+  if (termsVerified !== true) {
+    return (
+      <section
+        aria-label="Your compensation terms"
+        className="bg-[#0a0a0f] border border-zinc-800 rounded-lg p-6 mb-8"
+      >
+        <h3 className="text-lg font-semibold text-white mb-2">Your Compensation</h3>
+        <p data-testid="terms-unverified" className="text-sm text-amber-300">
+          {termsNotice || TERMS_BEING_VERIFIED_FALLBACK}
+        </p>
+        <p className="text-xs text-zinc-500 mt-2">
+          Your compensation terms are being verified by the Broker of Record.
+        </p>
+      </section>
+    )
+  }
 
   const isFounding = plan.tier === 'founding'
   const waiver = plan.waiver
@@ -152,6 +203,13 @@ export default function CompensationTerms({
           }
         />
         <Field label="Transaction fee" value={usd(plan.transactionFee)} note="per closing" />
+        {signedTerms && Number.isFinite(signedTerms.postThresholdAgentPct) && (
+          <Field
+            label="After cap"
+            value={`${signedTerms.postThresholdAgentPct}%`}
+            note="your share once the annual threshold is met · signed terms"
+          />
+        )}
         <Field
           label="Annual cap"
           value={usd(plan.annualCap)}
@@ -281,6 +339,13 @@ export default function CompensationTerms({
         <p data-testid="override-pending" className="text-xs text-amber-400 mt-4">
           A custom split of {plan.splitRequestedPct}% is on file but has not been
           authorized by your broker, so your {plan.tierLabel} rate applies.
+        </p>
+      )}
+
+      {signedTerms && (
+        <p data-testid="signed-terms-source" className="text-xs text-zinc-400 mt-4">
+          From your signed agreement (plan {signedTerms.planVersion}), effective{' '}
+          {signedTerms.effectiveFrom}.
         </p>
       )}
 

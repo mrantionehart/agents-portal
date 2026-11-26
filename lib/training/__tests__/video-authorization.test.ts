@@ -128,9 +128,15 @@ describe('AP-TRAINING-SIGN-1 — EASE response contract preserved', () => {
   });
 
   it('[APT-13] still accepts both Bearer and cookie auth (EASE uses Bearer)', () => {
-    expect(src).toMatch(/authorization/i);
-    expect(src).toMatch(/bearer /i);
-    expect(src).toMatch(/createServerClient/);
+    // FINSEC closeout — both transports now come from the shared gate
+    // (lib/security/withAuth.ts getAuthedUser: Bearer, then SSR cookie), which
+    // also enforces is_active. The local copy that skipped it is gone.
+    expect(src).toMatch(/import \{ requireAuth \} from '@\/lib\/security'/);
+    expect(src).toMatch(/await requireAuth\(request\)/);
+    expect(src).not.toMatch(/async function getAuthedUser/);
+    const gate = read('lib/security/withAuth.ts');
+    expect(gate).toMatch(/bearer /i);
+    expect(gate).toMatch(/createServerClient/);
   });
 
   it('[APT-14] private, no-store caching retained', () => {

@@ -1,10 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers'
 import Link from 'next/link'
 import { vaultAPI } from '@/lib/vault-client'
+import { authFetch } from '@/lib/supabase'
+
+// FINSEC closeout (P1) — this page used to open with an 80% split and a $295
+// fee and call the result "your" net commission. Those were invented numbers,
+// not the agent's agreement (three agents signed at $395). Now:
+//   • verified signed terms from Vault (/api/vault/compensation with
+//     terms_verified === true) prefill the split and fee, labelled as such;
+//   • otherwise the split and fee start EMPTY and every result is labelled an
+//     illustrative estimate — no default is ever presented as the agent's terms.
+type TermsState =
+  | { kind: 'loading' }
+  | { kind: 'verified'; agentSplitPct: number; transactionFee: number; planVersion: string | null }
+  | { kind: 'unverified'; notice: string | null }
+
+const numOrEmpty = (v: string): number | '' => (v === '' ? '' : Number(v))
+const n = (v: number | ''): number => (v === '' || !Number.isFinite(v) ? 0 : v)
 
 export default function CommissionCalculatorPage() {
   const { user, role, loading, signOut } = useAuth()
@@ -12,17 +28,59 @@ export default function CommissionCalculatorPage() {
 
   const [salePrice, setSalePrice] = useState(500000)
   const [totalCommPct, setTotalCommPct] = useState(5)
-  const [brokageSplit, setBrokageSplit] = useState(80)
+  const [brokageSplit, setBrokageSplit] = useState<number | ''>('')
   const [referralFeePct, setReferralFeePct] = useState(0)
-  const [transactionFee, setTransactionFee] = useState(295)
+  const [transactionFee, setTransactionFee] = useState<number | ''>('')
   const [vaultResult, setVaultResult] = useState<any>(null)
   const [isCalculating, setIsCalculating] = useState(false)
+  const [terms, setTerms] = useState<TermsState>({ kind: 'loading' })
+
+  // The agent's own terms, only when Vault has verified a signed agreement.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await authFetch('/api/vault/compensation')
+        const data = res.ok ? await res.json() : null
+        if (cancelled) return
+        const plan = data?.plan
+        if (
+          data?.terms_verified === true &&
+          plan &&
+          Number.isFinite(plan.agentSplitPct) &&
+          Number.isFinite(plan.transactionFee)
+        ) {
+          setTerms({
+            kind: 'verified',
+            agentSplitPct: plan.agentSplitPct,
+            transactionFee: plan.transactionFee,
+            planVersion: data?.signed_terms?.planVersion ?? null,
+          })
+          setBrokageSplit(plan.agentSplitPct)
+          setTransactionFee(plan.transactionFee)
+        } else {
+          setTerms({ kind: 'unverified', notice: typeof data?.terms_notice === 'string' ? data.terms_notice : null })
+        }
+      } catch {
+        if (!cancelled) setTerms({ kind: 'unverified', notice: null })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  const usingVerifiedTerms =
+    terms.kind === 'verified' &&
+    brokageSplit === terms.agentSplitPct &&
+    transactionFee === terms.transactionFee
 
   // Local calculation for immediate UI feedback
   const grossCommission = (salePrice * totalCommPct) / 100
-  const yourSplit = (grossCommission * brokageSplit) / 100
+  const yourSplit = (grossCommission * n(brokageSplit)) / 100
   const referralFee = (yourSplit * referralFeePct) / 100
-  const netCommission = yourSplit - referralFee - transactionFee
+  const netCommission = yourSplit - referralFee - n(transactionFee)
 
   // Calculate using Vault API (for broker-defined rules and compliance)
   const calculateWithVault = async () => {
@@ -34,9 +92,9 @@ export default function CommissionCalculatorPage() {
         {
           salePrice,
           commissionRate: totalCommPct,
-          brokerSplit: brokageSplit,
+          brokerSplit: n(brokageSplit),
           referralFee: referralFeePct,
-          transactionFee,
+          transactionFee: n(transactionFee),
         },
         user.id,
         role
@@ -85,8 +143,15 @@ export default function CommissionCalculatorPage() {
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 py-12">
         <div className="bg-[#0a0a0f] rounded-lg shadow-lg shadow-black/20 p-8">
-          <p className="text-gray-400 mb-8">
+          <p className="text-gray-400 mb-4">
             Quickly estimate your net earnings on any deal. Results update automatically as you type.
+          </p>
+          <p data-testid="calc-terms-basis" className="text-sm mb-8 text-amber-300">
+            {terms.kind === 'verified'
+              ? `Split and fee prefilled from your signed agreement${terms.planVersion ? ` (plan ${terms.planVersion})` : ''}. Change them to explore a what-if.`
+              : terms.kind === 'unverified'
+                ? `Illustrative estimate only — these are not your compensation terms. ${terms.notice ?? 'Your compensation terms are being verified by the Broker of Record.'} Enter a split and fee to explore.`
+                : 'Loading your compensation terms…'}
           </p>
 
           <div className="grid grid-cols-2 gap-8">
@@ -131,8 +196,9 @@ export default function CommissionCalculatorPage() {
                     <input
                       type="number"
                       value={brokageSplit}
-                      onChange={(e) => setBrokageSplit(Number(e.target.value))}
-                      placeholder="e.g. 80"
+                      aria-label="Brokerage split percent"
+                      onChange={(e) => setBrokageSplit(numOrEmpty(e.target.value))}
+                      placeholder="your split %"
                       className="flex-1 px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                     <span className="text-gray-400">%</span>
@@ -166,8 +232,9 @@ export default function CommissionCalculatorPage() {
                     <input
                       type="number"
                       value={transactionFee}
-                      onChange={(e) => setTransactionFee(Number(e.target.value))}
-                      placeholder="e.g. 395"
+                      aria-label="Transaction fee"
+                      onChange={(e) => setTransactionFee(numOrEmpty(e.target.value))}
+                      placeholder="flat fee per closing"
                       className="flex-1 px-4 py-2 border border-[#1a1a2e] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/30"
                     />
                   </div>
@@ -183,7 +250,11 @@ export default function CommissionCalculatorPage() {
               {/* Display Vault result if available, otherwise local calculation */}
               <div className={`bg-gradient-to-br rounded-lg p-8 text-white mb-6 ${vaultResult ? 'from-purple-500 to-purple-600' : 'from-green-500 to-green-600'}`}>
                 <p className="text-sm font-medium opacity-90">
-                  {vaultResult ? 'Vault-Calculated Net Commission' : 'Estimated Net Commission'}
+                  {vaultResult
+                    ? 'Vault-Calculated Net Commission'
+                    : usingVerifiedTerms
+                      ? 'Estimated Net Commission (your signed terms)'
+                      : 'Illustrative Estimate — not your terms'}
                 </p>
                 <p className="text-5xl font-bold mt-2">
                   ${vaultResult?.net_commission || netCommission.toFixed(2)}
@@ -197,7 +268,9 @@ export default function CommissionCalculatorPage() {
                 </div>
                 <div className="border-t border-[#1a1a2e] pt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-200">Your Split ({brokageSplit}%)</span>
+                    <span className="text-gray-200">
+                      {usingVerifiedTerms ? 'Your Split' : 'Entered Split'} ({n(brokageSplit)}%)
+                    </span>
                     <span className="font-semibold text-white">${yourSplit.toFixed(2)}</span>
                   </div>
                 </div>
@@ -209,11 +282,11 @@ export default function CommissionCalculatorPage() {
                     </div>
                   </div>
                 )}
-                {transactionFee > 0 && (
+                {n(transactionFee) > 0 && (
                   <div className="border-t border-[#1a1a2e] pt-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-200">Transaction Fee</span>
-                      <span className="font-semibold text-red-600">-${transactionFee.toFixed(2)}</span>
+                      <span className="font-semibold text-red-600">-${n(transactionFee).toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -237,9 +310,9 @@ export default function CommissionCalculatorPage() {
                   onClick={() => {
                     setSalePrice(500000)
                     setTotalCommPct(5)
-                    setBrokageSplit(80)
+                    setBrokageSplit(terms.kind === 'verified' ? terms.agentSplitPct : '')
                     setReferralFeePct(0)
-                    setTransactionFee(295)
+                    setTransactionFee(terms.kind === 'verified' ? terms.transactionFee : '')
                     setVaultResult(null)
                   }}
                   className="flex-1 px-4 py-2 border border-[#1a1a2e] text-gray-200 rounded-lg hover:bg-[#0a0a0f] transition font-medium"

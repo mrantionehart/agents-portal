@@ -10,6 +10,9 @@ import {
   FileText, Layers, Link2, BellPlus, UserCheck, Percent, Zap
 } from 'lucide-react'
 import { VAULT_API_URL } from '@/lib/vault-client'
+// FINSEC closeout — Vault identifies the caller by the Supabase Bearer JWT
+// only; a client-set X-User-ID (here a random localStorage id) is never sent.
+import { authFetch } from '@/lib/supabase'
 
 const VAULT_API = VAULT_API_URL
 
@@ -237,8 +240,8 @@ export default function DevelopmentRadarPage() {
   const fetchSaved = useCallback(async () => {
     setSavedLoading(true)
     try {
-      const r = await fetch(`${VAULT_API}/development-radar/saves`, {
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+      const r = await authFetch(`${VAULT_API}/development-radar/saves`, {
+        headers: { 'Content-Type': 'application/json' },
       })
       const d = await r.json()
       const items = d?.data || d?.saves || []
@@ -257,9 +260,9 @@ export default function DevelopmentRadarPage() {
 
   const toggleSave = async (devId: string) => {
     try {
-      await fetch(`${VAULT_API}/development-radar/saves`, {
+      await authFetch(`${VAULT_API}/development-radar/saves`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ development_id: devId }),
       })
       const wasSaved = savedIds.has(devId)
@@ -315,8 +318,8 @@ export default function DevelopmentRadarPage() {
   async function fetchPresales() {
     setPresalesLoading(true)
     try {
-      const res = await fetch(`${VAULT_API}/development-radar/presales`, {
-        headers: { 'X-User-ID': userId, 'X-User-Role': 'agent' },
+      const res = await authFetch(`${VAULT_API}/development-radar/presales`, {
+        headers: {},
       })
       if (res.ok) {
         const data = await res.json()
@@ -328,8 +331,8 @@ export default function DevelopmentRadarPage() {
 
   async function fetchPresaleAlerts() {
     try {
-      const res = await fetch(`${VAULT_API}/development-radar/presales/notify?limit=20`, {
-        headers: { 'X-User-ID': userId },
+      const res = await authFetch(`${VAULT_API}/development-radar/presales/notify?limit=20`, {
+        headers: {},
       })
       if (res.ok) {
         const data = await res.json()
@@ -343,9 +346,9 @@ export default function DevelopmentRadarPage() {
     setMatchingDevId(devId)
     setSelectedPresale(devId)
     try {
-      const res = await fetch(`${VAULT_API}/development-radar/presales/matches`, {
+      const res = await authFetch(`${VAULT_API}/development-radar/presales/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ development_id: devId }),
       })
       if (res.ok) {
@@ -359,9 +362,9 @@ export default function DevelopmentRadarPage() {
 
   async function registerForPresale(devId: string) {
     try {
-      const res = await fetch(`${VAULT_API}/development-radar/presales/registrations`, {
+      const res = await authFetch(`${VAULT_API}/development-radar/presales/registrations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ development_id: devId }),
       })
       if (res.ok) {
@@ -373,9 +376,9 @@ export default function DevelopmentRadarPage() {
 
   async function markPresaleAlertsRead() {
     try {
-      await fetch(`${VAULT_API}/development-radar/presales/notify`, {
+      await authFetch(`${VAULT_API}/development-radar/presales/notify`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mark_all: true }),
       })
       setPresaleUnread(0)
