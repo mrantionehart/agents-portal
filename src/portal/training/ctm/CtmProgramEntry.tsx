@@ -33,7 +33,7 @@ import { lessonHref, trackHref } from '@/src/portal/training/certified/program'
 export const CTM_CERTIFICATION_ID = 'hartfelt-real-estate-ctm-fl'
 export const CTM_FIRST_TRACK_ID = 'ctm-m01'
 export const CTM_VAULT_BROKER_PREVIEW_URL = `${VAULT_BASE_URL}/broker-training-preview`
-export const CTM_DOWNLOADS_HREF = '/contract-training'
+export const CTM_DOWNLOADS_HREF = '/contract-training?category=closing-transaction-management'
 
 type State =
   | { kind: 'loading' }

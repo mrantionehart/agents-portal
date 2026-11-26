@@ -160,4 +160,28 @@ describe('[CTL] the Contract Training document library', () => {
     // `doc.category` does not exist on the row; the name is in the embed.
     expect(screen.getByText('Matrix MLS Training')).toBeInTheDocument()
   })
+
+  it('[CTL-6] ?category=<slug> opens the library on that category (the CTM card deep link)', async () => {
+    window.history.pushState({}, '', '/contract-training?category=' + MATRIX_CAT.slug)
+    try {
+      render(<ContractTrainingPage />)
+      await waitFor(() => expect(urlsFor(`category=${MATRIX_CAT.slug}`).length).toBeGreaterThan(0))
+      await waitFor(() =>
+        expect(screen.getByText(/Matrix MLS — Complete Training Manual/)).toBeInTheDocument(),
+      )
+    } finally {
+      window.history.pushState({}, '', '/contract-training')
+    }
+  })
+
+  it('[CTL-7] a malformed ?category= is ignored (All is shown, nothing odd is sent)', async () => {
+    window.history.pushState({}, '', '/contract-training?category=%3Cscript%3E')
+    try {
+      render(<ContractTrainingPage />)
+      await waitFor(() => expect(screen.getByText('All (17)')).toBeInTheDocument())
+      expect(urlsFor('category=').length).toBe(0)
+    } finally {
+      window.history.pushState({}, '', '/contract-training')
+    }
+  })
 })
