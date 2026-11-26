@@ -15,7 +15,10 @@
 //     Never Vault /learning: agents have no interactive Vault access.
 //   * DOWNLOADS — the existing Contract Training library (/contract-training),
 //     where RLS decides what each user may read.
-// Brokers see a DRAFT preview pointer to Vault's broker-only Training Preview.
+// Brokers see a pointer to Vault's broker-only Training Preview.
+// REQUIRED (BoR 2026-11-25): Vault enrolls every eligible agent automatically,
+// so the learner card is labelled "Required training"; access is still decided
+// by Vault's gate alone.
 // ============================================================================
 
 import { useEffect, useState } from 'react'
@@ -86,7 +89,7 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
           <div>
             <p className="text-sm font-medium text-[#F1F1F3]">Closing &amp; Transaction Management</p>
             <p className="text-sm text-[#A1A1AA]">
-              DRAFT — PENDING BROKER APPROVAL. Hidden from agents until you approve and activate it.
+              Required training for eligible agents, enrolled automatically. Status and progress are in Vault.
             </p>
           </div>
         </div>
@@ -110,7 +113,15 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
       <div className="flex items-start gap-3">
         <ClipboardCheck className="h-5 w-5 text-[#C9A84C] mt-0.5 shrink-0" />
         <div>
-          <p className="text-sm font-medium text-[#F1F1F3]">Closing &amp; Transaction Management</p>
+          <p className="text-sm font-medium text-[#F1F1F3]">
+            Closing &amp; Transaction Management{' '}
+            <span
+              data-testid="ctm-entry-required"
+              className="ml-1 rounded px-1.5 py-0.5 text-xs font-semibold bg-[#C9A84C]/20 text-[#C9A84C]"
+            >
+              Required training
+            </span>
+          </p>
           <p className="text-sm text-[#A1A1AA]" data-testid="ctm-entry-summary">{summary(state.progress)}</p>
         </div>
       </div>

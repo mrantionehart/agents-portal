@@ -58,6 +58,7 @@ describe('CtmProgramEntry', () => {
     expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/platform\/certifications\/hartfelt-real-estate-ctm-fl\/progress$/)
     expect((mockFetch.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer agent-token')
     expect(screen.getByTestId('ctm-entry-summary')).toHaveTextContent('1 of 3 modules complete.')
+    expect(screen.getByTestId('ctm-entry-required')).toHaveTextContent('Required training')
     // Continue training stays in the Agent Portal (agents have no interactive Vault access)
     expect(screen.getByTestId('ctm-entry-open')).toHaveAttribute('href', '/training/certified/ctm-m01?program=hartfelt-real-estate-ctm-fl')
     expect(screen.getByTestId('ctm-entry-open').getAttribute('href')).not.toMatch(/learning|vault/)
@@ -119,7 +120,8 @@ describe('CtmProgramEntry', () => {
   it('broker: DRAFT preview pointer to the Vault broker Training Preview; no learner fetch', () => {
     render(<CtmProgramEntry role="broker" />)
     const card = screen.getByTestId('ctm-entry-broker-preview')
-    expect(card).toHaveTextContent('DRAFT — PENDING BROKER APPROVAL')
+    expect(card).toHaveTextContent('Required training for eligible agents')
+    expect(card).not.toHaveTextContent('DRAFT')
     expect(screen.getByText('Review in Vault').closest('a')).toHaveAttribute('href', 'https://vault.test/broker-training-preview')
     expect(mockFetch).not.toHaveBeenCalled()
   })
