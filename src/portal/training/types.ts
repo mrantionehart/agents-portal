@@ -79,10 +79,19 @@ export interface HubSearchFilters {
 
 // ── Result envelope ─────────────────────────────────────────────────
 
+export interface CtmModuleLink {
+  id: string;
+  title: string;
+  open_url: string;
+}
+
 export type TrainingHubResult =
   | {
       kind: "ok";
       training: HubItem[];
+      /** CTM (volume 10) modules, kept OUT of `training`: listed only inside the
+       *  CTM card, which renders after Vault's CTM gate admits the caller. */
+      ctmModules?: CtmModuleLink[];
       scripts: HubItem[];
       resources: HubItem[];
       continueWatching: ContinueWatching | null;

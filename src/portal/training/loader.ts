@@ -23,6 +23,7 @@ import {
 } from "./helpers";
 import type {
   HubItem,
+  CtmModuleLink,
   TrainingHubResult,
   TrainingModuleRow,
   TrainingVideoProgressRow,
@@ -75,7 +76,17 @@ export async function loadTrainingHub(input: {
         .eq("user_id", callerId),
     ]);
 
-    const modules = (modulesRes.data ?? []) as TrainingModuleRow[];
+    const allModules = (modulesRes.data ?? []) as TrainingModuleRow[];
+    // CTM (volume 10) is assignment-only training. Its modules are never in the
+    // open hub list: an unassigned agent, a TC/admin or another tenant would see
+    // 16 titles with "Open" links that Vault then refuses. They are handed to the
+    // CTM card instead, which shows them only once Vault's CTM gate admits the
+    // caller (a live assignment, or the Broker of Record's read-only preview).
+    const modules = allModules.filter((m) => m.volume !== 10);
+    const ctmModules: CtmModuleLink[] = modulesToHubItems(
+      allModules.filter((m) => m.volume === 10),
+      new Map(),
+    ).map((i) => ({ id: i.id, title: i.title, open_url: i.open_url }));
     const videos = (videosRes.data ?? []) as TrainingVideoRow[];
     const progressRows = (progressRes.data ?? []) as TrainingVideoProgressRow[];
 
@@ -88,6 +99,7 @@ export async function loadTrainingHub(input: {
     return {
       kind: "ok",
       training,
+      ctmModules,
       scripts,
       resources,
       continueWatching,

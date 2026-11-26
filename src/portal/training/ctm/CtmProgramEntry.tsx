@@ -58,7 +58,14 @@ function summary(p: CertifiedProgress): string {
   return `${done} of ${total} modules complete.`
 }
 
-export function CtmProgramEntry({ role }: { role: string | null }) {
+export function CtmProgramEntry({
+  role,
+  modules = [],
+}: {
+  role: string | null
+  /** CTM module links from the hub loader; shown only after Vault admits the caller. */
+  modules?: { id: string; title: string; open_url: string }[]
+}) {
   const isBroker = role === 'broker'
   const [state, setState] = useState<State>({ kind: 'loading' })
 
@@ -110,7 +117,7 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
   return (
     <div
       data-testid="ctm-entry"
-      className="mb-6 rounded-lg border border-[#2A2A31] bg-[#17171B] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      className="mb-6 rounded-lg border border-[#2A2A31] bg-[#17171B] px-4 py-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3"
     >
       <div className="flex items-start gap-3">
         <ClipboardCheck className="h-5 w-5 text-[#C9A84C] mt-0.5 shrink-0" />
@@ -156,6 +163,20 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
           {isBroker ? 'Preview training' : 'Continue training'}
         </Link>
       </div>
+      {modules.length > 0 && (
+        <details className="sm:basis-full w-full" data-testid="ctm-entry-modules">
+          <summary className="cursor-pointer text-xs text-[#A1A1AA]">All {modules.length} modules</summary>
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            {modules.map((m) => (
+              <li key={m.id}>
+                <Link href={m.open_url} className="text-sm text-[#F1F1F3] hover:text-[#C9A84C]">
+                  {m.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   )
 }

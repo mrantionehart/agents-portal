@@ -82,7 +82,7 @@ export default async function TrainingHubPage({
       <FinalExamEntry />
       <PdiTrainingEntry />
       {/* CTM-1 — renders only when Vault's learner gate admits this user (or a broker DRAFT preview). */}
-      <CtmProgramEntry role={role} />
+      <CtmProgramEntry role={role} modules={result.kind === "ok" ? result.ctmModules ?? [] : []} />
       <TrainingHubClient
         training={result.training}
         scripts={result.scripts}
