@@ -63,7 +63,8 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
   const [state, setState] = useState<State>({ kind: 'loading' })
 
   useEffect(() => {
-    if (isBroker) return
+    // Brokers read progress too (Vault lets the broker READ CTM, never write),
+    // so the Broker Agent View shows the same card agents see.
     let live = true
     void (async () => {
       try {
@@ -78,7 +79,7 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
     }
   }, [isBroker])
 
-  if (isBroker) {
+  if (isBroker && state.kind !== 'learner') {
     return (
       <div
         data-testid="ctm-entry-broker-preview"
@@ -104,6 +105,7 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
   }
 
   if (state.kind !== 'learner') return null
+  const progress = state.progress
 
   return (
     <div
@@ -122,7 +124,11 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
               Required training
             </span>
           </p>
-          <p className="text-sm text-[#A1A1AA]" data-testid="ctm-entry-summary">{summary(state.progress)}</p>
+          <p className="text-sm text-[#A1A1AA]" data-testid="ctm-entry-summary">
+            {isBroker
+              ? 'Broker preview: open every lesson, simulation, quiz and the final exam as agents see them. Nothing is recorded.'
+              : summary(progress)}
+          </p>
         </div>
       </div>
       <div className="flex gap-2 shrink-0">
@@ -133,12 +139,21 @@ export function CtmProgramEntry({ role }: { role: string | null }) {
         >
           Checklists &amp; downloads
         </Link>
+        {isBroker && (
+          <a
+            href={CTM_VAULT_BROKER_PREVIEW_URL}
+            data-testid="ctm-entry-vault"
+            className="rounded-md px-3 py-1.5 text-sm border border-[#C9A84C] text-[#C9A84C]"
+          >
+            Review in Vault
+          </a>
+        )}
         <Link
-          href={continueHref(state.progress)}
+          href={isBroker ? trackHref(CTM_CERTIFICATION_ID, CTM_FIRST_TRACK_ID) : continueHref(progress)}
           data-testid="ctm-entry-open"
           className="rounded-md px-3 py-1.5 text-sm font-semibold bg-[#C9A84C] text-black"
         >
-          Continue training
+          {isBroker ? 'Preview training' : 'Continue training'}
         </Link>
       </div>
     </div>
