@@ -3,46 +3,29 @@
 // CRUD for buyers, offers, risk flags, approvals, and offer mode presets
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { VAULT_BASE_URL } from '@/lib/vault-client'
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 // ---------------------------------------------------------------------------
-// Auth helper (supports Bearer token from EASE + SSR cookie from portal)
+// Auth: shared requireAuth (Bearer from EASE + SSR cookie from portal, plus
+// the profiles is_active / suspended / deleted gate).
+//
+// FINSEC closeout — tenant scope. `buyers` and `offers` carry no tenant_id,
+// and migration 025's RLS (buyers_agent_policy / offers_agent_policy) admits
+// ANY broker/admin to EVERY row, in every brokerage. RLS is therefore not a
+// tenant boundary here, so broker-tier callers are scoped in code to the
+// agents of their own tenant. A broker-tier caller with no tenant fails closed.
 // ---------------------------------------------------------------------------
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
+async function tenantAgentIds(db: ReturnType<typeof userClient>, tenantId: string): Promise<string[]> {
+  const { data } = await db.from('profiles').select('id').eq('tenant_id', tenantId)
+  return ((data as { id: string }[] | null) || []).map((r) => r.id)
 }
+
+const forbidden = () => NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
 // ---------------------------------------------------------------------------
 // Readiness score calculator
@@ -182,8 +165,10 @@ function calcCommissionPreview(offerPrice: number, splitPct = 3, capRemaining?: 
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: was service-role; now user JWT + RLS.
     // Coverage: buyers_agent_policy / offers_agent_policy / approvals_policy /
@@ -195,14 +180,17 @@ export async function GET(request: NextRequest) {
     const entity = searchParams.get('entity') || 'offers'
     const id = searchParams.get('id')
 
-    const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
+    const { data: profile } = await db.from('profiles').select('role, tenant_id').eq('id', user.id).single()
     const role = profile?.role || 'agent'
     const isBroker = role === 'broker' || role === 'admin'
+    const callerTenantId = (profile?.tenant_id as string | null) ?? null
+    if (isBroker && !callerTenantId) return forbidden()
+    const scopeIds = isBroker ? await tenantAgentIds(db, callerTenantId as string) : [user.id]
 
     switch (entity) {
       case 'buyers': {
         let q = db.from('buyers').select('*').order('updated_at', { ascending: false })
-        if (!isBroker) q = q.eq('agent_id', user.id)
+        q = isBroker ? q.in('agent_id', scopeIds) : q.eq('agent_id', user.id)
         if (id) {
           const { data, error } = await q.eq('id', id).single()
           if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -215,7 +203,7 @@ export async function GET(request: NextRequest) {
 
       case 'offers': {
         let q = db.from('offers').select('*, buyers(first_name, last_name, readiness_score, preapproval_status), offer_risk_flags(*), offer_approvals(*)').order('updated_at', { ascending: false })
-        if (!isBroker) q = q.eq('agent_id', user.id)
+        q = isBroker ? q.in('agent_id', scopeIds) : q.eq('agent_id', user.id)
         const statusFilter = searchParams.get('status')
         if (statusFilter) q = q.eq('status', statusFilter)
         if (id) {
@@ -266,16 +254,19 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
     const db = userClient(request)
     const body = await request.json()
     const entity = body.entity
 
-    const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single()
+    const { data: profile } = await db.from('profiles').select('role, tenant_id').eq('id', user.id).single()
     const role = profile?.role || 'agent'
+    const callerTenantId = (profile?.tenant_id as string | null) ?? null
 
     switch (entity) {
       case 'buyer': {
@@ -306,6 +297,16 @@ export async function POST(request: NextRequest) {
         if (!d.buyer_id) return NextResponse.json({ error: 'buyer_id is required' }, { status: 400 })
         if (!d.offer_price) return NextResponse.json({ error: 'offer_price is required' }, { status: 400 })
         if (!d.property_address) return NextResponse.json({ error: 'property_address is required' }, { status: 400 })
+        // FINSEC closeout — the buyer must be the caller's own, or (broker/admin)
+        // belong to an agent of the caller's own tenant. RLS alone lets any
+        // broker/admin attach another brokerage's buyer to an offer.
+        const { data: linkBuyer } = await db.from('buyers').select('id, agent_id').eq('id', d.buyer_id).maybeSingle()
+        const buyerInScope =
+          !!linkBuyer &&
+          (linkBuyer.agent_id === user.id ||
+            ((role === 'broker' || role === 'admin') && !!callerTenantId &&
+              (await tenantAgentIds(db, callerTenantId)).includes(linkBuyer.agent_id)))
+        if (!buyerInScope) return NextResponse.json({ error: 'Buyer not found' }, { status: 404 })
 
         const offer: Record<string, any> = {
           buyer_id: d.buyer_id,
@@ -373,20 +374,39 @@ export async function POST(request: NextRequest) {
         console.log('submit_for_approval — offerId:', offerId, 'userId:', user.id)
 
         // Fetch the offer details for notification content
-        const { data: offerData } = await db.from('offers').select('*, buyers(first_name, last_name)').eq('id', offerId).single()
+        const { data: offerData } = await db.from('offers').select('*, buyers(first_name, last_name)').eq('id', offerId).eq('agent_id', user.id).maybeSingle()
 
-        // Update offer status
-        const { error: updateErr } = await db.from('offers').update({ status: 'pending_approval' }).eq('id', offerId).eq('agent_id', user.id)
+        // FINSEC closeout — the approving broker must be in the caller's OWN
+        // tenant. This used to take the first broker/admin profile of ANY
+        // tenant, so an offer (buyer name, price, address) could be routed to,
+        // and emailed to, another brokerage. No tenant → fail closed.
+        if (!callerTenantId) return forbidden()
+        const { data: brokers } = await db
+          .from('profiles')
+          .select('id, email, full_name')
+          .eq('tenant_id', callerTenantId)
+          .eq('is_active', true)
+          .in('role', ['broker', 'admin'])
+          .limit(1)
+        const broker = brokers?.[0]
+        if (!broker) return NextResponse.json({ error: 'No broker is available to approve this offer' }, { status: 409 })
+        const brokerId = broker.id
+        console.log('Assigned broker:', brokerId)
+
+        // Update offer status — the caller's own offer only. A miss (someone
+        // else's offer, or none) stops here instead of creating an approval.
+        const { data: updatedOffer, error: updateErr } = await db
+          .from('offers')
+          .update({ status: 'pending_approval' })
+          .eq('id', offerId)
+          .eq('agent_id', user.id)
+          .select('id')
+          .maybeSingle()
         if (updateErr) {
           console.error('Offer status update error:', updateErr.message)
           return NextResponse.json({ error: updateErr.message }, { status: 500 })
         }
-
-        // Find a broker to assign (first broker/admin in profiles)
-        const { data: brokers } = await db.from('profiles').select('id, email, full_name').in('role', ['broker', 'admin']).limit(1)
-        const broker = brokers?.[0]
-        const brokerId = broker?.id || user.id
-        console.log('Assigned broker:', brokerId)
+        if (!updatedOffer) return NextResponse.json({ error: 'Offer not found' }, { status: 404 })
 
         const { data: approval, error } = await db.from('offer_approvals').insert({
           offer_id: offerId,
@@ -497,10 +517,14 @@ export async function POST(request: NextRequest) {
 
         const updates: any = { approval_status: newStatus, notes }
         if (action === 'approve') updates.approved_at = new Date().toISOString()
-        await db.from('offer_approvals').update(updates).eq('id', approval_id)
+        // FINSEC closeout — only an approval assigned to THIS broker (which,
+        // since submit_for_approval, is always a same-tenant broker). RLS
+        // approvals_policy says the same; this keeps it true if RLS drifts.
+        const { data: appr } = await db.from('offer_approvals').select('offer_id').eq('id', approval_id).eq('broker_id', user.id).maybeSingle()
+        if (!appr) return NextResponse.json({ error: 'Approval not found' }, { status: 404 })
+        await db.from('offer_approvals').update(updates).eq('id', approval_id).eq('broker_id', user.id)
 
         // Also update offer status
-        const { data: appr } = await db.from('offer_approvals').select('offer_id').eq('id', approval_id).single()
         if (appr) {
           const offerStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'draft'
           await db.from('offers').update({ status: offerStatus }).eq('id', appr.offer_id)
@@ -595,35 +619,49 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint 8B Phase 4B: user JWT + RLS (see GET handler header).
     const db = userClient(request)
     const body = await request.json()
     const entity = body.entity
 
+    // FINSEC closeout — same scope as GET: an agent edits only their own rows;
+    // a broker/admin only rows of agents in their own tenant. agent_id is not
+    // writable here (no reassignment across agents or tenants).
+    const { data: profile } = await db.from('profiles').select('role, tenant_id').eq('id', user.id).single()
+    const isBroker = profile?.role === 'broker' || profile?.role === 'admin'
+    const callerTenantId = (profile?.tenant_id as string | null) ?? null
+    if (isBroker && !callerTenantId) return forbidden()
+    const scopeIds = isBroker ? await tenantAgentIds(db, callerTenantId as string) : [user.id]
+
     switch (entity) {
       case 'buyer': {
-        const { id, ...updates } = body.data
+        const { id, agent_id: _ignoredAgent, ...updates } = body.data || {}
         if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
         if (updates.preapproval_status !== undefined || updates.proof_of_funds_uploaded !== undefined ||
             updates.id_verified !== undefined || updates.earnest_money_ready !== undefined) {
           // Recalculate readiness on relevant field changes
-          const { data: existing } = await db.from('buyers').select('*').eq('id', id).single()
+          const { data: existing } = await db.from('buyers').select('*').eq('id', id).in('agent_id', scopeIds).maybeSingle()
+          if (!existing) return NextResponse.json({ error: 'Buyer not found' }, { status: 404 })
           const merged = { ...existing, ...updates }
           updates.readiness_score = calcReadinessScore(merged)
         }
-        const { data, error } = await db.from('buyers').update(updates).eq('id', id).select().single()
+        const { data, error } = await db.from('buyers').update(updates).eq('id', id).in('agent_id', scopeIds).select().maybeSingle()
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (!data) return NextResponse.json({ error: 'Buyer not found' }, { status: 404 })
         return NextResponse.json({ buyer: data, readiness: { score: data.readiness_score, label: readinessLabel(data.readiness_score) } })
       }
 
       case 'offer': {
-        const { id, ...updates } = body.data
+        const { id, agent_id: _ignoredAgent, ...updates } = body.data || {}
         if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
-        const { data, error } = await db.from('offers').update(updates).eq('id', id).select().single()
+        const { data, error } = await db.from('offers').update(updates).eq('id', id).in('agent_id', scopeIds).select().maybeSingle()
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (!data) return NextResponse.json({ error: 'Offer not found' }, { status: 404 })
         return NextResponse.json({ offer: data })
       }
 

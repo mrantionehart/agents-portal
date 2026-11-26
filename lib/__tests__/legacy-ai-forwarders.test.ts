@@ -6,7 +6,8 @@ let mockSession: {access_token:string}|null
 const mockInsert = jest.fn()
 jest.mock('@supabase/ssr',()=>({createServerClient:()=>({auth:{getSession:async()=>({data:{session:mockSession}}),getUser:async()=>({data:{user:mockUser}})}})}))
 jest.mock('@supabase/supabase-js',()=>({createClient:()=>({auth:{getUser:async()=>({data:{user:mockUser},error:null})}})}))
-jest.mock('@/lib/security',()=>({userClient:()=>({
+// FINSEC closeout: the templates route uses the shared gate (exercised for real in __tests__/api/finsec-closeout-auth-tenant.test.ts).
+jest.mock('@/lib/security',()=>({requireAuth:async()=>{const {NextResponse}=jest.requireActual('next/server');return mockUser?{user:mockUser}:{response:NextResponse.json({error:'Unauthorized'},{status:401})}},userClient:()=>({
  from:(table:string)=>table==='profiles'?{select:()=>({eq:()=>({single:async()=>({data:{role:mockRole}})})})}:{insert:mockInsert},
  storage:{from:()=>({upload:async()=>({error:null})})}
 })}))

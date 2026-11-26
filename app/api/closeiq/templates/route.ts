@@ -3,11 +3,9 @@
 // Upload, list, and manage Florida Realtors fillable PDF form templates
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { inflate } from 'zlib'
 import { promisify } from 'util'
-import { userClient } from '@/lib/security'
+import { requireAuth, userClient } from '@/lib/security'
 import { proxyToVault } from '@/lib/vault-forward'
 
 const inflateAsync = promisify(inflate)
@@ -19,34 +17,6 @@ export const maxDuration = 60
 // ---------------------------------------------------------------------------
 // Auth helper
 // ---------------------------------------------------------------------------
-async function getAuthedUser(request: NextRequest) {
-  const auth = request.headers.get('authorization') || ''
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim()
-    try {
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-      const { data, error } = await sb.auth.getUser(token)
-      if (error || !data.user) return null
-      return data.user
-    } catch { return null }
-  }
-  try {
-    const stubResponse = NextResponse.json({})
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: CookieOptions) { stubResponse.cookies.set({ name, value, ...options }) },
-          remove(name: string, options: CookieOptions) { stubResponse.cookies.delete(name) },
-        },
-      }
-    )
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch { return null }
-}
 
 // ---------------------------------------------------------------------------
 // Detect if a PDF is XFA-based (Florida Realtors / Form Simplicity)
@@ -237,8 +207,10 @@ async function suggestFieldMapping(request: NextRequest, pdfFieldNames: string[]
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint D-3 Track B: was service-role; now user JWT + RLS.
     // Coverage: contract_templates SELECT (authenticated reads active=true);
@@ -285,8 +257,10 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint D-3 Track B: was service-role; now user JWT + RLS.
     // Coverage: contract_templates INSERT (broker WITH CHECK); storage
@@ -410,8 +384,10 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthedUser(request)
-    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const user = auth.user
 
     // Sprint D-3 Track B: was service-role; now user JWT + RLS.
     // Coverage: contract_templates UPDATE (broker). In-code broker gate

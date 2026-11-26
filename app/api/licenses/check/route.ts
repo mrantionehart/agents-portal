@@ -13,11 +13,9 @@
 // Body: { agent_id?: string }  — omit to scan all agents.
 // ---------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import sgMail from '@sendgrid/mail';
 import { sendExpoPushToUsers } from '@/lib/push-notifications';
-import { adminClient } from '@/lib/security'
+import { requireAuth, adminClient } from '@/lib/security'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,59 +26,30 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+// FINSEC closeout — who the caller may see. This route reads `profiles` with
+// the service role, so RLS is NOT a boundary and every predicate is the
+// route's own. Before: GET had no role check at all (its "Verify caller is
+// broker/admin" read was never used) and returned every agent's license data
+// in every tenant; POST let any signed-in user scan, notify and list every
+// agent in every tenant.
+//   • broker/admin: own tenant only; no tenant → 403.
+//   • every other role: their own profile only (POST); GET is broker-only.
+async function callerScope(
+  admin: ReturnType<typeof getAdminClient>,
+  userId: string
+): Promise<{ isBroker: boolean; tenantId: string | null } | null> {
+  const { data } = await admin.from('profiles').select('role, tenant_id').eq('id', userId).single();
+  if (!data) return null;
+  return {
+    isBroker: data.role === 'broker' || data.role === 'admin',
+    tenantId: (data.tenant_id as string | null) ?? null,
+  };
+}
+
 function getAdminClient(userId?: string) {
   return adminClient('license-check-system-scan', { userId, context: 'POST /api/licenses/check' });
 }
 
-async function getAuthedUser(
-  request: NextRequest
-): Promise<{ userId: string } | null> {
-  // 1. Bearer token (mobile / curl)
-  const auth = request.headers.get('authorization') || '';
-  if (auth.toLowerCase().startsWith('bearer ')) {
-    const token = auth.slice(7).trim();
-    try {
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data, error } = await sb.auth.getUser(token);
-      if (error || !data.user) return null;
-      return { userId: data.user.id };
-    } catch {
-      return null;
-    }
-  }
-
-  // 2. SSR cookie (portal)
-  try {
-    const stubResponse = NextResponse.json({});
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            stubResponse.cookies.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            stubResponse.cookies.delete(name);
-          },
-        },
-      }
-    );
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-    return { userId: user.id };
-  } catch {
-    return null;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Alert thresholds (days before expiration)
@@ -104,17 +73,25 @@ interface LicenseAlert {
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const caller = await getAuthedUser(request);
-    if (!caller) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const caller = { userId: auth.user.id }
 
     const body = await request.json().catch(() => ({}));
     const { agent_id } = body as { agent_id?: string };
 
-    const admin = getAdminClient();
+    const admin = getAdminClient(caller.userId);
     const now = new Date();
     const alerts: LicenseAlert[] = [];
+
+    const scope = await callerScope(admin, caller.userId);
+    if (!scope || (scope.isBroker && !scope.tenantId)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+    if (!scope.isBroker && agent_id && agent_id !== caller.userId) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
 
     // ------------------------------------------------------------------
     // 1. Fetch agent profiles with license data
@@ -124,8 +101,11 @@ export async function POST(request: NextRequest) {
       .select('id, full_name, email, license_number, license_state, license_expiration_date, license_status, ce_hours_required, ce_hours_completed, ce_renewal_date, role')
       .in('role', ['agent', 'admin']);
 
-    if (agent_id) {
-      query = query.eq('id', agent_id);
+    if (scope.isBroker) {
+      query = query.eq('tenant_id', scope.tenantId as string);
+      if (agent_id) query = query.eq('id', agent_id);
+    } else {
+      query = query.eq('id', caller.userId);
     }
 
     const { data: agents, error: agentErr } = await query;
@@ -481,11 +461,15 @@ export async function POST(request: NextRequest) {
     const criticalAlerts = alerts.filter((a) => a.severity === 'critical');
 
     if (criticalAlerts.length > 0) {
-      // Get all broker/admin profiles
-      const { data: brokers } = await admin
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('role', ['admin', 'broker']);
+      // Broker/admin profiles of the caller's own tenant only (was: every
+      // brokerage's brokers got every tenant's agent license alerts).
+      const { data: brokers } = scope.tenantId
+        ? await admin
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('tenant_id', scope.tenantId)
+            .in('role', ['admin', 'broker'])
+        : { data: [] as { id: string; full_name: string; email: string }[] };
 
       if (brokers && brokers.length > 0) {
         const brokerNotifRows = [];
@@ -551,23 +535,23 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
-    const caller = await getAuthedUser(request);
-    if (!caller) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    // FINSEC closeout — shared gate: 401 no session, 403 inactive/suspended/deleted.
+    const auth = await requireAuth(request)
+    if (auth.response) return auth.response
+    const caller = { userId: auth.user.id }
+
+    const admin = getAdminClient(caller.userId);
+
+    // Verify caller is broker/admin (this check was read but never applied).
+    const scope = await callerScope(admin, caller.userId);
+    if (!scope || !scope.isBroker || !scope.tenantId) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
-
-    const admin = getAdminClient();
-
-    // Verify caller is broker/admin
-    const { data: callerProfile } = await admin
-      .from('profiles')
-      .select('role')
-      .eq('id', caller.userId)
-      .single();
 
     const { data: agents, error } = await admin
       .from('profiles')
       .select('id, full_name, email, license_number, license_state, license_expiration_date, license_status, ce_hours_required, ce_hours_completed, ce_renewal_date, role')
+      .eq('tenant_id', scope.tenantId)
       .in('role', ['agent', 'admin'])
       .order('license_expiration_date', { ascending: true, nullsFirst: false });
 

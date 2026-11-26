@@ -200,6 +200,14 @@ function makeAdminClient() {
 }
 
 jest.mock('@/lib/security', () => ({
+  requireAuth: async () => {
+    // FINSEC closeout — the route now uses the shared gate; the gate itself
+    // is exercised for real in __tests__/api/finsec-closeout-auth-tenant.test.ts.
+    const { NextResponse } = jest.requireActual("next/server");
+    return AUTHED_USER
+      ? { user: AUTHED_USER }
+      : { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  },
   adminClient: jest.fn(() => makeAdminClient()),
 }))
 

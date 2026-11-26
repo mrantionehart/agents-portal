@@ -3,7 +3,8 @@
 // POST /api/broker/client-intelligence/[id]/claim
 // ============================================================================
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/security';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -22,7 +23,7 @@ function getSupabase() {
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   // LEAD-POOL (2026-11-13) · the claim is made by the database, as the
@@ -31,6 +32,10 @@ export async function POST(
   // write path, it enforces licence + brokerage + audience + first-claim-wins,
   // and it can set only the ownership columns.
   try {
+    // FINSEC closeout — shared gate first (adds the is_active / suspended /
+    // deleted check this cookie-only route never made).
+    const gate = await requireAuth(request);
+    if (gate.response) return gate.response;
     const { id } = await params;
     const supabase = getSupabase();
     const { data: { user } } = await supabase.auth.getUser();

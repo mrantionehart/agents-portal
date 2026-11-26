@@ -48,7 +48,16 @@ function fakeClient() {
 
 let AUTHED_USER: { id: string } | null = { id: "u-caller" };
 
-jest.mock("@/lib/security", () => ({ userClient: () => fakeClient() }));
+jest.mock("@/lib/security", () => ({
+  requireAuth: async () => {
+    // FINSEC closeout — the route now uses the shared gate; the gate itself
+    // is exercised for real in __tests__/api/finsec-closeout-auth-tenant.test.ts.
+    const { NextResponse } = jest.requireActual("next/server");
+    return AUTHED_USER
+      ? { user: AUTHED_USER }
+      : { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  },
+  userClient: () => fakeClient() }));
 jest.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ auth: { getUser: async () => ({ data: { user: AUTHED_USER }, error: null }) } }),
 }));

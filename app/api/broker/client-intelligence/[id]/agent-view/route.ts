@@ -6,7 +6,8 @@
 // Strips: broker_notes, red_flags, commission data, profitability
 // ============================================================================
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/security";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -25,10 +26,14 @@ function getSupabase() {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // FINSEC closeout — shared gate first (adds the is_active / suspended /
+    // deleted check this cookie-only route never made).
+    const gate = await requireAuth(request);
+    if (gate.response) return gate.response;
     const { id } = await params;
     const supabase = getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +41,7 @@ export async function GET(
 
     const { data: userProfile } = await supabase
       .from("profiles")
-      .select("role, full_name, email, phone")
+      .select("role, full_name, email, phone, tenant_id")
       .eq("id", user.id)
       .single();
 
@@ -49,7 +54,9 @@ export async function GET(
       .eq("id", id)
       .single();
 
-    if (error || !profile) {
+    // FINSEC closeout — a client profile in another tenant answers exactly like
+    // a missing one (RLS alone bounded this before). No caller tenant → 404.
+    if (error || !profile || !userProfile.tenant_id || profile.tenant_id !== userProfile.tenant_id) {
       return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
     }
 

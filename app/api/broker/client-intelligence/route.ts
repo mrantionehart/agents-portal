@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/security';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -23,17 +24,26 @@ function getSupabase() {
 
 export async function GET(request: NextRequest) {
   try {
+    // FINSEC closeout — shared gate first (adds the is_active / suspended /
+    // deleted check this cookie-only route never made).
+    const gate = await requireAuth(request);
+    if (gate.response) return gate.response;
     const supabase = getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    // FINSEC closeout — client profiles are tenant data. "Brokers see all" and
+    // the dispo feed were bounded by RLS alone; now by the caller's tenant in
+    // code. No tenant → fail closed.
+    const callerTenantId = (profile.tenant_id as string | null) ?? null;
+    if (!callerTenantId) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
     const searchParams = request.nextUrl.searchParams;
     const tab = searchParams.get('tab'); // "dispo" | "mine" | "all"
@@ -44,6 +54,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('client_profiles')
       .select('*')
+      .eq('tenant_id', callerTenantId)
       .order('created_at', { ascending: false });
 
     if (tab === 'dispo') {

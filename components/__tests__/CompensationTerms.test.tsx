@@ -35,7 +35,7 @@ const cap = (over: Partial<CapProgress> = {}): CapProgress => ({
 
 describe('HFOS-P1 — CompensationTerms', () => {
   it('shows the standard tier with its split, fee and cap', () => {
-    render(<CompensationTerms plan={plan()} capProgress={cap()} />)
+    render(<CompensationTerms termsVerified plan={plan()} capProgress={cap()} />)
     expect(screen.getByTestId('tier-badge')).toHaveTextContent('Standard Agent')
     expect(screen.getByText('70% / 30%')).toBeInTheDocument()
     expect(screen.getByText('$295')).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('HFOS-P1 — CompensationTerms', () => {
 
   it('shows the FOUNDING tier distinctly', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan({ tier: 'founding', tierLabel: 'Founding Agent', agentSplitPct: 75, brokerageSplitPct: 25 })}
         capProgress={cap()}
       />,
@@ -57,7 +57,7 @@ describe('HFOS-P1 — CompensationTerms', () => {
 
   it('renders the fee and cap Vault sent, not the familiar defaults', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan({ transactionFee: 0, annualCap: 30000 })}
         capProgress={cap({ annual_cap: 30000 })}
       />,
@@ -72,7 +72,7 @@ describe('HFOS-P1 — CompensationTerms', () => {
     // Deliberately inconsistent: 10000/25000 would be 40%, Vault says 88%.
     // The component must trust Vault; a second calculation is a second answer.
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan()}
         capProgress={cap({ total_contributed: 10000, annual_cap: 25000, progress_pct: 88 })}
       />,
@@ -81,32 +81,32 @@ describe('HFOS-P1 — CompensationTerms', () => {
   })
 
   it('treats an uncapped (null) progress_pct as empty, not full', () => {
-    render(<CompensationTerms plan={plan()} capProgress={cap({ progress_pct: null })} />)
+    render(<CompensationTerms termsVerified plan={plan()} capProgress={cap({ progress_pct: null })} />)
     expect(screen.getByTestId('cap-bar')).toHaveStyle({ width: '0%' })
   })
 
   it('reports an active waiver and an ended one differently', () => {
     const { unmount } = render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan({ waiver: { ...plan().waiver, activeThisMonth: true } })}
         capProgress={cap()}
       />,
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
     unmount()
-    render(<CompensationTerms plan={plan()} capProgress={cap()} />)
+    render(<CompensationTerms termsVerified plan={plan()} capProgress={cap()} />)
     expect(screen.getByText('Ended')).toBeInTheDocument()
   })
 
   it('shows the error and NO figures when Vault could not be read', () => {
-    render(<CompensationTerms plan={null} capProgress={null} error="Session expired." />)
+    render(<CompensationTerms termsVerified plan={null} capProgress={null} error="Session expired." />)
     expect(screen.getByText('Session expired.')).toBeInTheDocument()
     expect(screen.queryByTestId('tier-badge')).toBeNull()
     expect(screen.queryByText('$295')).toBeNull()
   })
 
   it('renders nothing at all rather than a placeholder plan', () => {
-    const { container } = render(<CompensationTerms plan={null} capProgress={null} />)
+    const { container } = render(<CompensationTerms termsVerified plan={null} capProgress={null} />)
     expect(container).toBeEmptyDOMElement()
   })
 })
@@ -114,7 +114,7 @@ describe('HFOS-P1 — CompensationTerms', () => {
 describe('HFOF-P1 — custom split overrides', () => {
   it('marks a broker-authorized custom split and shows the effective figures', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan({ agentSplitPct: 85, brokerageSplitPct: 15, splitSource: 'override' })}
         capProgress={cap()}
       />,
@@ -127,14 +127,14 @@ describe('HFOF-P1 — custom split overrides', () => {
   })
 
   it('shows no custom marker on the ordinary tier path', () => {
-    render(<CompensationTerms plan={plan({ splitSource: 'tier' })} capProgress={cap()} />)
+    render(<CompensationTerms termsVerified plan={plan({ splitSource: 'tier' })} capProgress={cap()} />)
     expect(screen.queryByTestId('override-badge')).toBeNull()
     expect(screen.getByText('70% / 30%')).toBeInTheDocument()
   })
 
   it('states an UNAUTHORIZED override instead of displaying it as in force', () => {
     render(
-      <CompensationTerms
+      <CompensationTerms termsVerified
         plan={plan({ splitSource: 'tier', splitOverrideRefusal: 'not_authorized', splitRequestedPct: 100 })}
         capProgress={cap()}
       />,
@@ -149,7 +149,7 @@ describe('HFOF-P1 — custom split overrides', () => {
   })
 
   it('says nothing about overrides when there is no request at all', () => {
-    render(<CompensationTerms plan={plan()} capProgress={cap()} />)
+    render(<CompensationTerms termsVerified plan={plan()} capProgress={cap()} />)
     expect(screen.queryByTestId('override-pending')).toBeNull()
     expect(screen.queryByTestId('override-badge')).toBeNull()
   })

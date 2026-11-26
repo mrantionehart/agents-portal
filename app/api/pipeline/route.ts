@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, userClient } from '@/lib/security'
 import { TYPE_GROUPS, TYPE_GROUP_ORDER, groupTransactionsByType } from '@/app/api/pipeline/type-groups'
+import { payableAmount } from '@/lib/commissionPayable'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
     if (txIds.length > 0) {
       const { data: commissions } = await admin
         .from('commissions')
-        .select('transaction_id, gross_commission, commission_rate_pct, agent_amount, agent_split_pct')
+        .select('transaction_id, gross_commission, commission_rate_pct, net_commission, commission_status')
         .in('transaction_id', txIds)
 
       for (const c of commissions || []) {
@@ -142,6 +143,7 @@ export async function GET(request: NextRequest) {
       let totalVolume = 0
       let potentialGCI = 0
       let probableGCI = 0
+      let gciPendingCount = 0
 
       for (const stageKey of STAGE_ORDER) {
         const stage = STAGE_MAP[stageKey]
@@ -150,15 +152,17 @@ export async function GET(request: NextRequest) {
         const volume = stageTxs.reduce((sum, t) => sum + (t.contract_price || 0), 0)
         totalVolume += volume
 
-        // Calculate GCI for this stage
+        // Calculate GCI for this stage.
+        // FINSEC closeout (P1) — recorded gross commission only. A deal with
+        // no commission row used to be counted at an invented 3% of price;
+        // it is now counted as pending, never estimated.
         let stageGCI = 0
         for (const tx of stageTxs) {
-          const comm = commissionsMap[tx.id]
-          if (comm) {
-            stageGCI += comm.gross_commission || 0
+          const gross = commissionsMap[tx.id]?.gross_commission
+          if (gross != null && Number.isFinite(Number(gross))) {
+            stageGCI += Number(gross)
           } else {
-            // Estimate: 3% default commission rate if no commission record
-            stageGCI += (tx.contract_price || 0) * 0.03
+            gciPendingCount++
           }
         }
 
@@ -190,8 +194,12 @@ export async function GET(request: NextRequest) {
             city: t.city,
             contract_price: t.contract_price,
             closing_date: t.closing_date,
-            gci: commissionsMap[t.id]?.gross_commission || (t.contract_price || 0) * 0.03,
-            agent_amount: commissionsMap[t.id]?.agent_amount || 0,
+            // Recorded gross, or null — never a 3% estimate.
+            gci: commissionsMap[t.id]?.gross_commission ?? null,
+            // The canonical payable figure (net_commission via
+            // lib/commissionPayable), null until Vault has calculated it.
+            // Replaces agent_amount, which is not what Vault pays.
+            payable: payableAmount(commissionsMap[t.id]),
           })),
         })
       }
@@ -206,6 +214,7 @@ export async function GET(request: NextRequest) {
           totalVolume,
           potentialGCI: Math.round(potentialGCI * 100) / 100,
           probableGCI: Math.round(probableGCI * 100) / 100,
+          gciPendingCount,
         },
       })
     }
@@ -216,6 +225,7 @@ export async function GET(request: NextRequest) {
       totalVolume: (transactions || []).reduce((s, t) => s + (t.contract_price || 0), 0),
       potentialGCI: pipelineGroups.reduce((s, g) => s + g.summary.potentialGCI, 0),
       probableGCI: pipelineGroups.reduce((s, g) => s + g.summary.probableGCI, 0),
+      gciPendingCount: pipelineGroups.reduce((s, g) => s + g.summary.gciPendingCount, 0),
       closedDeals: (transactions || []).filter(t => t.status === 'closed').length,
       closedVolume: (transactions || []).filter(t => t.status === 'closed').reduce((s, t) => s + (t.contract_price || 0), 0),
     }

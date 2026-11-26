@@ -23,8 +23,8 @@ interface PipelineStage {
     city: string
     contract_price: number
     closing_date: string
-    gci: number
-    agent_amount: number
+    gci: number | null
+    payable: number | null
   }[]
 }
 
@@ -46,6 +46,7 @@ interface PipelineTotals {
   totalVolume: number
   potentialGCI: number
   probableGCI: number
+  gciPendingCount?: number
   closedDeals: number
   closedVolume: number
 }
@@ -201,13 +202,17 @@ export default function PipelinePage() {
                 <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Potential GCI</span>
               </div>
               <p className="text-3xl font-bold text-amber-600">{formatCurrency(totals.potentialGCI)}</p>
+              <p data-testid="gci-basis" className="text-xs text-gray-400 mt-1">
+                Recorded commissions only
+                {totals.gciPendingCount ? ` · ${totals.gciPendingCount} deal${totals.gciPendingCount === 1 ? '' : 's'} not yet calculated` : ''}
+              </p>
             </div>
             <div className="bg-[#0a0a0f] rounded-xl border border-[#1a1a2e] p-5">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
                   <DollarSign className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Probable Income</span>
+                <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Probable GCI (stage-weighted)</span>
               </div>
               <p className="text-3xl font-bold text-green-600">{formatCurrency(totals.probableGCI)}</p>
             </div>

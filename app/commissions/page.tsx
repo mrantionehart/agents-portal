@@ -22,6 +22,7 @@ import {
 // Vault; this page performs no commission arithmetic of its own.
 import CompensationTerms, {
   type CompensationPlan,
+  type SignedTerms,
   type CapProgress,
   type CapBlock,
 } from '@/components/CompensationTerms'
@@ -36,6 +37,12 @@ export default function CommissionsPage() {
   const [capProgress, setCapProgress] = useState<CapProgress | null>(null)
   const [cap, setCap] = useState<CapBlock | null>(null)
   const [planError, setPlanError] = useState<string | null>(null)
+  // FEE-NO-ASSUME-1 — Vault marks profile-default plans unverified.
+  const [terms, setTerms] = useState<{ verified: boolean | null; notice: string | null; signed: SignedTerms | null }>({
+    verified: null,
+    notice: null,
+    signed: null,
+  })
 
   useEffect(() => {
     if (!loading && !user) {
@@ -94,6 +101,11 @@ export default function CommissionsPage() {
       }
       const data = await res.json()
       setPlan(data?.plan ?? null)
+      setTerms({
+        verified: typeof data?.terms_verified === 'boolean' ? data.terms_verified : null,
+        notice: typeof data?.terms_notice === 'string' ? data.terms_notice : null,
+        signed: data?.signed_terms ?? null,
+      })
       setCapProgress(data?.capProgress ?? null)
       // Vault's authoritative projected-vs-actual block.
       setCap(data?.cap ?? null)
@@ -159,7 +171,15 @@ export default function CommissionsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <CompensationTerms plan={plan} capProgress={capProgress} cap={cap} error={planError} />
+        <CompensationTerms
+          plan={plan}
+          capProgress={capProgress}
+          cap={cap}
+          error={planError}
+          termsVerified={terms.verified}
+          termsNotice={terms.notice}
+          signedTerms={terms.signed}
+        />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">

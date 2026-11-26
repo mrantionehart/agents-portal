@@ -100,8 +100,10 @@ describe('FINSEC P0-4 — Commission Calculator page (RTL)', () => {
     const btn = screen.getByRole('button', { name: /Calculate with Vault/i })
     expect(btn).toBeEnabled()
     fireEvent.click(btn)
-    await waitFor(() => expect(mockAuthFetch).toHaveBeenCalled())
-    expect(mockAuthFetch.mock.calls[0][0]).toMatch(/\/commissions\/calculate$/)
+    // The page also reads /api/vault/compensation on mount (FINSEC closeout).
+    await waitFor(() =>
+      expect(mockAuthFetch.mock.calls.some(([u]) => /\/commissions\/calculate$/.test(u))).toBe(true),
+    )
     expectNoIdentityHeaders()
   })
 })
